@@ -228,6 +228,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_iso9660.c \
 	libarchive/archive_write_set_format_mtree.c \
 	libarchive/archive_write_set_format_pax.c \
+	libarchive/archive_write_set_format_private.h \
 	libarchive/archive_write_set_format_raw.c \
 	libarchive/archive_write_set_format_shar.c \
 	libarchive/archive_write_set_format_ustar.c \

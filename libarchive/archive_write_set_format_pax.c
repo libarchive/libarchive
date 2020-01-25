@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_pax.c 201162 20
 #include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 struct sparse_block {
 	struct sparse_block	*next;
@@ -713,17 +714,9 @@ archive_write_pax_header(struct archive_write *a,
 			}
 			break;
 		}
-		case AE_IFSOCK:
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive socket");
-			return (ARCHIVE_FAILED);
-		default:
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive this (type=0%lo)",
-			    (unsigned long)
-			    archive_entry_filetype(entry_original));
+		default: /* AE_IFSOCK and unknown */
+			__archive_write_entry_filetype_unsupported(
+			    &a->archive, entry_original, "pax");
 			return (ARCHIVE_FAILED);
 		}
 	}

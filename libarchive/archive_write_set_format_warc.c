@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_random_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 struct warc_s {
 	unsigned int omit_warcinfo:1;
@@ -259,10 +260,8 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_OK);
 	}
 	/* just resort to erroring as per Tim's advice */
-	archive_set_error(
-		&a->archive,
-		ARCHIVE_ERRNO_FILE_FORMAT,
-		"WARC can only process regular files");
+	__archive_write_entry_filetype_unsupported(
+	    &a->archive, entry, "WARC");
 	return (ARCHIVE_FAILED);
 }
 

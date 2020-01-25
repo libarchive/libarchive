@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_rb.h"
 #include "archive_string.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 /*
  * Codec ID
