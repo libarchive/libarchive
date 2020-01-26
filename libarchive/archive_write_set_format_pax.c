@@ -852,13 +852,16 @@ archive_write_pax_header(struct archive_write *a,
 	 * them do.
 	 */
 	r = get_entry_pathname(a, entry_main, &path, &path_length, sconv);
-	if (r == ARCHIVE_FATAL)
+	if (r == ARCHIVE_FATAL) {
+		archive_entry_free(entry_main);
 		return (r);
-	else if (r != ARCHIVE_OK) {
+	} else if (r != ARCHIVE_OK) {
 		r = get_entry_pathname(a, entry_main, &path,
 		    &path_length, NULL);
-		if (r == ARCHIVE_FATAL)
+		if (r == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
 			return (r);
+		}
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s", path,
 		    archive_string_conversion_charset_name(sconv));
@@ -866,12 +869,15 @@ archive_write_pax_header(struct archive_write *a,
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
 	r = get_entry_uname(a, entry_main, &uname, &uname_length, sconv);
-	if (r == ARCHIVE_FATAL)
+	if (r == ARCHIVE_FATAL) {
+		archive_entry_free(entry_main);
 		return (r);
-	else if (r != ARCHIVE_OK) {
+	} else if (r != ARCHIVE_OK) {
 		r = get_entry_uname(a, entry_main, &uname, &uname_length, NULL);
-		if (r == ARCHIVE_FATAL)
+		if (r == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
 			return (r);
+		}
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate uname '%s' to %s", uname,
 		    archive_string_conversion_charset_name(sconv));
@@ -879,12 +885,15 @@ archive_write_pax_header(struct archive_write *a,
 		sconv = NULL;/* The header charset switches to binary mode. */
 	}
 	r = get_entry_gname(a, entry_main, &gname, &gname_length, sconv);
-	if (r == ARCHIVE_FATAL)
+	if (r == ARCHIVE_FATAL) {
+		archive_entry_free(entry_main);
 		return (r);
-	else if (r != ARCHIVE_OK) {
+	} else if (r != ARCHIVE_OK) {
 		r = get_entry_gname(a, entry_main, &gname, &gname_length, NULL);
-		if (r == ARCHIVE_FATAL)
+		if (r == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
 			return (r);
+		}
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate gname '%s' to %s", gname,
 		    archive_string_conversion_charset_name(sconv));
@@ -896,13 +905,16 @@ archive_write_pax_header(struct archive_write *a,
 	if (linkpath == NULL) {
 		r = get_entry_symlink(a, entry_main, &linkpath,
 		    &linkpath_length, sconv);
-		if (r == ARCHIVE_FATAL)
+		if (r == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
 			return (r);
-		else if (r != ARCHIVE_OK) {
+		} else if (r != ARCHIVE_OK) {
 			r = get_entry_symlink(a, entry_main, &linkpath,
 			    &linkpath_length, NULL);
-			if (r == ARCHIVE_FATAL)
+			if (r == ARCHIVE_FATAL) {
+				archive_entry_free(entry_main);
 				return (r);
+			}
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate linkname '%s' to %s", linkpath,
@@ -918,21 +930,29 @@ archive_write_pax_header(struct archive_write *a,
 		if (hardlink != NULL) {
 			r = get_entry_hardlink(a, entry_main, &hardlink,
 			    &hardlink_length, NULL);
-			if (r == ARCHIVE_FATAL)
+			if (r == ARCHIVE_FATAL) {
+				archive_entry_free(entry_main);
 				return (r);
+			}
 			linkpath = hardlink;
 			linkpath_length = hardlink_length;
 		}
 		r = get_entry_pathname(a, entry_main, &path,
 		    &path_length, NULL);
-		if (r == ARCHIVE_FATAL)
+		if (r == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
 			return (r);
+		}
 		r = get_entry_uname(a, entry_main, &uname, &uname_length, NULL);
-		if (r == ARCHIVE_FATAL)
+		if (r == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
 			return (r);
+		}
 		r = get_entry_gname(a, entry_main, &gname, &gname_length, NULL);
-		if (r == ARCHIVE_FATAL)
+		if (r == ARCHIVE_FATAL) {
+			archive_entry_free(entry_main);
 			return (r);
+		}
 	}
 
 	/* Store the header encoding first, to be nice to readers. */
@@ -1189,24 +1209,33 @@ archive_write_pax_header(struct archive_write *a,
 			    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID |
 			    ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA |
 			    ARCHIVE_ENTRY_ACL_STYLE_COMPACT);
-			if (ret == ARCHIVE_FATAL)
+			if (ret == ARCHIVE_FATAL) {
+				archive_entry_free(entry_main);
+				archive_string_free(&entry_name);
 				return (ARCHIVE_FATAL);
+			}
 		}
 		if (acl_types & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) {
 			ret = add_pax_acl(a, entry_original, pax,
 			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
 			    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID |
 			    ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA);
-			if (ret == ARCHIVE_FATAL)
+			if (ret == ARCHIVE_FATAL) {
+				archive_entry_free(entry_main);
+				archive_string_free(&entry_name);
 				return (ARCHIVE_FATAL);
+			}
 		}
 		if (acl_types & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) {
 			ret = add_pax_acl(a, entry_original, pax,
 			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
 			    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID |
 			    ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA);
-			if (ret == ARCHIVE_FATAL)
+			if (ret == ARCHIVE_FATAL) {
+				archive_entry_free(entry_main);
+				archive_string_free(&entry_name);
 				return (ARCHIVE_FATAL);
+			}
 		}
 
 		/* We use GNU-tar-compatible sparse attributes. */
@@ -1345,8 +1374,11 @@ archive_write_pax_header(struct archive_write *a,
 	 * numeric fields, though they're less critical.
 	 */
 	if (__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0,
-	    NULL) == ARCHIVE_FATAL)
+	    NULL) == ARCHIVE_FATAL) {
+		archive_entry_free(entry_main);
+		archive_string_free(&entry_name);
 		return (ARCHIVE_FATAL);
+	}
 
 	/* If we built any extended attributes, write that entry first. */
 	if (archive_strlen(&(pax->pax_header)) > 0) {
@@ -1411,6 +1443,8 @@ archive_write_pax_header(struct archive_write *a,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "archive_write_pax_header: "
 			    "'x' header failed?!  This can't happen.\n");
+			archive_entry_free(entry_main);
+			archive_string_free(&entry_name);
 			return (ARCHIVE_FATAL);
 		} else if (r < ret)
 			ret = r;
@@ -1419,6 +1453,8 @@ archive_write_pax_header(struct archive_write *a,
 			sparse_list_clear(pax);
 			pax->entry_bytes_remaining = 0;
 			pax->entry_padding = 0;
+			archive_entry_free(entry_main);
+			archive_string_free(&entry_name);
 			return (ARCHIVE_FATAL);
 		}
 
@@ -1430,12 +1466,16 @@ archive_write_pax_header(struct archive_write *a,
 		    archive_strlen(&(pax->pax_header)));
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
+			archive_entry_free(entry_main);
+			archive_string_free(&entry_name);
 			return (ARCHIVE_FATAL);
 		}
 		/* Pad out the end of the entry. */
 		r = __archive_write_nulls(a, (size_t)pax->entry_padding);
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
+			archive_entry_free(entry_main);
+			archive_string_free(&entry_name);
 			return (ARCHIVE_FATAL);
 		}
 		pax->entry_bytes_remaining = pax->entry_padding = 0;
@@ -1443,8 +1483,11 @@ archive_write_pax_header(struct archive_write *a,
 
 	/* Write the header for main entry. */
 	r = __archive_write_output(a, ustarbuff, 512);
-	if (r != ARCHIVE_OK)
+	if (r != ARCHIVE_OK) {
+		archive_entry_free(entry_main);
+		archive_string_free(&entry_name);
 		return (r);
+	}
 
 	/*
 	 * Inform the client of the on-disk size we're using, so
