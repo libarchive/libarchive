@@ -155,9 +155,9 @@ IF (MSVC)
   #################################################################
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
-  # Enable level 4 C4061: The enumerate has no associated handler in a switch
-  #                       statement.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4061")
+  # Enable level 4 C4062: The enumerate has no associated handler in a switch
+  #                       statement and there is no default that can catch it.
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4062")
   # Enable level 4 C4254: A larger bit field was assigned to a smaller bit
   #                       field.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4254")
