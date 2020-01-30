@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2020
+.Dd January 31, 2020
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -575,7 +575,14 @@ As above, but the corresponding key and value will be provided
 only to modules whose name matches
 .Ar module .
 .El
-The currently supported modules and keys are:
+.Pp
+The complete list of supported modules and keys
+for create and append modes is in
+.Xr archive_write_set_options 3
+and for extract and list modes in
+.Xr archive_read_set_options 3 .
+.Pp
+Examples of supported options:
 .Bl -tag -compact -width indent
 .It Cm iso9660:joliet
 Support Joliet extensions.
@@ -650,23 +657,6 @@ lines in the output.
 .It Cm mtree:indent
 Produce human-readable output by indenting options and splitting lines
 to fit into 80 columns.
-.It Cm xar:checksum Ns = Ns Ar type
-Use
-.Ar type
-as file checksum method.
-Supported values are none, md5 and sha1 (default).
-.It Cm xar:compression Ns = Ns Ar type
-Use
-.Ar type
-as compression method.
-Supported values are none, bzip2, gzip (default), lzma and xz.
-.It Cm xar:compression_level
-A decimal integer from 1 to 9 specifying the compression level.
-.It Cm xar:toc-checksum Ns = Ns Ar type
-Use
-.Ar type
-as table of contents checksum method.
-Supported values are none, md5 and sha1 (default).
 .It Cm zip:compression Ns = Ns Ar type
 Use
 .Ar type
