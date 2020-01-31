@@ -49,12 +49,24 @@ struct archive_rb_node {
     __archive_rb_tree_iterate((T), NULL, ARCHIVE_RB_DIR_LEFT)
 #define ARCHIVE_RB_TREE_MAX(T) \
     __archive_rb_tree_iterate((T), NULL, ARCHIVE_RB_DIR_RIGHT)
+#define ARCHIVE_RB_TREE_NEXT(T, N) \
+    __archive_rb_tree_iterate((T), (N), ARCHIVE_RB_DIR_RIGHT)
+#define ARCHIVE_RB_TREE_PREV(T, N) \
+    __archive_rb_tree_iterate((T), (N), ARCHIVE_RB_DIR_LEFT)
 #define ARCHIVE_RB_TREE_FOREACH(N, T) \
     for ((N) = ARCHIVE_RB_TREE_MIN(T); (N); \
-	(N) = __archive_rb_tree_iterate((T), (N), ARCHIVE_RB_DIR_RIGHT))
+	(N) = ARCHIVE_RB_TREE_NEXT((T), (N)))
 #define ARCHIVE_RB_TREE_FOREACH_REVERSE(N, T) \
     for ((N) = ARCHIVE_RB_TREE_MAX(T); (N); \
-	(N) = __archive_rb_tree_iterate((T), (N), ARCHIVE_RB_DIR_LEFT))
+	(N) = ARCHIVE_RB_TREE_PREV((T), (N)))
+#define ARCHIVE_RB_TREE_FOREACH_SAFE(N, T, S) \
+    for ((N) = ARCHIVE_RB_TREE_MIN(T); \
+	(N) && ((S) = ARCHIVE_RB_TREE_NEXT((T), (N)), 1); \
+	(N) = (S))
+#define ARCHIVE_RB_TREE_FOREACH_REVERSE_SAFE(N, T, S) \
+    for ((N) = ARCHIVE_RB_TREE_MAX(T); \
+        (N) && ((S) = ARCHIVE_RB_TREE_PREV((T), (N)), 1); \
+        (N) = (S))
 
 /*
  * archive_rbto_compare_nodes_fn:

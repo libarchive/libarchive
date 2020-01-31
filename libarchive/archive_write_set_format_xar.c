@@ -2563,13 +2563,11 @@ file_init_hardlinks(struct xar *xar)
 static void
 file_free_hardlinks(struct xar *xar)
 {
-	struct archive_rb_node *n, *next;
+	struct archive_rb_node *n, *tmp;
 
-	for (n = ARCHIVE_RB_TREE_MIN(&(xar->hardlink_rbtree)); n;) {
-		next = __archive_rb_tree_iterate(&(xar->hardlink_rbtree),
-		    n, ARCHIVE_RB_DIR_RIGHT);
+	ARCHIVE_RB_TREE_FOREACH_SAFE(n, &(xar->hardlink_rbtree), tmp) {
+		__archive_rb_tree_remove_node(&(xar->hardlink_rbtree), n);
 		free(n);
-		n = next;
 	}
 }
 
