@@ -2085,6 +2085,8 @@ static int scan_for_signature(struct archive_read* a);
 static int process_base_block(struct archive_read* a,
     struct archive_entry* entry)
 {
+	const size_t SMALLEST_RAR5_BLOCK_SIZE = 3;
+
 	struct rar5* rar = get_context(a);
 	uint32_t hdr_crc, computed_crc;
 	size_t raw_hdr_size = 0, hdr_size_len, hdr_size;
@@ -2114,15 +2116,26 @@ static int process_base_block(struct archive_read* a,
 		return ARCHIVE_EOF;
 	}
 
+	hdr_size = raw_hdr_size + hdr_size_len;
+
 	/* Sanity check, maximum header size for RAR5 is 2MB. */
-	if(raw_hdr_size > (2 * 1024 * 1024)) {
+	if(hdr_size > (2 * 1024 * 1024)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Base block header is too large");
 
 		return ARCHIVE_FATAL;
 	}
 
-	hdr_size = raw_hdr_size + hdr_size_len;
+	/* Additional sanity checks to weed out invalid files. */
+	if(raw_hdr_size == 0 || hdr_size_len == 0 ||
+		hdr_size < SMALLEST_RAR5_BLOCK_SIZE)
+	{
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Too small block encountered (%ld bytes)",
+		    raw_hdr_size);
+
+		return ARCHIVE_FATAL;
+	}
 
 	/* Read the whole header data into memory, maximum memory use here is
 	 * 2MB. */
