@@ -806,6 +806,7 @@ DEFINE_TEST(test_read_format_7zip_lzma1)
 		test_bcj("test_read_format_7zip_bcj2_lzma1_1.7z");
 		test_bcj("test_read_format_7zip_bcj2_lzma1_2.7z");
 		test_delta_lzma("test_read_format_7zip_delta_lzma1.7z");
+		test_delta_lzma("test_read_format_7zip_delta4_lzma1.7z");
 	}
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -826,6 +827,7 @@ DEFINE_TEST(test_read_format_7zip_lzma2)
 		test_bcj("test_read_format_7zip_bcj2_lzma2_1.7z");
 		test_bcj("test_read_format_7zip_bcj2_lzma2_2.7z");
 		test_delta_lzma("test_read_format_7zip_delta_lzma2.7z");
+		test_delta_lzma("test_read_format_7zip_delta4_lzma2.7z");
 	}
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

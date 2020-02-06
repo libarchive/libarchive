@@ -752,7 +752,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_copy_2.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate.7z.uu \
 	libarchive/test/test_read_format_7zip_delta_lzma1.7z.uu \
+	libarchive/test/test_read_format_7zip_delta4_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_delta_lzma2.7z.uu \
+	libarchive/test/test_read_format_7zip_delta4_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_empty_archive.7z.uu \
 	libarchive/test/test_read_format_7zip_empty_file.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption.7z.uu \
