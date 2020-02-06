@@ -73,15 +73,14 @@
  * 0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x01, 0x00
  * "Rar!→•☺·\x00"
  *
- * It's stored in `rar5_signature` after XOR'ing it with 0xA1, because I don't
+ * Retrieved with `rar5_signature()` by XOR'ing it with 0xA1, because I don't
  * want to put this magic sequence in each binary that uses libarchive, so
  * applications that scan through the file for this marker won't trigger on
  * this "false" one.
  *
  * The array itself is decrypted in `rar5_init` function. */
 
-static unsigned char rar5_signature[] = { 243, 192, 211, 128, 187, 166, 160, 161 };
-static const ssize_t rar5_signature_size = sizeof(rar5_signature);
+static unsigned char rar5_signature_xor[] = { 243, 192, 211, 128, 187, 166, 160, 161 };
 static const size_t g_unpack_window_size = 0x20000;
 
 /* These could have been static const's, but they aren't, because of
@@ -357,6 +356,7 @@ struct rar5 {
 
 /* Forward function declarations. */
 
+static void rar5_signature(char *buf);
 static int verify_global_checksums(struct archive_read* a);
 static int rar5_read_data_skip(struct archive_read *a);
 static int push_data_ready(struct archive_read* a, struct rar5* rar,
@@ -1086,11 +1086,14 @@ static int read_u64(struct archive_read* a, uint64_t* pvalue) {
 
 static int bid_standard(struct archive_read* a) {
 	const uint8_t* p;
+	char signature[sizeof(rar5_signature_xor)];
 
-	if(!read_ahead(a, rar5_signature_size, &p))
+	rar5_signature(signature);
+
+	if(!read_ahead(a, sizeof(rar5_signature_xor), &p))
 		return -1;
 
-	if(!memcmp(rar5_signature, p, rar5_signature_size))
+	if(!memcmp(signature, p, sizeof(rar5_signature_xor)))
 		return 30;
 
 	return -1;
@@ -2282,7 +2285,7 @@ static int rar5_read_header(struct archive_read *a,
 	}
 
 	if(rar->skipped_magic == 0) {
-		if(ARCHIVE_OK != consume(a, rar5_signature_size)) {
+		if(ARCHIVE_OK != consume(a, sizeof(rar5_signature_xor))) {
 			return ARCHIVE_EOF;
 		}
 
@@ -3097,6 +3100,7 @@ static int scan_for_signature(struct archive_read* a) {
 	const uint8_t* p;
 	const int chunk_size = 512;
 	ssize_t i;
+	char signature[sizeof(rar5_signature_xor)];
 
 	/* If we're here, it means we're on an 'unknown territory' data.
 	 * There's no indication what kind of data we're reading here.
@@ -3110,19 +3114,23 @@ static int scan_for_signature(struct archive_read* a) {
 	 * end of the file? If so, it would be a better approach than the
 	 * current implementation of this function. */
 
+	rar5_signature(signature);
+
 	while(1) {
 		if(!read_ahead(a, chunk_size, &p))
 			return ARCHIVE_EOF;
 
-		for(i = 0; i < chunk_size - rar5_signature_size; i++) {
-			if(memcmp(&p[i], rar5_signature,
-			    rar5_signature_size) == 0) {
+		for(i = 0; i < chunk_size - (int)sizeof(rar5_signature_xor);
+		    i++) {
+			if(memcmp(&p[i], signature,
+			    sizeof(rar5_signature_xor)) == 0) {
 				/* Consume the number of bytes we've used to
 				 * search for the signature, as well as the
 				 * number of bytes used by the signature
 				 * itself. After this we should be standing
 				 * on a valid base block header. */
-				(void) consume(a, i + rar5_signature_size);
+				(void) consume(a,
+				    i + sizeof(rar5_signature_xor));
 				return ARCHIVE_OK;
 			}
 		}
@@ -3887,6 +3895,18 @@ static int verify_global_checksums(struct archive_read* a) {
 	return verify_checksums(a);
 }
 
+/*
+ * Decryption function for the magic signature pattern. Check the comment near
+ * the `rar5_signature_xor` symbol to read the rationale behind this.
+ */
+static void rar5_signature(char *buf) {
+		size_t i;
+
+		for(i = 0; i < sizeof(rar5_signature_xor); i++) {
+			buf[i] = rar5_signature_xor[i] ^ 0xA1;
+		}
+}
+
 static int rar5_read_data(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset) {
 	int ret;
@@ -4033,18 +4053,7 @@ static int rar5_has_encrypted_entries(struct archive_read *_a) {
 }
 
 static int rar5_init(struct rar5* rar) {
-	ssize_t i;
-
 	memset(rar, 0, sizeof(struct rar5));
-
-	/* Decrypt the magic signature pattern. Check the comment near the
-	 * `rar5_signature` symbol to read the rationale behind this. */
-
-	if(rar5_signature[0] == 243) {
-		for(i = 0; i < rar5_signature_size; i++) {
-			rar5_signature[i] ^= 0xA1;
-		}
-	}
 
 	if(CDE_OK != cdeque_init(&rar->cstate.filters, 8192))
 		return ARCHIVE_FATAL;
