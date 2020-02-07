@@ -49,7 +49,7 @@ IF "%1"=="deplibs" (
     mingw32-make VERBOSE=1 || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     CD build_ci\cmake
-    cmake --build . --target ALL_BUILD --config Release
+    cmake --build . --target ALL_BUILD --config Release || EXIT /b 1
   )
 ) ELSE IF "%1%"=="test" (
   IF "%BE%"=="mingw-gcc" (
@@ -62,13 +62,13 @@ IF "%1"=="deplibs" (
     ECHO "Skipping tests on this platform"
     EXIT /b 0
     REM CD build_ci\cmake
-    REM cmake --build . --target RUN_TESTS --config Release
+    REM cmake --build . --target RUN_TESTS --config Release || EXIT /b 1
   )
 ) ELSE IF "%1%"=="install" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     CD build_ci\cmake
-    mingw32-make install DESTDIR=%cd%\destdir
+    mingw32-make install DESTDIR=%cd%\destdir || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     cmake --build . --target INSTALL --config Release
   )
