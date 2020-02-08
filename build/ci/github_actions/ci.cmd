@@ -94,12 +94,15 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     CD build_ci\cmake
-    mingw32-make install DESTDIR=%cd%\destdir || EXIT /b 1
+    mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
-    cmake --build . --target INSTALL --config Release
+    CD build_ci\cmake
+    cmake --build . --target INSTALL --config Release || EXIT /b 1
   )
+) ELSE IF "%1"=="artifact" (
+    tar -c -C "C:\Program Files (x86)" --format=zip -f libarchive.zip libarchive
 ) ELSE (
-  ECHO "Usage: %0% deplibs|configure|build|test|install"
+  ECHO "Usage: %0% deplibs|configure|build|test|install|artifact"
   @EXIT /b 0
 )
 @EXIT /b 0
