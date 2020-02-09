@@ -18,17 +18,17 @@ IF "%1"=="deplibs" (
     MKDIR build_ci\libs
   )
   CD build_ci\libs
-  IF NOT EXIST zlib-%ZLIB_VERSION%.tar.gz (
-    curl -o zlib-%ZLIB_VERSION%.tar.gz https://www.zlib.net/zlib-%ZLIB_VERSION%.tar.gz
+  IF NOT EXIST zlib-%ZLIB_VERSION%.zip (
+    curl -L -o zlib-%ZLIB_VERSION%.zip https://github.com/libarchive/zlib/archive/v%ZLIB_VERSION%.zip
   )
   IF NOT EXIST zlib-%ZLIB_VERSION% (
-    tar -x -z -f zlib-%ZLIB_VERSION%.tar.gz
+    tar -x -f zlib-%ZLIB_VERSION%.zip
   )
   IF NOT EXIST bzip2-%BZIP2_VERSION%.zip (
-    curl -L -o bzip2-%BZIP2_VERSION%.zip https://gitlab.com/federicomenaquintero/bzip2/-/archive/%BZIP2_VERSION%/bzip2-%BZIP2_VERSION%.zip
+    curl -L -o bzip2-%BZIP2_VERSION%.zip https://github.com/libarchive/bzip2/archive/%BZIP2_VERSION%.zip
   )
   IF NOT EXIST bzip2-%BZIP2_VERSION% (
-    tar -x -z -f bzip2-%BZIP2_VERSION%.zip
+    tar -x -f bzip2-%BZIP2_VERSION%.zip
   )
   CD zlib-%ZLIB_VERSION%
   IF "%BE%"=="mingw-gcc" (
