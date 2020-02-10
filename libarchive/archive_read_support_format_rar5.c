@@ -2134,7 +2134,7 @@ static int process_base_block(struct archive_read* a,
 		hdr_size < SMALLEST_RAR5_BLOCK_SIZE)
 	{
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Too small block encountered (%ld bytes)",
+		    "Too small block encountered (%zu bytes)",
 		    raw_hdr_size);
 
 		return ARCHIVE_FATAL;
