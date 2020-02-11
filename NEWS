@@ -1,3 +1,5 @@
+Feb 11, 2020: libarchive 3.4.2 released
+
 Jan 23, 2020: Important fixes for writing XAR archives
 
 Jan 20, 2020: New tar option: --safe-writes (atomical file extraction)
