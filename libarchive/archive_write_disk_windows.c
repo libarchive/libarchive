@@ -1670,6 +1670,20 @@ create_filesystem_object(struct archive_write_disk *a)
 			errno = EINVAL;
 			r = -1;
 		} else {
+			/*
+			 * Unlinking and linking here is really not atomic,
+			 * but doing it right, would require us to construct
+			 * an mktemplink() function, and then use _wrename().
+			 */
+			if (a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) {
+				attrs = GetFileAttributesW(namefull);
+				if (attrs != INVALID_FILE_ATTRIBUTES) {
+					if (attrs & FILE_ATTRIBUTE_DIRECTORY)
+						disk_rmdir(namefull);
+					else
+						disk_unlink(namefull);
+				}
+			}
 			r = la_CreateHardLinkW(namefull, linkfull);
 			if (r == 0) {
 				la_dosmaperr(GetLastError());
@@ -1709,9 +1723,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		/*
 		 * Unlinking and linking here is really not atomic,
 		 * but doing it right, would require us to construct
-		 * an mktemplink() function, and then use rename(2).
-		 *
-		 * The original link may be a directory symlink.
+		 * an mktemplink() function, and then use _wrename().
 		 */
 		attrs = GetFileAttributesW(a->name);
 		if (attrs != INVALID_FILE_ATTRIBUTES) {
