@@ -2306,6 +2306,13 @@ create_filesystem_object(struct archive_write_disk *a)
 	linkname = archive_entry_symlink(a->entry);
 	if (linkname != NULL) {
 #if HAVE_SYMLINK
+		/*
+		 * Unlinking and linking here is really not atomic,
+		 * but doing it right, would require us to construct
+		 * an mktempsymlink() function, and then use rename(2).
+		 */
+		if (a->flags & ARCHIVE_EXTRACT_SAFE_WRITES)
+			unlink(a->name);
 		return symlink(linkname, a->name) ? errno : 0;
 #else
 		return (EPERM);
