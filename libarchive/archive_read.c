@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read.c 201157 2009-12-29 05:30:2
 static int	choose_filters(struct archive_read *);
 static int	choose_format(struct archive_read *);
 static int	close_filters(struct archive_read *);
-static struct archive_vtable *archive_read_vtable(void);
 static int64_t	_archive_filter_bytes(struct archive *, int);
 static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
@@ -73,26 +72,18 @@ static int	_archive_read_next_header2(struct archive *,
 		    struct archive_entry *);
 static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
 
-static struct archive_vtable *
-archive_read_vtable(void)
-{
-	static struct archive_vtable av;
-	static int inited = 0;
-
-	if (!inited) {
-		av.archive_filter_bytes = _archive_filter_bytes;
-		av.archive_filter_code = _archive_filter_code;
-		av.archive_filter_name = _archive_filter_name;
-		av.archive_filter_count = _archive_filter_count;
-		av.archive_read_data_block = _archive_read_data_block;
-		av.archive_read_next_header = _archive_read_next_header;
-		av.archive_read_next_header2 = _archive_read_next_header2;
-		av.archive_free = _archive_read_free;
-		av.archive_close = _archive_read_close;
-		inited = 1;
-	}
-	return (&av);
-}
+static const struct archive_vtable
+archive_read_vtable = {
+	.archive_filter_bytes = _archive_filter_bytes,
+	.archive_filter_code = _archive_filter_code,
+	.archive_filter_name = _archive_filter_name,
+	.archive_filter_count = _archive_filter_count,
+	.archive_read_data_block = _archive_read_data_block,
+	.archive_read_next_header = _archive_read_next_header,
+	.archive_read_next_header2 = _archive_read_next_header2,
+	.archive_free = _archive_read_free,
+	.archive_close = _archive_read_close,
+};
 
 /*
  * Allocate, initialize and return a struct archive object.
@@ -109,7 +100,7 @@ archive_read_new(void)
 
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->entry = archive_entry_new2(&a->archive);
-	a->archive.vtable = archive_read_vtable();
+	a->archive.vtable = &archive_read_vtable;
 
 	a->passphrases.last = &a->passphrases.first;
 

@@ -107,7 +107,7 @@ struct archive {
 	 * Some public API functions depend on the "real" type of the
 	 * archive object.
 	 */
-	struct archive_vtable *vtable;
+	const struct archive_vtable *vtable;
 
 	int		  archive_format;
 	const char	 *archive_format_name;
