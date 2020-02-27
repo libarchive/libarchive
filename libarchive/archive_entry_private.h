@@ -50,6 +50,15 @@ struct ae_sparse {
 	int64_t	 length;
 };
 
+struct ae_digest {
+	unsigned char md5[16];
+	unsigned char rmd160[20];
+	unsigned char sha1[20];
+	unsigned char sha256[32];
+	unsigned char sha384[48];
+	unsigned char sha512[64];
+};
+
 /*
  * Description of an archive entry.
  *
