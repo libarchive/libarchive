@@ -1429,6 +1429,28 @@ archive_entry_copy_mac_metadata(struct archive_entry *entry,
   }
 }
 
+/* Digest handling */
+const unsigned char *
+archive_entry_digest(struct archive_entry *entry, int type)
+{
+	switch (type) {
+	case ARCHIVE_ENTRY_DIGEST_MD5:
+		return entry->digest.md5;
+	case ARCHIVE_ENTRY_DIGEST_RMD160:
+		return entry->digest.rmd160;
+	case ARCHIVE_ENTRY_DIGEST_SHA1:
+		return entry->digest.sha1;
+	case ARCHIVE_ENTRY_DIGEST_SHA256:
+		return entry->digest.sha256;
+	case ARCHIVE_ENTRY_DIGEST_SHA384:
+		return entry->digest.sha384;
+	case ARCHIVE_ENTRY_DIGEST_SHA512:
+		return entry->digest.sha512;
+	default:
+		return NULL;
+	}
+}
+
 /*
  * ACL management.  The following would, of course, be a lot simpler
  * if: 1) the last draft of POSIX.1e were a really thorough and
