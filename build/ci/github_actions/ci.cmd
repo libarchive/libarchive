@@ -25,7 +25,7 @@ IF "%1"=="deplibs" (
   )
   IF NOT EXIST zlib-%ZLIB_VERSION% (
     ECHO Unpacking zlib-%ZLIB_VERSION%.zip
-    tar -x -f zlib-%ZLIB_VERSION%.zip || EXIT /b 1
+    C:\windows\system32\tar.exe -x -f zlib-%ZLIB_VERSION%.zip || EXIT /b 1
   )
   IF NOT EXIST bzip2-%BZIP2_VERSION%.zip (
     echo Downloading https://github.com/libarchive/bzip2/archive/%BZIP2_VERSION%.zip
@@ -33,7 +33,7 @@ IF "%1"=="deplibs" (
   )
   IF NOT EXIST bzip2-%BZIP2_VERSION% (
     echo Unpacking bzip2-%BZIP2_VERSION%.zip
-    tar -x -f bzip2-%BZIP2_VERSION%.zip || EXIT /b 1
+    C:\windows\system32\tar.exe -x -f bzip2-%BZIP2_VERSION%.zip || EXIT /b 1
   )
   IF NOT EXIST xz-%XZ_VERSION%.zip (
     echo Downloading https://github.com/libarchive/xz/archive/%XZ_VERSION%.zip
@@ -41,7 +41,7 @@ IF "%1"=="deplibs" (
   )
   IF NOT EXIST xz-%XZ_VERSION% (
     echo Unpacking xz-%XZ_VERSION%.zip
-    tar -x -f xz-%XZ_VERSION%.zip || EXIT /b 1
+    C:\windows\system32\tar.exe -x -f xz-%XZ_VERSION%.zip || EXIT /b 1
   )
   CD zlib-%ZLIB_VERSION%
   IF "%BE%"=="mingw-gcc" (
@@ -124,7 +124,7 @@ IF "%1"=="deplibs" (
     cmake --build . --target INSTALL --config Release || EXIT /b 1
   )
 ) ELSE IF "%1"=="artifact" (
-    tar -c -C "C:\Program Files (x86)" --format=zip -f libarchive.zip libarchive
+    C:\windows\system32\tar.exe -c -C "C:\Program Files (x86)" --format=zip -f libarchive.zip libarchive
 ) ELSE (
   ECHO "Usage: %0% deplibs|configure|build|test|install|artifact"
   @EXIT /b 0
