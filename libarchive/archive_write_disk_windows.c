@@ -1281,8 +1281,9 @@ _archive_write_disk_finish_entry(struct archive *_a)
 			/* Windows does not support atomic rename */
 			disk_unlink(a->name);
 			if (_wrename(a->tmpname, a->name) != 0) {
+				disk_unlink(a->tmpname);
 				archive_set_error(&a->archive, errno,
-				    "rename failed");
+				    "Failed to safe write");
 				ret = ARCHIVE_FATAL;
 			}
 			a->tmpname = NULL;

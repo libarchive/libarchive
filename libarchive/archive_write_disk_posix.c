@@ -1855,8 +1855,9 @@ finish_metadata:
 		a->fd = -1;
 		if (a->tmpname) {
 			if (rename(a->tmpname, a->name) == -1) {
+				unlink(a->tmpname);
 				archive_set_error(&a->archive, errno,
-				    "rename failed");
+				    "Failed to safe write");
 				ret = ARCHIVE_FATAL;
 			}
 			a->tmpname = NULL;
