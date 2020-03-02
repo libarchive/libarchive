@@ -1235,7 +1235,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	memcpy(cpio->destdir, destdir, cpio->destdir_len);
 	if (cpio->destdir_len == 0 || destdir[cpio->destdir_len - 1] != '/')
 		cpio->destdir[cpio->destdir_len++] = '/';
-	cpio->destdir[cpio->destdir_len + 1] = '\0';
+	cpio->destdir[cpio->destdir_len] = '\0';
 
 	cpio->archive = archive_write_disk_new();
 	if (cpio->archive == NULL)
