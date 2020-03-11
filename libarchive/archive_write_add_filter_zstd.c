@@ -59,6 +59,8 @@ struct private_data {
 #endif
 };
 
+#define CLEVEL_STD_MAX 19 /* without using --ultra */
+
 static int archive_compressor_zstd_options(struct archive_write_filter *,
 		    const char *, const char *);
 static int archive_compressor_zstd_open(struct archive_write_filter *);
@@ -299,6 +301,10 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 	archive_string_init(&as);
 	/* --no-check matches library default */
 	archive_string_sprintf(&as, "zstd -%d --no-check", data->compression_level);
+
+	if (data->compression_level > CLEVEL_STD_MAX) {
+		archive_strcat(&as, " --ultra");
+	}
 
 	f->write = archive_compressor_zstd_write;
 	r = __archive_write_program_open(f, data->pdata, as.s);
