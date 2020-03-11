@@ -297,7 +297,8 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 	int r;
 
 	archive_string_init(&as);
-	archive_string_sprintf(&as, "zstd -%d", data->compression_level);
+	/* --no-check matches library default */
+	archive_string_sprintf(&as, "zstd -%d --no-check", data->compression_level);
 
 	f->write = archive_compressor_zstd_write;
 	r = __archive_write_program_open(f, data->pdata, as.s);
