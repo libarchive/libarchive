@@ -193,4 +193,8 @@ struct archive_entry {
 	int ae_symlink_type;
 };
 
+int
+archive_entry_set_digest(struct archive_entry *entry, int type,
+    const unsigned char *digest);
+
 #endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

@@ -1451,6 +1451,40 @@ archive_entry_digest(struct archive_entry *entry, int type)
 	}
 }
 
+int
+archive_entry_set_digest(struct archive_entry *entry, int type,
+    const unsigned char *digest)
+{
+#define copy_digest(_e, _t, _d)\
+	memcpy(_e->digest._t, _d, sizeof(_e->digest._t))
+
+	switch (type) {
+	case ARCHIVE_ENTRY_DIGEST_MD5:
+		copy_digest(entry, md5, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_RMD160:
+		copy_digest(entry, rmd160, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA1:
+		copy_digest(entry, sha1, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA256:
+		copy_digest(entry, sha256, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA384:
+		copy_digest(entry, sha384, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA512:
+		copy_digest(entry, sha512, digest);
+		break;
+	default:
+		return ARCHIVE_WARN;
+	}
+
+	return ARCHIVE_OK;
+#undef copy_digest
+}
+
 /*
  * ACL management.  The following would, of course, be a lot simpler
  * if: 1) the last draft of POSIX.1e were a really thorough and
