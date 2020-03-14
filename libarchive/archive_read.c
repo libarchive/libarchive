@@ -236,22 +236,27 @@ client_seek_proxy(struct archive_read_filter *self, int64_t offset, int whence)
 }
 
 static int
-client_close_proxy(struct archive_read_filter *self)
+read_client_close_proxy(struct archive_read *a)
 {
 	int r = ARCHIVE_OK, r2;
 	unsigned int i;
 
-	if (self->archive->client.closer == NULL)
+	if (a->client.closer == NULL)
 		return (r);
-	for (i = 0; i < self->archive->client.nodes; i++)
+	for (i = 0; i < a->client.nodes; i++)
 	{
-		r2 = (self->archive->client.closer)
-			((struct archive *)self->archive,
-				self->archive->client.dataset[i].data);
+		r2 = (a->client.closer)
+			((struct archive *)a, a->client.dataset[i].data);
 		if (r > r2)
 			r = r2;
 	}
 	return (r);
+}
+
+static int
+client_close_proxy(struct archive_read_filter *self)
+{
+	return read_client_close_proxy(self->archive);
 }
 
 static int
@@ -289,9 +294,7 @@ client_switch_proxy(struct archive_read_filter *self, unsigned int iindex)
 			r1 = (self->archive->client.closer)
 				((struct archive *)self->archive, self->data);
 		self->data = data2;
-		if (self->archive->client.opener != NULL)
-			r2 = (self->archive->client.opener)
-				((struct archive *)self->archive, self->data);
+		r2 = client_open_proxy(self);
 	}
 	return (r1 < r2) ? r1 : r2;
 }
@@ -454,7 +457,6 @@ archive_read_open1(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_filter *filter, *tmp;
 	int slot, e = ARCHIVE_OK;
-	unsigned int i;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_open");
@@ -472,11 +474,7 @@ archive_read_open1(struct archive *_a)
 		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
 		if (e != 0) {
 			/* If the open failed, call the closer to clean up. */
-			if (a->client.closer) {
-				for (i = 0; i < a->client.nodes; i++)
-					(a->client.closer)(&a->archive,
-					    a->client.dataset[i].data);
-			}
+			read_client_close_proxy(a);
 			return (e);
 		}
 	}
