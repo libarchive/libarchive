@@ -87,14 +87,10 @@ struct archive_read_filter {
 	struct archive_read_filter_bidder *bidder; /* My bidder. */
 	struct archive_read_filter *upstream; /* Who I read from. */
 	struct archive_read *archive; /* Associated archive. */
-	/* Open a block for reading */
-	int (*open)(struct archive_read_filter *self);
 	/* Return next block. */
 	ssize_t (*read)(struct archive_read_filter *, const void **);
 	/* Close (just this filter) and free(self). */
 	int (*close)(struct archive_read_filter *self);
-	/* Function that handles switching from reading one block to the next/prev */
-	int (*sswitch)(struct archive_read_filter *self, unsigned int iindex);
 	/* Read any header metadata if available. */
 	int (*read_header)(struct archive_read_filter *self, struct archive_entry *entry);
 	/* My private data. */

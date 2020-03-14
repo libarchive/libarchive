@@ -486,10 +486,8 @@ archive_read_open1(struct archive *_a)
 	filter->upstream = NULL;
 	filter->archive = a;
 	filter->data = a->client.dataset[0].data;
-	filter->open = client_open_proxy;
 	filter->read = client_read_proxy;
 	filter->close = client_close_proxy;
-	filter->sswitch = client_switch_proxy;
 	filter->name = "none";
 	filter->code = ARCHIVE_FILTER_NONE;
 	filter->can_skip = 1;
