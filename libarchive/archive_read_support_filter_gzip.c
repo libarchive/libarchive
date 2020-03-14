@@ -110,7 +110,6 @@ archive_read_support_filter_gzip(struct archive *_a)
 	bidder->name = "gzip";
 	bidder->bid = gzip_bidder_bid;
 	bidder->init = gzip_bidder_init;
-	bidder->options = NULL;
 	bidder->free = NULL; /* No data, so no cleanup necessary. */
 	/* Signal the extent of gzip support with the return value here. */
 #if HAVE_ZLIB_H

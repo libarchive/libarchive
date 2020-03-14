@@ -95,7 +95,6 @@ archive_read_support_filter_zstd(struct archive *_a)
 	bidder->name = "zstd";
 	bidder->bid = zstd_bidder_bid;
 	bidder->init = zstd_bidder_init;
-	bidder->options = NULL;
 	bidder->free = NULL;
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
 	return (ARCHIVE_OK);

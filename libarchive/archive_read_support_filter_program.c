@@ -140,7 +140,6 @@ set_bidder_signature(struct archive_read_filter_bidder *bidder,
 	bidder->data = state;
 	bidder->bid = program_bidder_bid;
 	bidder->init = program_bidder_init;
-	bidder->options = NULL;
 	bidder->free = program_bidder_free;
 	return (ARCHIVE_OK);
 }

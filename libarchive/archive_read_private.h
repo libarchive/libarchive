@@ -67,9 +67,6 @@ struct archive_read_filter_bidder {
 	    struct archive_read_filter *);
 	/* Initialize a newly-created filter. */
 	int (*init)(struct archive_read_filter *);
-	/* Set an option for the filter bidder. */
-	int (*options)(struct archive_read_filter_bidder *,
-	    const char *key, const char *value);
 	/* Release the bidder's configuration data. */
 	int (*free)(struct archive_read_filter_bidder *);
 };

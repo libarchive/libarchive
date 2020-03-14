@@ -123,7 +123,6 @@ archive_read_support_filter_lz4(struct archive *_a)
 	reader->name = "lz4";
 	reader->bid = lz4_reader_bid;
 	reader->init = lz4_reader_init;
-	reader->options = NULL;
 	reader->free = lz4_reader_free;
 #if defined(HAVE_LIBLZ4)
 	return (ARCHIVE_OK);

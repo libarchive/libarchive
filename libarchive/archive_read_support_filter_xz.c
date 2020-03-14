@@ -124,7 +124,6 @@ archive_read_support_filter_xz(struct archive *_a)
 	bidder->name = "xz";
 	bidder->bid = xz_bidder_bid;
 	bidder->init = xz_bidder_init;
-	bidder->options = NULL;
 	bidder->free = NULL;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
@@ -159,7 +158,6 @@ archive_read_support_filter_lzma(struct archive *_a)
 	bidder->name = "lzma";
 	bidder->bid = lzma_bidder_bid;
 	bidder->init = lzma_bidder_init;
-	bidder->options = NULL;
 	bidder->free = NULL;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
@@ -195,7 +193,6 @@ archive_read_support_filter_lzip(struct archive *_a)
 	bidder->name = "lzip";
 	bidder->bid = lzip_bidder_bid;
 	bidder->init = lzip_bidder_init;
-	bidder->options = NULL;
 	bidder->free = NULL;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);

@@ -166,7 +166,6 @@ archive_read_support_filter_compress(struct archive *_a)
 	bidder->name = "compress (.Z)";
 	bidder->bid = compress_bidder_bid;
 	bidder->init = compress_bidder_init;
-	bidder->options = NULL;
 	bidder->free = compress_bidder_free;
 	return (ARCHIVE_OK);
 }

@@ -92,7 +92,6 @@ archive_read_support_filter_uu(struct archive *_a)
 	bidder->name = "uu";
 	bidder->bid = uudecode_bidder_bid;
 	bidder->init = uudecode_bidder_init;
-	bidder->options = NULL;
 	bidder->free = NULL;
 	return (ARCHIVE_OK);
 }

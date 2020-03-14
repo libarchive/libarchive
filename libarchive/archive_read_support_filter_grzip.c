@@ -76,7 +76,6 @@ archive_read_support_filter_grzip(struct archive *_a)
 	reader->data = NULL;
 	reader->bid = grzip_bidder_bid;
 	reader->init = grzip_bidder_init;
-	reader->options = NULL;
 	reader->free = grzip_reader_free;
 	/* This filter always uses an external program. */
 	archive_set_error(_a, ARCHIVE_ERRNO_MISC,

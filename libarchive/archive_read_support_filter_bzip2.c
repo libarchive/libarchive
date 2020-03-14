@@ -97,7 +97,6 @@ archive_read_support_filter_bzip2(struct archive *_a)
 	reader->name = "bzip2";
 	reader->bid = bzip2_reader_bid;
 	reader->init = bzip2_reader_init;
-	reader->options = NULL;
 	reader->free = bzip2_reader_free;
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	return (ARCHIVE_OK);

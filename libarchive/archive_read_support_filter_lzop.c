@@ -116,7 +116,6 @@ archive_read_support_filter_lzop(struct archive *_a)
 	reader->data = NULL;
 	reader->bid = lzop_bidder_bid;
 	reader->init = lzop_bidder_init;
-	reader->options = NULL;
 	reader->free = NULL;
 	/* Signal the extent of lzop support with the return value here. */
 #if defined(HAVE_LZO_LZOCONF_H) && defined(HAVE_LZO_LZO1X_H)
