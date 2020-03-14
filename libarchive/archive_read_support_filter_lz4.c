@@ -99,7 +99,6 @@ static int	lz4_filter_close(struct archive_read_filter *);
  */
 static int	lz4_reader_bid(struct archive_read_filter_bidder *, struct archive_read_filter *);
 static int	lz4_reader_init(struct archive_read_filter *);
-static int	lz4_reader_free(struct archive_read_filter_bidder *);
 #if defined(HAVE_LIBLZ4)
 static ssize_t  lz4_filter_read_default_stream(struct archive_read_filter *,
 		    const void **);
@@ -123,7 +122,7 @@ archive_read_support_filter_lz4(struct archive *_a)
 	reader->name = "lz4";
 	reader->bid = lz4_reader_bid;
 	reader->init = lz4_reader_init;
-	reader->free = lz4_reader_free;
+	reader->free = NULL;
 #if defined(HAVE_LIBLZ4)
 	return (ARCHIVE_OK);
 #else
@@ -131,12 +130,6 @@ archive_read_support_filter_lz4(struct archive *_a)
 	    "Using external lz4 program");
 	return (ARCHIVE_WARN);
 #endif
-}
-
-static int
-lz4_reader_free(struct archive_read_filter_bidder *self){
-	(void)self; /* UNUSED */
-	return (ARCHIVE_OK);
 }
 
 /*

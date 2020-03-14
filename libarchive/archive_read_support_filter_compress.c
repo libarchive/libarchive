@@ -133,7 +133,6 @@ struct private_data {
 
 static int	compress_bidder_bid(struct archive_read_filter_bidder *, struct archive_read_filter *);
 static int	compress_bidder_init(struct archive_read_filter *);
-static int	compress_bidder_free(struct archive_read_filter_bidder *);
 
 static ssize_t	compress_filter_read(struct archive_read_filter *, const void **);
 static int	compress_filter_close(struct archive_read_filter *);
@@ -166,7 +165,7 @@ archive_read_support_filter_compress(struct archive *_a)
 	bidder->name = "compress (.Z)";
 	bidder->bid = compress_bidder_bid;
 	bidder->init = compress_bidder_init;
-	bidder->free = compress_bidder_free;
+	bidder->free = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -302,16 +301,6 @@ compress_filter_read(struct archive_read_filter *self, const void **pblock)
 
 	*pblock = start;
 	return (p - start);
-}
-
-/*
- * Clean up the reader.
- */
-static int
-compress_bidder_free(struct archive_read_filter_bidder *self)
-{
-	self->data = NULL;
-	return (ARCHIVE_OK);
 }
 
 /*

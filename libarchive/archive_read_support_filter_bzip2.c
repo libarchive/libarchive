@@ -70,7 +70,6 @@ static int	bzip2_filter_close(struct archive_read_filter *);
  */
 static int	bzip2_reader_bid(struct archive_read_filter_bidder *, struct archive_read_filter *);
 static int	bzip2_reader_init(struct archive_read_filter *);
-static int	bzip2_reader_free(struct archive_read_filter_bidder *);
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* Deprecated; remove in libarchive 4.0 */
@@ -97,7 +96,7 @@ archive_read_support_filter_bzip2(struct archive *_a)
 	reader->name = "bzip2";
 	reader->bid = bzip2_reader_bid;
 	reader->init = bzip2_reader_init;
-	reader->free = bzip2_reader_free;
+	reader->free = NULL;
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	return (ARCHIVE_OK);
 #else
@@ -105,12 +104,6 @@ archive_read_support_filter_bzip2(struct archive *_a)
 	    "Using external bzip2 program");
 	return (ARCHIVE_WARN);
 #endif
-}
-
-static int
-bzip2_reader_free(struct archive_read_filter_bidder *self){
-	(void)self; /* UNUSED */
-	return (ARCHIVE_OK);
 }
 
 /*
