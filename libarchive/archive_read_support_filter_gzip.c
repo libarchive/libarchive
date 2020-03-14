@@ -94,6 +94,12 @@ archive_read_support_compression_gzip(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+gzip_bidder_vtable = {
+	.bid = gzip_bidder_bid,
+	.init = gzip_bidder_init,
+};
+
 int
 archive_read_support_filter_gzip(struct archive *_a)
 {
@@ -108,9 +114,7 @@ archive_read_support_filter_gzip(struct archive *_a)
 
 	bidder->data = NULL;
 	bidder->name = "gzip";
-	bidder->bid = gzip_bidder_bid;
-	bidder->init = gzip_bidder_init;
-	bidder->free = NULL; /* No data, so no cleanup necessary. */
+	bidder->vtable = &gzip_bidder_vtable;
 	/* Signal the extent of gzip support with the return value here. */
 #if HAVE_ZLIB_H
 	return (ARCHIVE_OK);

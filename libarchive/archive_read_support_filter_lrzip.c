@@ -53,6 +53,12 @@ static int	lrzip_bidder_bid(struct archive_read_filter_bidder *,
 static int	lrzip_bidder_init(struct archive_read_filter *);
 
 
+static const struct archive_read_filter_bidder_vtable
+lrzip_bidder_vtable = {
+	.bid = lrzip_bidder_bid,
+	.init = lrzip_bidder_init,
+};
+
 int
 archive_read_support_filter_lrzip(struct archive *_a)
 {
@@ -67,9 +73,7 @@ archive_read_support_filter_lrzip(struct archive *_a)
 
 	reader->data = NULL;
 	reader->name = "lrzip";
-	reader->bid = lrzip_bidder_bid;
-	reader->init = lrzip_bidder_init;
-	reader->free = NULL;
+	reader->vtable = &lrzip_bidder_vtable;
 	/* This filter always uses an external program. */
 	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
 	    "Using external lrzip program for lrzip decompression");

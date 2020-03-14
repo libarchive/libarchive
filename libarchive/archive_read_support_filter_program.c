@@ -123,6 +123,13 @@ static ssize_t	program_filter_read(struct archive_read_filter *,
 static int	program_filter_close(struct archive_read_filter *);
 static void	free_state(struct program_bidder *);
 
+static const struct archive_read_filter_bidder_vtable
+program_bidder_vtable = {
+	.bid = program_bidder_bid,
+	.init = program_bidder_init,
+	.free = program_bidder_free,
+};
+
 static int
 set_bidder_signature(struct archive_read_filter_bidder *bidder,
     struct program_bidder *state, const void *signature, size_t signature_len)
@@ -138,9 +145,7 @@ set_bidder_signature(struct archive_read_filter_bidder *bidder,
 	 * Fill in the bidder object.
 	 */
 	bidder->data = state;
-	bidder->bid = program_bidder_bid;
-	bidder->init = program_bidder_init;
-	bidder->free = program_bidder_free;
+	bidder->vtable = &program_bidder_vtable;
 	return (ARCHIVE_OK);
 }
 

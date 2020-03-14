@@ -80,6 +80,12 @@ archive_read_support_compression_bzip2(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+bzip2_bidder_vtable = {
+	.bid = bzip2_reader_bid,
+	.init = bzip2_reader_init,
+};
+
 int
 archive_read_support_filter_bzip2(struct archive *_a)
 {
@@ -94,9 +100,7 @@ archive_read_support_filter_bzip2(struct archive *_a)
 
 	reader->data = NULL;
 	reader->name = "bzip2";
-	reader->bid = bzip2_reader_bid;
-	reader->init = bzip2_reader_init;
-	reader->free = NULL;
+	reader->vtable = &bzip2_bidder_vtable;
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	return (ARCHIVE_OK);
 #else

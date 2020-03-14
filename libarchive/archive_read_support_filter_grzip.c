@@ -54,6 +54,12 @@ static int	grzip_bidder_bid(struct archive_read_filter_bidder *,
 static int	grzip_bidder_init(struct archive_read_filter *);
 
 
+static const struct archive_read_filter_bidder_vtable
+grzip_bidder_vtable = {
+	.bid = grzip_bidder_bid,
+	.init = grzip_bidder_init,
+};
+
 int
 archive_read_support_filter_grzip(struct archive *_a)
 {
@@ -67,9 +73,7 @@ archive_read_support_filter_grzip(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	reader->data = NULL;
-	reader->bid = grzip_bidder_bid;
-	reader->init = grzip_bidder_init;
-	reader->free = NULL;
+	reader->vtable = &grzip_bidder_vtable;
 	/* This filter always uses an external program. */
 	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
 	    "Using external grzip program for grzip decompression");

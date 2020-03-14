@@ -42,6 +42,16 @@ struct archive_read;
 struct archive_read_filter_bidder;
 struct archive_read_filter;
 
+struct archive_read_filter_bidder_vtable {
+	/* Taste the upstream filter to see if we handle this. */
+	int (*bid)(struct archive_read_filter_bidder *,
+	    struct archive_read_filter *);
+	/* Initialize a newly-created filter. */
+	int (*init)(struct archive_read_filter *);
+	/* Release the bidder's configuration data. */
+	void (*free)(struct archive_read_filter_bidder *);
+};
+
 /*
  * How bidding works for filters:
  *   * The bid manager initializes the client-provided reader as the
@@ -62,13 +72,7 @@ struct archive_read_filter_bidder {
 	void *data;
 	/* Name of the filter */
 	const char *name;
-	/* Taste the upstream filter to see if we handle this. */
-	int (*bid)(struct archive_read_filter_bidder *,
-	    struct archive_read_filter *);
-	/* Initialize a newly-created filter. */
-	int (*init)(struct archive_read_filter *);
-	/* Release the bidder's configuration data. */
-	void (*free)(struct archive_read_filter_bidder *);
+	const struct archive_read_filter_bidder_vtable *vtable;
 };
 
 /*

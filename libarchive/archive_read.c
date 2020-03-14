@@ -561,12 +561,12 @@ choose_filters(struct archive_read *a)
 
 		bidder = a->bidders;
 		for (i = 0; i < number_bidders; i++, bidder++) {
-			if (bidder->bid != NULL) {
-				bid = (bidder->bid)(bidder, a->filter);
-				if (bid > best_bid) {
-					best_bid = bid;
-					best_bidder = bidder;
-				}
+			if (bidder->vtable == NULL)
+				continue;
+			bid = (bidder->vtable->bid)(bidder, a->filter);
+			if (bid > best_bid) {
+				best_bid = bid;
+				best_bidder = bidder;
 			}
 		}
 
@@ -591,7 +591,7 @@ choose_filters(struct archive_read *a)
 		filter->archive = a;
 		filter->upstream = a->filter;
 		a->filter = filter;
-		r = (best_bidder->init)(a->filter);
+		r = (best_bidder->vtable->init)(a->filter);
 		if (r != ARCHIVE_OK) {
 			__archive_read_free_filters(a);
 			return (ARCHIVE_FATAL);
@@ -1103,9 +1103,10 @@ _archive_read_free(struct archive *_a)
 	/* Release the bidder objects. */
 	n = sizeof(a->bidders)/sizeof(a->bidders[0]);
 	for (i = 0; i < n; i++) {
-		if (a->bidders[i].free != NULL) {
-			(a->bidders[i].free)(&a->bidders[i]);
-		}
+		if (a->bidders[i].vtable == NULL ||
+		    a->bidders[i].vtable->free == NULL)
+			continue;
+		(a->bidders[i].vtable->free)(&a->bidders[i]);
 	}
 
 	/* Release passphrase list. */
@@ -1238,11 +1239,11 @@ __archive_read_get_bidder(struct archive_read *a,
 	number_slots = sizeof(a->bidders) / sizeof(a->bidders[0]);
 
 	for (i = 0; i < number_slots; i++) {
-		if (a->bidders[i].bid == NULL) {
-			memset(a->bidders + i, 0, sizeof(a->bidders[0]));
-			*bidder = (a->bidders + i);
-			return (ARCHIVE_OK);
-		}
+		if (a->bidders[i].vtable != NULL)
+			continue;
+		memset(a->bidders + i, 0, sizeof(a->bidders[0]));
+		*bidder = (a->bidders + i);
+		return (ARCHIVE_OK);
 	}
 
 	archive_set_error(&a->archive, ENOMEM,

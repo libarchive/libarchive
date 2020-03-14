@@ -79,6 +79,12 @@ static int	zstd_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
 static int	zstd_bidder_init(struct archive_read_filter *);
 
+static const struct archive_read_filter_bidder_vtable
+zstd_bidder_vtable = {
+	.bid = zstd_bidder_bid,
+	.init = zstd_bidder_init,
+};
+
 int
 archive_read_support_filter_zstd(struct archive *_a)
 {
@@ -93,9 +99,7 @@ archive_read_support_filter_zstd(struct archive *_a)
 
 	bidder->data = NULL;
 	bidder->name = "zstd";
-	bidder->bid = zstd_bidder_bid;
-	bidder->init = zstd_bidder_init;
-	bidder->free = NULL;
+	bidder->vtable = &zstd_bidder_vtable;
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
 	return (ARCHIVE_OK);
 #else

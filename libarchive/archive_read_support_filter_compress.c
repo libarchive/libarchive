@@ -149,6 +149,12 @@ archive_read_support_compression_compress(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+compress_bidder_vtable = {
+	.bid = compress_bidder_bid,
+	.init = compress_bidder_init,
+};
+
 int
 archive_read_support_filter_compress(struct archive *_a)
 {
@@ -163,9 +169,7 @@ archive_read_support_filter_compress(struct archive *_a)
 
 	bidder->data = NULL;
 	bidder->name = "compress (.Z)";
-	bidder->bid = compress_bidder_bid;
-	bidder->init = compress_bidder_init;
-	bidder->free = NULL;
+	bidder->vtable = &compress_bidder_vtable;
 	return (ARCHIVE_OK);
 }
 

@@ -108,6 +108,12 @@ archive_read_support_compression_xz(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+xz_bidder_vtable = {
+	.bid = xz_bidder_bid,
+	.init = xz_bidder_init,
+};
+
 int
 archive_read_support_filter_xz(struct archive *_a)
 {
@@ -122,9 +128,7 @@ archive_read_support_filter_xz(struct archive *_a)
 
 	bidder->data = NULL;
 	bidder->name = "xz";
-	bidder->bid = xz_bidder_bid;
-	bidder->init = xz_bidder_init;
-	bidder->free = NULL;
+	bidder->vtable = &xz_bidder_vtable;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
 #else
@@ -142,6 +146,12 @@ archive_read_support_compression_lzma(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+lzma_bidder_vtable = {
+	.bid = lzma_bidder_bid,
+	.init = lzma_bidder_init,
+};
+
 int
 archive_read_support_filter_lzma(struct archive *_a)
 {
@@ -156,9 +166,7 @@ archive_read_support_filter_lzma(struct archive *_a)
 
 	bidder->data = NULL;
 	bidder->name = "lzma";
-	bidder->bid = lzma_bidder_bid;
-	bidder->init = lzma_bidder_init;
-	bidder->free = NULL;
+	bidder->vtable = &lzma_bidder_vtable;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
 #else
@@ -177,6 +185,12 @@ archive_read_support_compression_lzip(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+lzip_bidder_vtable = {
+	.bid = lzip_bidder_bid,
+	.init = lzip_bidder_init,
+};
+
 int
 archive_read_support_filter_lzip(struct archive *_a)
 {
@@ -191,9 +205,7 @@ archive_read_support_filter_lzip(struct archive *_a)
 
 	bidder->data = NULL;
 	bidder->name = "lzip";
-	bidder->bid = lzip_bidder_bid;
-	bidder->init = lzip_bidder_init;
-	bidder->free = NULL;
+	bidder->vtable = &lzip_bidder_vtable;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
 #else

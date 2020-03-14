@@ -72,6 +72,12 @@ archive_read_support_compression_rpm(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+rpm_bidder_vtable = {
+	.bid = rpm_bidder_bid,
+	.init = rpm_bidder_init,
+};
+
 int
 archive_read_support_filter_rpm(struct archive *_a)
 {
@@ -86,9 +92,7 @@ archive_read_support_filter_rpm(struct archive *_a)
 
 	bidder->data = NULL;
 	bidder->name = "rpm";
-	bidder->bid = rpm_bidder_bid;
-	bidder->init = rpm_bidder_init;
-	bidder->free = NULL;
+	bidder->vtable = &rpm_bidder_vtable;
 	return (ARCHIVE_OK);
 }
 

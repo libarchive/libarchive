@@ -106,6 +106,12 @@ static ssize_t  lz4_filter_read_legacy_stream(struct archive_read_filter *,
 		    const void **);
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+lz4_bidder_vtable = {
+	.bid = lz4_reader_bid,
+	.init = lz4_reader_init,
+};
+
 int
 archive_read_support_filter_lz4(struct archive *_a)
 {
@@ -120,9 +126,7 @@ archive_read_support_filter_lz4(struct archive *_a)
 
 	reader->data = NULL;
 	reader->name = "lz4";
-	reader->bid = lz4_reader_bid;
-	reader->init = lz4_reader_init;
-	reader->free = NULL;
+	reader->vtable = &lz4_bidder_vtable;
 #if defined(HAVE_LIBLZ4)
 	return (ARCHIVE_OK);
 #else

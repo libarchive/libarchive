@@ -101,6 +101,12 @@ static int lzop_bidder_bid(struct archive_read_filter_bidder *,
     struct archive_read_filter *);
 static int lzop_bidder_init(struct archive_read_filter *);
 
+static const struct archive_read_filter_bidder_vtable
+lzop_bidder_vtable = {
+	.bid = lzop_bidder_bid,
+	.init = lzop_bidder_init,
+};
+
 int
 archive_read_support_filter_lzop(struct archive *_a)
 {
@@ -114,9 +120,7 @@ archive_read_support_filter_lzop(struct archive *_a)
 		return (ARCHIVE_FATAL);
 
 	reader->data = NULL;
-	reader->bid = lzop_bidder_bid;
-	reader->init = lzop_bidder_init;
-	reader->free = NULL;
+	reader->vtable = &lzop_bidder_vtable;
 	/* Signal the extent of lzop support with the return value here. */
 #if defined(HAVE_LZO_LZOCONF_H) && defined(HAVE_LZO_LZO1X_H)
 	return (ARCHIVE_OK);

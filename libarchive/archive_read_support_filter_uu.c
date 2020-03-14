@@ -76,6 +76,12 @@ archive_read_support_compression_uu(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+uudecode_bidder_vtable = {
+	.bid = uudecode_bidder_bid,
+	.init = uudecode_bidder_init,
+};
+
 int
 archive_read_support_filter_uu(struct archive *_a)
 {
@@ -90,9 +96,7 @@ archive_read_support_filter_uu(struct archive *_a)
 
 	bidder->data = NULL;
 	bidder->name = "uu";
-	bidder->bid = uudecode_bidder_bid;
-	bidder->init = uudecode_bidder_init;
-	bidder->free = NULL;
+	bidder->vtable = &uudecode_bidder_vtable;
 	return (ARCHIVE_OK);
 }
 
