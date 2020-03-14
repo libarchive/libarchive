@@ -75,6 +75,15 @@ struct archive_read_filter_bidder {
 	const struct archive_read_filter_bidder_vtable *vtable;
 };
 
+struct archive_read_filter_vtable {
+	/* Return next block. */
+	ssize_t (*read)(struct archive_read_filter *, const void **);
+	/* Close (just this filter) and free(self). */
+	int (*close)(struct archive_read_filter *self);
+	/* Read any header metadata if available. */
+	int (*read_header)(struct archive_read_filter *self, struct archive_entry *entry);
+};
+
 /*
  * This structure is allocated within the archive_read core
  * and initialized by archive_read and the init() method of the
@@ -87,12 +96,7 @@ struct archive_read_filter {
 	struct archive_read_filter_bidder *bidder; /* My bidder. */
 	struct archive_read_filter *upstream; /* Who I read from. */
 	struct archive_read *archive; /* Associated archive. */
-	/* Return next block. */
-	ssize_t (*read)(struct archive_read_filter *, const void **);
-	/* Close (just this filter) and free(self). */
-	int (*close)(struct archive_read_filter *self);
-	/* Read any header metadata if available. */
-	int (*read_header)(struct archive_read_filter *self, struct archive_entry *entry);
+	const struct archive_read_filter_vtable *vtable;
 	/* My private data. */
 	void *data;
 

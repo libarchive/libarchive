@@ -208,6 +208,12 @@ lz4_reader_init(struct archive_read_filter *self)
 
 #else
 
+static const struct archive_read_filter_vtable
+lz4_reader_vtable = {
+	.read = lz4_filter_read,
+	.close = lz4_filter_close,
+};
+
 /*
  * Setup the callbacks.
  */
@@ -228,8 +234,7 @@ lz4_reader_init(struct archive_read_filter *self)
 
 	self->data = state;
 	state->stage = SELECT_STREAM;
-	self->read = lz4_filter_read;
-	self->close = lz4_filter_close;
+	self->vtable = &lz4_reader_vtable;
 
 	return (ARCHIVE_OK);
 }

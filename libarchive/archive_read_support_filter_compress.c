@@ -198,6 +198,12 @@ compress_bidder_bid(struct archive_read_filter_bidder *self,
 	return (bits_checked);
 }
 
+static const struct archive_read_filter_vtable
+compress_reader_vtable = {
+	.read = compress_filter_read,
+	.close = compress_filter_close,
+};
+
 /*
  * Setup the callbacks.
  */
@@ -226,8 +232,7 @@ compress_bidder_init(struct archive_read_filter *self)
 	self->data = state;
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
-	self->read = compress_filter_read;
-	self->close = compress_filter_close;
+	self->vtable = &compress_reader_vtable;
 
 	/* XXX MOVE THE FOLLOWING OUT OF INIT() XXX */
 

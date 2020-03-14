@@ -127,6 +127,12 @@ rpm_bidder_bid(struct archive_read_filter_bidder *self,
 	return (bits_checked);
 }
 
+static const struct archive_read_filter_vtable
+rpm_reader_vtable = {
+	.read = rpm_filter_read,
+	.close = rpm_filter_close,
+};
+
 static int
 rpm_bidder_init(struct archive_read_filter *self)
 {
@@ -134,8 +140,6 @@ rpm_bidder_init(struct archive_read_filter *self)
 
 	self->code = ARCHIVE_FILTER_RPM;
 	self->name = "rpm";
-	self->read = rpm_filter_read;
-	self->close = rpm_filter_close;
 
 	rpm = (struct rpm *)calloc(sizeof(*rpm), 1);
 	if (rpm == NULL) {
@@ -146,6 +150,7 @@ rpm_bidder_init(struct archive_read_filter *self)
 
 	self->data = rpm;
 	rpm->state = ST_LEAD;
+	self->vtable = &rpm_reader_vtable;
 
 	return (ARCHIVE_OK);
 }

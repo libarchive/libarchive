@@ -351,6 +351,12 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *self,
 	return (0);
 }
 
+static const struct archive_read_filter_vtable
+uudecode_reader_vtable = {
+	.read = uudecode_filter_read,
+	.close = uudecode_filter_close,
+};
+
 static int
 uudecode_bidder_init(struct archive_read_filter *self)
 {
@@ -360,8 +366,6 @@ uudecode_bidder_init(struct archive_read_filter *self)
 
 	self->code = ARCHIVE_FILTER_UU;
 	self->name = "uu";
-	self->read = uudecode_filter_read;
-	self->close = uudecode_filter_close;
 
 	uudecode = (struct uudecode *)calloc(sizeof(*uudecode), 1);
 	out_buff = malloc(OUT_BUFF_SIZE);
@@ -381,6 +385,7 @@ uudecode_bidder_init(struct archive_read_filter *self)
 	uudecode->in_allocated = IN_BUFF_SIZE;
 	uudecode->out_buff = out_buff;
 	uudecode->state = ST_FIND_HEAD;
+	self->vtable = &uudecode_reader_vtable;
 
 	return (ARCHIVE_OK);
 }

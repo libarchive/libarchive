@@ -288,6 +288,15 @@ gzip_read_header(struct archive_read_filter *self, struct archive_entry *entry)
 	return (ARCHIVE_OK);
 }
 
+static const struct archive_read_filter_vtable
+gzip_reader_vtable = {
+	.read = gzip_filter_read,
+	.close = gzip_filter_close,
+#ifdef HAVE_ZLIB_H
+	.read_header = gzip_read_header,
+#endif
+};
+
 /*
  * Initialize the filter object.
  */
@@ -314,11 +323,7 @@ gzip_bidder_init(struct archive_read_filter *self)
 	self->data = state;
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
-	self->read = gzip_filter_read;
-	self->close = gzip_filter_close;
-#ifdef HAVE_ZLIB_H
-	self->read_header = gzip_read_header;
-#endif
+	self->vtable = &gzip_reader_vtable;
 
 	state->in_stream = 0; /* We're not actually within a stream yet. */
 

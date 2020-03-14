@@ -451,6 +451,12 @@ archive_read_prepend_callback_data(struct archive *_a, void *client_data)
 	return archive_read_add_callback_data(_a, client_data, 0);
 }
 
+static const struct archive_read_filter_vtable
+none_reader_vtable = {
+	.read = client_read_proxy,
+	.close = client_close_proxy,
+};
+
 int
 archive_read_open1(struct archive *_a)
 {
@@ -486,8 +492,7 @@ archive_read_open1(struct archive *_a)
 	filter->upstream = NULL;
 	filter->archive = a;
 	filter->data = a->client.dataset[0].data;
-	filter->read = client_read_proxy;
-	filter->close = client_close_proxy;
+	filter->vtable = &none_reader_vtable;
 	filter->name = "none";
 	filter->code = ARCHIVE_FILTER_NONE;
 	filter->can_skip = 1;
@@ -599,10 +604,9 @@ choose_filters(struct archive_read *a)
 int
 __archive_read_header(struct archive_read *a, struct archive_entry *entry)
 {
-	if (a->filter->read_header)
-		return a->filter->read_header(a->filter, entry);
-	else
+	if (!a->filter->vtable->read_header)
 		return (ARCHIVE_OK);
+	return a->filter->vtable->read_header(a->filter, entry);
 }
 
 /*
@@ -991,8 +995,8 @@ close_filters(struct archive_read *a)
 	/* Close each filter in the pipeline. */
 	while (f != NULL) {
 		struct archive_read_filter *t = f->upstream;
-		if (!f->closed && f->close != NULL) {
-			int r1 = (f->close)(f);
+		if (!f->closed && f->vtable != NULL) {
+			int r1 = (f->vtable->close)(f);
 			f->closed = 1;
 			if (r1 < r)
 				r = r1;
@@ -1382,7 +1386,7 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 					*avail = 0;
 				return (NULL);
 			}
-			bytes_read = (filter->read)(filter,
+			bytes_read = (filter->vtable->read)(filter,
 			    &filter->client_buff);
 			if (bytes_read < 0) {		/* Read error. */
 				filter->client_total = filter->client_avail = 0;
@@ -1576,7 +1580,7 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 
 	/* Use ordinary reads as necessary to complete the request. */
 	for (;;) {
-		bytes_read = (filter->read)(filter, &filter->client_buff);
+		bytes_read = (filter->vtable->read)(filter, &filter->client_buff);
 		if (bytes_read < 0) {
 			filter->client_buff = NULL;
 			filter->fatal = 1;

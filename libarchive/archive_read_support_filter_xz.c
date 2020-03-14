@@ -461,6 +461,12 @@ set_error(struct archive_read_filter *self, int ret)
 	}
 }
 
+static const struct archive_read_filter_vtable
+xz_lzma_reader_vtable = {
+	.read = xz_filter_read,
+	.close = xz_filter_close,
+};
+
 /*
  * Setup the callbacks.
  */
@@ -485,8 +491,7 @@ xz_lzma_bidder_init(struct archive_read_filter *self)
 	self->data = state;
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
-	self->read = xz_filter_read;
-	self->close = xz_filter_close;
+	self->vtable = &xz_lzma_reader_vtable;
 
 	state->stream.avail_in = 0;
 

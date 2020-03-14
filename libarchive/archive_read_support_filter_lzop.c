@@ -169,6 +169,13 @@ lzop_bidder_init(struct archive_read_filter *self)
 	return (r);
 }
 #else
+
+static const struct archive_read_filter_vtable
+lzop_reader_vtable = {
+	.read = lzop_filter_read,
+	.close = lzop_filter_close.
+};
+
 /*
  * Initialize the filter object.
  */
@@ -188,8 +195,7 @@ lzop_bidder_init(struct archive_read_filter *self)
 	}
 
 	self->data = state;
-	self->read = lzop_filter_read;
-	self->close = lzop_filter_close;
+	self->vtable = &lzop_reader_vtable;
 
 	return (ARCHIVE_OK);
 }

@@ -173,6 +173,12 @@ bzip2_reader_init(struct archive_read_filter *self)
 
 #else
 
+static const struct archive_read_filter_vtable
+bzip2_reader_vtable = {
+	.read = bzip2_filter_read,
+	.close = bzip2_filter_close,
+};
+
 /*
  * Setup the callbacks.
  */
@@ -199,8 +205,7 @@ bzip2_reader_init(struct archive_read_filter *self)
 	self->data = state;
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
-	self->read = bzip2_filter_read;
-	self->close = bzip2_filter_close;
+	self->vtable = &bzip2_reader_vtable;
 
 	return (ARCHIVE_OK);
 }

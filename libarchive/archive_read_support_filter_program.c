@@ -382,6 +382,12 @@ child_read(struct archive_read_filter *self, char *buf, size_t buf_len)
 	}
 }
 
+static const struct archive_read_filter_vtable
+program_reader_vtable = {
+	.read = program_filter_read,
+	.close = program_filter_close,
+};
+
 int
 __archive_read_program(struct archive_read_filter *self, const char *cmd)
 {
@@ -428,8 +434,7 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 	}
 
 	self->data = state;
-	self->read = program_filter_read;
-	self->close = program_filter_close;
+	self->vtable = &program_reader_vtable;
 
 	/* XXX Check that we can read at least one byte? */
 	return (ARCHIVE_OK);

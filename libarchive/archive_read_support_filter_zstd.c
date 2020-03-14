@@ -157,6 +157,12 @@ zstd_bidder_init(struct archive_read_filter *self)
 
 #else
 
+static const struct archive_read_filter_vtable
+zstd_reader_vtable = {
+	.read = zstd_filter_read,
+	.close = zstd_filter_close,
+};
+
 /*
  * Initialize the filter object
  */
@@ -189,8 +195,7 @@ zstd_bidder_init(struct archive_read_filter *self)
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
 	state->dstream = dstream;
-	self->read = zstd_filter_read;
-	self->close = zstd_filter_close;
+	self->vtable = &zstd_reader_vtable;
 
 	state->eof = 0;
 	state->in_frame = 0;
