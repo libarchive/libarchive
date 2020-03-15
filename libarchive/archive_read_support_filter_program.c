@@ -98,7 +98,7 @@ struct program_bidder {
 static int	program_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *upstream);
 static int	program_bidder_init(struct archive_read_filter *);
-static int	program_bidder_free(struct archive_read_filter_bidder *);
+static void	program_bidder_free(struct archive_read_filter_bidder *);
 
 /*
  * The actual filter needs to track input and output data.
@@ -175,13 +175,12 @@ memerr:
 	return (ARCHIVE_FATAL);
 }
 
-static int
+static void
 program_bidder_free(struct archive_read_filter_bidder *self)
 {
 	struct program_bidder *state = (struct program_bidder *)self->data;
 
 	free_state(state);
-	return (ARCHIVE_OK);
 }
 
 static void

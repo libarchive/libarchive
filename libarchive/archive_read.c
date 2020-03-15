@@ -1104,9 +1104,7 @@ _archive_read_free(struct archive *_a)
 	n = sizeof(a->bidders)/sizeof(a->bidders[0]);
 	for (i = 0; i < n; i++) {
 		if (a->bidders[i].free != NULL) {
-			int r1 = (a->bidders[i].free)(&a->bidders[i]);
-			if (r1 < r)
-				r = r1;
+			(a->bidders[i].free)(&a->bidders[i]);
 		}
 	}
 
