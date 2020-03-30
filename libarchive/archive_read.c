@@ -489,11 +489,11 @@ archive_read_open1(struct archive *_a)
 	filter->open = client_open_proxy;
 	filter->read = client_read_proxy;
 	filter->skip = client_skip_proxy;
-	filter->seek = client_seek_proxy;
 	filter->close = client_close_proxy;
 	filter->sswitch = client_switch_proxy;
 	filter->name = "none";
 	filter->code = ARCHIVE_FILTER_NONE;
+	filter->can_seek = 1;
 
 	a->client.dataset[0].begin_position = 0;
 	if (!a->filter || !a->bypass_filter_bidding)
@@ -1633,7 +1633,7 @@ __archive_read_filter_seek(struct archive_read_filter *filter, int64_t offset,
 
 	if (filter->closed || filter->fatal)
 		return (ARCHIVE_FATAL);
-	if (filter->seek == NULL)
+	if (filter->can_seek == 0)
 		return (ARCHIVE_FAILED);
 
 	client = &(filter->archive->client);
