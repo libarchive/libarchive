@@ -189,7 +189,6 @@ lzop_bidder_init(struct archive_read_filter *self)
 
 	self->data = state;
 	self->read = lzop_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = lzop_filter_close;
 
 	return (ARCHIVE_OK);

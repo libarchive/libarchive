@@ -488,11 +488,11 @@ archive_read_open1(struct archive *_a)
 	filter->data = a->client.dataset[0].data;
 	filter->open = client_open_proxy;
 	filter->read = client_read_proxy;
-	filter->skip = client_skip_proxy;
 	filter->close = client_close_proxy;
 	filter->sswitch = client_switch_proxy;
 	filter->name = "none";
 	filter->code = ARCHIVE_FILTER_NONE;
+	filter->can_skip = 1;
 	filter->can_seek = 1;
 
 	a->client.dataset[0].begin_position = 0;
@@ -1563,8 +1563,8 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 		return (total_bytes_skipped);
 
 	/* If there's an optimized skip function, use it. */
-	if (filter->skip != NULL) {
-		bytes_skipped = (filter->skip)(filter, request);
+	if (filter->can_skip != 0) {
+		bytes_skipped = client_skip_proxy(filter, request);
 		if (bytes_skipped < 0) {	/* error */
 			filter->fatal = 1;
 			return (bytes_skipped);

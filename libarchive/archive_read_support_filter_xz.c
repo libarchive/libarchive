@@ -486,7 +486,6 @@ xz_lzma_bidder_init(struct archive_read_filter *self)
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
 	self->read = xz_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = xz_filter_close;
 
 	state->stream.avail_in = 0;

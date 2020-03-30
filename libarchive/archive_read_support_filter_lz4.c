@@ -229,7 +229,6 @@ lz4_reader_init(struct archive_read_filter *self)
 	self->data = state;
 	state->stage = SELECT_STREAM;
 	self->read = lz4_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = lz4_filter_close;
 
 	return (ARCHIVE_OK);

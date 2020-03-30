@@ -190,7 +190,6 @@ zstd_bidder_init(struct archive_read_filter *self)
 	state->out_block = out_block;
 	state->dstream = dstream;
 	self->read = zstd_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = zstd_filter_close;
 
 	state->eof = 0;

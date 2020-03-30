@@ -315,7 +315,6 @@ gzip_bidder_init(struct archive_read_filter *self)
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
 	self->read = gzip_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = gzip_filter_close;
 #ifdef HAVE_ZLIB_H
 	self->read_header = gzip_read_header;

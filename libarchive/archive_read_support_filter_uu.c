@@ -361,7 +361,6 @@ uudecode_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_UU;
 	self->name = "uu";
 	self->read = uudecode_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = uudecode_filter_close;
 
 	uudecode = (struct uudecode *)calloc(sizeof(*uudecode), 1);

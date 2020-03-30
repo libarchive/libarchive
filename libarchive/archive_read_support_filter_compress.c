@@ -227,7 +227,6 @@ compress_bidder_init(struct archive_read_filter *self)
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
 	self->read = compress_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = compress_filter_close;
 
 	/* XXX MOVE THE FOLLOWING OUT OF INIT() XXX */

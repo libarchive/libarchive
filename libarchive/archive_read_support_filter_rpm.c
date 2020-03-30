@@ -135,7 +135,6 @@ rpm_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_RPM;
 	self->name = "rpm";
 	self->read = rpm_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = rpm_filter_close;
 
 	rpm = (struct rpm *)calloc(sizeof(*rpm), 1);

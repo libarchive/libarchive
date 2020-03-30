@@ -200,7 +200,6 @@ bzip2_reader_init(struct archive_read_filter *self)
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
 	self->read = bzip2_filter_read;
-	self->skip = NULL; /* not supported */
 	self->close = bzip2_filter_close;
 
 	return (ARCHIVE_OK);

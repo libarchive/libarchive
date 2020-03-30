@@ -91,8 +91,6 @@ struct archive_read_filter {
 	int (*open)(struct archive_read_filter *self);
 	/* Return next block. */
 	ssize_t (*read)(struct archive_read_filter *, const void **);
-	/* Skip forward this many bytes. */
-	int64_t (*skip)(struct archive_read_filter *self, int64_t request);
 	/* Close (just this filter) and free(self). */
 	int (*close)(struct archive_read_filter *self);
 	/* Function that handles switching from reading one block to the next/prev */
@@ -104,6 +102,7 @@ struct archive_read_filter {
 
 	const char	*name;
 	int		 code;
+	int		 can_skip;
 	int		 can_seek;
 
 	/* Used by reblocking logic. */

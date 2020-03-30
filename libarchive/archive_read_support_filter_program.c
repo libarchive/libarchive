@@ -429,7 +429,6 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 
 	self->data = state;
 	self->read = program_filter_read;
-	self->skip = NULL;
 	self->close = program_filter_close;
 
 	/* XXX Check that we can read at least one byte? */
