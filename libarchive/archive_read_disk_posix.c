@@ -1840,7 +1840,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 #if defined(HAVE_STATVFS)
 	if (svfs.f_flag & ST_NOATIME)
 #else
-	if (sfs.f_flag & ST_NOATIME)
+	if (sfs.f_flags & ST_NOATIME)
 #endif
 		t->current_filesystem->noatime = 1;
 	else
@@ -1925,7 +1925,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	}
 
 #if defined(ST_NOATIME)
-	if (sfs.f_flag & ST_NOATIME)
+	if (sfs.f_flags & ST_NOATIME)
 		t->current_filesystem->noatime = 1;
 	else
 #endif
