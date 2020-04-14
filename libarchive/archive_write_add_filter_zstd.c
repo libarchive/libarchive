@@ -189,12 +189,13 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		}
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
 		maximum = ZSTD_maxCLevel();
-#endif
-#if HAVE_ZSTD_H && HAVE_LIBZSTD && ZSTD_VERSION_NUMBER >= MINVER_MINCLEVEL
+#if ZSTD_VERSION_NUMBER >= MINVER_MINCLEVEL
 		if (ZSTD_versionNumber() >= MINVER_MINCLEVEL) {
 			minimum = ZSTD_minCLevel();
 		}
-		else if (ZSTD_versionNumber() < MINVER_NEGCLEVEL) {
+		else
+#endif
+		if (ZSTD_versionNumber() < MINVER_NEGCLEVEL) {
 			minimum = CLEVEL_STD_MIN;
 		}
 #endif
