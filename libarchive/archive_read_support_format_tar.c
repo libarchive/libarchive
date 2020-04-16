@@ -1797,6 +1797,21 @@ pax_attribute_schily_xattr(struct archive_entry *entry,
 }
 
 static int
+pax_attribute_rh_selinux(struct archive_entry *entry,
+	const char *name, const char *value, size_t value_length)
+{
+	// RHT.security.selinux -> xattr security.selinux
+	if (strlen(name) < 5 || (memcmp(name, "RHT.", 4)) != 0)
+		return 1;
+
+	name += 4;
+
+	archive_entry_xattr_add_entry(entry, name, value, value_length);
+
+	return 0;
+}
+
+static int
 pax_attribute_acl(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const char *value, int type)
 {
@@ -1965,6 +1980,14 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		}
 		if (memcmp(key, "LIBARCHIVE.xattr.", 17) == 0)
 			pax_attribute_xattr(entry, key, value);
+		break;
+	case 'R':
+		/* Upstream GNU tar uses RHT.security header to store SELinux xattrs
+		 * SCHILY.xattr.security.selinux == RHT.security.selinux */
+		if (strcmp(key, "RHT.security.selinux") == 0) {
+			pax_attribute_rh_selinux(entry, key, value,
+			    value_length);
+			}
 		break;
 	case 'S':
 		/* We support some keys used by the "star" archiver */
