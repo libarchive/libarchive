@@ -1797,16 +1797,11 @@ pax_attribute_schily_xattr(struct archive_entry *entry,
 }
 
 static int
-pax_attribute_rh_selinux(struct archive_entry *entry,
-	const char *name, const char *value, size_t value_length)
+pax_attribute_rht_security_selinux(struct archive_entry *entry,
+	const char *value, size_t value_length)
 {
-	// RHT.security.selinux -> xattr security.selinux
-	if (strlen(name) < 5 || (memcmp(name, "RHT.", 4)) != 0)
-		return 1;
-
-	name += 4;
-
-	archive_entry_xattr_add_entry(entry, name, value, value_length);
+	archive_entry_xattr_add_entry(entry, "security.selinux",
+            value, value_length);
 
 	return 0;
 }
@@ -1982,10 +1977,10 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 			pax_attribute_xattr(entry, key, value);
 		break;
 	case 'R':
-		/* Upstream GNU tar uses RHT.security header to store SELinux xattrs
+		/* GNU tar uses RHT.security header to store SELinux xattrs
 		 * SCHILY.xattr.security.selinux == RHT.security.selinux */
 		if (strcmp(key, "RHT.security.selinux") == 0) {
-			pax_attribute_rh_selinux(entry, key, value,
+			pax_attribute_rht_security_selinux(entry, value,
 			    value_length);
 			}
 		break;
