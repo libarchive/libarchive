@@ -578,8 +578,6 @@ choose_filters(struct archive_read *a)
 				__archive_read_free_filters(a);
 				return (ARCHIVE_FATAL);
 			}
-			a->archive.compression_name = a->filter->name;
-			a->archive.compression_code = a->filter->code;
 			return (ARCHIVE_OK);
 		}
 

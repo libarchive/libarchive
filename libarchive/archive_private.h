@@ -112,9 +112,6 @@ struct archive {
 	int		  archive_format;
 	const char	 *archive_format_name;
 
-	int	  compression_code;	/* Currently active compression. */
-	const char *compression_name;
-
 	/* Number of file entries processed. */
 	int		  file_count;
 
