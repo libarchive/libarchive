@@ -211,7 +211,6 @@ int
 __archive_write_program_open(struct archive_write_filter *f,
     struct archive_write_program_data *data, const char *cmd)
 {
-	pid_t child;
 	int ret;
 
 	if (data->child_buf == NULL) {
@@ -227,26 +226,12 @@ __archive_write_program_open(struct archive_write_filter *f,
 	}
 
 	ret = __archive_create_child(cmd, &data->child_stdin,
-		    &data->child_stdout, &child);
+		    &data->child_stdout, &data->child);
 	if (ret != ARCHIVE_OK) {
 		archive_set_error(f->archive, EINVAL,
 		    "Can't launch external program: %s", cmd);
 		return (ARCHIVE_FATAL);
 	}
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	data->child = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, child);
-	if (data->child == NULL) {
-		close(data->child_stdin);
-		data->child_stdin = -1;
-		close(data->child_stdout);
-		data->child_stdout = -1;
-		archive_set_error(f->archive, EINVAL,
-		    "Can't launch external program: %s", cmd);
-		return (ARCHIVE_FATAL);
-	}
-#else
-	data->child = child;
-#endif
 	return (ARCHIVE_OK);
 }
 

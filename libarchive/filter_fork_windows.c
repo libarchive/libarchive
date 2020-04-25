@@ -33,7 +33,7 @@
 
 int
 __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
-		pid_t *out_child)
+		HANDLE *out_child)
 {
 	HANDLE childStdout[2], childStdin[2],childStderr;
 	SECURITY_ATTRIBUTES secAtts;
@@ -45,6 +45,7 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 	char *arg0, *ext;
 	int i, l;
 	DWORD fl, fl_old;
+	HANDLE child;
 
 	childStdout[0] = childStdout[1] = INVALID_HANDLE_VALUE;
 	childStdin[0] = childStdin[1] = INVALID_HANDLE_VALUE;
@@ -155,13 +156,19 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 	*child_stdout = _open_osfhandle((intptr_t)childStdout[0], _O_RDONLY);
 	*child_stdin = _open_osfhandle((intptr_t)childStdin[1], _O_WRONLY);
 	
+	child = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
+		childInfo.dwProcessId);
+	if (child == NULL) // INVALID_HANDLE_VALUE ?
+		goto fail;
+
+	*out_child = child;
+
 	CloseHandle(childStdout[1]);
 	CloseHandle(childStdin[0]);
 
 	archive_string_free(&cmdline);
 	archive_string_free(&fullpath);
 	__archive_cmdline_free(acmd);
-	*out_child = childInfo.dwProcessId;
 	return ARCHIVE_OK;
 
 fail:
