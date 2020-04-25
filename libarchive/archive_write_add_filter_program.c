@@ -212,6 +212,7 @@ __archive_write_program_open(struct archive_write_filter *f,
     struct archive_write_program_data *data, const char *cmd)
 {
 	pid_t child;
+	int ret;
 
 	if (data->child_buf == NULL) {
 		data->child_buf_len = 65536;
@@ -225,9 +226,9 @@ __archive_write_program_open(struct archive_write_filter *f,
 		}
 	}
 
-	child = __archive_create_child(cmd, &data->child_stdin,
-		    &data->child_stdout);
-	if (child == -1) {
+	ret = __archive_create_child(cmd, &data->child_stdin,
+		    &data->child_stdout, &child);
+	if (ret != ARCHIVE_OK) {
 		archive_set_error(f->archive, EINVAL,
 		    "Can't launch external program: %s", cmd);
 		return (ARCHIVE_FATAL);

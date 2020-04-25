@@ -401,6 +401,7 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 	char *out_buf;
 	const char *prefix = "Program: ";
 	pid_t child;
+	int ret;
 	size_t l;
 
 	l = strlen(prefix) + strlen(cmd) + 1;
@@ -426,9 +427,9 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 	state->out_buf = out_buf;
 	state->out_buf_len = out_buf_len;
 
-	child = __archive_create_child(cmd, &state->child_stdin,
-	    &state->child_stdout);
-	if (child == -1) {
+	ret = __archive_create_child(cmd, &state->child_stdin,
+	    &state->child_stdout, &child);
+	if (ret != ARCHIVE_OK) {
 		free(state->out_buf);
 		archive_string_free(&state->description);
 		free(state);

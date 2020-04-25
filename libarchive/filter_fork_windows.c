@@ -31,8 +31,9 @@
 
 #include "filter_fork.h"
 
-pid_t
-__archive_create_child(const char *cmd, int *child_stdin, int *child_stdout)
+int
+__archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
+		pid_t *out_child)
 {
 	HANDLE childStdout[2], childStdin[2],childStderr;
 	SECURITY_ATTRIBUTES secAtts;
@@ -160,7 +161,8 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout)
 	archive_string_free(&cmdline);
 	archive_string_free(&fullpath);
 	__archive_cmdline_free(acmd);
-	return (childInfo.dwProcessId);
+	*out_child = childInfo.dwProcessId;
+	return ARCHIVE_OK;
 
 fail:
 	if (childStdout[0] != INVALID_HANDLE_VALUE)
@@ -176,7 +178,7 @@ fail:
 	archive_string_free(&cmdline);
 	archive_string_free(&fullpath);
 	__archive_cmdline_free(acmd);
-	return (-1);
+	return ARCHIVE_FAILED;
 }
 
 void

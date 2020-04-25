@@ -32,8 +32,9 @@
 #error This header is only to be used internally to libarchive.
 #endif
 
-pid_t
-__archive_create_child(const char *cmd, int *child_stdin, int *child_stdout);
+int
+__archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
+	pid_t *out_child);
 
 void
 __archive_check_child(int in, int out);
