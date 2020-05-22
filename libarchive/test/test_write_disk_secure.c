@@ -40,7 +40,8 @@ DEFINE_TEST(test_write_disk_secure)
 	struct archive *a;
 	struct archive_entry *ae;
 	struct stat st;
-#if defined(HAVE_LCHMOD) && defined(HAVE_SYMLINK)
+#if defined(HAVE_LCHMOD) && defined(HAVE_SYMLINK) && \
+    defined(S_IRUSR) && defined(S_IWUSR) && defined(S_IXUSR)
 	int working_lchmod;
 #endif
 
