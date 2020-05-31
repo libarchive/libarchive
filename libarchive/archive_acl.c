@@ -595,7 +595,7 @@ archive_acl_text_len(struct archive_acl *acl, int want_type, int flags,
 				else
 					length += sizeof(uid_t) * 3 + 1;
 			} else {
-				r = archive_mstring_get_mbs_l(&ap->name, &name,
+				r = archive_mstring_get_mbs_l(a, &ap->name, &name,
 				    &len, sc);
 				if (r != 0)
 					return (0);
@@ -968,7 +968,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 		else
 			prefix = NULL;
 		r = archive_mstring_get_mbs_l(
-		    &ap->name, &name, &len, sc);
+		    NULL, &ap->name, &name, &len, sc);
 		if (r != 0) {
 			free(s);
 			return (NULL);
