@@ -450,7 +450,7 @@ int
 _archive_entry_gname_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
-	return (archive_mstring_get_mbs_l(&entry->ae_gname, p, len, sc));
+	return (archive_mstring_get_mbs_l(entry->archive, &entry->ae_gname, p, len, sc));
 }
 
 const char *
@@ -504,7 +504,7 @@ _archive_entry_hardlink_l(struct archive_entry *entry,
 		*len = 0;
 		return (0);
 	}
-	return (archive_mstring_get_mbs_l(&entry->ae_hardlink, p, len, sc));
+	return (archive_mstring_get_mbs_l(entry->archive, &entry->ae_hardlink, p, len, sc));
 }
 
 la_int64_t
@@ -595,7 +595,7 @@ int
 _archive_entry_pathname_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
-	return (archive_mstring_get_mbs_l(&entry->ae_pathname, p, len, sc));
+	return (archive_mstring_get_mbs_l(entry->archive, &entry->ae_pathname, p, len, sc));
 }
 
 __LA_MODE_T
@@ -723,7 +723,7 @@ _archive_entry_symlink_l(struct archive_entry *entry,
 		*len = 0;
 		return (0);
 	}
-	return (archive_mstring_get_mbs_l( &entry->ae_symlink, p, len, sc));
+	return (archive_mstring_get_mbs_l(entry->archive, &entry->ae_symlink, p, len, sc));
 }
 
 la_int64_t
@@ -769,7 +769,7 @@ int
 _archive_entry_uname_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
-	return (archive_mstring_get_mbs_l(&entry->ae_uname, p, len, sc));
+	return (archive_mstring_get_mbs_l(entry->archive, &entry->ae_uname, p, len, sc));
 }
 
 int
