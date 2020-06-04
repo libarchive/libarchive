@@ -1402,14 +1402,14 @@ isint_w(const wchar_t *start, const wchar_t *end, int *result)
 	if (start >= end)
 		return (0);
 	while (start < end) {
-		if (*start < '0' || *start > '9')
+		if (*start < L'0' || *start > L'9')
 			return (0);
 		if (n > (INT_MAX / 10) ||
-		    (n == INT_MAX / 10 && (*start - '0') > INT_MAX % 10)) {
+		    (n == INT_MAX / 10 && (*start - L'0') > INT_MAX % 10)) {
 			n = INT_MAX;
 		} else {
 			n *= 10;
-			n += *start - '0';
+			n += *start - L'0';
 		}
 		start++;
 	}
