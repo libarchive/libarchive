@@ -208,6 +208,19 @@ archive_entry_clone(struct archive_entry *entry)
 
 	/* Copy encryption status */
 	entry2->encryption = entry->encryption;
+
+	/* Copy digests */
+#define copy_digest(_e2, _e, _t) \
+	memcpy(_e2->digest._t, _e->digest._t, sizeof(_e2->digest._t))
+
+	copy_digest(entry2, entry, md5);
+	copy_digest(entry2, entry, rmd160);
+	copy_digest(entry2, entry, sha1);
+	copy_digest(entry2, entry, sha256);
+	copy_digest(entry2, entry, sha384);
+	copy_digest(entry2, entry, sha512);
+
+#undef copy_digest
 	
 	/* Copy ACL data over. */
 	archive_acl_copy(&entry2->acl, &entry->acl);
@@ -1414,6 +1427,62 @@ archive_entry_copy_mac_metadata(struct archive_entry *entry,
       abort();
     memcpy(entry->mac_metadata, p, s);
   }
+}
+
+/* Digest handling */
+const unsigned char *
+archive_entry_digest(struct archive_entry *entry, int type)
+{
+	switch (type) {
+	case ARCHIVE_ENTRY_DIGEST_MD5:
+		return entry->digest.md5;
+	case ARCHIVE_ENTRY_DIGEST_RMD160:
+		return entry->digest.rmd160;
+	case ARCHIVE_ENTRY_DIGEST_SHA1:
+		return entry->digest.sha1;
+	case ARCHIVE_ENTRY_DIGEST_SHA256:
+		return entry->digest.sha256;
+	case ARCHIVE_ENTRY_DIGEST_SHA384:
+		return entry->digest.sha384;
+	case ARCHIVE_ENTRY_DIGEST_SHA512:
+		return entry->digest.sha512;
+	default:
+		return NULL;
+	}
+}
+
+int
+archive_entry_set_digest(struct archive_entry *entry, int type,
+    const unsigned char *digest)
+{
+#define copy_digest(_e, _t, _d)\
+	memcpy(_e->digest._t, _d, sizeof(_e->digest._t))
+
+	switch (type) {
+	case ARCHIVE_ENTRY_DIGEST_MD5:
+		copy_digest(entry, md5, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_RMD160:
+		copy_digest(entry, rmd160, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA1:
+		copy_digest(entry, sha1, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA256:
+		copy_digest(entry, sha256, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA384:
+		copy_digest(entry, sha384, digest);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA512:
+		copy_digest(entry, sha512, digest);
+		break;
+	default:
+		return ARCHIVE_WARN;
+	}
+
+	return ARCHIVE_OK;
+#undef copy_digest
 }
 
 /*
