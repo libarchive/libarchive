@@ -418,6 +418,7 @@ __LA_DECL int archive_read_support_compression_xz(struct archive *)
 #endif
 
 __LA_DECL int archive_read_support_filter_all(struct archive *);
+__LA_DECL int archive_read_support_filter_by_code(struct archive *, int);
 __LA_DECL int archive_read_support_filter_bzip2(struct archive *);
 __LA_DECL int archive_read_support_filter_compress(struct archive *);
 __LA_DECL int archive_read_support_filter_gzip(struct archive *);
