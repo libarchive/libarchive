@@ -546,6 +546,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	struct fixup_entry *fe;
+	const char *linkname;
 	int ret, r;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -589,6 +590,17 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	ret = cleanup_pathname(a);
 	if (ret != ARCHIVE_OK)
 		return (ret);
+
+	/*
+	 * Check if we have a hardlink that points to itself.
+	 */
+	linkname = archive_entry_hardlink(a->entry);
+	if (linkname != NULL && strcmp(a->name, linkname) == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Skipping hardlink pointing to itself: %s",
+		    a->name);
+		return (ARCHIVE_WARN);
+	}
 
 	/*
 	 * Query the umask so we get predictable mode settings.
