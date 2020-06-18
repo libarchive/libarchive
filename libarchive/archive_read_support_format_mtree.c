@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_mtree.c 2011
 #endif
 
 #include "archive.h"
+#include "archive_base64_private.h"
 #include "archive_entry.h"
 #include "archive_entry_private.h"
 #include "archive_private.h"
@@ -79,6 +80,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_mtree.c 2011
 
 #define	MTREE_HAS_OPTIONAL	0x0800
 #define	MTREE_HAS_NOCHANGE	0x1000 /* FreeBSD specific */
+#define	MTREE_HAS_XATTR		0x2000 /* extension */
 
 #define	MAX_LINE_LEN		(1024 * 1024)
 
@@ -1826,6 +1828,34 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		if (strcmp(key, "uname") == 0) {
 			*parsed_kws |= MTREE_HAS_UNAME;
 			archive_entry_copy_uname(entry, val);
+			break;
+		}
+		__LA_FALLTHROUGH;
+	case 'x':
+		if (strncmp(key, "xattr.", sizeof("xattr.") - 1) == 0) {
+			char *name;
+			char *decoded_val;
+			size_t decoded_len;
+			*parsed_kws |= MTREE_HAS_XATTR;
+			name = strchr(key, '.');
+			if (*++name == '\0') {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Malformed attribute \"%s\"; "
+				    "ignoring", key);
+				return (ARCHIVE_WARN);
+			}
+			parse_escapes(name, NULL);
+			decoded_val = base64_decode(val, strlen(val),
+			    &decoded_len);
+			if (decoded_val == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory");
+				return (ARCHIVE_FATAL);
+			}
+			archive_entry_xattr_add_entry(entry, name,
+			    decoded_val, decoded_len);
+			free(decoded_val);
 			break;
 		}
 		__LA_FALLTHROUGH;
