@@ -26,6 +26,10 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+
 #include "archive.h"
 #include "archive_private.h"
 
@@ -73,5 +77,7 @@ archive_read_support_format_by_code(struct archive *a, int format_code)
 		return archive_read_support_format_zip(a);
 		break;
 	}
+	archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+	    "Invalid format code specified");
 	return (ARCHIVE_FATAL);
 }
