@@ -3906,8 +3906,8 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	int ret;
 	struct rar5* rar = get_context(a);
 
-	*offset = 0;
-	*size = 0;
+	if (size)
+		*size = 0;
 
 	if(rar->file.dir > 0) {
 		/* Don't process any data if this file entry was declared
