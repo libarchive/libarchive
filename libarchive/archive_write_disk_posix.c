@@ -4427,6 +4427,9 @@ set_xattrs(struct archive_write_disk *a)
 				/* "user." attributes go to user namespace */
 				name += 5;
 				namespace = EXTATTR_NAMESPACE_USER;
+			} else if (strncmp(name, "system.", 7) == 0) {
+				name += 7;
+				namespace = EXTATTR_NAMESPACE_SYSTEM;
 			} else {
 				/* Other namespaces are unsupported */
 				archive_strcat(&errlist, name);
