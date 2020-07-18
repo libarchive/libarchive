@@ -1,5 +1,13 @@
+#include "archive_platform.h"
+
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+
+#include "archive_base64_private.h"
 
 /*
  * base64_decode - Base64 decode
