@@ -1766,7 +1766,13 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	 * more than that forces the decompressor to combine reads by copying
 	 * data.
 	 */
-	compressed_buf = __archive_read_ahead(a, 1, &bytes_avail);
+	// try not to use this optimization because it may return less bytes than actually available
+	// that leads to loss of eos marker in lzma stream
+	// request exact bytes count as minimun at first
+	compressed_buf = __archive_read_ahead(a, zip->entry_bytes_remaining, &bytes_avail);
+	// than if request is not met, try to get minimal values really available, as suggested initially
+	if (compressed_buf == NULL)
+		compressed_buf = __archive_read_ahead(a, 1, &bytes_avail);
 	if (bytes_avail < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated lzma file body");
