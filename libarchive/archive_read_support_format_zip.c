@@ -1901,15 +1901,15 @@ zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
 
 	if(order < 2 || restore_method > 2) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Invalid parameter set in PPMd8 stream (order=%d, "
-		    "restore=%d)", order, restore_method);
+		    "Invalid parameter set in PPMd8 stream (order=%" PRId32 ", "
+		    "restore=%" PRId32 ")", order, restore_method);
 		return (ARCHIVE_FAILED);
 	}
 
 	/* Allocate the memory needed to properly decompress the file. */
 	if(!__archive_ppmd8_functions.Ppmd8_Alloc(&zip->ppmd8, mem << 20)) {
 		archive_set_error(&a->archive, ENOMEM,
-		    "Unable to allocate memory for PPMd8 stream: %d bytes",
+		    "Unable to allocate memory for PPMd8 stream: %" PRId32 " bytes",
 		    mem << 20);
 		return (ARCHIVE_FATAL);
 	}

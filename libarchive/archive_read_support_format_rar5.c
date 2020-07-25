@@ -3831,7 +3831,7 @@ static int verify_checksums(struct archive_read* a) {
 
 				DEBUG_CODE {
 					printf("Checksum error: CRC32 "
-					    "(was: %08x, expected: %08x)\n",
+					    "(was: %08" PRIx32 ", expected: %08" PRIx32 ")\n",
 					    rar->file.calculated_crc32,
 					    rar->file.stored_crc32);
 				}
@@ -3845,7 +3845,7 @@ static int verify_checksums(struct archive_read* a) {
 			} else {
 				DEBUG_CODE {
 					printf("Checksum OK: CRC32 "
-					    "(%08x/%08x)\n",
+					    "(%08" PRIx32 "/%08" PRIx32 ")\n",
 					    rar->file.stored_crc32,
 					    rar->file.calculated_crc32);
 				}
