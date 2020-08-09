@@ -103,8 +103,10 @@ __FBSDID("$FreeBSD");
 
 static int setup_mac_metadata(struct archive_read_disk *,
     struct archive_entry *, int *fd);
+#ifdef ARCHIVE_XATTR_FREEBSD
 static int setup_xattrs_namespace(struct archive_read_disk *,
     struct archive_entry *, int *, int);
+#endif
 static int setup_xattrs(struct archive_read_disk *,
     struct archive_entry *, int *fd);
 static int setup_sparse(struct archive_read_disk *,
