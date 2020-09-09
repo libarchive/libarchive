@@ -900,6 +900,59 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 }
 
 /*
+ * Auxiliary method to uncompress data chunk from zipx archive (zip with lzma compression).
+ */
+static int
+zipx_lzma_uncompress_buffer(const char *compressed_buffer, size_t compressed_buffer_size,
+  char *uncompressed_buffer, size_t uncompressed_buffer_size)
+{
+  int status = ARCHIVE_FATAL;
+  if (compressed_buffer == NULL || compressed_buffer_size < 9 || uncompressed_buffer == NULL)
+    return status;
+
+  // prepare header for lzma_alone_decoder to replace zipx header (see comments in 'zipx_lzma_alone_init' for justification)
+#pragma pack(push)
+#pragma pack(1)
+  struct _alone_header
+  {
+    uint8_t bytes[5];
+    uint64_t uncompressed_size;
+  } alone_header;
+#pragma pack(pop)
+
+  memcpy(&alone_header.bytes[0], compressed_buffer + 4, 5);
+  alone_header.uncompressed_size = UINT64_MAX;
+
+  // prepare new compressed buffer, see 'zipx_lzma_alone_init' for details
+  int lzma_alone_buffer_size = compressed_buffer_size - 9 + sizeof(alone_header);
+  unsigned char *lzma_alone_compressed_buffer = (unsigned char*) malloc(lzma_alone_buffer_size);
+  if (lzma_alone_compressed_buffer == NULL)
+    return status;
+
+  memcpy(lzma_alone_compressed_buffer, (void*) &alone_header, sizeof(alone_header));
+  memcpy(lzma_alone_compressed_buffer + sizeof(alone_header), compressed_buffer + 9, compressed_buffer_size - 9);
+
+  // create and fill in lzma_alone_decoder stream
+  lzma_stream stream = LZMA_STREAM_INIT;
+  lzma_ret ret = lzma_alone_decoder(&stream, UINT64_MAX);
+  if (ret == LZMA_OK)
+  {
+    stream.next_in = lzma_alone_compressed_buffer;
+    stream.avail_in = lzma_alone_buffer_size;
+    stream.total_in = 0;
+    stream.next_out = (unsigned char*)uncompressed_buffer;
+    stream.avail_out = uncompressed_buffer_size;
+    stream.total_out = 0;
+    ret = lzma_code(&stream, LZMA_RUN);
+    if (ret == LZMA_OK || ret == LZMA_STREAM_END)
+      status = ARCHIVE_OK;
+  }
+  lzma_end(&stream);
+  free(lzma_alone_compressed_buffer);
+  return status;
+}
+
+/*
  * Assumes file pointer is at beginning of local file header.
  */
 static int
@@ -1174,17 +1227,45 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			return ARCHIVE_FATAL;
 		}
 
+    size_t linkname_full_length = linkname_length; // take into account compression if any
+    if (zip->entry->compression != 0) // symlink target string appeared to be compressed
+    {
+      int status = ARCHIVE_FATAL;
+      char *uncompressed_buffer = (char*) malloc(zip_entry->uncompressed_size);
+      if (uncompressed_buffer == NULL)
+      {
+        archive_set_error(&a->archive, ENOMEM, "No memory for lzma decompression");
+        return status;
+      }
+
+      switch (zip->entry->compression)
+      {
+#if HAVE_LZMA_H && HAVE_LIBLZMA
+        case 14: /* ZIPx LZMA compression. */
+          status = zipx_lzma_uncompress_buffer(p, linkname_length, uncompressed_buffer, (size_t)zip_entry->uncompressed_size);
+          break;
+#endif
+        default: /* Unsupported compression. */
+          break;
+      }
+      if (status == ARCHIVE_OK)
+      {
+        p = uncompressed_buffer;
+        linkname_full_length = (size_t)zip_entry->uncompressed_size;
+      }
+    }
+
 		sconv = zip->sconv;
 		if (sconv == NULL && (zip->entry->zip_flags & ZIP_UTF8_NAME))
 			sconv = zip->sconv_utf8;
 		if (sconv == NULL)
 			sconv = zip->sconv_default;
-		if (archive_entry_copy_symlink_l(entry, p, linkname_length,
+		if (archive_entry_copy_symlink_l(entry, p, linkname_full_length,
 		    sconv) != 0) {
 			if (errno != ENOMEM && sconv == zip->sconv_utf8 &&
 			    (zip->entry->zip_flags & ZIP_UTF8_NAME))
 			    archive_entry_copy_symlink_l(entry, p,
-				linkname_length, NULL);
+				linkname_full_length, NULL);
 			if (errno == ENOMEM) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for Symlink");
