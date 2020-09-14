@@ -900,14 +900,17 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 }
 
 /*
- * Auxiliary method to uncompress data chunk from zipx archive (zip with lzma compression).
+ * Auxiliary function to uncompress data chunk from zipx archive (zip with lzma compression).
  */
 static int
 zipx_lzma_uncompress_buffer(const char *compressed_buffer, size_t compressed_buffer_size,
   char *uncompressed_buffer, size_t uncompressed_buffer_size)
 {
   int status = ARCHIVE_FATAL;
-  if (compressed_buffer == NULL || compressed_buffer_size < 9 || uncompressed_buffer == NULL)
+  size_t lzma_params_length = 5; // length of 'lzma properties data' in lzma compressed data segment (stream) inside zip archive
+  size_t lzma_params_offset = 4; // offset of 'lzma properties data' from the beginning of lzma stream
+  size_t lzma_params_end = lzma_params_offset + lzma_params_length; // end position of 'lzma properties data' in lzma stream
+  if (compressed_buffer == NULL || compressed_buffer_size < lzma_params_end || uncompressed_buffer == NULL)
     return status;
 
   // prepare header for lzma_alone_decoder to replace zipx header (see comments in 'zipx_lzma_alone_init' for justification)
@@ -915,22 +918,23 @@ zipx_lzma_uncompress_buffer(const char *compressed_buffer, size_t compressed_buf
 #pragma pack(1)
   struct _alone_header
   {
-    uint8_t bytes[5];
+    uint8_t bytes[5]; // lzma_params_length
     uint64_t uncompressed_size;
   } alone_header;
 #pragma pack(pop)
-
-  memcpy(&alone_header.bytes[0], compressed_buffer + 4, 5);
+  // copy 'lzma properties data' blob
+  memcpy(&alone_header.bytes[0], compressed_buffer + lzma_params_offset, lzma_params_length);
   alone_header.uncompressed_size = UINT64_MAX;
 
   // prepare new compressed buffer, see 'zipx_lzma_alone_init' for details
-  int lzma_alone_buffer_size = compressed_buffer_size - 9 + sizeof(alone_header);
+  int lzma_alone_buffer_size = compressed_buffer_size - lzma_params_end + sizeof(alone_header);
   unsigned char *lzma_alone_compressed_buffer = (unsigned char*) malloc(lzma_alone_buffer_size);
   if (lzma_alone_compressed_buffer == NULL)
     return status;
-
+  // copy lzma_alone header into new buffer
   memcpy(lzma_alone_compressed_buffer, (void*) &alone_header, sizeof(alone_header));
-  memcpy(lzma_alone_compressed_buffer + sizeof(alone_header), compressed_buffer + 9, compressed_buffer_size - 9);
+  // copy compressed data into new buffer
+  memcpy(lzma_alone_compressed_buffer + sizeof(alone_header), compressed_buffer + lzma_params_end, compressed_buffer_size - lzma_params_end);
 
   // create and fill in lzma_alone_decoder stream
   lzma_stream stream = LZMA_STREAM_INIT;
@@ -1241,7 +1245,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
       switch (zip->entry->compression)
       {
 #if HAVE_LZMA_H && HAVE_LIBLZMA
-        case 14: /* ZIPx LZMA compression. */
+        case 14: /* ZIPx LZMA compression. (see zip file format specification, section 4.4.5)*/
           status = zipx_lzma_uncompress_buffer(p, linkname_length, uncompressed_buffer, (size_t)zip_entry->uncompressed_size);
           break;
 #endif
