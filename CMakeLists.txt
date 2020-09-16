@@ -1989,6 +1989,8 @@ ELSE(ENABLE_ACL)
   SET(ARCHIVE_ACL_SUNOS_NFS4 FALSE)
 ENDIF(ENABLE_ACL)
 
+CHECK_FUNCTION_EXISTS(copy_file_range HAVE_COPY_FILE_RANGE)
+
 #
 # Check MD5/RMD160/SHA support
 # NOTE: Crypto checks must be run last before generating config.h
