@@ -23,6 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
+#include "test_utils.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_pax_truncated.c 189483 2009-03-07 03:34:34Z kientzle $");
 
 DEFINE_TEST(test_read_pax_truncated)
@@ -48,8 +49,8 @@ DEFINE_TEST(test_read_pax_truncated)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	for (i = 0; i < filedata_size; i++)
-		filedata[i] = (unsigned char)rand();
+	fill_with_pseudorandom_data(filedata, filedata_size);
+
 	archive_entry_set_atime(ae, 1, 2);
 	archive_entry_set_ctime(ae, 3, 4);
 	archive_entry_set_mtime(ae, 5, 6);
