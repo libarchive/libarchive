@@ -898,6 +898,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_warc.warc.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.zip.uu \
+	libarchive/test/test_read_format_zip_7z_lzma.zip.uu \
 	libarchive/test/test_read_format_zip_bz2_hang.zip.uu \
 	libarchive/test/test_read_format_zip_bzip2.zipx.uu \
 	libarchive/test/test_read_format_zip_bzip2_multi.zipx.uu \
