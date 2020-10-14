@@ -4432,6 +4432,10 @@ set_xattrs(struct archive_write_disk *a)
 			} else if (strncmp(name, "system.", 7) == 0) {
 				name += 7;
 				namespace = EXTATTR_NAMESPACE_SYSTEM;
+				if (!strcmp(name, "nfs4.acl") ||
+				    !strcmp(name, "posix1e.acl_access") ||
+				    !strcmp(name, "posix1e.acl_default"))
+					continue;
 			} else {
 				/* Other namespaces are unsupported */
 				archive_strcat(&errlist, name);

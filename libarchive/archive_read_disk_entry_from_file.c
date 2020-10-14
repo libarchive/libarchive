@@ -765,11 +765,15 @@ setup_xattrs_namespace(struct archive_read_disk *a,
 		size_t len = 255 & (int)*p;
 		char *name;
 
-		switch (namespace) {
-		case EXTATTR_NAMESPACE_SYSTEM:
+		if (namespace == EXTATTR_NAMESPACE_SYSTEM) {
+			if (!strcmp(p + 1, "nfs4.acl") ||
+			    !strcmp(p + 1, "posix1e.acl_access") ||
+			    !strcmp(p + 1, "posix1e.acl_default")) {
+				p += 1 + len;
+				continue;
+			}
 			strcpy(buff, "system.");
-			break;
-		default:
+		} else {
 			strcpy(buff, "user.");
 		}
 		name = buff + strlen(buff);
