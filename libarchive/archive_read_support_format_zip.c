@@ -1950,8 +1950,20 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	zip->entry_compressed_bytes_read += to_consume;
 	zip->entry_uncompressed_bytes_read += zip->zipx_lzma_stream.total_out;
 
-	if(zip->entry_bytes_remaining == 0) {
+	// consider entry end when all amount of uncompressed data
+	// is read, because there can be situations when all compressed bytes
+	// are consumed by lzma_decoder, but not all decompressed bytes are
+	// copied to uncompressed_buffer because of it's limited size
+	// and there are some amount of decompressed data still left in decoder
+	// structures so more iterations are required just to copy
+	// the rest decompressed content to output buffer
+	// if uncompressed size is unknown by some reasons, use
+	// compressed bytes read count to stop
+	if((zip->entry->uncompressed_size == 0 && zip->entry_bytes_remaining == 0) ||
+		(zip->entry_uncompressed_bytes_read == zip->entry->uncompressed_size)) {
 		zip->end_of_entry = 1;
+		// do this only because these values are required to be equal
+		zip->entry_compressed_bytes_read = zip->entry->compressed_size;
 	}
 
 	/* Return values. */
