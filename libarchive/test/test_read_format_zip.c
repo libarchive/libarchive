@@ -902,7 +902,7 @@ DEFINE_TEST(test_read_format_zip_lzma_alone_leak)
 
 	/* Extraction of this file should fail, because the sample file is invalid.
 	 * But it shouldn't crash. */
-	assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buf, sizeof(buf)));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buf, sizeof(buf)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
 	/* Extraction of this file should fail, because the sample file is invalid.
