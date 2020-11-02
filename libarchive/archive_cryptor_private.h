@@ -104,6 +104,7 @@ typedef struct {
 #include <nettle/pbkdf2.h>
 #endif
 #include <nettle/aes.h>
+#include <nettle/version.h>
 
 typedef struct {
 	struct aes_ctx	ctx;
