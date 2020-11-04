@@ -347,29 +347,25 @@ aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
 static int
 aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 {
-#if NETTLE_VERSION_MAJOR < 3 || \
-	(NETTLE_VERSION_MAJOR == 3 && NETTLE_VERSION_MINOR < 5)
+#if NETTLE_VERSION_MAJOR < 3
 	aes_set_encrypt_key(&ctx->ctx, ctx->key_len, ctx->key);
 	aes_encrypt(&ctx->ctx, AES_BLOCK_SIZE, ctx->encr_buf, ctx->nonce);
 #else
 	switch(ctx->key_len) {
-	case 16:
-		aes128_set_encrypt_key((struct aes128_ctx *)&ctx->ctx.u.ctx128,
-		    ctx->key);
-		aes128_encrypt((struct aes128_ctx *)&ctx->ctx.u.ctx128,
-		    AES_BLOCK_SIZE, ctx->encr_buf, ctx->nonce);
+	case AES128_KEY_SIZE:
+		aes128_set_encrypt_key(&ctx->ctx.c128, ctx->key);
+		aes128_encrypt(&ctx->ctx.c128, AES_BLOCK_SIZE, ctx->encr_buf,
+		    ctx->nonce);
 		break;
-	case 24:
-		aes192_set_encrypt_key((struct aes192_ctx *)&ctx->ctx.u.ctx192,
-		    ctx->key);
-		aes192_encrypt((struct aes192_ctx *)&ctx->ctx.u.ctx192,
-		    AES_BLOCK_SIZE, ctx->encr_buf, ctx->nonce);
+	case AES192_KEY_SIZE:
+		aes192_set_encrypt_key(&ctx->ctx.c192, ctx->key);
+		aes192_encrypt(&ctx->ctx.c192, AES_BLOCK_SIZE, ctx->encr_buf,
+		    ctx->nonce);
 		break;
-	case 32:
-		aes256_set_encrypt_key((struct aes256_ctx *)&ctx->ctx.u.ctx256,
-		    ctx->key);
-		aes256_encrypt((struct aes256_ctx *)&ctx->ctx.u.ctx256,
-		    AES_BLOCK_SIZE, ctx->encr_buf, ctx->nonce);
+	case AES256_KEY_SIZE:
+		aes256_set_encrypt_key(&ctx->ctx.c256, ctx->key);
+		aes256_encrypt(&ctx->ctx.c256, AES_BLOCK_SIZE, ctx->encr_buf,
+		    ctx->nonce);
 		break;
 	default:
 		return -1;
