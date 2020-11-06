@@ -246,6 +246,8 @@ typedef int	archive_open_callback(struct archive *, void *_client_data);
 
 typedef int	archive_close_callback(struct archive *, void *_client_data);
 
+typedef int	archive_free_callback(struct archive *, void *_client_data);
+
 /* Switches from one client data object to the next/prev client data object.
  * This is useful for reading from different data blocks such as a set of files
  * that make up one large file.
@@ -818,9 +820,13 @@ __LA_DECL int archive_write_set_format_filter_by_ext(struct archive *a, const ch
 __LA_DECL int archive_write_set_format_filter_by_ext_def(struct archive *a, const char *filename, const char * def_ext);
 __LA_DECL int archive_write_zip_set_compression_deflate(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_store(struct archive *);
+/* Deprecated; use archive_write_open2 instead */
 __LA_DECL int archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,
 		     archive_close_callback *);
+__LA_DECL int archive_write_open2(struct archive *, void *,
+		     archive_open_callback *, archive_write_callback *,
+		     archive_close_callback *, archive_free_callback *);
 __LA_DECL int archive_write_open_fd(struct archive *, int _fd);
 __LA_DECL int archive_write_open_filename(struct archive *, const char *_file);
 __LA_DECL int archive_write_open_filename_w(struct archive *,
