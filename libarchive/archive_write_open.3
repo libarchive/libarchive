@@ -177,7 +177,7 @@ If the open fails, it should call
 .Fn archive_set_error
 to register an error code and message and return
 .Cm ARCHIVE_FATAL .
-Please not that if open fails, close is not called and resources must be
+Please note that if open fails, close is not called and resources must be
 freed inside the open callback or with the free callback.
 .Bl -item -offset indent
 .It
