@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_extract.c,v 1.61 2008/05/26 
 #include <errno.h>
 #endif
 
-#ifdef __posix
+#ifndef __posix
 #define NO_SYNC 1
 #endif
 
