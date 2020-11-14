@@ -36,6 +36,10 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_extract.c,v 1.61 2008/05/26 
 #include <string.h>
 #endif
 
+#ifdef __posix
+#define NO_SYNC 1
+#endif
+
 #ifndef NO_SYNC
 #include <unistd.h>
 #endif
