@@ -319,6 +319,14 @@ AC_CHECK_HEADERS([wincrypt.h winioctl.h],[],[],
 ]])
 
 # Checks for libraries.
+AC_ARG_WITH([nosync],
+  AS_HELP_STRING([--without-nosync], [Enable sync after extract support]))
+
+if test "x$with_nosync" != "xno"; then
+  AC_DEFINE([NO_SYNC], [1], [Define to 1 if NO_SYNC needs to be defined.])
+fi
+
+# Checks for libraries.
 AC_ARG_WITH([zlib],
   AS_HELP_STRING([--without-zlib], [Don't build support for gzip through zlib]))
 

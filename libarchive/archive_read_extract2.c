@@ -36,6 +36,10 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_extract.c,v 1.61 2008/05/26 
 #include <string.h>
 #endif
 
+#ifndef NO_SYNC
+#include <unistd.h>
+#endif
+
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
@@ -59,6 +63,9 @@ __archive_read_get_extract(struct archive_read *a)
 		}
 		a->cleanup_archive_extract = archive_read_extract_cleanup;
 	}
+  # ifndef NO_SYNC
+  sync();
+  #endif
 	return (a->extract);
 }
 
@@ -107,6 +114,9 @@ archive_read_extract2(struct archive *_a, struct archive_entry *entry,
 	/* Use the worst error return. */
 	if (r2 < r)
 		r = r2;
+  # ifndef NO_SYNC
+  sync();
+  #endif
 	return (r);
 }
 
