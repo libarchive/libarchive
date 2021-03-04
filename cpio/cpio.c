@@ -1114,7 +1114,7 @@ mode_list(struct cpio *cpio)
 		if (cpio->option_pwb) {
 			/* turn off random bits left over from V6 inode */
 			archive_entry_set_mode(entry, archive_entry_mode(entry) & 067777);
-			if ((archive_entry_mode(entry) & AE_IFMT == 0)
+			if ((archive_entry_mode(entry) & AE_IFMT) == 0)
 				archive_entry_set_mode(entry, archive_entry_mode(entry) | AE_IFREG);
 		}
 		if (cpio->verbose)
