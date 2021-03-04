@@ -1112,9 +1112,10 @@ mode_list(struct cpio *cpio)
 		if (archive_match_path_excluded(cpio->matching, entry))
 			continue;
 		if (cpio->option_pwb) {
+			/* turn off random bits left over from V6 inode */
 			archive_entry_set_mode(entry, archive_entry_mode(entry) & 067777);
-			if ((archive_entry_mode(entry) & 060000) == 0)
-				archive_entry_set_mode(entry, archive_entry_mode(entry) | 0100000);
+			if ((archive_entry_mode(entry) & AE_IFMT == 0)
+				archive_entry_set_mode(entry, archive_entry_mode(entry) | AE_IFREG);
 		}
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);
