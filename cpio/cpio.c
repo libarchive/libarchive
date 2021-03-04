@@ -973,6 +973,8 @@ mode_in(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->option_pwb)
+		archive_read_set_format_option(a, NULL, "pwb", "1");
 	if (cpio->passphrase != NULL)
 		r = archive_read_add_passphrase(a, cpio->passphrase);
 	else
@@ -1010,12 +1012,6 @@ mode_in(struct cpio *cpio)
 			archive_entry_set_uid(entry, cpio->uid_override);
 		if (cpio->gid_override >= 0)
 			archive_entry_set_gid(entry, cpio->gid_override);
-		if (cpio->option_pwb) {
-			/* turn off random bits left over from V6 inode */
-			archive_entry_set_mode(entry, archive_entry_mode(entry) & 067777);
-			if ((archive_entry_mode(entry) & AE_IFMT) == 0)
-				archive_entry_set_mode(entry, archive_entry_mode(entry) | AE_IFREG);
-		}
 		r = archive_write_header(ext, entry);
 		if (r != ARCHIVE_OK) {
 			fprintf(stderr, "%s: %s\n",
@@ -1089,6 +1085,8 @@ mode_list(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->option_pwb)
+		archive_read_set_format_option(a, NULL, "pwb", "1");
 	if (cpio->passphrase != NULL)
 		r = archive_read_add_passphrase(a, cpio->passphrase);
 	else
@@ -1111,12 +1109,6 @@ mode_list(struct cpio *cpio)
 		}
 		if (archive_match_path_excluded(cpio->matching, entry))
 			continue;
-		if (cpio->option_pwb) {
-			/* turn off random bits left over from V6 inode */
-			archive_entry_set_mode(entry, archive_entry_mode(entry) & 067777);
-			if ((archive_entry_mode(entry) & AE_IFMT) == 0)
-				archive_entry_set_mode(entry, archive_entry_mode(entry) | AE_IFREG);
-		}
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);
 		else
