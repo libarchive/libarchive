@@ -225,8 +225,9 @@ DEFINE_TEST(test_basic)
 	assertUmask(022);
 
 	/* Archive/dearchive with a variety of options. */
-	msg = canSymlink() ? "2 blocks\n" : "1 block\n";
+	msg = "1 block\n";
 	basic_cpio("copy", "", "", msg, msg);
+	msg = canSymlink() ? "2 blocks\n" : "1 block\n";
 	basic_cpio("copy_odc", "--format=odc", "", msg, msg);
 	basic_cpio("copy_newc", "-H newc", "", result, "2 blocks\n");
 	basic_cpio("copy_cpio", "-H odc", "", msg, msg);

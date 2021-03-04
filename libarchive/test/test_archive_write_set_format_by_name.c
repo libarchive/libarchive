@@ -177,7 +177,7 @@ DEFINE_TEST(test_archive_write_set_format_by_name_cd9660)
 
 DEFINE_TEST(test_archive_write_set_format_by_name_cpio)
 {
-	test_format_by_name("cpio", NULL, ARCHIVE_FORMAT_CPIO_POSIX, 0, NULL, 0);
+	test_format_by_name("cpio", NULL, ARCHIVE_FORMAT_CPIO_BIN_LE, 0, NULL, 0);
 }
 
 DEFINE_TEST(test_archive_write_set_format_by_name_gnutar)
