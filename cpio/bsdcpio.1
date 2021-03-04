@@ -82,6 +82,9 @@ all operating modes.
 .It Fl 0 , Fl Fl null
 Read filenames separated by NUL characters instead of newlines.
 This is necessary if any of the filenames being read might contain newlines.
+.It Fl 6 , Fl Fl pwb
+When reading or writing a binary format archive, assume it's the earlier one,
+from the PWB variant of 6th Edition UNIX.
 .It Fl A
 (o mode only)
 Append to the specified archive.
@@ -124,8 +127,7 @@ Supported formats include:
 .Pp
 .Bl -tag -width "iso9660" -compact
 .It Ar cpio
-Synonym for
-.Ar odc .
+The binary cpio format from 7th Edition UNIX.
 .It Ar newc
 The SVR4 portable cpio format.
 .It Ar odc
@@ -137,7 +139,7 @@ The POSIX.1 tar format.
 .El
 .Pp
 The default format is
-.Ar odc .
+.Ar cpio .
 See
 .Xr libarchive-formats 5
 for more complete information about the

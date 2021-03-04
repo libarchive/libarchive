@@ -63,6 +63,7 @@ struct cpio {
 	char		  option_null; /* --null */
 	int		  option_numeric_uid_gid; /* -n */
 	int		  option_rename; /* -r */
+	int		  option_pwb; /* -6 */
 	char		 *destdir;
 	size_t		  destdir_len;
 	size_t		  pass_destpath_alloc;

@@ -51,7 +51,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "arsvr4",	archive_write_set_format_ar_svr4 },
 	{ "bsdtar",	archive_write_set_format_pax_restricted },
 	{ "cd9660",	archive_write_set_format_iso9660 },
-	{ "cpio",	archive_write_set_format_cpio },
+	{ "cpio",	archive_write_set_format_cpio_bin },
 	{ "gnutar",	archive_write_set_format_gnutar },
 	{ "iso",	archive_write_set_format_iso9660 },
 	{ "iso9660",	archive_write_set_format_iso9660 },

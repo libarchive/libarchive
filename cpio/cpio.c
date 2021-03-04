@@ -192,6 +192,9 @@ main(int argc, char *argv[])
 		case '0': /* GNU convention: --null, -0 */
 			cpio->option_null = 1;
 			break;
+		case '6': /* 6th edition (PWB) interpretation of file mode bits */
+			cpio->option_pwb = 1;
+			break;
 		case 'A': /* NetBSD/OpenBSD */
 			cpio->option_append = 1;
 			break;
@@ -400,11 +403,9 @@ main(int argc, char *argv[])
 
 	switch (cpio->mode) {
 	case 'o':
-		/* TODO: Implement old binary format in libarchive,
-		   use that here. */
+		/* Default to binary format for portability */
 		if (cpio->format == NULL)
-			cpio->format = "odc"; /* Default format */
-
+			cpio->format = "cpio";
 		mode_out(cpio);
 		break;
 	case 'i':
@@ -588,6 +589,8 @@ mode_out(struct cpio *cpio)
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
+	if (cpio->option_pwb)
+		archive_write_set_format_option(cpio->archive, NULL, "pwb", "1");
 	archive_write_set_bytes_per_block(cpio->archive, cpio->bytes_per_block);
 	cpio->linkresolver = archive_entry_linkresolver_new();
 	archive_entry_linkresolver_set_strategy(cpio->linkresolver,
@@ -1007,6 +1010,12 @@ mode_in(struct cpio *cpio)
 			archive_entry_set_uid(entry, cpio->uid_override);
 		if (cpio->gid_override >= 0)
 			archive_entry_set_gid(entry, cpio->gid_override);
+		if (cpio->option_pwb) {
+			/* turn off random bits left over from V6 inode */
+			archive_entry_set_mode(entry, archive_entry_mode(entry) & 067777);
+			if ((archive_entry_mode(entry) & AE_IFMT) == 0)
+				archive_entry_set_mode(entry, archive_entry_mode(entry) | AE_IFREG);
+		}
 		r = archive_write_header(ext, entry);
 		if (r != ARCHIVE_OK) {
 			fprintf(stderr, "%s: %s\n",
@@ -1102,6 +1111,11 @@ mode_list(struct cpio *cpio)
 		}
 		if (archive_match_path_excluded(cpio->matching, entry))
 			continue;
+		if (cpio->option_pwb) {
+			archive_entry_set_mode(entry, archive_entry_mode(entry) & 067777);
+			if ((archive_entry_mode(entry) & 060000) == 0)
+				archive_entry_set_mode(entry, archive_entry_mode(entry) | 0100000);
+		}
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);
 		else
