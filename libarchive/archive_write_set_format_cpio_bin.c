@@ -72,17 +72,19 @@ struct cpio {
 	int		  opt_pwb;
 };
 
-/* This needs to match the following struct to get the header right */
+/* This struct needs to be packed to get the header right */
 
 #if defined(__GNUC__)
-#define PACKED __attribute__ ((__packed__))
-#define HSIZE (sizeof (struct cpio_bin_header))
+#define PACKED(x) x __attribute__((packed))
+#elif defined(_MSC_VER)
+#define PACKED(x) __pragma(pack(push, 1)) x __pragma(pack(pop))
 #else
-#define PACKED
-#define HSIZE 26
+#define PACKED(x) x
 #endif
 
-struct PACKED cpio_bin_header {
+#define HSIZE 26
+
+PACKED(struct cpio_bin_header {
 	uint16_t	h_magic;
 	uint16_t	h_dev;
 	uint16_t	h_ino;
@@ -94,7 +96,7 @@ struct PACKED cpio_bin_header {
 	uint32_t	h_mtime;
 	uint16_t	h_namesize;
 	uint32_t	h_filesize;
-};
+});
 
 /* Back in the day, the 7th Edition cpio.c had this, to
  * adapt to, as the comment said, "VAX, Interdata, ...":
@@ -176,6 +178,12 @@ archive_write_set_format_cpio_bin(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	struct cpio *cpio;
+
+	if (sizeof(struct cpio_bin_header) != HSIZE) {
+		archive_set_error(&a->archive, EINVAL,
+				  "Binary cpio format not supported on this platform");
+		return (ARCHIVE_FATAL);
+	}
 
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_cpio_bin");
