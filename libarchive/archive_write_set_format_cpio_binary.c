@@ -121,8 +121,7 @@ PACKED(struct cpio_binary_header {
  * #define PUTI16(v,sv) {U.s[0]=1;if(U.c[0]) v=sv; else U.s[0]=sv,U.c[2]=U.c[1],U.c[3]=U.c[0],v=U.s[1];}
  * #define PUTI32(v,lv) {char_t Ut;U.l=1;if(U.c[0]) U.l=lv,v[0]=U.s[1],v[1]=U.s[0]; else U.l=lv,Ut=U.c[0],U.c[0]=U.c[1],U.c[1]=Ut,Ut=U.c[2],U.c[2]=U.c[3],U.c[3]=Ut,v[0]=U.s[0],v[1]=U.s[1];}
  *
- * ...but it feels a little better to do it like this (which by the way,
- * assumes that it will never be run on a PDP-11):
+ * ...but it feels a little better to do it like this:
  */
 
 static uint16_t swap16(uint16_t in) {
@@ -149,21 +148,18 @@ static uint32_t swap32(uint32_t in) {
 		uint8_t c[4];
 	} U;
 	U.l = 1;
-	if (U.c[0]) {
+	if (U.c[0]) {		/* Little-endian */
 		uint16_t t;
 		U.l = in;
 		t = U.s[0];
 		U.s[0] = U.s[1];
 		U.s[1] = t;
-	} else {
-		uint8_t t;
+	} else if (U.c[3]) {	/* Big-endian */
 		U.l = in;
-		t = U.c[0];
-		U.c[0] = U.c[1];
-		U.c[1] = t;
-		t = U.c[2];
-		U.c[2] = U.c[3];
-		U.c[3] = t;
+		U.s[0] = swap16(U.s[0]);
+		U.s[1] = swap16(U.s[1]);
+	} else {		/* PDP-endian */
+		U.l = in;
 	}
 	return U.l;
 }
