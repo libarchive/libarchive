@@ -400,10 +400,8 @@ main(int argc, char *argv[])
 
 	switch (cpio->mode) {
 	case 'o':
-		/* TODO: Implement old binary format in libarchive,
-		   use that here. */
 		if (cpio->format == NULL)
-			cpio->format = "odc"; /* Default format */
+			cpio->format = "cpio"; /* Default format */
 
 		mode_out(cpio);
 		break;

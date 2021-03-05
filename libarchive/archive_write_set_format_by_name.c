@@ -58,7 +58,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 	{ "mtree",	archive_write_set_format_mtree },
 	{ "mtree-classic",	archive_write_set_format_mtree_classic },
 	{ "newc",	archive_write_set_format_cpio_newc },
-	{ "odc",	archive_write_set_format_cpio },
+	{ "odc",	archive_write_set_format_cpio_odc },
 	{ "oldtar",	archive_write_set_format_v7tar },
 	{ "pax",	archive_write_set_format_pax },
 	{ "paxr",	archive_write_set_format_pax_restricted },
