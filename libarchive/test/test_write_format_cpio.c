@@ -273,12 +273,19 @@ test_big_entries(int (*set_format)(struct archive *), int64_t size, int expected
 
 DEFINE_TEST(test_write_format_cpio)
 {
+	int64_t size_2g = ((int64_t)1) << 31;
 	int64_t size_4g = ((int64_t)1) << 32;
 	int64_t size_8g = ((int64_t)1) << 33;
 
+/* would fail because of missing error recovery feature */
+/*	test_format(archive_write_set_format_cpio_bin); */
 	test_format(archive_write_set_format_cpio);
 	test_format(archive_write_set_format_cpio_newc);
 
+	test_big_entries(archive_write_set_format_cpio_bin,
+	    size_2g - 1, ARCHIVE_OK);
+	test_big_entries(archive_write_set_format_cpio_bin,
+	    size_2g, ARCHIVE_FAILED);
 	test_big_entries(archive_write_set_format_cpio,
 	    size_8g - 1, ARCHIVE_OK);
 	test_big_entries(archive_write_set_format_cpio,
