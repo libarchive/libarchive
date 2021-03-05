@@ -205,7 +205,11 @@ The libarchive library can read a number of common cpio variants and can write
 .Dq odc
 and
 .Dq newc
-format archives.
+format archives, in addition to the original binary formats from
+.Dq PWB 1.0
+and
+.Dq 7th Edition
+UNIX.
 A cpio archive stores each entry as a fixed-size header followed
 by a variable-length filename and variable-length data.
 Unlike the tar format, the cpio format does only minimal padding
@@ -216,10 +220,21 @@ octal or hexadecimal numbers in ASCII, others as binary values of
 varying byte order and length.
 .Bl -tag -width indent
 .It Cm binary
-The libarchive library transparently reads both big-endian and little-endian
-variants of the original binary cpio format.
-This format used 32-bit binary values for file size and mtime,
-and 16-bit binary values for the other fields.
+This format used 32-bit binary values for file size and mtime, and
+16-bit binary values for the other fields.  There are two variants of
+the binary format: the original one, from the first version of cpio
+under PWB UNIX (a fork of 6th Edition created within AT&T), and the
+version that was incorporated into 7th Edition.  The latter was
+updated to support the new file system objects in that version of
+UNIX; sockets, fifos, and symbolic links.  Unfortunately, this makes
+the format incompatible with the original version.
+.Pp
+The libarchive library transparently reads both big-endian and
+little-endian variants of the binary cpio format, and writes the
+little-endian variant.  It defaults to assuming the 7th Edition
+format, but giving the "pwb" option to the reading and writing
+modules (or the "-6" switch to the bsdcpio program) makes them
+follow the semantics of the original, PWB, version of cpio.
 .It Cm odc
 The libarchive library can both read and write this
 POSIX-standard format, which is officially known as the
@@ -248,9 +263,9 @@ AT&T in 1977.
 PWB/UNIX 1.0 formed the basis of System III Unix, released outside
 of AT&T in 1981.
 This makes cpio older than tar, although cpio was not included
-in Version 7 AT&T Unix.
+in the original distribution of 7th Edition AT&T Unix.
 As a result, the tar command became much better known in universities
-and research groups that used Version 7.
+and research groups that used 7th Edition.
 The combination of the
 .Nm find
 and
