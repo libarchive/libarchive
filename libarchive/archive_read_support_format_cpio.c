@@ -332,8 +332,9 @@ archive_read_format_cpio_options(struct archive_read *a,
 		cpio->init_default_conversion = (val != NULL)?1:0;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "pwb")  == 0) {
-		if (val != NULL && val[0] == '1')
+		if (val != NULL && val[0] != 0)
 			cpio->opt_pwb = 1;
+		ret = ARCHIVE_OK;
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,

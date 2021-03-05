@@ -210,11 +210,10 @@ archive_write_bin_options(struct archive_write *a, const char *key,
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "pwb") == 0) {
-		if (val != NULL && val[0] == '1')
+		if (val != NULL && val[0] != 0)
 			cpio->opt_pwb = 1;
-	}
-
-	if (strcmp(key, "hdrcharset")  == 0) {
+		ret = ARCHIVE_OK;
+	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "%s: hdrcharset option needs a character-set name",
