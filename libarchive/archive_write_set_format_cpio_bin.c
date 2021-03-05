@@ -489,6 +489,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 			archive_set_error(&a->archive, ERANGE,
 					  "File is too large for binary cpio format.");
 			ret_final = ARCHIVE_FAILED;
+			goto exit_write_header;
 		}
 		h.h_filesize = swap32(archive_entry_size(entry)); /* file */
 	}
