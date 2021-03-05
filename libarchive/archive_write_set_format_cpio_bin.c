@@ -485,7 +485,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 					  "File is too large for PWB binary cpio format.");
 			ret_final = ARCHIVE_FAILED;
 			goto exit_write_header;
-		} else if (archive_entry_size(entry) > 256L*256*256*256-1) {
+		} else if (archive_entry_size(entry) > 128L*256*256*256-1) {
 			archive_set_error(&a->archive, ERANGE,
 					  "File is too large for binary cpio format.");
 			ret_final = ARCHIVE_FAILED;
