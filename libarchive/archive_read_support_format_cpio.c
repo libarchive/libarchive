@@ -348,7 +348,7 @@ archive_read_format_cpio_options(struct archive_read *a,
 	} else if (strcmp(key, "pwb")  == 0) {
 		if (val != NULL && val[0] != 0)
 			cpio->option_pwb = 1;
-		ret = ARCHIVE_OK;
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options

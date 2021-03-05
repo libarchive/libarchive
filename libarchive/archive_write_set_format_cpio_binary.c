@@ -541,7 +541,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 			goto exit_write_header;
 		}
 	}
-	
+
 exit_write_header:
 	archive_entry_free(entry_main);
 	return (ret_final);
