@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cmdline.c,v 1.5 2008/12/06 07:30:40 kientzl
 /*
  * Short options for cpio.  Please keep this sorted.
  */
-static const char *short_options = "0AaBC:cdE:F:f:H:hI:iJjLlmnO:opR:rtuVvW:yZz";
+static const char *short_options = "06AaBC:cdE:F:f:H:hI:iJjLlmnO:opR:rtuVvW:yZz";
 
 /*
  * Long options for cpio.  Please keep this sorted.
@@ -86,6 +86,7 @@ static const struct option {
 	{ "pass-through",		0, 'p' },
 	{ "preserve-modification-time", 0, 'm' },
 	{ "preserve-owner",		0, OPTION_PRESERVE_OWNER },
+	{ "pwb",			0, '6' },
 	{ "quiet",			0, OPTION_QUIET },
 	{ "unconditional",		0, 'u' },
 	{ "uuencode",			0, OPTION_UUENCODE },

@@ -192,6 +192,9 @@ main(int argc, char *argv[])
 		case '0': /* GNU convention: --null, -0 */
 			cpio->option_null = 1;
 			break;
+		case '6': /* 6th edition (PWB) interpretation of file mode bits */
+			cpio->option_pwb = 1;
+			break;
 		case 'A': /* NetBSD/OpenBSD */
 			cpio->option_append = 1;
 			break;
@@ -583,6 +586,8 @@ mode_out(struct cpio *cpio)
 	}
 	if (r < ARCHIVE_WARN)
 		lafe_errc(1, 0, "Requested filter not available");
+	if (cpio->option_pwb)
+		cpio->format = "pwb";
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
@@ -968,6 +973,8 @@ mode_in(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->option_pwb)
+		archive_read_set_options(a, "pwb");
 	if (cpio->passphrase != NULL)
 		r = archive_read_add_passphrase(a, cpio->passphrase);
 	else
@@ -1078,6 +1085,8 @@ mode_list(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->option_pwb)
+		archive_read_set_options(a, "pwb");
 	if (cpio->passphrase != NULL)
 		r = archive_read_add_passphrase(a, cpio->passphrase);
 	else
