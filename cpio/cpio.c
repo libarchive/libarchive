@@ -194,7 +194,6 @@ main(int argc, char *argv[])
 			break;
 		case '6': /* in/out: assume/create 6th edition (PWB) format */
 			cpio->option_pwb = 1;
-			cpio->format = "pwb";
 			break;
 		case '7': /* out: create archive using 7th Edition binary format */
 			cpio->format = "bin";
@@ -407,9 +406,12 @@ main(int argc, char *argv[])
 
 	switch (cpio->mode) {
 	case 'o':
-		if (cpio->format == NULL)
-			cpio->format = "cpio"; /* Default format */
-
+		if (cpio->format == NULL) {
+			if (cpio->option_pwb)
+				cpio->format = "pwb";
+			else
+				cpio->format = "cpio";
+		}
 		mode_out(cpio);
 		break;
 	case 'i':

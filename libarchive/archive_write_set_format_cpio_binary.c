@@ -446,13 +446,19 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	h.h_mode = archive_entry_mode(entry);
 	if (((h.h_mode & AE_IFMT) == AE_IFSOCK) || ((h.h_mode & AE_IFMT) == AE_IFIFO)) {
 		archive_set_error(&a->archive, EINVAL,
-				  "sockets and fifos cannot be represented in the binary cpio format");
+				  "sockets and fifos cannot be represented in the binary cpio formats");
 		ret_final = ARCHIVE_FATAL;
 		goto exit_write_header;
 	}
 	if (a->archive.archive_format == ARCHIVE_FORMAT_CPIO_PWB) {
-		if (((h.h_mode & AE_IFMT) == AE_IFLNK) || ((h.h_mode & AE_IFMT) == AE_IFREG))
-			h.h_mode &= (~AE_IFMT);
+		if ((h.h_mode & AE_IFMT) == AE_IFLNK) {
+			archive_set_error(&a->archive, EINVAL,
+					  "symbolic links cannot be represented in the PWB cpio format");
+			ret_final = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
+		/* we could turn off AE_IFREG here, but it does no harm, */
+		/* and allows v7 cpio to read the entry without confusion */
 	}
 	h.h_mode = swap16(h.h_mode);
 
