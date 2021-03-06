@@ -469,7 +469,7 @@ static const char *long_help_msg =
 	"  -v Verbose filenames     -V  one dot per file\n"
 	"Create: %p -o [options]  < [list of files] > [archive]\n"
 	"  -J,-y,-z,--lzma  Compress archive with xz/bzip2/gzip/lzma\n"
-	"  --format {odc|newc|ustar}  Select archive format\n"
+	"  --format {pwb|bin|odc|newc|ustar}  Select archive format\n"
 	"List: %p -it < [archive]\n"
 	"Extract: %p -i [options] < [archive]\n";
 
