@@ -192,8 +192,12 @@ main(int argc, char *argv[])
 		case '0': /* GNU convention: --null, -0 */
 			cpio->option_null = 1;
 			break;
-		case '6': /* 6th edition (PWB) interpretation of file mode bits */
+		case '6': /* in/out: assume/create 6th edition (PWB) format */
 			cpio->option_pwb = 1;
+			cpio->format = "pwb";
+			break;
+		case '7': /* out: create archive using 7th Edition binary format */
+			cpio->format = "bin";
 			break;
 		case 'A': /* NetBSD/OpenBSD */
 			cpio->option_append = 1;
@@ -586,8 +590,6 @@ mode_out(struct cpio *cpio)
 	}
 	if (r < ARCHIVE_WARN)
 		lafe_errc(1, 0, "Requested filter not available");
-	if (cpio->option_pwb)
-		cpio->format = "pwb";
 	r = archive_write_set_format_by_name(cpio->archive, cpio->format);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));

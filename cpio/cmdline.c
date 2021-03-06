@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cmdline.c,v 1.5 2008/12/06 07:30:40 kientzl
 /*
  * Short options for cpio.  Please keep this sorted.
  */
-static const char *short_options = "06AaBC:cdE:F:f:H:hI:iJjLlmnO:opR:rtuVvW:yZz";
+static const char *short_options = "067AaBC:cdE:F:f:H:hI:iJjLlmnO:opR:rtuVvW:yZz";
 
 /*
  * Long options for cpio.  Please keep this sorted.
@@ -62,6 +62,7 @@ static const struct option {
 	int equivalent;	/* Equivalent short option. */
 } cpio_longopts[] = {
 	{ "b64encode",			0, OPTION_B64ENCODE },
+	{ "binary",			0, '7' },
 	{ "create",			0, 'o' },
 	{ "dereference",		0, 'L' },
 	{ "dot",			0, 'V' },
