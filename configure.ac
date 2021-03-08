@@ -107,6 +107,7 @@ AC_SUBST(PLATFORMCPPFLAGS)
 AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
+AC_PROG_CPP
 AC_USE_SYSTEM_EXTENSIONS
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
@@ -380,7 +381,7 @@ if test "x$with_iconv" != "xno"; then
     AC_CHECK_FUNCS([locale_charset])
     LIBS="${am_save_LIBS}"
     if test "x$ac_cv_func_locale_charset" != "xyes"; then
-      # If locale_charset() is not in libiconv, we have to find libcharset. 
+      # If locale_charset() is not in libiconv, we have to find libcharset.
       AC_CHECK_LIB(charset,locale_charset)
     fi
   fi
