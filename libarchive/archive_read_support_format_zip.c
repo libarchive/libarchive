@@ -142,6 +142,7 @@ struct zip {
 	/* Structural information about the archive. */
 	struct archive_string	format_name;
 	int64_t			central_directory_offset;
+	int64_t			central_directory_offset_actual;
 	size_t			central_directory_entries_total;
 	size_t			central_directory_entries_on_this_disk;
 	int			has_encrypted_entries;
@@ -3433,6 +3434,8 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 
 	/* Save the central directory location for later use. */
 	zip->central_directory_offset = archive_le32dec(p + 16);
+	zip->central_directory_offset_actual = current_offset
+		- archive_le32dec(p+12) - 1;
 
 	/* This is just a tiny bit higher than the maximum
 	   returned by the streaming Zip bidder.  This ensures
@@ -3484,6 +3487,7 @@ read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 
 	/* Save the central directory offset for later use. */
 	zip->central_directory_offset = archive_le64dec(p + 48);
+	zip->central_directory_offset_actual = zip->central_directory_offset;
 
 	return 32;
 }
@@ -3655,7 +3659,8 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 	 * know the correction we need to apply to account for leading
 	 * padding.
 	 */
-	if (__archive_read_seek(a, zip->central_directory_offset, SEEK_SET) < 0)
+	if (__archive_read_seek(a, zip->central_directory_offset_actual, SEEK_SET)
+		< 0)
 		return ARCHIVE_FATAL;
 
 	found = 0;
