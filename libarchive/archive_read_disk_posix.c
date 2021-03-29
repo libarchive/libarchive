@@ -1532,8 +1532,8 @@ set_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
 	fs->min_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
 	fs->incr_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
 #else
-	fs->min_xfer_size = sfs->f_bsize > 0 : (long)sfs->f_bsize : -1;
-	fs->incr_xfer_size = sfs->f_bsize > 0 : (long)sfs->f_bsize : -1;
+	fs->min_xfer_size = sfs->f_bsize > 0 ? (long)sfs->f_bsize : -1;
+	fs->incr_xfer_size = sfs->f_bsize > 0 ? (long)sfs->f_bsize : -1;
 #endif
 }
 #endif
