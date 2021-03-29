@@ -1523,7 +1523,7 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 #endif
 
 #if defined(HAVE_STATVFS)
-static inline void
+static inline __LA_UNUSED void
 set_statvfs_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
 {
 	fs->xfer_align = sfs->f_frsize > 0 ? (long)sfs->f_frsize : -1;
@@ -1539,7 +1539,7 @@ set_statvfs_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
 #endif
 
 #if defined(HAVE_STATFS)
-static inline void
+static inline __LA_UNUSED void
 set_statfs_transfer_size(struct filesystem *fs, const struct statfs *sfs)
 {
 	fs->xfer_align = sfs->f_bsize > 0 ? (long)sfs->f_bsize : -1;
