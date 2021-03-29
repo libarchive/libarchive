@@ -1522,6 +1522,22 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 }
 #endif
 
+#if defined(HAVE_STATVFS)
+static void
+set_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
+{
+	fs->xfer_align = sfs->f_frsize > 0 ? (long)sfs->f_frsize : -1;
+	fs->max_xfer_size = -1;
+#if defined(HAVE_STRUCT_STATVFS_F_IOSIZE)
+	fs->min_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
+	fs->incr_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
+#else
+	fs->min_xfer_size = sfs->f_bsize > 0 : (long)sfs->f_bsize : -1;
+	fs->incr_xfer_size = sfs->f_bsize > 0 : (long)sfs->f_bsize : -1;
+#endif
+}
+#endif
+
 #if defined(HAVE_STATFS) && defined(HAVE_FSTATFS) && defined(MNT_LOCAL) \
 	&& !defined(ST_LOCAL)
 
@@ -1656,20 +1672,6 @@ setup_current_filesystem(struct archive_read_disk *a)
 }
 
 #elif (defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)) && defined(ST_LOCAL)
-
-static void
-set_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
-{
-	fs->xfer_align = sfs->f_frsize > 0 ? (long)sfs->f_frsize : -1;
-	fs->max_xfer_size = -1;
-#if defined(HAVE_STRUCT_STATVFS_F_IOSIZE)
-	fs->min_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
-	fs->incr_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
-#else
-	fs->min_xfer_size = sfs->f_bsize > 0 : (long)sfs->f_bsize : -1;
-	fs->incr_xfer_size = sfs->f_bsize > 0 : (long)sfs->f_bsize : -1;
-#endif
-}
 
 /*
  * Gather current filesystem properties on NetBSD
