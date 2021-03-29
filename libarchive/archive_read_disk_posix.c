@@ -1528,7 +1528,7 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 static void
 set_transfer_size(struct filesystem *fs, const struct statfs *sfs)
 {
-	fs->xfer_align = sfs->f_bsize > 0 ? (long)sfs->fs_bsize : -1;
+	fs->xfer_align = sfs->f_bsize > 0 ? (long)sfs->f_bsize : -1;
 	fs->max_xfer_size = -1;
 	fs->min_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
 	fs->incr_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
