@@ -566,6 +566,13 @@ AC_CHECK_MEMBERS([struct statfs.f_namemax],,,
 #include <sys/mount.h>
 ])
 
+# Check for f_iosize in struct statfs
+AC_CHECK_MEMBERS([struct statfs.f_iosize],,,
+[
+#include <sys/param.h>
+#include <sys/mount.h>
+])
+
 # Check for f_iosize in struct statvfs
 AC_CHECK_MEMBERS([struct statvfs.f_iosize],,,
 [

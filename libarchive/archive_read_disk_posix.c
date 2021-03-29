@@ -1544,8 +1544,13 @@ set_statfs_transfer_size(struct filesystem *fs, const struct statfs *sfs)
 {
 	fs->xfer_align = sfs->f_bsize > 0 ? (long)sfs->f_bsize : -1;
 	fs->max_xfer_size = -1;
+#if defined(HAVE_STRUCT_STATFS_F_IOSIZE)
 	fs->min_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
 	fs->incr_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
+#else
+	fs->min_xfer_size = sfs->f_bsize > 0 ? (long)sfs->f_bsize : -1;
+	fs->incr_xfer_size = sfs->f_bsize > 0 ? (long)sfs->f_bsize : -1;
+#endif
 }
 #endif
 
