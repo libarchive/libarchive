@@ -1524,7 +1524,7 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 
 #if defined(HAVE_STATVFS)
 static void
-set_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
+set_statvfs_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
 {
 	fs->xfer_align = sfs->f_frsize > 0 ? (long)sfs->f_frsize : -1;
 	fs->max_xfer_size = -1;
@@ -1538,17 +1538,19 @@ set_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
 }
 #endif
 
-#if defined(HAVE_STATFS) && defined(HAVE_FSTATFS) && defined(MNT_LOCAL) \
-	&& !defined(ST_LOCAL)
-
+#if defined(HAVE_STATFS)
 static void
-set_transfer_size(struct filesystem *fs, const struct statfs *sfs)
+set_statfs_transfer_size(struct filesystem *fs, const struct statfs *sfs)
 {
 	fs->xfer_align = sfs->f_bsize > 0 ? (long)sfs->f_bsize : -1;
 	fs->max_xfer_size = -1;
 	fs->min_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
 	fs->incr_xfer_size = sfs->f_iosize > 0 ? (long)sfs->f_iosize : -1;
 }
+#endif
+
+#if defined(HAVE_STATFS) && defined(HAVE_FSTATFS) && defined(MNT_LOCAL) \
+	&& !defined(ST_LOCAL)
 
 /*
  * Gather current filesystem properties on FreeBSD, OpenBSD and Mac OS X.
@@ -1618,7 +1620,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 		return (ARCHIVE_FAILED);
 	} else if (xr == 1) {
 		/* pathconf(_PC_REX_*) operations are not supported. */
-		set_transfer_size(t->current_filesystem, &sfs);
+		set_statfs_transfer_size(t->current_filesystem, &sfs);
 	}
 	if (sfs.f_flags & MNT_LOCAL)
 		t->current_filesystem->remote = 0;
@@ -1710,7 +1712,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	} else if (xr == 1) {
 		/* Usually come here unless NetBSD supports _PC_REC_XFER_ALIGN
 		 * for pathconf() function. */
-		set_transfer_size(t->current_filesystem, &sfs);
+		set_statvfs_transfer_size(t->current_filesystem, &svfs);
 	}
 	if (svfs.f_flag & ST_LOCAL)
 		t->current_filesystem->remote = 0;
@@ -1817,9 +1819,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 	} else if (xr == 1) {
 		/* pathconf(_PC_REX_*) operations are not supported. */
 #if defined(HAVE_STATVFS)
-		set_transfer_size(t->current_filesystem, &svfs);
+		set_statvfs_transfer_size(t->current_filesystem, &svfs);
 #else
-		set_transfer_size(t->current_filesystem, &sfs);
+		set_statfs_transfer_size(t->current_filesystem, &sfs);
 #endif
 	}
 	switch (sfs.f_type) {
@@ -1926,7 +1928,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 		return (ARCHIVE_FAILED);
 	} else if (xr == 1) {
 		/* pathconf(_PC_REX_*) operations are not supported. */
-		set_transfer_size(t->current_filesystem, &sfs);
+		set_statvfs_transfer_size(t->current_filesystem, &svfs);
 	}
 
 #if defined(ST_NOATIME)
