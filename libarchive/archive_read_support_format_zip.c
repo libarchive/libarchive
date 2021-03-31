@@ -2367,6 +2367,8 @@ zip_read_data_zipx_zstd(struct archive_read *a, const void **buff,
 	ZSTD_outBuffer out;
 	ZSTD_inBuffer in;
 
+	(void) offset; /* UNUSED */
+
 	/* Initialize decompression context if we're here for the first time. */
 	if(!zip->decompress_init) {
 		r = zipx_zstd_init(a, zip);
