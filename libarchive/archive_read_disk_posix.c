@@ -1538,7 +1538,7 @@ set_statvfs_transfer_size(struct filesystem *fs, const struct statvfs *sfs)
 }
 #endif
 
-#if defined(HAVE_STATFS)
+#if defined(HAVE_STRUCT_STATFS)
 static inline __LA_UNUSED void
 set_statfs_transfer_size(struct filesystem *fs, const struct statfs *sfs)
 {
@@ -1554,8 +1554,8 @@ set_statfs_transfer_size(struct filesystem *fs, const struct statfs *sfs)
 }
 #endif
 
-#if defined(HAVE_STATFS) && defined(HAVE_FSTATFS) && defined(MNT_LOCAL) \
-	&& !defined(ST_LOCAL)
+#if defined(HAVE_STRUCT_STATFS) && defined(HAVE_STATFS) && \
+    defined(HAVE_FSTATFS) && defined(MNT_LOCAL) && !defined(ST_LOCAL)
 
 /*
  * Gather current filesystem properties on FreeBSD, OpenBSD and Mac OS X.
