@@ -141,6 +141,17 @@ test_format(int	(*set_format)(struct archive *))
 	archive_entry_free(ae);
 	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
 
+	/*
+	 * Write a character device to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "tty0");
+	archive_entry_set_mode(ae, S_IFCHR | 0600);
+	archive_entry_set_size(ae, 0);
+	archive_entry_set_rdev(ae, 1024);
+	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
+
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
@@ -212,6 +223,15 @@ test_format(int	(*set_format)(struct archive *))
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
 
+	/*
+	 * Read the character device entry back.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("tty0", archive_entry_pathname(ae));
+	assertEqualInt((S_IFCHR | 0600), archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(1024, archive_entry_rdev(ae));
+
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, 1, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
@@ -253,18 +273,28 @@ test_big_entries(int (*set_format)(struct archive *), int64_t size, int expected
 
 DEFINE_TEST(test_write_format_cpio)
 {
+	int64_t size_16m = ((int64_t)1) << 24;
+	int64_t size_2g = ((int64_t)1) << 31;
 	int64_t size_4g = ((int64_t)1) << 32;
 	int64_t size_8g = ((int64_t)1) << 33;
 
-	test_format(archive_write_set_format_cpio);
+	test_format(archive_write_set_format_cpio_odc);
 	test_format(archive_write_set_format_cpio_newc);
 
-	test_big_entries(archive_write_set_format_cpio,
+	test_big_entries(archive_write_set_format_cpio_odc,
 	    size_8g - 1, ARCHIVE_OK);
-	test_big_entries(archive_write_set_format_cpio,
+	test_big_entries(archive_write_set_format_cpio_odc,
 	    size_8g, ARCHIVE_FAILED);
 	test_big_entries(archive_write_set_format_cpio_newc,
 	    size_4g - 1, ARCHIVE_OK);
 	test_big_entries(archive_write_set_format_cpio_newc,
 	    size_4g, ARCHIVE_FAILED);
+	test_big_entries(archive_write_set_format_cpio_bin,
+	    size_2g - 1, ARCHIVE_OK);
+	test_big_entries(archive_write_set_format_cpio_bin,
+	    size_2g, ARCHIVE_FAILED);
+	test_big_entries(archive_write_set_format_cpio_pwb,
+	    size_16m - 1, ARCHIVE_OK);
+	test_big_entries(archive_write_set_format_cpio_pwb,
+	    size_16m, ARCHIVE_FAILED);
 }

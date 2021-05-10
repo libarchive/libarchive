@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_zip.c 201168 20
 #include "archive_private.h"
 #include "archive_random_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 #ifndef HAVE_ZLIB_H
 #include "archive_crc32.h"
@@ -526,8 +527,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* Ignore types of entries that we don't support. */
 	type = archive_entry_filetype(entry);
 	if (type != AE_IFREG && type != AE_IFDIR && type != AE_IFLNK) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Filetype not supported");
+		__archive_write_entry_filetype_unsupported(
+		    &a->archive, entry, "zip");
 		return ARCHIVE_FAILED;
 	};
 
@@ -583,6 +584,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			zip->entry_flags |= ZIP_ENTRY_FLAG_ENCRYPTED;
 			zip->entry_encryption = zip->encryption_type;
 			break;
+		case ENCRYPTION_NONE:
 		default:
 			break;
 		}
@@ -709,6 +711,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 				    + AUTH_CODE_SIZE;
 				version_needed = 20;
 				break;
+			case ENCRYPTION_NONE:
 			default:
 				break;
 			}
@@ -761,6 +764,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 				if (version_needed < 20)
 					version_needed = 20;
 				break;
+			case ENCRYPTION_NONE:
 			default:
 				break;
 			}
@@ -1028,6 +1032,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 				zip->cctx_valid = zip->hctx_valid = 1;
 			}
 			break;
+		case ENCRYPTION_NONE:
 		default:
 			break;
 		}
@@ -1116,6 +1121,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		break;
 #endif
 
+	case COMPRESSION_UNSPECIFIED:
 	default:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid ZIP compression type");

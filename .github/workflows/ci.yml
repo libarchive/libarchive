@@ -33,9 +33,17 @@ jobs:
       run: ./build/ci/build.sh -a install
       env:
         BS: ${{ matrix.bs }}
+    - name: Artifact
+      run: ./build/ci/build.sh -a artifact
+      env:
+        BS: ${{ matrix.bs }}
+    - uses: actions/upload-artifact@v1
+      with:
+        name: libarchive-macos-${{ matrix.bs }}-${{ github.sha }}
+        path: libarchive.tar.xz
 
   Ubuntu:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         bs: [autotools, cmake]
@@ -43,7 +51,7 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential cmake libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev libzip-dev liblz4-dev libzstd-dev lzop
+      run: sudo apt-get install -y build-essential cmake libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
       env:
@@ -66,13 +74,20 @@ jobs:
       run: ./build/ci/build.sh -a install
       env:
         BS: ${{ matrix.bs }}
-
+    - name: Artifact
+      run: ./build/ci/build.sh -a artifact
+      env:
+        BS: ${{ matrix.bs }}
+    - uses: actions/upload-artifact@v1
+      with:
+        name: libarchive-ubuntu-${{ matrix.bs }}-${{ matrix.crypto }}-${{ github.sha }}
+        path: libarchive.tar.xz
   Ubuntu-distcheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential cmake libssl-dev libacl1-dev libbz2-dev liblzma-dev libzip-dev liblz4-dev libzstd-dev lzop groff ghostscript
+      run: sudo apt-get install -y build-essential cmake libssl-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop groff ghostscript
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
     - name: Configure
@@ -114,3 +129,12 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+    - name: Artifact
+      run: ./build/ci/github_actions/ci.cmd artifact
+      shell: cmd
+      env:
+        BE: ${{ matrix.be }}
+    - uses: actions/upload-artifact@v1
+      with:
+        name: libarchive-windows-${{ matrix.be }}-${{ github.sha }}
+        path: libarchive.zip

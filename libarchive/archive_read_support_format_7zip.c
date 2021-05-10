@@ -808,8 +808,12 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	if (zip->end_of_entry)
 		return (ARCHIVE_EOF);
 
-	bytes = read_stream(a, buff,
-		(size_t)zip->entry_bytes_remaining, 0);
+	const uint64_t max_read_size = 16 * 1024 * 1024;  // Don't try to read more than 16 MB at a time
+	size_t bytes_to_read = max_read_size;
+	if ((uint64_t)bytes_to_read > zip->entry_bytes_remaining) {
+		bytes_to_read = zip->entry_bytes_remaining;
+	}
+	bytes = read_stream(a, buff, bytes_to_read, 0);
 	if (bytes < 0)
 		return ((int)bytes);
 	if (bytes == 0) {
@@ -1086,10 +1090,17 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				zip->bcj_state = 0;
 				break;
 			case _7Z_DELTA:
+				if (coder2->propertiesSize != 1) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Invalid Delta parameter");
+					return (ARCHIVE_FAILED);
+				}
 				filters[fi].id = LZMA_FILTER_DELTA;
 				memset(&delta_opt, 0, sizeof(delta_opt));
 				delta_opt.type = LZMA_DELTA_TYPE_BYTE;
-				delta_opt.dist = 1;
+				delta_opt.dist =
+				    (uint32_t)coder2->properties[0] + 1;
 				filters[fi].options = &delta_opt;
 				fi++;
 				break;
@@ -3024,10 +3035,10 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 			    "Truncated 7-Zip file body");
 			return (ARCHIVE_FATAL);
 		}
-		if (bytes_avail > (ssize_t)zip->pack_stream_inbytes_remaining)
+		if ((uint64_t)bytes_avail > zip->pack_stream_inbytes_remaining)
 			bytes_avail = (ssize_t)zip->pack_stream_inbytes_remaining;
 		zip->pack_stream_inbytes_remaining -= bytes_avail;
-		if (bytes_avail > (ssize_t)zip->folder_outbytes_remaining)
+		if ((uint64_t)bytes_avail > zip->folder_outbytes_remaining)
 			bytes_avail = (ssize_t)zip->folder_outbytes_remaining;
 		zip->folder_outbytes_remaining -= bytes_avail;
 		zip->uncompressed_buffer_bytes_remaining = bytes_avail;

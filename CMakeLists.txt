@@ -155,34 +155,34 @@ IF (MSVC)
   #################################################################
   # Set compile flags for debug build.
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
-  # Enable level 4 C4061: The enumerate has no associated handler in a switch
-  #                       statement.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4061")
+  # Enable level 4 C4062: The enumerate has no associated handler in a switch
+  #                       statement and there is no default that can catch it.
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14062")
   # Enable level 4 C4254: A larger bit field was assigned to a smaller bit
   #                       field.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4254")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14254")
   # Enable level 4 C4295: An array was initialized but the last character in
   #                       the array is not a null; accessing the array may
   #                       produce unexpected results.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4295")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14295")
   # Enable level 4 C4296: An unsigned variable was used in a comparison
   #                       operation with zero.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4296")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14296")
   # Enable level 4 C4389: An operation involved signed and unsigned variables.
   #                       This could result in a loss of data.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4389")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14389")
   # Enable level 4 C4505: The given function is local and not referenced in
   #                       the body of the module; therefore, the function is
   #                       dead code.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4505")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14505")
   # Enable level 4 C4514: The optimizer removed an inline function that is not
   #                       called.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4514")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14514")
   # Enable level 4 C4702: Unreachable code.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4702")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14702")
   # Enable level 4 C4706: The test value in a conditional expression was the
   #                       result of an assignment.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4706")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14706")
   # /Oi option enables built-in functions.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Oi")
   #################################################################
@@ -285,6 +285,10 @@ ENDIF(MSVC)
 
 IF("${CMAKE_C_PLATFORM_ID}" MATCHES "^(HP-UX)$")
   ADD_DEFINITIONS(-D_XOPEN_SOURCE=500) # Ask wchar.h for mbstate_t
+ENDIF()
+
+IF(MINGW)
+  ADD_DEFINITIONS(-D__USE_MINGW_ANSI_STDIO)
 ENDIF()
 
 #
@@ -1374,6 +1378,7 @@ CHECK_FUNCTION_EXISTS_GLIBC(strchr HAVE_STRCHR)
 CHECK_FUNCTION_EXISTS_GLIBC(strdup HAVE_STRDUP)
 CHECK_FUNCTION_EXISTS_GLIBC(strerror HAVE_STRERROR)
 CHECK_FUNCTION_EXISTS_GLIBC(strncpy_s HAVE_STRNCPY_S)
+CHECK_FUNCTION_EXISTS_GLIBC(strnlen HAVE_STRNLEN)
 CHECK_FUNCTION_EXISTS_GLIBC(strrchr HAVE_STRRCHR)
 CHECK_FUNCTION_EXISTS_GLIBC(symlink HAVE_SYMLINK)
 CHECK_FUNCTION_EXISTS_GLIBC(timegm HAVE_TIMEGM)
@@ -1416,6 +1421,10 @@ CHECK_C_SOURCE_COMPILES(
   "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct xvfsconf v; return sizeof(v);}"
   HAVE_STRUCT_XVFSCONF)
 
+CHECK_C_SOURCE_COMPILES(
+  "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct statfs s; return sizeof(s);}"
+  HAVE_STRUCT_STATFS)
+
 # Make sure we have the POSIX version of readdir_r, not the
 # older 2-argument version.
 CHECK_C_SOURCE_COMPILES(
@@ -1445,9 +1454,13 @@ CHECK_C_SOURCE_COMPILES(
   "#include <sys/sysmacros.h>\nint main() { return major(256); }"
   MAJOR_IN_SYSMACROS)
 
+IF(ENABLE_LZMA)
 CHECK_C_SOURCE_COMPILES(
   "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){lzma_stream_encoder_mt(0, 0); return 0;}"
   HAVE_LZMA_STREAM_ENCODER_MT)
+ELSE()
+  SET(HAVE_LZMA_STREAM_ENCODER_MT 0)
+ENDIF(ENABLE_LZMA)
 
 IF(HAVE_STRERROR_R)
   SET(HAVE_DECL_STRERROR_R 1)
@@ -1487,9 +1500,14 @@ CHECK_STRUCT_HAS_MEMBER("struct tm" tm_gmtoff
 CHECK_STRUCT_HAS_MEMBER("struct tm" __tm_gmtoff
     "time.h" HAVE_STRUCT_TM___TM_GMTOFF)
 
+IF(HAVE_STRUCT_STATFS)
 # Check for f_namemax in struct statfs
 CHECK_STRUCT_HAS_MEMBER("struct statfs" f_namemax
     "sys/param.h;sys/mount.h" HAVE_STRUCT_STATFS_F_NAMEMAX)
+# Check for f_iosize in struct statfs
+CHECK_STRUCT_HAS_MEMBER("struct statfs" f_iosize
+    "sys/param.h;sys/mount.h" HAVE_STRUCT_STATFS_F_IOSIZE)
+ENDIF(HAVE_STRUCT_STATFS)
 
 # Check for birthtime in struct stat
 CHECK_STRUCT_HAS_MEMBER("struct stat" st_birthtime
@@ -2031,6 +2049,11 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
 ENDIF(MSVC)
+
+IF(APPLE)
+  # CC_MD5_Init() functions are deprecated on macOS 10.15, but we want to use them
+  ADD_DEFINITIONS(-Wno-deprecated-declarations)
+ENDIF(APPLE)
 
 IF(ENABLE_TEST)
   ADD_CUSTOM_TARGET(run_all_tests)

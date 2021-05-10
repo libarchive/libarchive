@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.4.2dev])
-m4_define([LIBARCHIVE_VERSION_N],[3004002])
+m4_define([LIBARCHIVE_VERSION_S],[3.5.2dev])
+m4_define([LIBARCHIVE_VERSION_N],[3005002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -47,6 +47,8 @@ ARCHIVE_REVISION=$(( LIBARCHIVE_VERSION_N() % 1000 ))
 ARCHIVE_LIBTOOL_VERSION=$ARCHIVE_INTERFACE:$ARCHIVE_REVISION:$ARCHIVE_MINOR
 
 # Stick the version numbers into config.h
+AC_DEFINE([__LIBARCHIVE_CONFIG_H_INCLUDED], [1],
+	[Internal macro for sanity checks])
 AC_DEFINE([LIBARCHIVE_VERSION_STRING],"LIBARCHIVE_VERSION_S()",
 	[Version number of libarchive])
 AC_DEFINE_UNQUOTED([LIBARCHIVE_VERSION_NUMBER],"LIBARCHIVE_VERSION_N()",
@@ -103,7 +105,9 @@ AC_SUBST(PLATFORMCPPFLAGS)
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_CC_C99
 AM_PROG_CC_C_O
+AC_PROG_CPP
 AC_USE_SYSTEM_EXTENSIONS
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
@@ -244,9 +248,23 @@ AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 # Set up defines needed before including any headers
 case $host in
   *mingw* | *cygwin* | *msys*  )
-  AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
-  AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
-  AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
+    [[#ifdef _WIN32_WINNT
+     # error _WIN32_WINNT already defined
+     #endif
+    ]],[[;]])
+  ],[
+    AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+    AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
+  ])
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
+    [[#ifdef WINVER
+     # error WINVER already defined
+     #endif
+    ]],[[;]])
+  ],[
+    AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+  ])
   ;;
 esac
 
@@ -363,7 +381,7 @@ if test "x$with_iconv" != "xno"; then
     AC_CHECK_FUNCS([locale_charset])
     LIBS="${am_save_LIBS}"
     if test "x$ac_cv_func_locale_charset" != "xyes"; then
-      # If locale_charset() is not in libiconv, we have to find libcharset. 
+      # If locale_charset() is not in libiconv, we have to find libcharset.
       AC_CHECK_LIB(charset,locale_charset)
     fi
   fi
@@ -548,6 +566,13 @@ AC_CHECK_MEMBERS([struct statfs.f_namemax],,,
 #include <sys/mount.h>
 ])
 
+# Check for f_iosize in struct statfs
+AC_CHECK_MEMBERS([struct statfs.f_iosize],,,
+[
+#include <sys/param.h>
+#include <sys/mount.h>
+])
+
 # Check for f_iosize in struct statvfs
 AC_CHECK_MEMBERS([struct statvfs.f_iosize],,,
 [
@@ -637,8 +662,8 @@ AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
 AC_CHECK_FUNCS([nl_langinfo openat pipe poll posix_spawnp readlink readlinkat])
 AC_CHECK_FUNCS([readpassphrase])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
-AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
-AC_CHECK_FUNCS([tzset unlinkat unsetenv utime utimensat utimes vfork])
+AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strnlen strrchr symlink])
+AC_CHECK_FUNCS([timegm tzset unlinkat unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove])
 AC_CHECK_FUNCS([_ctime64_s _fseeki64])
 AC_CHECK_FUNCS([_get_timezone _gmtime64_s _localtime64_s _mkgmtime64])
@@ -654,6 +679,13 @@ AC_CHECK_TYPES(struct vfsconf,,,
 	])
 
 AC_CHECK_TYPES(struct xvfsconf,,,
+	[#if HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+	#endif
+	#include <sys/mount.h>
+	])
+
+AC_CHECK_TYPES(struct statfs,,,
 	[#if HAVE_SYS_TYPES_H
 	#include <sys/types.h>
 	#endif

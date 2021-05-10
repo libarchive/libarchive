@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2020
+.Dd January 31, 2020
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -575,7 +575,14 @@ As above, but the corresponding key and value will be provided
 only to modules whose name matches
 .Ar module .
 .El
-The currently supported modules and keys are:
+.Pp
+The complete list of supported modules and keys
+for create and append modes is in
+.Xr archive_write_set_options 3
+and for extract and list modes in
+.Xr archive_read_set_options 3 .
+.Pp
+Examples of supported options:
 .Bl -tag -compact -width indent
 .It Cm iso9660:joliet
 Support Joliet extensions.
@@ -624,7 +631,8 @@ A decimal integer from 4 to 7 specifying the lz4 compression block size
 Use the previous block of the block being compressed for
 a compression dictionary to improve compression ratio.
 .It Cm zstd:compression-level
-A decimal integer from 1 to 22 specifying the zstd compression level.
+A decimal integer specifying the zstd compression level. Supported values depend
+on the library version, common values are from 1 to 22.
 .It Cm lzop:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level

@@ -52,7 +52,7 @@ DEFINE_TEST(test_write_format_cpio_empty)
 
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_cpio(a));
+	assertA(0 == archive_write_set_format_cpio_odc(a));
 	assertA(0 == archive_write_add_filter_none(a));
 	/* 1-byte block size ensures we see only the required bytes. */
 	/* We're not testing the padding here. */
@@ -64,7 +64,7 @@ DEFINE_TEST(test_write_format_cpio_empty)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	failure("Empty cpio archive should be exactly 87 bytes, was %d.", used);
+	failure("Empty cpio archive should be exactly 87 bytes, was %zu.", used);
 	assert(used == 87);
 	failure("Empty cpio archive is incorrectly formatted.");
 	assertEqualMem(buff, ref, 87);

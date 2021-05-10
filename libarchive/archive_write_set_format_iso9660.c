@@ -2178,7 +2178,8 @@ get_system_identitier(char *system_id, size_t size)
 	strncpy(system_id, "Windows", size-1);
 	system_id[size-1] = '\0';
 #else
-#error no way to get the system identifier on your platform.
+	strncpy(system_id, "Unknown", size-1);
+	system_id[size-1] = '\0';
 #endif
 }
 
@@ -5094,13 +5095,11 @@ isofile_init_hardlinks(struct iso9660 *iso9660)
 static void
 isofile_free_hardlinks(struct iso9660 *iso9660)
 {
-	struct archive_rb_node *n, *next;
+	struct archive_rb_node *n, *tmp;
 
-	for (n = ARCHIVE_RB_TREE_MIN(&(iso9660->hardlink_rbtree)); n;) {
-		next = __archive_rb_tree_iterate(&(iso9660->hardlink_rbtree),
-		    n, ARCHIVE_RB_DIR_RIGHT);
+	ARCHIVE_RB_TREE_FOREACH_SAFE(n, &(iso9660->hardlink_rbtree), tmp) {
+		__archive_rb_tree_remove_node(&(iso9660->hardlink_rbtree), n);
 		free(n);
-		n = next;
 	}
 }
 

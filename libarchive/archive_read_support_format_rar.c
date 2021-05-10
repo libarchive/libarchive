@@ -151,6 +151,9 @@
 #undef minimum
 #define minimum(a, b)	((a)<(b)?(a):(b))
 
+/* Stack overflow check */
+#define MAX_COMPRESS_DEPTH 1024
+
 /* Fields common to all headers */
 struct rar_header
 {
@@ -340,7 +343,7 @@ static int read_symlink_stored(struct archive_read *, struct archive_entry *,
 static int read_data_stored(struct archive_read *, const void **, size_t *,
                             int64_t *);
 static int read_data_compressed(struct archive_read *, const void **, size_t *,
-                          int64_t *);
+                          int64_t *, size_t);
 static int rar_br_preparation(struct archive_read *, struct rar_br *);
 static int parse_codes(struct archive_read *);
 static void free_codes(struct archive_read *);
@@ -955,17 +958,17 @@ archive_read_format_rar_read_header(struct archive_read *a,
       crc32_val = 0;
       while (skip > 0) {
 	      size_t to_read = skip;
-	      ssize_t did_read;
-	      if (to_read > 32 * 1024) {
+	      if (to_read > 32 * 1024)
 		      to_read = 32 * 1024;
-	      }
-	      if ((h = __archive_read_ahead(a, to_read, &did_read)) == NULL) {
+	      if ((h = __archive_read_ahead(a, to_read, NULL)) == NULL) {
+		      archive_set_error(&a->archive,  ARCHIVE_ERRNO_FILE_FORMAT,
+			  "Bad RAR file");
 		      return (ARCHIVE_FATAL);
 	      }
 	      p = h;
-	      crc32_val = crc32(crc32_val, (const unsigned char *)p, (unsigned)did_read);
-	      __archive_read_consume(a, did_read);
-	      skip -= did_read;
+	      crc32_val = crc32(crc32_val, (const unsigned char *)p, to_read);
+	      __archive_read_consume(a, to_read);
+	      skip -= to_read;
       }
       if ((crc32_val & 0xffff) != crc32_expected) {
 	      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1026,7 +1029,7 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
   case COMPRESS_METHOD_NORMAL:
   case COMPRESS_METHOD_GOOD:
   case COMPRESS_METHOD_BEST:
-    ret = read_data_compressed(a, buff, size, offset);
+    ret = read_data_compressed(a, buff, size, offset, 0);
     if (ret != ARCHIVE_OK && ret != ARCHIVE_WARN) {
       __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context);
       rar->start_new_table = 1;
@@ -1883,8 +1886,11 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
 
 static int
 read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
-               int64_t *offset)
+               int64_t *offset, size_t looper)
 {
+  if (looper++ > MAX_COMPRESS_DEPTH)
+    return (ARCHIVE_FATAL);
+
   struct rar *rar;
   int64_t start, end, actualend;
   size_t bs;
@@ -1982,7 +1988,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         {
           case 0:
             rar->start_new_table = 1;
-            return read_data_compressed(a, buff, size, offset);
+            return read_data_compressed(a, buff, size, offset, looper);
 
           case 2:
             rar->ppmd_eod = 1;/* End Of ppmd Data. */

@@ -10,9 +10,9 @@ FreeBSD_task:
       BS: cmake
   matrix:
     freebsd_instance:
-      image_family: freebsd-12-1
+      image_family: freebsd-12-2
     freebsd_instance:
-      image: freebsd-11-3-stable-amd64-v20190801
+      image_family: freebsd-11-4
   prepare_script:
   - ./build/ci/cirrus_ci/ci.sh prepare
   configure_script:
@@ -23,27 +23,6 @@ FreeBSD_task:
   test_script:
   - ./build/ci/build.sh -a test
   - ./build/ci/cirrus_ci/ci.sh test
-  install_script:
-  - ./build/ci/build.sh -a install
-
-Fedora_30_task:
-  container:
-    dockerfile: build/ci/cirrus_ci/Dockerfile.fc30
-  env:
-    matrix:
-      - BS: autotools
-      - BS: cmake
-    matrix:
-      - CRYPTO: mbedtls
-      - CRYPTO: nettle
-      - CRYPTO: openssl
-  configure_script:
-  - ./build/ci/build.sh -a autogen
-  - ./build/ci/build.sh -a configure
-  build_script:
-  - ./build/ci/build.sh -a build
-  test_script:
-  - ./build/ci/build.sh -a test
   install_script:
   - ./build/ci/build.sh -a install
 

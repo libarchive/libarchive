@@ -549,6 +549,8 @@ la_mktemp(struct archive_write_disk *a)
 	a->tmpname = a->_tmpname_data.s;
 
 	fd = __archive_mkstemp(a->tmpname);
+	if (fd == -1)
+		return -1;
 
 	mode = a->mode & 0777 & ~a->user_umask;
 	if (la_chmod(a->tmpname, mode) == -1) {
@@ -1281,9 +1283,11 @@ _archive_write_disk_finish_entry(struct archive *_a)
 			/* Windows does not support atomic rename */
 			disk_unlink(a->name);
 			if (_wrename(a->tmpname, a->name) != 0) {
+				la_dosmaperr(GetLastError());
 				archive_set_error(&a->archive, errno,
-				    "rename failed");
-				ret = ARCHIVE_FATAL;
+				    "Failed to rename temporary file");
+				ret = ARCHIVE_FAILED;
+				disk_unlink(a->tmpname);
 			}
 			a->tmpname = NULL;
 		}
@@ -1569,36 +1573,47 @@ restore_entry(struct archive_write_disk *a)
 			    ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS) {
 				(void)clear_nochange_fflags(a);
 			}
-			if (dirlnk) {
-				/* Edge case: dir symlink pointing to a file */
-				if (disk_rmdir(a->name) != 0) {
-					archive_set_error(&a->archive, errno,
-					    "Can't unlink directory symlink");
-					return (ARCHIVE_FAILED);
-				}
-			} else if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
+			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
 				S_ISREG(st_mode)) {
 				int fd = la_mktemp(a);
 
-				if (fd == -1)
+				if (fd == -1) {
+					la_dosmaperr(GetLastError());
+					archive_set_error(&a->archive, errno,
+					    "Can't create temporary file");
 					return (ARCHIVE_FAILED);
+				}
 				a->fh = (HANDLE)_get_osfhandle(fd);
-				if (a->fh == INVALID_HANDLE_VALUE)
+				if (a->fh == INVALID_HANDLE_VALUE) {
+					la_dosmaperr(GetLastError());
 					return (ARCHIVE_FAILED);
-
+				}
 				a->pst = NULL;
 				en = 0;
-
-			} else if (disk_unlink(a->name) != 0) {
-				/* A non-dir is in the way, unlink it. */
-				archive_set_error(&a->archive, errno,
-				    "Can't unlink already-existing object");
-				return (ARCHIVE_FAILED);
+			} else {
+				if (dirlnk) {
+					/* Edge case: dir symlink pointing
+					 * to a file */
+					if (disk_rmdir(a->name) != 0) {
+						archive_set_error(&a->archive,
+						    errno, "Can't unlink "
+						    "directory symlink");
+						return (ARCHIVE_FAILED);
+					}
+				} else {
+					if (disk_unlink(a->name) != 0) {
+						/* A non-dir is in the way,
+						 * unlink it. */
+						archive_set_error(&a->archive,
+						    errno, "Can't unlink "
+						    "already-existing object");
+						return (ARCHIVE_FAILED);
+					}
+				}
 				a->pst = NULL;
 				/* Try again. */
 				en = create_filesystem_object(a);
 			}
-
 		} else if (!S_ISDIR(a->mode)) {
 			/* A dir is in the way of a non-dir, rmdir it. */
 			if (a->flags & ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS)
@@ -1664,6 +1679,20 @@ create_filesystem_object(struct archive_write_disk *a)
 			errno = EINVAL;
 			r = -1;
 		} else {
+			/*
+			 * Unlinking and linking here is really not atomic,
+			 * but doing it right, would require us to construct
+			 * an mktemplink() function, and then use _wrename().
+			 */
+			if (a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) {
+				attrs = GetFileAttributesW(namefull);
+				if (attrs != INVALID_FILE_ATTRIBUTES) {
+					if (attrs & FILE_ATTRIBUTE_DIRECTORY)
+						disk_rmdir(namefull);
+					else
+						disk_unlink(namefull);
+				}
+			}
 			r = la_CreateHardLinkW(namefull, linkfull);
 			if (r == 0) {
 				la_dosmaperr(GetLastError());
@@ -1703,9 +1732,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		/*
 		 * Unlinking and linking here is really not atomic,
 		 * but doing it right, would require us to construct
-		 * an mktemplink() function, and then use rename(2).
-		 *
-		 * The original link may be a directory symlink.
+		 * an mktemplink() function, and then use _wrename().
 		 */
 		attrs = GetFileAttributesW(a->name);
 		if (attrs != INVALID_FILE_ATTRIBUTES) {
