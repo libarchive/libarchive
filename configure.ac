@@ -566,6 +566,13 @@ AC_CHECK_MEMBERS([struct statfs.f_namemax],,,
 #include <sys/mount.h>
 ])
 
+# Check for f_iosize in struct statfs
+AC_CHECK_MEMBERS([struct statfs.f_iosize],,,
+[
+#include <sys/param.h>
+#include <sys/mount.h>
+])
+
 # Check for f_iosize in struct statvfs
 AC_CHECK_MEMBERS([struct statvfs.f_iosize],,,
 [
@@ -672,6 +679,13 @@ AC_CHECK_TYPES(struct vfsconf,,,
 	])
 
 AC_CHECK_TYPES(struct xvfsconf,,,
+	[#if HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+	#endif
+	#include <sys/mount.h>
+	])
+
+AC_CHECK_TYPES(struct statfs,,,
 	[#if HAVE_SYS_TYPES_H
 	#include <sys/types.h>
 	#endif
