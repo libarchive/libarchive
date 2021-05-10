@@ -224,7 +224,9 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_ar.c \
 	libarchive/archive_write_set_format_by_name.c \
 	libarchive/archive_write_set_format_cpio.c \
+	libarchive/archive_write_set_format_cpio_binary.c \
 	libarchive/archive_write_set_format_cpio_newc.c \
+	libarchive/archive_write_set_format_cpio_odc.c \
 	libarchive/archive_write_set_format_filter_by_ext.c \
 	libarchive/archive_write_set_format_iso9660.c \
 	libarchive/archive_write_set_format_mtree.c \
