@@ -550,6 +550,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_too_many_filters.c \
 	libarchive/test/test_read_truncated.c \
 	libarchive/test/test_read_truncated_filter.c \
+	libarchive/test/test_short_writes.c \
 	libarchive/test/test_sparse_basic.c \
 	libarchive/test/test_tar_filenames.c \
 	libarchive/test/test_tar_large.c \

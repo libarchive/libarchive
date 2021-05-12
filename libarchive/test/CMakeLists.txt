@@ -199,6 +199,7 @@ IF(ENABLE_TEST)
     test_read_too_many_filters.c
     test_read_truncated.c
     test_read_truncated_filter.c
+    test_short_writes.c
     test_sparse_basic.c
     test_tar_filenames.c
     test_tar_large.c
