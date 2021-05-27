@@ -247,6 +247,17 @@ struct zip {
 /* Many systems define min or MIN, but not all. */
 #define	zipmin(a,b) ((a) < (b) ? (a) : (b))
 
+#ifdef HAVE_ZLIB_H
+static int
+zip_read_data_deflate(struct archive_read *a, const void **buff,
+	size_t *size, int64_t *offset);
+#endif
+#if HAVE_LZMA_H && HAVE_LIBLZMA
+static int
+zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
+	size_t *size, int64_t *offset);
+#endif
+
 /* This function is used by Ppmd8_DecodeSymbol during decompression of Ppmd8
  * streams inside ZIP files. It has 2 purposes: one is to fetch the next
  * compressed byte from the stream, second one is to increase the counter how
@@ -900,81 +911,6 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 	return ARCHIVE_OK;
 }
 
-#if HAVE_LZMA_H && HAVE_LIBLZMA
-/*
- * Auxiliary function to uncompress data chunk from zipx archive
- * (zip with lzma compression).
- */
-static int
-zipx_lzma_uncompress_buffer(const char *compressed_buffer,
-	size_t compressed_buffer_size,
-	char *uncompressed_buffer,
-	size_t uncompressed_buffer_size)
-{
-	int status = ARCHIVE_FATAL;
-	// length of 'lzma properties data' in lzma compressed
-	// data segment (stream) inside zip archive
-	const size_t lzma_params_length = 5;
-	// offset of 'lzma properties data' from the beginning of lzma stream
-	const size_t lzma_params_offset = 4;
-	// end position of 'lzma properties data' in lzma stream
-	const size_t lzma_params_end = lzma_params_offset + lzma_params_length;
-	if (compressed_buffer == NULL ||
-			compressed_buffer_size < lzma_params_end ||
-			uncompressed_buffer == NULL)
-		return status;
-
-	// prepare header for lzma_alone_decoder to replace zipx header
-	// (see comments in 'zipx_lzma_alone_init' for justification)
-#pragma pack(push)
-#pragma pack(1)
-	struct _alone_header
-	{
-		uint8_t bytes[5]; // lzma_params_length
-		uint64_t uncompressed_size;
-	} alone_header;
-#pragma pack(pop)
-	// copy 'lzma properties data' blob
-	memcpy(&alone_header.bytes[0], compressed_buffer + lzma_params_offset,
-		lzma_params_length);
-	alone_header.uncompressed_size = UINT64_MAX;
-
-	// prepare new compressed buffer, see 'zipx_lzma_alone_init' for details
-	const size_t lzma_alone_buffer_size =
-		compressed_buffer_size - lzma_params_end + sizeof(alone_header);
-	unsigned char *lzma_alone_compressed_buffer =
-		(unsigned char*) malloc(lzma_alone_buffer_size);
-	if (lzma_alone_compressed_buffer == NULL)
-		return status;
-	// copy lzma_alone header into new buffer
-	memcpy(lzma_alone_compressed_buffer, (void*) &alone_header,
-		sizeof(alone_header));
-	// copy compressed data into new buffer
-	memcpy(lzma_alone_compressed_buffer + sizeof(alone_header),
-		compressed_buffer + lzma_params_end,
-		compressed_buffer_size - lzma_params_end);
-
-	// create and fill in lzma_alone_decoder stream
-	lzma_stream stream = LZMA_STREAM_INIT;
-	lzma_ret ret = lzma_alone_decoder(&stream, UINT64_MAX);
-	if (ret == LZMA_OK)
-	{
-		stream.next_in = lzma_alone_compressed_buffer;
-		stream.avail_in = lzma_alone_buffer_size;
-		stream.total_in = 0;
-		stream.next_out = (unsigned char*)uncompressed_buffer;
-		stream.avail_out = uncompressed_buffer_size;
-		stream.total_out = 0;
-		ret = lzma_code(&stream, LZMA_RUN);
-		if (ret == LZMA_OK || ret == LZMA_STREAM_END)
-			status = ARCHIVE_OK;
-	}
-	lzma_end(&stream);
-	free(lzma_alone_compressed_buffer);
-	return status;
-}
-#endif
-
 /*
  * Assumes file pointer is at beginning of local file header.
  */
@@ -1243,36 +1179,30 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		linkname_length = (size_t)zip_entry->compressed_size;
 
 		archive_entry_set_size(entry, 0);
-		p = __archive_read_ahead(a, linkname_length, NULL);
-		if (p == NULL) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Truncated Zip file");
-			return ARCHIVE_FATAL;
-		}
+
 		// take into account link compression if any
 		size_t linkname_full_length = linkname_length;
 		if (zip->entry->compression != 0)
 		{
 			// symlink target string appeared to be compressed
 			int status = ARCHIVE_FATAL;
-			char *uncompressed_buffer =
-				(char*) malloc(zip_entry->uncompressed_size);
-			if (uncompressed_buffer == NULL)
-			{
-				archive_set_error(&a->archive, ENOMEM,
-					"No memory for lzma decompression");
-				return status;
-			}
+			const void *uncompressed_buffer;
 
 			switch (zip->entry->compression)
 			{
+#if HAVE_ZLIB_H
+				case 8: /* Deflate compression. */
+					zip->entry_bytes_remaining = zip_entry->compressed_size;
+					status = zip_read_data_deflate(a, &uncompressed_buffer,
+						&linkname_full_length, NULL);
+					break;
+#endif
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 				case 14: /* ZIPx LZMA compression. */
 					/*(see zip file format specification, section 4.4.5)*/
-					status = zipx_lzma_uncompress_buffer(p,
-						linkname_length,
-						uncompressed_buffer,
-						(size_t)zip_entry->uncompressed_size);
+					zip->entry_bytes_remaining = zip_entry->compressed_size;
+					status = zip_read_data_zipx_lzma_alone(a, &uncompressed_buffer,
+						&linkname_full_length, NULL);
 					break;
 #endif
 				default: /* Unsupported compression. */
@@ -1281,8 +1211,6 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			if (status == ARCHIVE_OK)
 			{
 				p = uncompressed_buffer;
-				linkname_full_length =
-					(size_t)zip_entry->uncompressed_size;
 			}
 			else
 			{
@@ -1294,6 +1222,16 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 					compression_name(zip->entry->compression));
 				return ARCHIVE_FAILED;
 			}
+		}
+		else
+		{
+			p = __archive_read_ahead(a, linkname_length, NULL);
+		}
+
+		if (p == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Truncated Zip file");
+			return ARCHIVE_FATAL;
 		}
 
 		sconv = zip->sconv;
