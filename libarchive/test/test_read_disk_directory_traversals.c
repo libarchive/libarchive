@@ -528,7 +528,7 @@ test_basic(void)
 	 */
 
 	/* Save current working directory. */
-#ifdef PATH_MAX
+#if defined(PATH_MAX) && !defined(__GLIBC__)
 	initial_cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
 #else
 	initial_cwd = getcwd(NULL, 0);
@@ -560,7 +560,7 @@ test_basic(void)
 	failure(
 	    "Current working directory does not return to the initial"
 	    "directory");
-#ifdef PATH_MAX
+#if defined(PATH_MAX) && !defined(__GLIBC__)
 	cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
 #else
 	cwd = getcwd(NULL, 0);
