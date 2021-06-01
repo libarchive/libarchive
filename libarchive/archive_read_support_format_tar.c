@@ -1906,7 +1906,7 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 		}
 		if (strcmp(key, "GNU.sparse.numbytes") == 0) {
 			tar->sparse_numbytes = tar_atol10(value, strlen(value));
-			if (tar->sparse_numbytes != -1) {
+			if (tar->sparse_offset != -1) {
 				if (gnu_add_sparse_entry(a, tar,
 				    tar->sparse_offset, tar->sparse_numbytes)
 				    != ARCHIVE_OK)
