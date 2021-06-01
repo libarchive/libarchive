@@ -408,7 +408,7 @@ next_line(struct archive_read *a,
 		*ravail = *avail;
 		*b += diff;
 		*avail -= diff;
-		tested = len;/* Skip some bytes we already determinated. */
+		tested = len;/* Skip some bytes we already determined. */
 		len = get_line_size(*b + len, *avail - len, nl);
 		if (len >= 0)
 			len += tested;

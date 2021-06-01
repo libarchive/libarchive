@@ -1497,7 +1497,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 				zip->ppmd7_stat = -1;
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
-				    "Failed to initialize PPMd range decorder");
+				    "Failed to initialize PPMd range decoder");
 				return (ARCHIVE_FAILED);
 			}
 			if (zip->ppstream.overconsumed) {
