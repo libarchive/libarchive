@@ -1858,6 +1858,37 @@ create_filesystem_object(struct archive_write_disk *a)
 }
 
 /*
+ * Copy a file.  Simply does a read+write loop.  Returns to total amount of
+ * bytes copied.
+ */
+la_ssize_t
+archive_write_disk_copy_file(struct archive *_a, int fd_in, off_t s)
+{
+	static char buff[16384];
+	size_t buff_size = sizeof(buff);
+	ssize_t bytes_read, bytes_write;
+	ssize_t total = 0;
+	(void)s; /* UNUSED */
+
+	/* Fallback to a copy loop in case of partial copy or if copy failed */
+	bytes_read = read(fd_in, buff, (unsigned)buff_size);
+	while (bytes_read > 0) {
+		bytes_write = archive_write_data(_a, buff, bytes_read);
+		if (bytes_write < 0)
+			return (ARCHIVE_FAILED);
+		/*
+		 * if bytes_write < bytes_read... just keep going.  File may
+		 * have grown while being archived.
+		 */
+		total += bytes_write;
+		bytes_read = read(fd_in, buff,
+				  (unsigned)buff_size);
+	}
+
+	return total;
+}
+
+/*
  * Cleanup function for archive_extract.  Mostly, this involves processing
  * the fixup list, which is used to address a number of problems:
  *   * Dir permissions might prevent us from restoring a file in that
