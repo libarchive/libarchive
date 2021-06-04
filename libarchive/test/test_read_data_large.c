@@ -23,6 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
+#include "test_utils.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_data_large.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
@@ -49,7 +50,6 @@ DEFINE_TEST(test_read_data_large)
 	char tmpfilename[] = "largefile";
 	int tmpfilefd;
 	FILE *f;
-	unsigned int i;
 	size_t used;
 
 	/* Create a new archive in memory. */
@@ -64,8 +64,7 @@ DEFINE_TEST(test_read_data_large)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	for (i = 0; i < sizeof(buff2); i++)
-		buff2[i] = (unsigned char)rand();
+	fill_with_pseudorandom_data(buff2, sizeof(buff2));
 	archive_entry_set_size(ae, sizeof(buff2));
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
