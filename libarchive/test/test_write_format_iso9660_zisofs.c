@@ -126,11 +126,14 @@ test_write_format_iso9660_zisofs_1(void)
 	/*
 	 * "file1" has a bunch of attributes and 256K bytes of null data.
 	 */
+        // N.B. this test can fail on Windows if the corresponding local time 
+        // is in the year 1969, as _mkgmtime64 has a minimum year of 1970. 
+        // This is set to 1970-01-02, which is in the year 1970 in all timezones.
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file1");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 256*1024);
@@ -142,10 +145,10 @@ test_write_format_iso9660_zisofs_1(void)
 	 * "file2" has a bunch of attributes and 2048 bytes of null data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file2");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 2048);
@@ -157,10 +160,10 @@ test_write_format_iso9660_zisofs_1(void)
 	 * "file3" has a bunch of attributes and 2049 bytes of null data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file3");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 2049);
@@ -173,10 +176,10 @@ test_write_format_iso9660_zisofs_1(void)
 	 * which is compressed from 32K bytes null data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file4");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 24);
@@ -261,10 +264,10 @@ test_write_format_iso9660_zisofs_1(void)
 	 * Read "file1" which has 256K bytes null data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	/* assertEqualInt(3, archive_entry_birthtime(ae)); */
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	/* assertEqualInt(86403, archive_entry_birthtime(ae)); */
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(256*1024, archive_entry_size(ae));
@@ -275,10 +278,10 @@ test_write_format_iso9660_zisofs_1(void)
 	 * Read "file2" which has 2048 bytes null data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	/* assertEqualInt(3, archive_entry_birthtime(ae)); */
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	/* assertEqualInt(86403, archive_entry_birthtime(ae)); */
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -289,10 +292,10 @@ test_write_format_iso9660_zisofs_1(void)
 	 * Read "file3" which has 2049 bytes null data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	/* assertEqualInt(3, archive_entry_birthtime(ae)); */
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	/* assertEqualInt(86403, archive_entry_birthtime(ae)); */
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2049, archive_entry_size(ae));
@@ -303,10 +306,10 @@ test_write_format_iso9660_zisofs_1(void)
 	 * Read "file4" which has 32K bytes null data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	/* assertEqualInt(3, archive_entry_birthtime(ae)); */
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	/* assertEqualInt(86403, archive_entry_birthtime(ae)); */
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file4", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(32768, archive_entry_size(ae));
@@ -359,10 +362,10 @@ test_write_format_iso9660_zisofs_2(void)
 	 * "file1" has a bunch of attributes and 256K bytes of random data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file1");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 256*1024);
@@ -384,10 +387,10 @@ test_write_format_iso9660_zisofs_2(void)
 	 * "file2" has a bunch of attributes and 2048 bytes data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file2");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 2048);
@@ -403,10 +406,10 @@ test_write_format_iso9660_zisofs_2(void)
 	 *  + 1025 bytes of null data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file3");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 2049);
@@ -420,10 +423,10 @@ test_write_format_iso9660_zisofs_2(void)
 	 * which is compressed from 32K bytes null data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file4");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 24);
@@ -512,9 +515,9 @@ test_write_format_iso9660_zisofs_2(void)
 	 * Read "file1" which has 256K bytes random data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(256*1024, archive_entry_size(ae));
@@ -524,9 +527,9 @@ test_write_format_iso9660_zisofs_2(void)
 	 * Read "file2" which has 2048 bytes data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -538,9 +541,9 @@ test_write_format_iso9660_zisofs_2(void)
 	 * Read "file3" which has 2049 bytes data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2049, archive_entry_size(ae));
@@ -552,9 +555,9 @@ test_write_format_iso9660_zisofs_2(void)
 	 * Read "file4" which has 32K bytes null data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file4", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(32768, archive_entry_size(ae));
@@ -613,10 +616,10 @@ test_write_format_iso9660_zisofs_3(void)
 	 * "file1" has a bunch of attributes and 256K bytes of null data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "boot.img");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 10*1024);
@@ -628,10 +631,10 @@ test_write_format_iso9660_zisofs_3(void)
 	 * "file2" has a bunch of attributes and 2048 bytes of null data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file2");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 2048);
@@ -643,10 +646,10 @@ test_write_format_iso9660_zisofs_3(void)
 	 * "file3" has a bunch of attributes and 2049 bytes of null data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "file3");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 2049);
@@ -773,10 +776,10 @@ test_write_format_iso9660_zisofs_3(void)
 	 * Read "boot.img".
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("boot.img", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));
@@ -788,9 +791,9 @@ test_write_format_iso9660_zisofs_3(void)
 	 * Read "file2" which has 2048 bytes null data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2048, archive_entry_size(ae));
@@ -801,9 +804,9 @@ test_write_format_iso9660_zisofs_3(void)
 	 * Read "file3" which has 2049 bytes null data.
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("file3", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(2049, archive_entry_size(ae));

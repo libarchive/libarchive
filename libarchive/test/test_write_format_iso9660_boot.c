@@ -114,11 +114,14 @@ _test_write_format_iso9660_boot(int write_info_tbl)
 	/*
 	 * "boot.img" has a bunch of attributes and 10K bytes of null data.
 	 */
+        // N.B. this test can fail on Windows if the corresponding local time 
+        // is in the year 1969, as _mkgmtime64 has a minimum year of 1970. 
+        // This is set to 1970-01-02, which is in the year 1970 in all timezones.
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_atime(ae, 2, 20);
-	archive_entry_set_birthtime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_set_atime(ae, 86402, 20);
+	archive_entry_set_birthtime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, "boot.img");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_nlink(ae, 1);
@@ -242,10 +245,10 @@ _test_write_format_iso9660_boot(int write_info_tbl)
 	 * Read "boot.img".
 	 */
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_atime(ae));
-	assertEqualInt(3, archive_entry_birthtime(ae));
-	assertEqualInt(4, archive_entry_ctime(ae));
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86402, archive_entry_atime(ae));
+	assertEqualInt(86403, archive_entry_birthtime(ae));
+	assertEqualInt(86404, archive_entry_ctime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	assertEqualString("boot.img", archive_entry_pathname(ae));
 	assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	assertEqualInt(1, archive_entry_nlink(ae));

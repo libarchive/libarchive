@@ -33,10 +33,13 @@ add_entry(struct archive *a, const char *fname, const char *sym)
 	struct archive_entry *ae;
 
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_birthtime(ae, 2, 20);
-	archive_entry_set_atime(ae, 3, 30);
-	archive_entry_set_ctime(ae, 4, 40);
-	archive_entry_set_mtime(ae, 5, 50);
+        // N.B. this test can fail on Windows if the corresponding local time 
+        // is in the year 1969, as _mkgmtime64 has a minimum year of 1970. 
+        // This is set to 1970-01-02, which is in the year 1970 in all timezones.
+	archive_entry_set_birthtime(ae, 86402, 20);
+	archive_entry_set_atime(ae, 86403, 30);
+	archive_entry_set_ctime(ae, 86404, 40);
+	archive_entry_set_mtime(ae, 86405, 50);
 	archive_entry_copy_pathname(ae, fname);
 	if (sym != NULL)
 		archive_entry_set_symlink(ae, sym);
@@ -77,15 +80,15 @@ verify_file(struct archive *a, enum vtype type, struct fns *fns)
 
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	if (type == ROCKRIDGE) {
-		assertEqualInt(2, archive_entry_birthtime(ae));
-		assertEqualInt(3, archive_entry_atime(ae));
-		assertEqualInt(4, archive_entry_ctime(ae));
+		assertEqualInt(86402, archive_entry_birthtime(ae));
+		assertEqualInt(86403, archive_entry_atime(ae));
+		assertEqualInt(86404, archive_entry_ctime(ae));
 	} else {
 		assertEqualInt(0, archive_entry_birthtime_is_set(ae));
-		assertEqualInt(5, archive_entry_atime(ae));
-		assertEqualInt(5, archive_entry_ctime(ae));
+		assertEqualInt(86405, archive_entry_atime(ae));
+		assertEqualInt(86405, archive_entry_ctime(ae));
 	}
-	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(86405, archive_entry_mtime(ae));
 	if (type == ROCKRIDGE)
 		assert((S_IFREG | 0555) == archive_entry_mode(ae));
 	else
