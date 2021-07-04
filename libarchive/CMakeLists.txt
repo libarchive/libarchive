@@ -58,6 +58,8 @@ SET(libarchive_SOURCES
   archive_private.h
   archive_random.c
   archive_random_private.h
+  archive_rarvm.c
+  archive_rarvm.h
   archive_rb.c
   archive_rb.h
   archive_read.c

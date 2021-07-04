@@ -137,6 +137,8 @@ libarchive_la_SOURCES= \
 	libarchive/archive_private.h \
 	libarchive/archive_random.c \
 	libarchive/archive_random_private.h \
+	libarchive/archive_rarvm.c \
+	libarchive/archive_rarvm.h \
 	libarchive/archive_rb.c \
 	libarchive/archive_rb.h \
 	libarchive/archive_read.c \
