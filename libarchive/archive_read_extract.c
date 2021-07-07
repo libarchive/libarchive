@@ -30,6 +30,14 @@ __FBSDID("$FreeBSD: src/lib/libarchive/archive_read_extract.c,v 1.61 2008/05/26 
 #include <errno.h>
 #endif
 
+#ifndef __posix
+#define NO_SYNC 1
+#endif
+
+#ifndef NO_SYNC
+#include <unistd.h>
+#endif
+
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
@@ -56,5 +64,8 @@ archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 	}
 
 	archive_write_disk_set_options(extract->ad, flags);
+  # ifndef NO_SYNC
+  sync();
+  #endif
 	return (archive_read_extract2(&a->archive, entry, extract->ad));
 }
