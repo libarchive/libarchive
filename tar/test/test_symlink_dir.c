@@ -83,7 +83,7 @@ DEFINE_TEST(test_symlink_dir)
 		/* "file2" is a symlink to non-existing "real_file2" */
 		assertMakeSymlink("dest1/file2", "real_file2", 0);
 	}
-	assertEqualInt(0, systemf("%s -xf test.tar -C dest1", testprog));
+	assertEqualInt(0, systemf("%s -xUf test.tar -C dest1", testprog));
 
 	/* dest1/dir symlink should be replaced */
 	failure("symlink to dir was followed when it shouldn't be");

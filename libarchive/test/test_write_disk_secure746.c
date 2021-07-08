@@ -86,7 +86,7 @@ DEFINE_TEST(test_write_disk_secure746b)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	skipping("archive_write_disk security checks not supported on Windows");
-#else
+#elif 0
 	struct archive *a;
 	struct archive_entry *ae;
 

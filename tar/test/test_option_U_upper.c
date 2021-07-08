@@ -75,17 +75,17 @@ DEFINE_TEST(test_option_U_upper)
 	if (!canSymlink())
 		return;
 
-	/* Test 3: Intermediate dir symlink causes error by default */
+	/* Test 3: Intermediate dir symlink preserves it */
 	assertMakeDir("test3", 0755);
 	assertChdir("test3");
 	assertMakeDir("realDir", 0755);
 	assertMakeSymlink("d1", "realDir", 1);
 	r = systemf("%s -xf ../archive.tar d1/file1 >test.out 2>test.err", testprog);
-	assert(r != 0);
+	assert(r == 0);
 	assertIsSymlink("d1", "realDir", 1);
-	assertFileNotExists("d1/file1");
+	assertFileContents("d1/file1", 8, "d1/file1");
 	assertEmptyFile("test.out");
-	assertNonEmptyFile("test.err");
+	assertEmptyFile("test.err");
 	assertChdir("..");
 
 	/* Test 4: Intermediate dir symlink gets removed with -U */
