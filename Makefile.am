@@ -94,6 +94,8 @@ include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 libarchive_la_SOURCES= \
 	libarchive/archive_acl.c \
 	libarchive/archive_acl_private.h \
+	libarchive/archive_base64.c \
+	libarchive/archive_base64_private.h \
 	libarchive/archive_check_magic.c \
 	libarchive/archive_cmdline.c \
 	libarchive/archive_cmdline_private.h \

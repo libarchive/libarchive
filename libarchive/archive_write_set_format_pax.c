@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_pax.c 201162 20
 #endif
 
 #include "archive.h"
+#include "archive_base64_private.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
 #include "archive_private.h"
@@ -90,7 +91,6 @@ static int		 archive_write_pax_header(struct archive_write *,
 			     struct archive_entry *);
 static int		 archive_write_pax_options(struct archive_write *,
 			     const char *, const char *);
-static char		*base64_encode(const char *src, size_t len);
 static char		*build_gnu_sparse_name(char *dest, const char *src);
 static char		*build_pax_attribute_name(char *dest, const char *src);
 static char		*build_ustar_entry_name(char *dest, const char *src,
@@ -1925,63 +1925,6 @@ url_encode(const char *in)
 			*d++ = *s;
 		}
 	}
-	*d = '\0';
-	return (out);
-}
-
-/*
- * Encode a sequence of bytes into a C string using base-64 encoding.
- *
- * Returns a null-terminated C string allocated with malloc(); caller
- * is responsible for freeing the result.
- */
-static char *
-base64_encode(const char *s, size_t len)
-{
-	static const char digits[64] =
-	    { 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O',
-	      'P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d',
-	      'e','f','g','h','i','j','k','l','m','n','o','p','q','r','s',
-	      't','u','v','w','x','y','z','0','1','2','3','4','5','6','7',
-	      '8','9','+','/' };
-	int v;
-	char *d, *out;
-
-	/* 3 bytes becomes 4 chars, but round up and allow for trailing NUL */
-	out = (char *)malloc((len * 4 + 2) / 3 + 1);
-	if (out == NULL)
-		return (NULL);
-	d = out;
-
-	/* Convert each group of 3 bytes into 4 characters. */
-	while (len >= 3) {
-		v = (((int)s[0] << 16) & 0xff0000)
-		    | (((int)s[1] << 8) & 0xff00)
-		    | (((int)s[2]) & 0x00ff);
-		s += 3;
-		len -= 3;
-		*d++ = digits[(v >> 18) & 0x3f];
-		*d++ = digits[(v >> 12) & 0x3f];
-		*d++ = digits[(v >> 6) & 0x3f];
-		*d++ = digits[(v) & 0x3f];
-	}
-	/* Handle final group of 1 byte (2 chars) or 2 bytes (3 chars). */
-	switch (len) {
-	case 0: break;
-	case 1:
-		v = (((int)s[0] << 16) & 0xff0000);
-		*d++ = digits[(v >> 18) & 0x3f];
-		*d++ = digits[(v >> 12) & 0x3f];
-		break;
-	case 2:
-		v = (((int)s[0] << 16) & 0xff0000)
-		    | (((int)s[1] << 8) & 0xff00);
-		*d++ = digits[(v >> 18) & 0x3f];
-		*d++ = digits[(v >> 12) & 0x3f];
-		*d++ = digits[(v >> 6) & 0x3f];
-		break;
-	}
-	/* Add trailing NUL character so output is a valid C string. */
 	*d = '\0';
 	return (out);
 }

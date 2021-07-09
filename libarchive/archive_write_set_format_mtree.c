@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_mtree.c 201171 
 #include <string.h>
 
 #include "archive.h"
+#include "archive_base64_private.h"
 #include "archive_digest_private.h"
 #include "archive_entry.h"
 #include "archive_entry_private.h"
@@ -115,6 +116,7 @@ struct mtree_entry {
 	dev_t devmajor;
 	dev_t devminor;
 	int64_t ino;
+	struct archive_string xattrs;
 };
 
 struct mtree_writer {
@@ -200,6 +202,7 @@ struct mtree_writer {
 #define	F_INO		0x04000000		/* inode number */
 #define	F_RESDEV	0x08000000		/* device ID on which the
 						 * entry resides */
+#define	F_XATTRS	0x10000000              /* xattrs */
 
 	/* Options */
 	int dironly;		/* If it is set, ignore all files except
@@ -772,6 +775,33 @@ get_global_set_keys(struct mtree_writer *mtree, struct mtree_entry *me)
 }
 
 static int
+mtree_xattrs_gather(struct archive_entry *e, struct mtree_entry *me)
+{
+	int i = archive_entry_xattr_reset(e);
+
+	while (i--) {
+		const char *name;
+		const void *value;
+		char *b64_value;
+		size_t size;
+
+		archive_entry_xattr_next(e, &name, &value, &size);
+
+		archive_strcat(&me->xattrs, " xattr.");
+		mtree_quote(&me->xattrs, name);
+		archive_strappend_char(&me->xattrs, '=');
+
+		b64_value = base64_encode(value, size);
+		if (b64_value == NULL)
+			return (-1);
+		mtree_quote(&me->xattrs, b64_value);
+		free(b64_value);
+	}
+
+	return 0;
+}
+
+static int
 mtree_entry_new(struct archive_write *a, struct archive_entry *entry,
     struct mtree_entry **m_entry)
 {
@@ -819,6 +849,14 @@ mtree_entry_new(struct archive_write *a, struct archive_entry *entry,
 	me->devminor = archive_entry_devminor(entry);
 	me->ino = archive_entry_ino(entry);
 	me->size = archive_entry_size(entry);
+	archive_string_init(&me->xattrs);
+	if (mtree_xattrs_gather(entry, me) < 0) {
+		mtree_entry_free(me);
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for a mtree entry");
+		*m_entry = NULL;
+		return (ARCHIVE_FATAL);
+	}
 	if (me->filetype == AE_IFDIR) {
 		me->dir_info = calloc(1, sizeof(*me->dir_info));
 		if (me->dir_info == NULL) {
@@ -858,6 +896,7 @@ mtree_entry_free(struct mtree_entry *me)
 	archive_string_free(&me->uname);
 	archive_string_free(&me->gname);
 	archive_string_free(&me->fflags_text);
+	archive_string_free(&me->xattrs);
 	free(me->dir_info);
 	free(me->reg_info);
 	free(me);
@@ -984,6 +1023,8 @@ write_mtree_entry(struct archive_write *a, struct mtree_entry *me)
 		    (uintmax_t)me->devmajor,
 		    (uintmax_t)me->devminor);
 	}
+	if ((keys & F_XATTRS) != 0 && me->xattrs.length)
+		archive_strcat(str, me->xattrs.s);
 
 	switch (me->filetype) {
 	case AE_IFLNK:
@@ -1356,6 +1397,10 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 			mtree->output_global_set = (value != NULL)? 1: 0;
 			return (ARCHIVE_OK);
 		}
+		break;
+	case 'x':
+		if (strcmp(key, "xattrs") == 0)
+			keybit = F_XATTRS;
 		break;
 	}
 	if (keybit != 0) {
