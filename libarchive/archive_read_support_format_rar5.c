@@ -1689,16 +1689,6 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		return ARCHIVE_FATAL;
 	}
 
-	/* Check if window_size is a sane value. Also, if the file is not
-	 * declared as a directory, disallow window_size == 0. */
-	if(window_size > (64 * 1024 * 1024) ||
-	    (rar->file.dir == 0 && window_size == 0))
-	{
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Declared dictionary size is not supported.");
-		return ARCHIVE_FATAL;
-	}
-
 	if(rar->file.solid > 0) {
 		/* Re-check if current window size is the same as previous
 		 * window size (for solid files only). */
@@ -1718,6 +1708,16 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		/* Values up to 64M should fit into ssize_t on every
 		 * architecture. */
 		rar->cstate.window_size = (ssize_t) window_size;
+	}
+
+	/* Check if window_size is a sane value. Also, if the file is not
+	 * declared as a directory, disallow window_size == 0. */
+	if(rar->cstate.window_size > (64 * 1024 * 1024) ||
+	    (rar->file.dir == 0 && rar->cstate.window_size == 0))
+	{
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Declared dictionary size is not supported.");
+		return ARCHIVE_FATAL;
 	}
 
 	if(rar->file.solid > 0 && rar->file.solid_window_size == 0) {
@@ -3598,6 +3598,16 @@ static int do_uncompress_file(struct archive_read* a) {
 		}
 
 		rar->cstate.initialized = 1;
+	}
+
+	/* Don't allow extraction if window_size is malformed. */
+	if(rar->cstate.window_size == 0) {
+		archive_set_error(&a->archive,
+			ARCHIVE_ERRNO_PROGRAMMER,
+			"Malformed window size declaration in this file");
+
+		/* This should never happen in valid files. */
+		return ARCHIVE_FATAL;
 	}
 
 	if(rar->cstate.all_filters_applied == 1) {

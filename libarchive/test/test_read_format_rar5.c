@@ -1271,3 +1271,22 @@ DEFINE_TEST(test_read_format_rar5_block_size_is_too_small)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_bad_window_size_in_multiarchive_file)
+{
+	/* oss fuzz 30459 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_bad_window_sz_in_mltarc_file.rar");
+
+	/* This file is damaged, so those functions should return failure.
+	 * Additionally, SIGSEGV shouldn't be raised during execution
+	 * of those functions. */
+
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	EPILOGUE();
+}
