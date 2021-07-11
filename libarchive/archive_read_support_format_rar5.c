@@ -1715,9 +1715,28 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	/* If we're currently switching volumes, ignore the new definition of
 	 * window_size. */
 	if(rar->cstate.switch_multivolume == 0) {
-		/* Values up to 64M should fit into ssize_t on every
-		 * architecture. */
-		rar->cstate.window_size = (ssize_t) window_size;
+		if(rar->cstate.window_size < (ssize_t) window_size) {
+			/* Values up to 64M should fit into ssize_t on every
+			 * architecture. */
+			rar->cstate.window_size = (ssize_t) window_size;
+
+			if(rar->cstate.window_buf) {
+				/* If window_buf has been allocated before, reallocate it, so
+				 * that its size will match new window_size. */
+
+				uint8_t* new_window_buf =
+					realloc(rar->cstate.window_buf, rar->cstate.window_size);
+
+				if(!new_window_buf) {
+					archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+						"Not enough memory when trying to realloc the window "
+						"buffer.");
+					return ARCHIVE_FATAL;
+				}
+
+				rar->cstate.window_buf = new_window_buf;
+			}
+		}
 	}
 
 	if(rar->file.solid > 0 && rar->file.solid_window_size == 0) {

@@ -886,6 +886,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_arm_filter_on_window_boundary.rar.uu \
 	libarchive/test/test_read_format_rar5_different_winsize_on_merge.rar.uu \
 	libarchive/test/test_read_format_rar5_block_size_is_too_small.rar.uu \
+	libarchive/test/test_read_format_rar5_window_buf_and_size_desync.rar.uu \
 	libarchive/test/test_read_format_raw.bufr.uu \
 	libarchive/test/test_read_format_raw.data.gz.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \
