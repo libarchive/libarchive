@@ -2035,13 +2035,13 @@ mtree_atol(char **p, int base)
 
 	if (**p == '-') {
 		limit = INT64_MIN / base;
-		last_digit_limit = INT64_MIN % base;
+		last_digit_limit = -(INT64_MIN % base);
 		++(*p);
 
 		l = 0;
 		digit = parsedigit(**p);
 		while (digit >= 0 && digit < base) {
-			if (l < limit || (l == limit && digit > last_digit_limit))
+			if (l < limit || (l == limit && digit >= last_digit_limit))
 				return INT64_MIN;
 			l = (l * base) - digit;
 			digit = parsedigit(*++(*p));

@@ -2643,14 +2643,14 @@ tar_atol_base_n(const char *p, size_t char_cnt, int base)
 
 		maxval = INT64_MIN;
 		limit = -(INT64_MIN / base);
-		last_digit_limit = INT64_MIN % base;
+		last_digit_limit = -(INT64_MIN % base);
 	}
 
 	l = 0;
 	if (char_cnt != 0) {
 		digit = *p - '0';
 		while (digit >= 0 && digit < base  && char_cnt != 0) {
-			if (l>limit || (l == limit && digit > last_digit_limit)) {
+			if (l>limit || (l == limit && digit >= last_digit_limit)) {
 				return maxval; /* Truncate on overflow. */
 			}
 			l = (l * base) + digit;
