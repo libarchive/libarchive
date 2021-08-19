@@ -209,6 +209,7 @@ IF(ENABLE_TEST)
     test_write_disk.c
     test_write_disk_appledouble.c
     test_write_disk_failures.c
+    test_write_disk_fixup.c
     test_write_disk_hardlink.c
     test_write_disk_hfs_compression.c
     test_write_disk_lookup.c

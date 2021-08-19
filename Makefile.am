@@ -560,6 +560,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_disk.c \
 	libarchive/test/test_write_disk_appledouble.c \
 	libarchive/test/test_write_disk_failures.c \
+	libarchive/test/test_write_disk_fixup.c \
 	libarchive/test/test_write_disk_hardlink.c \
 	libarchive/test/test_write_disk_hfs_compression.c \
 	libarchive/test/test_write_disk_lookup.c \
