@@ -23,7 +23,7 @@ FreeBSD_task:
   build_script:
   - ./build/ci/build.sh -a build
   test_script:
-  - ./build/ci/build.sh -a test
+  - env SKIP_TEST_RESTORE_ATIME=1 ./build/ci/build.sh -a test
   - ./build/ci/cirrus_ci/ci.sh test
   install_script:
   - ./build/ci/build.sh -a install

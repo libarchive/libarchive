@@ -1047,7 +1047,14 @@ test_restore_atime(void)
 	size_t size;
 	int64_t offset;
 	int file_count;
+	const char *skip_test_restore_atime;
 
+        skip_test_restore_atime = getenv("SKIP_TEST_RESTORE_ATIME");
+        if (skip_test_restore_atime != NULL) {
+                skipping("Skipping restore atime tests due to "
+                    "SKIP_TEST_RESTORE_ATIME environment variable");
+                return;
+        }
 	if (!atimeIsUpdated()) {
 		skipping("Can't test restoring atime on this filesystem");
 		return;
