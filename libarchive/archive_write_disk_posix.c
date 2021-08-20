@@ -360,7 +360,7 @@ static int	la_mktemp(struct archive_write_disk *);
 static void	fsobj_error(int *, struct archive_string *, int, const char *,
 		    const char *);
 static int	check_symlinks_fsobj(char *, int *, struct archive_string *,
-		    int);
+		    int, int);
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
 static struct fixup_entry *current_fixup(struct archive_write_disk *,
@@ -2263,7 +2263,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			return (EPERM);
 		}
 		r = check_symlinks_fsobj(linkname_copy, &error_number,
-		    &error_string, a->flags);
+		    &error_string, a->flags, 1);
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, error_number, "%s",
 			    error_string.s);
@@ -2284,7 +2284,12 @@ create_filesystem_object(struct archive_write_disk *a)
 		 */
 		if (a->flags & ARCHIVE_EXTRACT_SAFE_WRITES)
 			unlink(a->name);
+#ifdef HAVE_LINKAT
+		r = linkat(AT_FDCWD, linkname, AT_FDCWD, a->name,
+		    0) ? errno : 0;
+#else
 		r = link(linkname, a->name) ? errno : 0;
+#endif
 		/*
 		 * New cpio and pax formats allow hardlink entries
 		 * to carry data, so we may have to open the file
@@ -2675,7 +2680,7 @@ fsobj_error(int *a_eno, struct archive_string *a_estr,
  */
 static int
 check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
-    int flags)
+    int flags, int extracting_hardlink)
 {
 #if !defined(HAVE_LSTAT) && \
     !(defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT))
@@ -2684,6 +2689,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	(void)error_number; /* UNUSED */
 	(void)error_string; /* UNUSED */
 	(void)flags; /* UNUSED */
+	(void)extracting_hardlink; /* UNUSED */
 	return (ARCHIVE_OK);
 #else
 	int res = ARCHIVE_OK;
@@ -2805,6 +2811,28 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				head = tail + 1;
 			}
 		} else if (S_ISLNK(st.st_mode)) {
+			if (last && extracting_hardlink) {
+#ifdef HAVE_LINKAT
+				/*
+				 * Hardlinks to symlinks are safe to write
+				 * if linkat() is supported as it does not
+				 * follow symlinks.
+				 */
+				res = ARCHIVE_OK;
+#else
+				/*
+				 * We return ARCHIVE_FAILED here as we are
+				 * not able to safely write hardlinks
+				 * to symlinks.
+				 */
+				tail[0] = c;
+				fsobj_error(a_eno, a_estr, errno,
+				    "Cannot write hardlink to symlink ",
+				    path);
+				res = ARCHIVE_FAILED;
+#endif
+				break;
+			} else
 			if (last) {
 				/*
 				 * Last element is symlink; remove it
@@ -2971,7 +2999,7 @@ check_symlinks(struct archive_write_disk *a)
 	int rc;
 	archive_string_init(&error_string);
 	rc = check_symlinks_fsobj(a->name, &error_number, &error_string,
-	    a->flags);
+	    a->flags, 0);
 	if (rc != ARCHIVE_OK) {
 		archive_set_error(&a->archive, error_number, "%s",
 		    error_string.s);
