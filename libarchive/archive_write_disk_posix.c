@@ -2680,7 +2680,7 @@ fsobj_error(int *a_eno, struct archive_string *a_estr,
  */
 static int
 check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
-    int flags, int extracting_hardlink)
+    int flags, int checking_linkname)
 {
 #if !defined(HAVE_LSTAT) && \
     !(defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT))
@@ -2689,7 +2689,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	(void)error_number; /* UNUSED */
 	(void)error_string; /* UNUSED */
 	(void)flags; /* UNUSED */
-	(void)extracting_hardlink; /* UNUSED */
+	(void)checking_linkname; /* UNUSED */
 	return (ARCHIVE_OK);
 #else
 	int res = ARCHIVE_OK;
@@ -2811,7 +2811,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				head = tail + 1;
 			}
 		} else if (S_ISLNK(st.st_mode)) {
-			if (last && extracting_hardlink) {
+			if (last && checking_linkname) {
 #ifdef HAVE_LINKAT
 				/*
 				 * Hardlinks to symlinks are safe to write
