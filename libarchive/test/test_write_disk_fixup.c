@@ -29,6 +29,9 @@
  */
 DEFINE_TEST(test_write_disk_fixup)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	skipping("Skipping test on Windows");
+#else
 	struct archive *ad;
 	struct archive_entry *ae;
 	int r;
@@ -74,4 +77,5 @@ DEFINE_TEST(test_write_disk_fixup)
 	/* Test the entries on disk. */
 	assertIsSymlink("dir", "victim", 0);
 	assertFileMode("victim", 0600);
+#endif
 }
