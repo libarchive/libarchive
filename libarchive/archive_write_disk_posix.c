@@ -3927,7 +3927,8 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 
 	/* If we weren't given an fd, open it ourselves. */
 	if (myfd < 0) {
-		myfd = open(name, O_RDONLY | O_NONBLOCK | O_BINARY | O_CLOEXEC);
+		myfd = open(name, O_RDONLY | O_NONBLOCK | O_BINARY |
+		    O_CLOEXEC | O_NOFOLLOW);
 		__archive_ensure_cloexec_flag(myfd);
 	}
 	if (myfd < 0)
