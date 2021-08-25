@@ -387,7 +387,7 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 	if (data->threads != 0) {
 		struct archive_string as2;
 		archive_string_init(&as2);
-		archive_string_sprintf(&as, " --threads=%d", data->threads);
+		archive_string_sprintf(&as2, " --threads=%d", data->threads);
 		archive_string_concat(&as, &as2);
 		archive_string_free(&as2);
 	}
