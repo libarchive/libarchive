@@ -414,6 +414,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_solaris_tar_acl.c \
 	libarchive/test/test_compat_solaris_pax_sparse.c \
 	libarchive/test/test_compat_star_acl.c \
+	libarchive/test/test_compat_tar_directory.c \
 	libarchive/test/test_compat_tar_hardlink.c \
 	libarchive/test/test_compat_uudecode.c \
 	libarchive/test/test_compat_uudecode_large.c \
@@ -695,6 +696,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_solaris_tar_acl.tar.uu \
 	libarchive/test/test_compat_star_acl_nfs4.tar.uu \
 	libarchive/test/test_compat_star_acl_posix1e.tar.uu \
+	libarchive/test/test_compat_tar_directory_1.tar.uu \
 	libarchive/test/test_compat_tar_hardlink_1.tar.uu \
 	libarchive/test/test_compat_uudecode_large.tar.Z.uu \
 	libarchive/test/test_compat_xz_1.txz.uu \
