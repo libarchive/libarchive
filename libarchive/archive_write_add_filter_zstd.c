@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 struct private_data {
 	int		 compression_level;
+	int      threads;
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
 	ZSTD_CStream	*cstream;
 	int64_t		 total_in;
@@ -107,6 +108,7 @@ archive_write_add_filter_zstd(struct archive *_a)
 	f->code = ARCHIVE_FILTER_ZSTD;
 	f->name = "zstd";
 	data->compression_level = CLEVEL_DEFAULT;
+	data->threads = 0;
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
 	data->cstream = ZSTD_createCStream();
 	if (data->cstream == NULL) {
@@ -204,6 +206,20 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		}
 		data->compression_level = level;
 		return (ARCHIVE_OK);
+	} else if (strcmp(key, "threads") == 0) {
+		int threads = atoi(value);
+		if (string_is_numeric(value) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
+
+		int minimum = 0;
+
+		if (threads < minimum) {
+			return (ARCHIVE_WARN);
+		}
+
+		data->threads = threads;
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -251,6 +267,8 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 		    "Internal error initializing zstd compressor object");
 		return (ARCHIVE_FATAL);
 	}
+
+	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_nbWorkers, data->threads);
 
 	return (ARCHIVE_OK);
 }
@@ -364,6 +382,14 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 
 	if (data->compression_level > CLEVEL_STD_MAX) {
 		archive_strcat(&as, " --ultra");
+	}
+
+	if (data->threads != 0) {
+		struct archive_string as2;
+		archive_string_init(&as2);
+		archive_string_sprintf(&as2, " --threads=%d", data->threads);
+		archive_string_concat(&as, &as2);
+		archive_string_free(&as2);
 	}
 
 	f->write = archive_compressor_zstd_write;
