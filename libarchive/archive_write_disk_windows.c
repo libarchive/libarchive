@@ -628,7 +628,7 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
 	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
 	static int set;
 	wchar_t *ttarget, *p;
-	int len;
+	size_t len;
 	DWORD attrs = 0;
 	DWORD flags = 0;
 	DWORD newflags = 0;
