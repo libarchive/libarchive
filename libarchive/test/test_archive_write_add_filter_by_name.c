@@ -142,12 +142,6 @@ canAlways(void)
 	return 1;
 }
 
-static int
-cannot(void)
-{
-	return 0;
-}
-
 DEFINE_TEST(test_archive_write_add_filter_by_name_b64encode)
 {
 	test_filter_by_name("b64encode", ARCHIVE_FILTER_UU, canAlways);
