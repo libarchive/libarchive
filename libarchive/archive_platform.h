@@ -69,8 +69,16 @@
  * either Windows or Posix APIs. */
 #if (defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__)
 #include "archive_windows.h"
+/* The C library on Windows specifies a calling convention for callback
+ * functions and exports; when we interact with them (capture pointers,
+ * call and pass function pointers) we need to match their calling
+ * convention.
+ * This only matters when libarchive is built with /Gr, /Gz or /Gv
+ * (which change the default calling convention.) */
+#define __LA_LIBC_CC __cdecl
 #else
 #define la_stat(path,stref)		stat(path,stref)
+#define __LA_LIBC_CC
 #endif
 
 /*
