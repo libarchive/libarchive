@@ -1271,3 +1271,27 @@ DEFINE_TEST(test_read_format_rar5_block_size_is_too_small)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_sfx)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	int bs = 10240;
+	char buff[32];
+	const char reffile[] = "test_read_format_rar5_sfx.exe";
+	const char test_txt[] = "123";
+	int size = sizeof(test_txt) - 1;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_filename(a, reffile, bs));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("test.txt.txt", archive_entry_pathname(ae));
+
+	assertA(size == archive_read_data(a, buff, size));
+	assertEqualMem(buff, test_txt, size);
+}
+
