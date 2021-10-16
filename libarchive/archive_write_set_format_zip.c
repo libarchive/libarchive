@@ -745,7 +745,13 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		 * makes length-at-end more reliable) and will
 		 * enable Zip64 extensions unless we're told not to.
 		 */
-		zip->entry_compression = COMPRESSION_DEFAULT;
+
+		#ifdef HAVE_ZLIB_H
+		if(zip->requested_compression == COMPRESSION_UNSPECIFIED){
+			zip->entry_compression = COMPRESSION_DEFLATE;
+		}
+		#endif
+
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 		if ((zip->flags & ZIP_FLAG_AVOID_ZIP64) == 0) {
 			zip->entry_uses_zip64 = 1;
