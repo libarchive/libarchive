@@ -120,7 +120,6 @@ SET(libarchive_SOURCES
   archive_write_disk_private.h
   archive_write_disk_set_standard_lookup.c
   archive_write_private.h
-  archive_write_open_fd.c
   archive_write_open_file.c
   archive_write_open_filename.c
   archive_write_open_memory.c

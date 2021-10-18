@@ -64,8 +64,26 @@ struct write_file_data {
 static int	file_close(struct archive *, void *);
 static int	file_free(struct archive *, void *);
 static int	file_open(struct archive *, void *);
+static int	file_open_fd(struct archive *, void *);
 static ssize_t	file_write(struct archive *, void *, const void *buff, size_t);
 static int	open_filename(struct archive *, int, const void *);
+
+int
+archive_write_open_fd(struct archive *a, int fd)
+{
+	struct write_file_data *mine;
+
+	mine = (struct write_file_data *)calloc(1, sizeof(*mine));
+	if (mine == NULL) {
+		archive_set_error(a, ENOMEM, "No memory");
+		return (ARCHIVE_FATAL);
+	}
+#if defined(__CYGWIN__) || defined(_WIN32)
+	setmode(mine->fd, O_BINARY);
+#endif
+	return (archive_write_open2(a, mine,
+		    file_open_fd, file_write, NULL, file_free));
+}
 
 int
 archive_write_open_file(struct archive *a, const char *filename)
@@ -126,6 +144,44 @@ open_filename(struct archive *a, int mbs_fn, const void *filename)
 	mine->fd = -1;
 	return (archive_write_open2(a, mine,
 		    file_open, file_write, file_close, file_free));
+}
+
+static int
+file_open_fd(struct archive *a, void *client_data)
+{
+	struct write_file_data *mine;
+	struct stat st;
+
+	mine = (struct write_file_data *)client_data;
+
+	if (fstat(mine->fd, &st) != 0) {
+		archive_set_error(a, errno, "Couldn't stat fd %d", mine->fd);
+		return (ARCHIVE_FATAL);
+	}
+
+	/*
+	 * If this is a regular file, don't add it to itself.
+	 */
+	if (S_ISREG(st.st_mode))
+		archive_write_set_skip_file(a, st.st_dev, st.st_ino);
+
+	/*
+	 * If client hasn't explicitly set the last block handling,
+	 * then set it here.
+	 */
+	if (archive_write_get_bytes_in_last_block(a) < 0) {
+		/* If the output is a block or character device, fifo,
+		 * or stdout, pad the last block, otherwise leave it
+		 * unpadded. */
+		if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode) ||
+		    S_ISFIFO(st.st_mode) || (mine->fd == 1))
+			/* Last block will be fully padded. */
+			archive_write_set_bytes_in_last_block(a, 0);
+		else
+			archive_write_set_bytes_in_last_block(a, 1);
+	}
+
+	return (ARCHIVE_OK);
 }
 
 static int
@@ -231,7 +287,7 @@ file_write(struct archive *a, void *client_data, const void *buff,
 		if (bytesWritten <= 0) {
 			if (errno == EINTR)
 				continue;
-			archive_set_error(a, errno, "Write error");
+			archive_set_error(a, errno, "(file_write) Write error");
 			return (-1);
 		}
 		return (bytesWritten);
