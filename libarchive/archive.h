@@ -247,7 +247,7 @@ typedef int	archive_open_callback(struct archive *, void *_client_data);
 typedef int	archive_close_callback(struct archive *, void *_client_data);
 
 typedef int	archive_free_callback(struct archive *, void *_client_data);
-
+  
 /* Switches from one client data object to the next/prev client data object.
  * This is useful for reading from different data blocks such as a set of files
  * that make up one large file.

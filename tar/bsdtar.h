@@ -103,7 +103,8 @@ struct bsdtar {
 	struct siginfo_data	*siginfo;	/* for siginfo.c */
 	struct substitution	*substitution;	/* for subst.c */
 	char			*ppbuff;	/* for util.c */
-        int                      multi_volume_number; /* 0 for no multi-volume, 1+ for multi */
+        int                      media_volume_number; /* 0 for no multi-volume, 1+ for multi */
+        int                      write_fd;            /* for write.c */
 };
 
 /* Options for flags bitfield */

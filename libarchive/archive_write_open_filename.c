@@ -287,7 +287,7 @@ file_write(struct archive *a, void *client_data, const void *buff,
 		if (bytesWritten <= 0) {
 			if (errno == EINTR)
 				continue;
-			archive_set_error(a, errno, "(file_write) Write error");
+			archive_set_error(a, errno, "Write error");
 			return (-1);
 		}
 		return (bytesWritten);
