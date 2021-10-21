@@ -78,6 +78,7 @@ archive_write_open_fd(struct archive *a, int fd)
 		archive_set_error(a, ENOMEM, "No memory");
 		return (ARCHIVE_FATAL);
 	}
+        mine->fd = fd;
 #if defined(__CYGWIN__) || defined(_WIN32)
 	setmode(mine->fd, O_BINARY);
 #endif
