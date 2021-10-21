@@ -1205,9 +1205,9 @@ file_write(struct archive *a, void *client_data, const void *buff,
                             && mine->media_volume_number > 0) {
                                 int errno_orig = errno;
                                 
-                                close(mine->fd);
+                                close(mine->write_fd);
                                 
-                                if (yes("Switch media in '%s': Remove %d, Insert %d",
+                                if (yes("\nSwitch media in '%s': Remove %d, Insert %d",
                                         mine->filename, mine->media_volume_number,
                                         mine->media_volume_number +1)) {
 
