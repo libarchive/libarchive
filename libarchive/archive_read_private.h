@@ -243,8 +243,10 @@ int	__archive_read_register_format(struct archive_read *a,
 		int (*format_capabilities)(struct archive_read *),
 		int (*has_encrypted_entries)(struct archive_read *));
 
-int __archive_read_get_bidder(struct archive_read *a,
-    struct archive_read_filter_bidder **bidder);
+int __archive_read_register_bidder(struct archive_read *a,
+		void *bidder_data,
+		const char *name,
+		const struct archive_read_filter_bidder_vtable *vtable);
 
 const void *__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
 const void *__archive_read_filter_ahead(struct archive_read_filter *,

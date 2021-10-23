@@ -116,17 +116,11 @@ int
 archive_read_support_filter_lz4(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *reader;
 
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_lz4");
-
-	if (__archive_read_get_bidder(a, &reader) != ARCHIVE_OK)
+	if (__archive_read_register_bidder(a, NULL, "lz4",
+				&lz4_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	reader->data = NULL;
-	reader->name = "lz4";
-	reader->vtable = &lz4_bidder_vtable;
 #if defined(HAVE_LIBLZ4)
 	return (ARCHIVE_OK);
 #else

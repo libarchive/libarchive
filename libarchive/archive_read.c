@@ -1231,10 +1231,16 @@ __archive_read_register_format(struct archive_read *a,
  * initialization functions.
  */
 int
-__archive_read_get_bidder(struct archive_read *a,
-    struct archive_read_filter_bidder **bidder)
+__archive_read_register_bidder(struct archive_read *a,
+	void *bidder_data,
+	const char *name,
+	const struct archive_read_filter_bidder_vtable *vtable)
 {
+	struct archive_read_filter_bidder *bidder;
 	int i, number_slots;
+
+	archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "__archive_read_register_bidder");
 
 	number_slots = sizeof(a->bidders) / sizeof(a->bidders[0]);
 
@@ -1242,7 +1248,17 @@ __archive_read_get_bidder(struct archive_read *a,
 		if (a->bidders[i].vtable != NULL)
 			continue;
 		memset(a->bidders + i, 0, sizeof(a->bidders[0]));
-		*bidder = (a->bidders + i);
+		bidder = (a->bidders + i);
+		bidder->data = bidder_data;
+		bidder->name = name;
+		bidder->vtable = vtable;
+		if (bidder->vtable->bid == NULL || bidder->vtable->init == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+					"Internal error: "
+					"no bid/init for filter bidder");
+			return (ARCHIVE_FATAL);
+		}
+
 		return (ARCHIVE_OK);
 	}
 
