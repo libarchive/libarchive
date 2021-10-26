@@ -154,12 +154,12 @@ DEFINE_TEST(test_read_truncated_filter_gzip)
 
 DEFINE_TEST(test_read_truncated_filter_lzip)
 {
-	test_truncation("lzip", archive_write_add_filter_lzip, 0);
+	test_truncation("lzip", archive_write_add_filter_lzip, canLzip());
 }
 
 DEFINE_TEST(test_read_truncated_filter_lzma)
 {
-	test_truncation("lzma", archive_write_add_filter_lzma, 0);
+	test_truncation("lzma", archive_write_add_filter_lzma, canLzma());
 }
 
 DEFINE_TEST(test_read_truncated_filter_lzop)
@@ -169,5 +169,5 @@ DEFINE_TEST(test_read_truncated_filter_lzop)
 
 DEFINE_TEST(test_read_truncated_filter_xz)
 {
-	test_truncation("xz", archive_write_add_filter_xz, 0);
+	test_truncation("xz", archive_write_add_filter_xz, canXz());
 }
