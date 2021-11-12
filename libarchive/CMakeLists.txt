@@ -15,6 +15,8 @@ SET(include_HEADERS
 SET(libarchive_SOURCES
   archive_acl.c
   archive_acl_private.h
+  archive_base64.c
+  archive_base64_private.h
   archive_check_magic.c
   archive_cmdline.c
   archive_cmdline_private.h
