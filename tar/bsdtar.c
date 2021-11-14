@@ -542,6 +542,10 @@ main(int argc, char **argv)
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_MAC_METADATA;
 			bsdtar->flags |= OPTFLAG_NO_MAC_METADATA;
 			break;
+		case OPTION_NO_READ_SPARSE:
+			bsdtar->readdisk_flags |= ARCHIVE_READDISK_NO_SPARSE;
+			bsdtar->flags |= OPTFLAG_NO_READ_SPARSE;
+			break;
 		case OPTION_NO_SAFE_WRITES:
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_SAFE_WRITES;
 			break;
@@ -648,6 +652,10 @@ main(int argc, char **argv)
 			break;
 		case 'r': /* SUSv2 */
 			set_mode(bsdtar, opt);
+			break;
+		case OPTION_READ_SPARSE:
+			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_NO_SPARSE;
+			bsdtar->flags |= OPTFLAG_READ_SPARSE;
 			break;
 		case 'S': /* NetBSD pax-as-tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_SPARSE;
