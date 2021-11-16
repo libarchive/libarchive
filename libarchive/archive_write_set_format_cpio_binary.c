@@ -441,7 +441,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		ret_final = ARCHIVE_FATAL;
 		goto exit_write_header;
 	}
-	h.h_ino = la_swap16(ino);
+	h.h_ino = la_swap16((uint16_t)ino);
 
 	h.h_mode = archive_entry_mode(entry);
 	if (((h.h_mode & AE_IFMT) == AE_IFSOCK) || ((h.h_mode & AE_IFMT) == AE_IFIFO)) {
@@ -462,9 +462,9 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 	h.h_mode = la_swap16(h.h_mode);
 
-	h.h_uid = la_swap16(archive_entry_uid(entry));
-	h.h_gid = la_swap16(archive_entry_gid(entry));
-	h.h_nlink = la_swap16(archive_entry_nlink(entry));
+	h.h_uid = la_swap16((uint16_t)archive_entry_uid(entry));
+	h.h_gid = la_swap16((uint16_t)archive_entry_gid(entry));
+	h.h_nlink = la_swap16((uint16_t)archive_entry_nlink(entry));
 
 	if (archive_entry_filetype(entry) == AE_IFBLK
 	    || archive_entry_filetype(entry) == AE_IFCHR)
@@ -472,7 +472,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		h.h_majmin = 0;
 
-	h.h_mtime = la_swap32(archive_entry_mtime(entry));
+	h.h_mtime = la_swap32((uint32_t)archive_entry_mtime(entry));
 	h.h_namesize = la_swap16(pathlength);
 
 	/* Non-regular files don't store bodies. */
@@ -502,7 +502,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 			ret_final = ARCHIVE_FATAL;
 			goto exit_write_header;
 		}
-		h.h_filesize = la_swap32(strlen(p)); /* symlink */
+		h.h_filesize = la_swap32((uint32_t)strlen(p)); /* symlink */
 	} else {
 		if ((a->archive.archive_format == ARCHIVE_FORMAT_CPIO_PWB) &&
 		    (archive_entry_size(entry) > 256*256*256-1)) {
@@ -516,7 +516,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 			ret_final = ARCHIVE_FAILED;
 			goto exit_write_header;
 		}
-		h.h_filesize = la_swap32(archive_entry_size(entry)); /* file */
+		h.h_filesize = la_swap32((uint32_t)archive_entry_size(entry)); /* file */
 	}
 
 	ret = __archive_write_output(a, &h, HSIZE);
