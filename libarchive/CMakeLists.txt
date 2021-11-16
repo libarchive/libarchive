@@ -140,6 +140,7 @@ SET(libarchive_SOURCES
   archive_write_add_filter_xz.c
   archive_write_add_filter_zstd.c
   archive_write_set_format.c
+  archive_write_set_format_private.c
   archive_write_set_format_7zip.c
   archive_write_set_format_ar.c
   archive_write_set_format_by_name.c

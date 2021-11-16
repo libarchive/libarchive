@@ -220,6 +220,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_add_filter_xz.c \
 	libarchive/archive_write_add_filter_zstd.c \
 	libarchive/archive_write_set_format.c \
+	libarchive/archive_write_set_format_private.c \
 	libarchive/archive_write_set_format_7zip.c \
 	libarchive/archive_write_set_format_ar.c \
 	libarchive/archive_write_set_format_by_name.c \
