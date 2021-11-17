@@ -49,13 +49,13 @@ struct checker {
 static ssize_t
 short_write_callback(struct archive *a, void *client_data, const void *buffer, size_t length)
 {
-        (void)a;
-
         struct checker *checker = client_data;
-        size_t to_write = length < 100 ? length : 100;
-        size_t new_len = checker->shortbuf_len + to_write;
+        const ssize_t to_write = length < 100 ? (ssize_t)length : 100;
+        const size_t new_len = checker->shortbuf_len + to_write;
         char *new_buf = realloc(checker->shortbuf, new_len);
         assert(new_buf != NULL);
+
+        (void)a;
 
         checker->shortbuf = new_buf;
         memcpy(checker->shortbuf + checker->shortbuf_len, buffer, to_write);
@@ -67,13 +67,13 @@ short_write_callback(struct archive *a, void *client_data, const void *buffer, s
 static ssize_t
 full_write_callback(struct archive *a, void *client_data, const void *buffer, size_t length)
 {
-        (void)a;
-
         struct checker *checker = client_data;
-        size_t to_write = length;
-        size_t new_len = checker->fullbuf_len + to_write;
+        const ssize_t to_write = (ssize_t)length;
+        const size_t new_len = checker->fullbuf_len + to_write;
         char *new_buf = realloc(checker->fullbuf, new_len);
         assert(new_buf != NULL);
+
+        (void)a;
 
         checker->fullbuf = new_buf;
         memcpy(checker->fullbuf + checker->fullbuf_len, buffer, to_write);

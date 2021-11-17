@@ -84,9 +84,9 @@ enum compression {
 
 enum encryption {
 	ENCRYPTION_NONE	= 0,
-	ENCRYPTION_TRADITIONAL, /* Traditional PKWARE encryption. */
+	ENCRYPTION_TRADITIONAL,   /* Traditional PKWARE encryption. */
 	ENCRYPTION_WINZIP_AES128, /* WinZIP AES-128 encryption. */
-	ENCRYPTION_WINZIP_AES256, /* WinZIP AES-256 encryption. */
+	ENCRYPTION_WINZIP_AES256  /* WinZIP AES-256 encryption. */
 };
 
 #define TRAD_HEADER_SIZE	12

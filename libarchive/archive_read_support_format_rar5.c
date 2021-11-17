@@ -137,7 +137,7 @@ enum REDIR_TYPE {
 	REDIR_TYPE_WINSYMLINK = 2,
 	REDIR_TYPE_JUNCTION = 3,
 	REDIR_TYPE_HARDLINK = 4,
-	REDIR_TYPE_FILECOPY = 5,
+	REDIR_TYPE_FILECOPY = 5
 };
 
 #define	OWNER_USER_NAME		0x01
@@ -156,7 +156,7 @@ enum FILTER_TYPE {
 	FILTER_ITANIUM = 6, /* Intel's Itanium, not used in RARv5. */
 	FILTER_PPM   = 7,   /* Predictive pattern matching, not used in
 			       RARv5. */
-	FILTER_NONE  = 8,
+	FILTER_NONE  = 8
 };
 
 struct filter_info {
@@ -364,7 +364,7 @@ static int push_data_ready(struct archive_read* a, struct rar5* rar,
 
 /* CDE_xxx = Circular Double Ended (Queue) return values. */
 enum CDE_RETURN_VALUES {
-	CDE_OK, CDE_ALLOC, CDE_PARAM, CDE_OUT_OF_BOUNDS,
+	CDE_OK, CDE_ALLOC, CDE_PARAM, CDE_OUT_OF_BOUNDS
 };
 
 /* Clears the contents of this circular deque. */
@@ -1154,7 +1154,7 @@ static int process_main_locator_extra_block(struct archive_read* a,
 	uint64_t locator_flags;
 
 	enum LOCATOR_FLAGS {
-		QLIST = 0x01, RECOVERY = 0x02,
+		QLIST = 0x01, RECOVERY = 0x02
 	};
 
 	if(!read_var(a, &locator_flags, NULL)) {
@@ -1318,7 +1318,7 @@ static int parse_file_extra_htime(struct archive_read* a,
 		HAS_MTIME     = 0x02,
 		HAS_CTIME     = 0x04,
 		HAS_ATIME     = 0x08,
-		HAS_UNIX_NS   = 0x10,
+		HAS_UNIX_NS   = 0x10
 	};
 
 	if(!read_var_sized(a, &flags, &value_len))
@@ -1592,21 +1592,21 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
 	enum FILE_FLAGS {
 		DIRECTORY = 0x0001, UTIME = 0x0002, CRC32 = 0x0004,
-		UNKNOWN_UNPACKED_SIZE = 0x0008,
+		UNKNOWN_UNPACKED_SIZE = 0x0008
 	};
 
 	enum FILE_ATTRS {
 		ATTR_READONLY = 0x1, ATTR_HIDDEN = 0x2, ATTR_SYSTEM = 0x4,
-		ATTR_DIRECTORY = 0x10,
+		ATTR_DIRECTORY = 0x10
 	};
 
 	enum COMP_INFO_FLAGS {
-		SOLID = 0x0040,
+		SOLID = 0x0040
 	};
 
 	enum HOST_OS {
 		HOST_WINDOWS = 0,
-		HOST_UNIX = 1,
+		HOST_UNIX = 1
 	};
 
 	archive_entry_clear(entry);
@@ -1911,12 +1911,12 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
 					  * have it */
 		SOLID = 0x0004,          /* solid archive */
 		PROTECT = 0x0008,        /* contains Recovery info */
-		LOCK = 0x0010,           /* readonly flag, not used */
+		LOCK = 0x0010            /* readonly flag, not used */
 	};
 
 	enum MAIN_EXTRA {
 		// Just one attribute here.
-		LOCATOR = 0x01,
+		LOCATOR = 0x01
 	};
 
 	(void) entry;
@@ -2101,7 +2101,7 @@ static int process_base_block(struct archive_read* a,
 	enum HEADER_TYPE {
 		HEAD_MARK    = 0x00, HEAD_MAIN  = 0x01, HEAD_FILE   = 0x02,
 		HEAD_SERVICE = 0x03, HEAD_CRYPT = 0x04, HEAD_ENDARC = 0x05,
-		HEAD_UNKNOWN = 0xff,
+		HEAD_UNKNOWN = 0xff
 	};
 
 	/* Skip any unprocessed data for this file. */

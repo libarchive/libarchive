@@ -60,7 +60,7 @@ struct private_data {
 		READ_DEFAULT_STREAM,
 		READ_DEFAULT_BLOCK,
 		READ_LEGACY_STREAM,
-		READ_LEGACY_BLOCK,
+		READ_LEGACY_BLOCK
 	}		stage;
 	struct {
 		unsigned block_independence:1;
@@ -344,31 +344,33 @@ lz4_filter_read(struct archive_read_filter *self, const void **p)
 			state->eof = 1;
 			*p = NULL;
 			return (0);
-		}
-		uint32_t number = archive_le32dec(read_buf);
-		__archive_read_filter_consume(self->upstream, 4);
-		if (number == LZ4_MAGICNUMBER)
-			return lz4_filter_read_default_stream(self, p);
-		else if (number == LZ4_LEGACY)
-			return lz4_filter_read_legacy_stream(self, p);
-		else if ((number & ~0xF) == LZ4_SKIPPABLED) {
-			read_buf = __archive_read_filter_ahead(
-				self->upstream, 4, NULL);
-			if (read_buf == NULL) {
-				archive_set_error(
-				    &self->archive->archive,
-		    		    ARCHIVE_ERRNO_MISC,
-				    "Malformed lz4 data");
-				return (ARCHIVE_FATAL);
-			}
-			uint32_t skip_bytes = archive_le32dec(read_buf);
-			__archive_read_filter_consume(self->upstream,
-				4 + skip_bytes);
 		} else {
-			/* Ignore following unrecognized data. */
-			state->eof = 1;
-			*p = NULL;
-			return (0);
+			uint32_t number = archive_le32dec(read_buf);
+			__archive_read_filter_consume(self->upstream, 4);
+			if (number == LZ4_MAGICNUMBER)
+				return lz4_filter_read_default_stream(self, p);
+			else if (number == LZ4_LEGACY)
+				return lz4_filter_read_legacy_stream(self, p);
+			else if ((number & ~0xF) == LZ4_SKIPPABLED) {
+				read_buf = __archive_read_filter_ahead(
+						self->upstream, 4, NULL);
+				if (read_buf == NULL) {
+					archive_set_error(
+							&self->archive->archive,
+							ARCHIVE_ERRNO_MISC,
+							"Malformed lz4 data");
+					return (ARCHIVE_FATAL);
+				} else {
+					const uint32_t skip_bytes = archive_le32dec(read_buf);
+					__archive_read_filter_consume(self->upstream,
+												  4 + skip_bytes);
+				}
+			} else {
+				/* Ignore following unrecognized data. */
+				state->eof = 1;
+				*p = NULL;
+				return (0);
+			}
 		}
 	}
 	state->eof = 1;

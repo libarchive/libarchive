@@ -1300,19 +1300,21 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 				else
 					dirSep = 0x002F;
 
-				/* UTF-16LE character */
-				uint16_t *utf16name =
-				    (uint16_t *)lha->dirname.s;
-				for (i = 0; i < lha->dirname.length / 2; i++) {
-					if (utf16name[i] == 0xFFFF) {
-						utf16name[i] = dirSep;
+				{
+					/* UTF-16LE character */
+					uint16_t *utf16name =
+							(uint16_t *) lha->dirname.s;
+					for (i = 0; i < lha->dirname.length / 2; i++) {
+						if (utf16name[i] == 0xFFFF) {
+							utf16name[i] = dirSep;
+						}
 					}
-				}
-				/* Is last character directory separator? */
-				if (utf16name[lha->dirname.length / 2 - 1] !=
-				    dirSep) {
-					/* invalid directory data */
-					goto invalid;
+					/* Is last character directory separator? */
+					if (utf16name[lha->dirname.length / 2 - 1] !=
+						dirSep) {
+						/* invalid directory data */
+						goto invalid;
+					}
 				}
 			}
 			break;

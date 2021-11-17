@@ -1168,7 +1168,9 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_atime(entry, zip_entry->atime, 0);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
-		size_t linkname_length;
+		size_t linkname_length = (size_t)zip_entry->compressed_size;
+		// take into account link compression if any
+		size_t linkname_full_length = linkname_length;
 
 		if (zip_entry->compressed_size > 64 * 1024) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1176,12 +1178,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			return ARCHIVE_FATAL;
 		}
 
-		linkname_length = (size_t)zip_entry->compressed_size;
-
 		archive_entry_set_size(entry, 0);
 
-		// take into account link compression if any
-		size_t linkname_full_length = linkname_length;
 		if (zip->entry->compression != 0)
 		{
 			// symlink target string appeared to be compressed

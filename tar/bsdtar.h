@@ -188,7 +188,7 @@ enum {
 	OPTION_UUENCODE,
 	OPTION_VERSION,
 	OPTION_XATTRS,
-	OPTION_ZSTD,
+	OPTION_ZSTD
 };
 
 int	bsdtar_getopt(struct bsdtar *);

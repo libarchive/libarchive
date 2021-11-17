@@ -1080,9 +1080,7 @@ DEFINE_TEST(test_read_format_rar5_nonempty_dir_stream)
 
 DEFINE_TEST(test_read_format_rar5_fileattr)
 {
-	unsigned long set, clear, flag;
-
-	flag = 0;
+	unsigned long set, clear, flag=0;
 
 	PROLOGUE("test_read_format_rar5_fileattr.rar");
 

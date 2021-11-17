@@ -107,10 +107,22 @@ static void write_archive(struct archive *a)
 
 static void verify_contents(const char *zip_buff, size_t size)
 {
-	unsigned long crc = bitcrc32(0, file_data1, sizeof(file_data1));
-	crc = bitcrc32(crc, file_data2, sizeof(file_data2));
+	const unsigned long crc = bitcrc32(
+			bitcrc32(0, file_data1, sizeof(file_data1)), file_data2, sizeof(file_data2)
+	);
 
 	const char *zip_end = zip_buff + size;
+	/* Fix incompatible-pointer-types-discards-qualifiers */
+	union charunion {
+		char *chr;
+		const char* cchr;
+	};
+	/* Don't mix declarations and code */
+	union charunion local_file_header,
+	                data,
+					central_directory,
+					data_descriptor,
+					local_folder_header;
 	/* Since there are no comments, the end of central directory
     *  is 22 bytes from the end of content */
 	const char *end_of_central_dir = zip_end - 22;
@@ -130,147 +142,159 @@ static void verify_contents(const char *zip_buff, size_t size)
 	/* Check for empty comment length */
 	assertEqualInt(i2(end_of_central_dir + 20), 0);
 
-	/* Get address of central directory */
-	const char *central_directory = zip_buff + i4(end_of_central_dir + 16);
+	{
+		/* Get address of central directory */
+		central_directory.cchr = zip_buff + i4(end_of_central_dir + 16);
 
-	/* Check for entry in central directory signature */
-	assertEqualMem(central_directory, "PK\x1\x2", 4);
-	/* Check for version used to write entry */
-	assertEqualInt(i2(central_directory + 4), 3 * 256 + 10);
-	/* Check for version needed to extract entry */
-	assertEqualInt(i2(central_directory + 6), 10);
-	/* Check flags */
-	assertEqualInt(i2(central_directory + 8), ZIP_ENTRY_FLAG_LENGTH_AT_END);
-	/* Check compression method */
-	assertEqualInt(i2(central_directory + 10), 0);
-	/* Check crc value */
-	assertEqualInt(i4(central_directory + 16), crc);
-	/* Check compressed size*/
-	assertEqualInt(i4(central_directory + 20), sizeof(file_data1) + sizeof(file_data2));
-	/* Check uncompressed size */
-	assertEqualInt(i4(central_directory + 24), sizeof(file_data1) + sizeof(file_data2));
-	/* Check file name length */
-	assertEqualInt(i2(central_directory + 28), strlen(file_name));
-	/* Check extra field length */
-	assertEqualInt(i2(central_directory + 30), 20);
-	/* Check file comment length */
-	assertEqualInt(i2(central_directory + 32), 0);
-	/* Check disk number where file starts */
-	assertEqualInt(i2(central_directory + 34), 0);
-	/* Check internal file attrs */
-	assertEqualInt(i2(central_directory + 36), 0);
-	/* Check external file attrs */
-	assertEqualInt(i4(central_directory + 38) >> 16 & 01777, file_perm);
-	/* Check offset of local header */
-	assertEqualInt(i4(central_directory + 42), 0);
-	/* Check for file name contents */
-	assertEqualMem(central_directory + 46, file_name, strlen(file_name));
+		/* Check for entry in central directory signature */
+		assertEqualMem(central_directory.cchr, "PK\x1\x2", 4);
+		/* Check for version used to write entry */
+		assertEqualInt(i2(central_directory.cchr + 4), 3 * 256 + 10);
+		/* Check for version needed to extract entry */
+		assertEqualInt(i2(central_directory.cchr + 6), 10);
+		/* Check flags */
+		assertEqualInt(i2(central_directory.cchr + 8), ZIP_ENTRY_FLAG_LENGTH_AT_END);
+		/* Check compression method */
+		assertEqualInt(i2(central_directory.cchr + 10), 0);
+		/* Check crc value */
+		assertEqualInt(i4(central_directory.cchr + 16), crc);
+		/* Check compressed size*/
+		assertEqualInt(i4(central_directory.cchr + 20), sizeof(file_data1) + sizeof(file_data2));
+		/* Check uncompressed size */
+		assertEqualInt(i4(central_directory.cchr + 24), sizeof(file_data1) + sizeof(file_data2));
+		/* Check file name length */
+		assertEqualInt(i2(central_directory.cchr + 28), strlen(file_name));
+		/* Check extra field length */
+		assertEqualInt(i2(central_directory.cchr + 30), 20);
+		/* Check file comment length */
+		assertEqualInt(i2(central_directory.cchr + 32), 0);
+		/* Check disk number where file starts */
+		assertEqualInt(i2(central_directory.cchr + 34), 0);
+		/* Check internal file attrs */
+		assertEqualInt(i2(central_directory.cchr + 36), 0);
+		/* Check external file attrs */
+		assertEqualInt(i4(central_directory.cchr + 38) >> 16 & 01777, file_perm);
+		/* Check offset of local header */
+		assertEqualInt(i4(central_directory.cchr + 42), 0);
+		/* Check for file name contents */
+		assertEqualMem(central_directory.cchr + 46, file_name, strlen(file_name));
+	}
 
-	/* Get address of local file entry */
-	const char *local_file_header = zip_buff;
+	{
+		/* Get address of local file entry */
+		local_file_header.cchr = zip_buff;
 
-	/* Check local file header signature */
-	assertEqualMem(local_file_header, "PK\x3\x4", 4);
-	/* Check version needed to extract */
-	assertEqualInt(i2(local_file_header + 4), 10);
-	/* Check flags */
-	assertEqualInt(i2(local_file_header + 6), 8);
-	/* Check compression method */
-	assertEqualInt(i2(local_file_header + 8), 0);
-	/* Check crc */
-	assertEqualInt(i4(local_file_header + 14), 0);
-	/* Check compressed size
-    *  0 because it was unknown at time of writing */
-	assertEqualInt(i4(local_file_header + 18), 0);
-	/* Check uncompressed size
-    *  0 because it was unknown at time of writing */
-	assertEqualInt(i4(local_file_header + 22), 0);
-	/* Check pathname length */
-	assertEqualInt(i2(local_file_header + 26), strlen(file_name));
-	/* Check extra field length */
-	assertEqualInt(i2(local_file_header + 28), 20);
-	/* Check path name match */
-	assertEqualMem(local_file_header + 30, file_name, strlen(file_name));
+		/* Check local file header signature */
+		assertEqualMem(local_file_header.cchr, "PK\x3\x4", 4);
+		/* Check version needed to extract */
+		assertEqualInt(i2(local_file_header.cchr + 4), 10);
+		/* Check flags */
+		assertEqualInt(i2(local_file_header.cchr + 6), 8);
+		/* Check compression method */
+		assertEqualInt(i2(local_file_header.cchr + 8), 0);
+		/* Check crc */
+		assertEqualInt(i4(local_file_header.cchr + 14), 0);
+		/* Check compressed size
+        *  0 because it was unknown at time of writing */
+		assertEqualInt(i4(local_file_header.cchr + 18), 0);
+		/* Check uncompressed size
+        *  0 because it was unknown at time of writing */
+		assertEqualInt(i4(local_file_header.cchr + 22), 0);
+		/* Check pathname length */
+		assertEqualInt(i2(local_file_header.cchr + 26), strlen(file_name));
+		/* Check extra field length */
+		assertEqualInt(i2(local_file_header.cchr + 28), 20);
+		/* Check path name match */
+		assertEqualMem(local_file_header.cchr + 30, file_name, strlen(file_name));
+	}
 
-	/* Start of data */
-	const char *data = local_file_header + i2(local_file_header + 28) + strlen(file_name) + 30;
-	/* Check for file data match */
-	assertEqualMem(data, file_data1, sizeof(file_data1));
-	assertEqualMem(data + sizeof(file_data1), file_data2, sizeof(file_data2));
+	{
+		/* Start of data */
+		data.cchr = local_file_header.cchr + i2(local_file_header.cchr + 28) + strlen(file_name) + 30;
+		/* Check for file data match */
+		assertEqualMem(data.cchr, file_data1, sizeof(file_data1));
+		assertEqualMem(data.cchr + sizeof(file_data1), file_data2, sizeof(file_data2));
+	}
 
-	/* Start of data descriptor */
-	const char *data_descriptor = data + sizeof(file_data1) + sizeof(file_data2);
-	/* Check data descriptor signature */
-	assertEqualMem(data_descriptor, "PK\x7\x8", 4);
-	/* Check crc value */
-	assertEqualInt(i4(data_descriptor + 4), crc);
-	/* Check compressed size */
-	assertEqualInt(i4(data_descriptor + 8), sizeof(file_data1) + sizeof(file_data2));
-	/* Chcek uncompresed size */
-	assertEqualInt(i4(data_descriptor + 12), sizeof(file_data1) + sizeof(file_data2));
+	{
+		/* Start of data descriptor */
+		data_descriptor.cchr = data.cchr + sizeof(file_data1) + sizeof(file_data2);
+		/* Check data descriptor signature */
+		assertEqualMem(data_descriptor.cchr, "PK\x7\x8", 4);
+		/* Check crc value */
+		assertEqualInt(i4(data_descriptor.cchr + 4), crc);
+		/* Check compressed size */
+		assertEqualInt(i4(data_descriptor.cchr + 8), sizeof(file_data1) + sizeof(file_data2));
+		/* Chcek uncompresed size */
+		assertEqualInt(i4(data_descriptor.cchr + 12), sizeof(file_data1) + sizeof(file_data2));
+	}
 
-	/* Get folder entry in central directory */
-	const char *central_directory_folder_entry = central_directory + 46 + 20 + strlen(file_name);
+	{
+		/* Get folder entry in central directory */
+		const char *central_directory_folder_entry = central_directory.cchr + 46 + 20 + strlen(file_name);
 
-	/* Get start of folder entry */
-	const char *local_folder_header = data_descriptor + 16;
+		/* Get start of folder entry */
+		local_folder_header.cchr = data_descriptor.cchr + 16;
 
-	/* Check for entry in central directory signature */
-	assertEqualMem(central_directory_folder_entry, "PK\x1\x2", 4);
-	/* Check version made by */
-	assertEqualInt(i2(central_directory_folder_entry + 4), 3 * 256 + 20);
-	/* Check version needed to extract */
-	assertEqualInt(i2(central_directory_folder_entry + 6), 20);
-	/* Check flags */
-	assertEqualInt(i2(central_directory_folder_entry + 8), 0);
-	/* Check compression method */
-	assertEqualInt(i2(central_directory_folder_entry + 10), 0);
-	/* Check crc */
-	assertEqualInt(i2(central_directory_folder_entry + 16), 0);
-	/* Check compressed size */
-	assertEqualInt(i4(central_directory_folder_entry + 20), 0);
-	/* Check uncompressed size */
-	assertEqualInt(i4(central_directory_folder_entry + 24), 0);
-	/* Check path name length */
-	assertEqualInt(i2(central_directory_folder_entry + 28), strlen(folder_name));
-	/* Check extra field length */
-	assertEqualInt(i2(central_directory_folder_entry + 30), 20);
-	/* Check file comment length */
-	assertEqualInt(i2(central_directory_folder_entry + 32), 0);
-	/* Check disk number start */
-	assertEqualInt(i2(central_directory_folder_entry + 34), 0);
-	/* Check internal file attrs */
-	assertEqualInt(i2(central_directory_folder_entry + 36), 0);
-	/* Check external file attrs */
-	assertEqualInt(i4(central_directory_folder_entry + 38) >> 16 & 01777, folder_perm);
-	/* Check offset of local header*/
-	assertEqualInt(i4(central_directory_folder_entry + 42), local_folder_header - zip_buff);
-	/* Check path name */
-	assertEqualMem(central_directory_folder_entry + 46, folder_name, strlen(folder_name));
+		/* Check for entry in central directory signature */
+		assertEqualMem(central_directory_folder_entry, "PK\x1\x2", 4);
+		/* Check version made by */
+		assertEqualInt(i2(central_directory_folder_entry + 4), 3 * 256 + 20);
+		/* Check version needed to extract */
+		assertEqualInt(i2(central_directory_folder_entry + 6), 20);
+		/* Check flags */
+		assertEqualInt(i2(central_directory_folder_entry + 8), 0);
+		/* Check compression method */
+		assertEqualInt(i2(central_directory_folder_entry + 10), 0);
+		/* Check crc */
+		assertEqualInt(i2(central_directory_folder_entry + 16), 0);
+		/* Check compressed size */
+		assertEqualInt(i4(central_directory_folder_entry + 20), 0);
+		/* Check uncompressed size */
+		assertEqualInt(i4(central_directory_folder_entry + 24), 0);
+		/* Check path name length */
+		assertEqualInt(i2(central_directory_folder_entry + 28), strlen(folder_name));
+		/* Check extra field length */
+		assertEqualInt(i2(central_directory_folder_entry + 30), 20);
+		/* Check file comment length */
+		assertEqualInt(i2(central_directory_folder_entry + 32), 0);
+		/* Check disk number start */
+		assertEqualInt(i2(central_directory_folder_entry + 34), 0);
+		/* Check internal file attrs */
+		assertEqualInt(i2(central_directory_folder_entry + 36), 0);
+		/* Check external file attrs */
+		assertEqualInt(i4(central_directory_folder_entry + 38) >> 16 & 01777, folder_perm);
+		/* Check offset of local header*/
+		assertEqualInt(i4(central_directory_folder_entry + 42), local_folder_header.cchr - zip_buff);
+		/* Check path name */
+		assertEqualMem(central_directory_folder_entry + 46, folder_name, strlen(folder_name));
 
-	/* Check local header */
-	assertEqualMem(local_folder_header, "PK\x3\x4", 4);
-	/* Check version to extract */
-	assertEqualInt(i2(local_folder_header + 4), 20);
-	/* Check flags */
-	assertEqualInt(i2(local_folder_header + 6), 0);
-	/* Check compression method */
-	assertEqualInt(i2(local_folder_header + 8), 0);
-	/* Check crc */
-	assertEqualInt(i4(local_folder_header + 14), 0);
-	/* Check compressed size */
-	assertEqualInt(i2(local_folder_header + 18), 0);
-	/* Check uncompressed size */
-	assertEqualInt(i4(local_folder_header + 22), 0);
-	/* Check path name length */
-	assertEqualInt(i2(local_folder_header + 26), strlen(folder_name));
-	/* Check extra field length */
-	assertEqualInt(i2(local_folder_header + 28), 20);
-	/* Check path name */
-	assertEqualMem(local_folder_header + 30, folder_name, strlen(folder_name));
+		/* Check local header */
+		assertEqualMem(local_folder_header.cchr, "PK\x3\x4", 4);
+		/* Check version to extract */
+		assertEqualInt(i2(local_folder_header.cchr + 4), 20);
+		/* Check flags */
+		assertEqualInt(i2(local_folder_header.cchr + 6), 0);
+		/* Check compression method */
+		assertEqualInt(i2(local_folder_header.cchr + 8), 0);
+		/* Check crc */
+		assertEqualInt(i4(local_folder_header.cchr + 14), 0);
+		/* Check compressed size */
+		assertEqualInt(i2(local_folder_header.cchr + 18), 0);
+		/* Check uncompressed size */
+		assertEqualInt(i4(local_folder_header.cchr + 22), 0);
+		/* Check path name length */
+		assertEqualInt(i2(local_folder_header.cchr + 26), strlen(folder_name));
+		/* Check extra field length */
+		assertEqualInt(i2(local_folder_header.cchr + 28), 20);
+		/* Check path name */
+		assertEqualMem(local_folder_header.cchr + 30, folder_name, strlen(folder_name));
+	}
 
-	const char *post_local_folder = local_folder_header + 30 + strlen(folder_name) + 20;
-	assertEqualMem(post_local_folder, central_directory, 4);
+	{
+		const char *post_local_folder = local_folder_header.cchr + 30 + strlen(folder_name) + 20;
+		assertEqualMem(post_local_folder, central_directory.cchr, 4);
+	}
 }
 
 DEFINE_TEST(test_write_format_zip_size_unset)

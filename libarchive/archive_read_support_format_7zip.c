@@ -807,50 +807,51 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	 */
 	if (zip->end_of_entry)
 		return (ARCHIVE_EOF);
-
-	const uint64_t max_read_size = 16 * 1024 * 1024;  // Don't try to read more than 16 MB at a time
-	size_t bytes_to_read = max_read_size;
-	if ((uint64_t)bytes_to_read > zip->entry_bytes_remaining) {
-		bytes_to_read = zip->entry_bytes_remaining;
-	}
-	bytes = read_stream(a, buff, bytes_to_read, 0);
-	if (bytes < 0)
-		return ((int)bytes);
-	if (bytes == 0) {
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Truncated 7-Zip file body");
-		return (ARCHIVE_FATAL);
-	}
-	zip->entry_bytes_remaining -= bytes;
-	if (zip->entry_bytes_remaining == 0)
-		zip->end_of_entry = 1;
-
-	/* Update checksum */
-	if ((zip->entry->flg & CRC32_IS_SET) && bytes)
-		zip->entry_crc32 = crc32(zip->entry_crc32, *buff,
-		    (unsigned)bytes);
-
-	/* If we hit the end, swallow any end-of-data marker. */
-	if (zip->end_of_entry) {
-		/* Check computed CRC against file contents. */
-		if ((zip->entry->flg & CRC32_IS_SET) &&
-			zip->si.ss.digests[zip->entry->ssIndex] !=
-		    zip->entry_crc32) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "7-Zip bad CRC: 0x%lx should be 0x%lx",
-			    (unsigned long)zip->entry_crc32,
-			    (unsigned long)zip->si.ss.digests[
-			    		zip->entry->ssIndex]);
-			ret = ARCHIVE_WARN;
+	else {
+		const uint64_t max_read_size = 16 * 1024 * 1024;  // Don't try to read more than 16 MB at a time
+		size_t bytes_to_read = max_read_size;
+		if ((uint64_t) bytes_to_read > zip->entry_bytes_remaining) {
+			bytes_to_read = zip->entry_bytes_remaining;
 		}
+		bytes = read_stream(a, buff, bytes_to_read, 0);
+		if (bytes < 0)
+			return ((int) bytes);
+		if (bytes == 0) {
+			archive_set_error(&a->archive,
+							  ARCHIVE_ERRNO_FILE_FORMAT,
+							  "Truncated 7-Zip file body");
+			return (ARCHIVE_FATAL);
+		}
+		zip->entry_bytes_remaining -= bytes;
+		if (zip->entry_bytes_remaining == 0)
+			zip->end_of_entry = 1;
+
+		/* Update checksum */
+		if ((zip->entry->flg & CRC32_IS_SET) && bytes)
+			zip->entry_crc32 = crc32(zip->entry_crc32, *buff,
+									 (unsigned) bytes);
+
+		/* If we hit the end, swallow any end-of-data marker. */
+		if (zip->end_of_entry) {
+			/* Check computed CRC against file contents. */
+			if ((zip->entry->flg & CRC32_IS_SET) &&
+				zip->si.ss.digests[zip->entry->ssIndex] !=
+				zip->entry_crc32) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+								  "7-Zip bad CRC: 0x%lx should be 0x%lx",
+								  (unsigned long) zip->entry_crc32,
+								  (unsigned long) zip->si.ss.digests[
+										  zip->entry->ssIndex]);
+				ret = ARCHIVE_WARN;
+			}
+		}
+
+		*size = bytes;
+		*offset = zip->entry_offset;
+		zip->entry_offset += bytes;
+
+		return (ret);
 	}
-
-	*size = bytes;
-	*offset = zip->entry_offset;
-	zip->entry_offset += bytes;
-
-	return (ret);
 }
 
 static int
