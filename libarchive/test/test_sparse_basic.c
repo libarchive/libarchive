@@ -617,6 +617,33 @@ DEFINE_TEST(test_sparse_basic)
 	verify_sparse_file2(a, "file0", sparse_file0, 5, 1);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/*
+	 * Test that setting ARCHIVE_READDISK_NO_SPARSE
+	 * creates no sparse entries.
+	 */
+	assert((a = archive_read_disk_new()) != NULL);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_behavior(a,
+		ARCHIVE_READDISK_NO_SPARSE));
+
+	verify_sparse_file(a, "file0", sparse_file0, 0);
+	verify_sparse_file(a, "file1", sparse_file1, 0);
+	verify_sparse_file(a, "file2", sparse_file2, 0);
+	verify_sparse_file(a, "file3", sparse_file3, 0);
+	verify_sparse_file(a, "file4", sparse_file4, 0);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assert((a = archive_read_disk_new()) != NULL);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_set_behavior(a,
+		ARCHIVE_READDISK_NO_SPARSE));
+
+	verify_sparse_file2(a, "file0", sparse_file0, 0, 0);
+	verify_sparse_file2(a, "file0", sparse_file0, 0, 1);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(cwd);
 }
 
