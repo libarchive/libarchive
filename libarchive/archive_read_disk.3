@@ -181,6 +181,9 @@ for more information on extended file attributes.
 .It Cm ARCHIVE_READDISK_RESTORE_ATIME
 Restore access time of traversed files.
 By default, access time of traversed files is not restored.
+.It Cm ARCHIVE_READDISK_NO_SPARSE
+Do not read sparse file information.
+By default, sparse file information is read from disk.
 .El
 .It Xo
 .Fn archive_read_disk_set_symlink_logical ,
