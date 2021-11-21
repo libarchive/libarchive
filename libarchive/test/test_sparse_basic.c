@@ -364,9 +364,10 @@ verify_sparse_file(struct archive *a, const char *path,
 #if DEBUG
 			fprintf(stderr, "    overlapping hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
 #endif
-			/* Must be a hole, overlap must be filled with '\0' */
-			if (assert(sparse->type == HOLE)) {
+			if (sparse->type == HOLE) {
 				assertMemoryFilledWith(start, end - start, '\0');
+			} else if (assert(sparse->type == DATA)) {
+				assertMemoryFilledWith(start, end - start, ' ');
 			}
 			start = end;
 			expected_offset += sparse->size;
@@ -410,9 +411,10 @@ verify_sparse_file(struct archive *a, const char *path,
 #if DEBUG
 			fprintf(stderr, "    trailing overlap expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
 #endif
-			/* Must be a hole, overlap must be filled with '\0' */
-			if (assert(sparse->type == HOLE)) {
+			if (sparse->type == HOLE) {
 				assertMemoryFilledWith(start, end - start, '\0');
+			} else if (assert(sparse->type == DATA)) {
+				assertMemoryFilledWith(start, end - start, ' ');
 			}
 		}
 		last_offset = offset + bytes_read;
