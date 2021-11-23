@@ -114,6 +114,25 @@ AC_PROG_LIBTOOL
 AC_CHECK_TOOL([STRIP],[strip])
 AC_PROG_MKDIR_P
 
+AC_ARG_ENABLE([gnu-compatibility],
+	[AS_HELP_STRING([--enable-gnu-compatibility], [enable GNU comptatibility])
+AS_HELP_STRING([--disable-gnu-compatibility], [disable GNU compatibility (default)])],
+	[], [enable_gnu_compatibility=no])
+
+case "$enable_gnu_compatibility" in
+yes)
+	gnu_compatibility=yes
+	;;
+no)
+	gnu_compatibility=no
+	;;
+*)
+	AC_MSG_FAILURE([Unsupported value for --enable-gnu-compatibility])
+	;;
+esac
+
+AM_CONDITIONAL([GNU_COMPATIBILITY], [ test "$gnu_compatibility" = yes ])
+
 #
 # Options for building bsdtar.
 #

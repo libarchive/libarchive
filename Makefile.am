@@ -28,6 +28,10 @@ AM_CFLAGS=$(DEV_CFLAGS)
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
 
+if GNU_COMPATIBILITY
+gnu_compatibility= -DGNU_COMPATIBILITY
+endif
+
 #
 # What to include in the distribution
 #
