@@ -1026,7 +1026,7 @@ bsdtar_ccstatic=
 endif
 
 bsdtar_LDADD= libarchive.la libarchive_fe.la $(LTLIBICONV)
-bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic) $(PLATFORMCPPFLAGS)
+bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic) $(PLATFORMCPPFLAGS) $(gnu_compatibility)
 bsdtar_LDFLAGS= $(bsdtar_ldstatic)
 
 bsdtar_EXTRA_DIST= \

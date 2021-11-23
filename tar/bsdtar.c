@@ -75,10 +75,18 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
  * the default tape device for the system.  Pick something reasonable here.
  */
 #ifdef __linux
+#ifndef GNU_COMPATIBILITY
 #define	_PATH_DEFTAPE "/dev/st0"
+#else
+#define	_PATH_DEFTAPE "-"
+#endif
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#ifndef GNU_COMPATIBILITY
 #define	_PATH_DEFTAPE "\\\\.\\tape0"
+#else
+#define	_PATH_DEFTAPE "-"
+#endif
 #endif
 #if defined(__APPLE__)
 #undef _PATH_DEFTAPE
