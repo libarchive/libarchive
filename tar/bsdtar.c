@@ -70,24 +70,20 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #include "bsdtar.h"
 #include "err.h"
 
-/*
- * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
- * the default tape device for the system.  Pick something reasonable here.
- */
-#ifdef __linux
-#define	_PATH_DEFTAPE "/dev/st0"
+#if ARCHIVE_VERSION_NUMBER < 4000000 && !defined(_PATH_DEFTAPE)
+// Libarchive 4.0 and later will NOT define _PATH_DEFTAPE
+// but will honor it if it's set in the build.
+// Until then, we'll continue to set it by default on certain platforms:
+#if defined(__linux)
+#define _PATH_DEFTAPE "/dev/st0"
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+#define _PATH_DEFTAPE "\\\\.\\tape0"
+#elif !defined(__APPLE__)
+#define _PATH_DEFTAPE "/dev/tape"
 #endif
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#define	_PATH_DEFTAPE "\\\\.\\tape0"
-#endif
-#if defined(__APPLE__)
-#undef _PATH_DEFTAPE
-#define	_PATH_DEFTAPE "-"  /* Mac OS has no tape support, default to stdio. */
 #endif
 
-#ifndef _PATH_DEFTAPE
-#define	_PATH_DEFTAPE "/dev/tape"
-#endif
+#define _PATH_STDIO "-"
 
 #ifdef __MINGW32__
 int _CRT_glob = 0; /* Disable broken CRT globbing. */
@@ -217,8 +213,21 @@ main(int argc, char **argv)
 
 	/* Default: open tape drive. */
 	bsdtar->filename = getenv("TAPE");
-	if (bsdtar->filename == NULL)
-		bsdtar->filename = _PATH_DEFTAPE;
+#if defined(_PATH_DEFTAPE)
+	if (bsdtar->filename == NULL) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		int tapeExists = _access(_PATH_DEFTAPE, 0);
+#else
+		int tapeExists = access(_PATH_DEFTAPE, F_OK);
+#endif
+		if (tapeExists) {
+			bsdtar->filename = _PATH_DEFTAPE;
+		}
+	}
+#endif
+	if (bsdtar->filename == NULL) {
+		bsdtar->filename = _PATH_STDIO;
+	}
 
 	/* Default block size settings. */
 	bsdtar->bytes_per_block = DEFAULT_BYTES_PER_BLOCK;
