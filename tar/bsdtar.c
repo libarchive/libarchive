@@ -804,8 +804,14 @@ main(int argc, char **argv)
 		    "Must specify one of -c, -r, -t, -u, -x");
 
 	/* Check boolean options only permitted in certain modes. */
-	if (bsdtar->flags & OPTFLAG_AUTO_COMPRESS)
-		only_mode(bsdtar, "-a", "c");
+	if (bsdtar->flags & OPTFLAG_AUTO_COMPRESS) {
+		only_mode(bsdtar, "-a", "cx");
+		if (bsdtar->mode == 'x') {
+			bsdtar->flags &= ~OPTFLAG_AUTO_COMPRESS;
+			lafe_warnc(0,
+			    "Ignoring option -a in mode -x");
+		}
+	}
 	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS)
 		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->flags & OPTFLAG_FAST_READ)
