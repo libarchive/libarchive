@@ -433,7 +433,9 @@ static int
 __archive_ripemd160init(archive_rmd160_ctx *ctx)
 {
   if ((*ctx = EVP_MD_CTX_new()) == NULL)
-	return (ARCHIVE_FAILED);
+    return (ARCHIVE_FAILED);
+  if ((OSSL_PROVIDER_load(NULL, "legacy")) == NULL)
+    return (ARCHIVE_FAILED);
   EVP_DigestInit(*ctx, EVP_ripemd160());
   return (ARCHIVE_OK);
 }
