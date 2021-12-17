@@ -30,10 +30,9 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_option_C_mtree)
 {
-	char *p0;
+	char *p0 = NULL;
 	size_t s;
 	int r;
-	p0 = NULL;
 	char *content = "./foo type=file uname=root gname=root mode=0755\n";
 	char *filename = "output.tar";
 #if defined(_WIN32) && !defined(CYGWIN)

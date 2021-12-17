@@ -207,12 +207,11 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		data->compression_level = level;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "threads") == 0) {
-		int threads = atoi(value);
+		const int threads = atoi(value);
+		const int minimum = 0;
 		if (string_is_numeric(value) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-
-		int minimum = 0;
 
 		if (threads < minimum) {
 			return (ARCHIVE_WARN);
@@ -315,7 +314,10 @@ static int
 drive_compressor(struct archive_write_filter *f,
     struct private_data *data, int finishing, const void *src, size_t length)
 {
-	ZSTD_inBuffer in = (ZSTD_inBuffer) { src, length, 0 };
+	ZSTD_inBuffer in;
+	in.src = src;
+	in.size = length;
+	in.pos = 0;
 
 	for (;;) {
 		if (data->out.pos == data->out.size) {

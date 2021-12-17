@@ -213,7 +213,9 @@ zstd_filter_read(struct archive_read_filter *self, const void **p)
 
 	state = (struct private_data *)self->data;
 
-	out = (ZSTD_outBuffer) { state->out_block, state->out_block_size, 0 };
+	out.dst = state->out_block;
+	out.pos = state->out_block_size;
+	out.size = 0;
 
 	/* Try to fill the output buffer. */
 	while (out.pos < out.size && !state->eof) {
