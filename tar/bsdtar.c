@@ -216,9 +216,9 @@ main(int argc, char **argv)
 #if defined(_PATH_DEFTAPE)
 	if (bsdtar->filename == NULL) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-		int tapeExists = _access(_PATH_DEFTAPE, 0);
+		int tapeExists = !_access(_PATH_DEFTAPE, 0);
 #else
-		int tapeExists = access(_PATH_DEFTAPE, F_OK);
+		int tapeExists = !access(_PATH_DEFTAPE, F_OK);
 #endif
 		if (tapeExists) {
 			bsdtar->filename = _PATH_DEFTAPE;
