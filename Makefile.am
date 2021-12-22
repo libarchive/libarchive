@@ -625,6 +625,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_xar_empty.c \
 	libarchive/test/test_write_format_zip.c \
 	libarchive/test/test_write_format_zip_compression_store.c \
+	libarchive/test/test_write_format_zip_entry_size_unset.c \
 	libarchive/test/test_write_format_zip_empty.c \
 	libarchive/test/test_write_format_zip_empty_zip64.c \
 	libarchive/test/test_write_format_zip_file.c \
@@ -1082,6 +1083,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_fflags.c \
 	tar/test/test_option_gid_gname.c \
 	tar/test/test_option_grzip.c \
+	tar/test/test_option_ignore_zeros.c \
 	tar/test/test_option_j.c \
 	tar/test/test_option_k.c \
 	tar/test/test_option_keep_newer_files.c \

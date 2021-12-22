@@ -2610,7 +2610,7 @@ canLzma(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lzma %s", redirectArgs) == 0)
+		if (systemf("lzma --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);

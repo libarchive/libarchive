@@ -277,6 +277,7 @@ IF(ENABLE_TEST)
     test_write_format_zip_compression_store.c
     test_write_format_zip_empty.c
     test_write_format_zip_empty_zip64.c
+    test_write_format_zip_entry_size_unset.c
     test_write_format_zip_file.c
     test_write_format_zip_file_zip64.c
     test_write_format_zip_large.c

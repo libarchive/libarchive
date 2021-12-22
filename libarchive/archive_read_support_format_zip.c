@@ -1186,7 +1186,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		{
 			// symlink target string appeared to be compressed
 			int status = ARCHIVE_FATAL;
-			const void *uncompressed_buffer;
+			const void *uncompressed_buffer = NULL;
 
 			switch (zip->entry->compression)
 			{

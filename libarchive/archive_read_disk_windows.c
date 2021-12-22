@@ -1090,9 +1090,11 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		}
 
 		/* Find sparse data from the disk. */
-		if (archive_entry_hardlink(entry) == NULL &&
-		    (st->dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0)
-			r = setup_sparse_from_disk(a, entry, t->entry_fh);
+		if ((a->flags & ARCHIVE_READDISK_NO_SPARSE) == 0) {
+			if (archive_entry_hardlink(entry) == NULL &&
+			    (st->dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0)
+				r = setup_sparse_from_disk(a, entry, t->entry_fh);
+		}
 	}
 	return (r);
 }
@@ -1300,7 +1302,7 @@ archive_read_disk_descend(struct archive *_a)
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_disk_descend");
 
-	if (t->visit_type != TREE_REGULAR || !t->descend)
+	if (!archive_read_disk_can_descend(_a))
 		return (ARCHIVE_OK);
 
 	if (tree_current_is_physical_dir(t)) {
@@ -2371,9 +2373,11 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		return (ARCHIVE_OK);
 	}
 
-	r = setup_sparse_from_disk(a, entry, h);
-	if (fd < 0)
-		CloseHandle(h);
+	if ((a->flags & ARCHIVE_READDISK_NO_SPARSE) == 0) {
+		r = setup_sparse_from_disk(a, entry, h);
+		if (fd < 0)
+			CloseHandle(h);
+	}
 
 	return (r);
 }
