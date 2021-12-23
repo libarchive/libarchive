@@ -400,7 +400,9 @@ AC_ARG_WITH([zstd],
 
 if test "x$with_zstd" != "xno"; then
   AC_CHECK_HEADERS([zstd.h])
-  AC_CHECK_LIB(zstd,ZSTD_compressStream)
+  AC_CHECK_LIB(zstd,ZSTD_decompressStream)
+  AC_CHECK_LIB(zstd,ZSTD_compressStream,
+    AC_DEFINE([HAVE_LIBZSTD_COMPRESSOR], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
 fi
 
 AC_ARG_WITH([lzma],
