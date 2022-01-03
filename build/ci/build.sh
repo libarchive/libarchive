@@ -151,7 +151,12 @@ for action in ${ACTIONS}; do
 			cd "${BUILDDIR}/destdir" && ls -lR .
 		;;
 		distcheck)
-			${MAKE} ${MAKE_ARGS} distcheck
+			${MAKE} ${MAKE_ARGS} distcheck || (
+				RET="$?"
+				find . -name 'test-suite.log' -print -exec cat {} \;
+				find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \;
+				exit "${RET}"
+			)
 			RET="$?"
 		;;
 		artifact)
