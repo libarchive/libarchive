@@ -1675,6 +1675,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		break;
 	case 'l':
 		if (strcmp(key, "link") == 0) {
+			parse_escapes(val, NULL);
 			archive_entry_copy_symlink(entry, val);
 			return (ARCHIVE_OK);
 		}
