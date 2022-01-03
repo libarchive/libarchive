@@ -633,6 +633,9 @@ AC_CHECK_TYPE([wchar_t],
 		AC_CHECK_SIZEOF([wchar_t])],
 		[])
 
+AX_COMPILE_CHECK_SIZEOF(int)
+AX_COMPILE_CHECK_SIZEOF(long)
+
 AC_HEADER_TIME
 
 # Checks for library functions.
