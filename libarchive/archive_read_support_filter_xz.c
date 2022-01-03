@@ -293,8 +293,8 @@ lzma_bidder_bid(struct archive_read_filter_bidder *self,
 	/* Second through fifth bytes are dictionary size, stored in
 	 * little-endian order. The minimum dictionary size is
 	 * 1 << 12(4KiB) which the lzma of LZMA SDK uses with option
-	 * -d12 and the maximum dictionary size is 1 << 27(128MiB)
-	 * which the one uses with option -d27.
+	 * -d12 and the maximum dictionary size is 1 << 29(512MiB)
+	 * which the one uses with option -d29.
 	 * NOTE: A comment of LZMA SDK source code says this dictionary
 	 * range is from 1 << 12 to 1 << 30. */
 	dicsize = archive_le32dec(buffer+1);
@@ -377,7 +377,7 @@ lzip_has_member(struct archive_read_filter *filter)
 
 	/* Dictionary size. */
 	log2dic = buffer[5] & 0x1f;
-	if (log2dic < 12 || log2dic > 27)
+	if (log2dic < 12 || log2dic > 29)
 		return (0);
 	bits_checked += 8;
 
@@ -562,7 +562,7 @@ lzip_init(struct archive_read_filter *self)
 
 	/* Get dictionary size. */
 	log2dic = h[5] & 0x1f;
-	if (log2dic < 12 || log2dic > 27)
+	if (log2dic < 12 || log2dic > 29)
 		return (ARCHIVE_FATAL);
 	dicsize = 1U << log2dic;
 	if (log2dic > 12)
