@@ -30,15 +30,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-struct test_list_t
-{
-  void (*func)(void);
-  const char *name;
-  int failures;
-};
-
-int get_test_set(int *, int, const char *, struct test_list_t *);
+/* Fill a buffer with pseudorandom data */
 void fill_with_pseudorandom_data(void* buffer, size_t size);
-void fill_with_pseudorandom_data_seed(uint64_t seed, void* buffer, size_t size);
 
 #endif /* TEST_UTILS_H */

@@ -25,7 +25,6 @@
 
 
 #include "test.h"
-#include "test_utils.h"
 __FBSDID("$FreeBSD$");
 
 #define LARGE_SIZE	(16*1024*1024)
