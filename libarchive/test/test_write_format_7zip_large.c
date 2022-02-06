@@ -28,7 +28,7 @@
 #include "test_utils.h"
 __FBSDID("$FreeBSD$");
 
-#define LARGE_SIZE	(16*1024*1024)
+#define LARGE_SIZE	(1*1024*1024)
 static void
 test_large(const char *compression_type)
 {
