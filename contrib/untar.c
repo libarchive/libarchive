@@ -82,11 +82,11 @@ create_dir(char *pathname, int mode)
 		pathname[strlen(pathname) - 1] = '\0';
 
 	/* Try creating the directory. */
-  #if defined(_WIN32) && !defined(__CYGWIN__)
-  r = _mkdir(pathname);
-  #else 
-  r = mkdir(pathname, mode); 
-  #endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	r = _mkdir(pathname);
+#else
+	r = mkdir(pathname, mode);
+#endif
 
 	if (r != 0) {
 		/* On failure, try creating parent directory. */
@@ -95,11 +95,11 @@ create_dir(char *pathname, int mode)
 			*p = '\0';
 			create_dir(pathname, 0755);
 			*p = '/';
-			#if defined(_WIN32) && !defined(__CYGWIN__)
-      r = _mkdir(pathname);
-      #else 
-      r = mkdir(pathname, mode); 
-      #endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			r = _mkdir(pathname);
+#else
+			r = mkdir(pathname, mode);
+#endif
 		}
 	}
 	if (r != 0)
