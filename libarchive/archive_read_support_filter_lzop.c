@@ -173,7 +173,7 @@ lzop_bidder_init(struct archive_read_filter *self)
 static const struct archive_read_filter_vtable
 lzop_reader_vtable = {
 	.read = lzop_filter_read,
-	.close = lzop_filter_close.
+	.close = lzop_filter_close,
 };
 
 /*
