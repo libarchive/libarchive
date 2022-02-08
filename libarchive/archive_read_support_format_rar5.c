@@ -3731,6 +3731,16 @@ static int do_uncompress_file(struct archive_read* a) {
 		rar->cstate.initialized = 1;
 	}
 
+	/* Don't allow extraction if window_size is invalid. */
+	if(rar->cstate.window_size == 0) {
+		archive_set_error(&a->archive,
+			ARCHIVE_ERRNO_FILE_FORMAT,
+			"Invalid window size declaration in this file");
+
+		/* This should never happen in valid files. */
+		return ARCHIVE_FATAL;
+	}
+
 	if(rar->cstate.all_filters_applied == 1) {
 		/* We use while(1) here, but standard case allows for just 1
 		 * iteration. The loop will iterate if process_block() didn't
