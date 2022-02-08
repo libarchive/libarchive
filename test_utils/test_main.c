@@ -3464,9 +3464,9 @@ assertion_entry_compare_acls(const char *file, int line,
  */
 struct test_list_t
 {
-  void (*func)(void);
-  const char *name;
-  int failures;
+	void (*func)(void);
+	const char *name;
+	int failures;
 };
 
 /* Use "list.h" to declare all of the test functions. */
