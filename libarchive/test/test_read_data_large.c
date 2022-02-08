@@ -23,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-#include "test_utils.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_data_large.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
