@@ -449,22 +449,14 @@ entry_symlink_from_pathw(struct archive_entry *entry, const wchar_t *path)
 	return;
 }
 
-static struct archive_vtable *
-archive_read_disk_vtable(void)
-{
-	static struct archive_vtable av;
-	static int inited = 0;
-
-	if (!inited) {
-		av.archive_free = _archive_read_free;
-		av.archive_close = _archive_read_close;
-		av.archive_read_data_block = _archive_read_data_block;
-		av.archive_read_next_header = _archive_read_next_header;
-		av.archive_read_next_header2 = _archive_read_next_header2;
-		inited = 1;
-	}
-	return (&av);
-}
+static const struct archive_vtable
+archive_read_disk_vtable = {
+	.archive_free = _archive_read_free,
+	.archive_close = _archive_read_close,
+	.archive_read_data_block = _archive_read_data_block,
+	.archive_read_next_header = _archive_read_next_header,
+	.archive_read_next_header2 = _archive_read_next_header2,
+};
 
 const char *
 archive_read_disk_gname(struct archive *_a, la_int64_t gid)
@@ -541,7 +533,7 @@ archive_read_disk_new(void)
 		return (NULL);
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
-	a->archive.vtable = archive_read_disk_vtable();
+	a->archive.vtable = &archive_read_disk_vtable;
 	a->entry = archive_entry_new2(&a->archive);
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;

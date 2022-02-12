@@ -163,6 +163,28 @@
 #define	INTMAX_MIN ((intmax_t)(~INTMAX_MAX))
 #endif
 
+/* Some platforms lack the standard PRIxN/PRIdN definitions. */
+#if !HAVE_INTTYPES_H || !defined(PRIx32) || !defined(PRId32)
+#ifndef PRIx32
+#if SIZEOF_INT == 4
+#define PRIx32 "x"
+#elif SIZEOF_LONG == 4
+#define PRIx32 "lx"
+#else
+#error No suitable 32-bit unsigned integer type found for this platform
+#endif
+#endif // PRIx32
+#ifndef PRId32
+#if SIZEOF_INT == 4
+#define PRId32 "d"
+#elif SIZEOF_LONG == 4
+#define PRId32 "ld"
+#else
+#error No suitable 32-bit signed integer type found for this platform
+#endif
+#endif // PRId32
+#endif // !HAVE_INTTYPES_H || !defined(PRIx32) || !defined(PRId32)
+
 /*
  * If we can't restore metadata using a file descriptor, then
  * for compatibility's sake, close files before trying to restore metadata.

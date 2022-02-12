@@ -283,7 +283,7 @@ endif
 
 # -no-undefined marks that libarchive doesn't rely on symbols
 # defined in the application.  This is mandatory for cygwin.
-libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION)
+libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) $(GC_SECTIONS)
 libarchive_la_LIBADD= $(LTLIBICONV)
 
 # Manpages to install
@@ -502,6 +502,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar_encryption_data.c \
 	libarchive/test/test_read_format_rar_encryption_partially.c \
 	libarchive/test/test_read_format_rar_encryption_header.c \
+	libarchive/test/test_read_format_rar_filter.c \
 	libarchive/test/test_read_format_rar_invalid1.c \
 	libarchive/test/test_read_format_rar5.c \
 	libarchive/test/test_read_format_raw.c \
@@ -837,6 +838,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_encryption_data.rar.uu \
 	libarchive/test/test_read_format_rar_encryption_header.rar.uu \
 	libarchive/test/test_read_format_rar_encryption_partially.rar.uu \
+	libarchive/test/test_read_format_rar_filter.rar.uu \
 	libarchive/test/test_read_format_rar_invalid1.rar.uu \
 	libarchive/test/test_read_format_rar_multi_lzss_blocks.rar.uu \
 	libarchive/test/test_read_format_rar_multivolume.part0001.rar.uu \
@@ -880,6 +882,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_nonempty_dir_stream.rar.uu \
 	libarchive/test/test_read_format_rar5_owner.rar.uu \
 	libarchive/test/test_read_format_rar5_readtables_overflow.rar.uu \
+	libarchive/test/test_read_format_rar5_sfx.exe.uu \
 	libarchive/test/test_read_format_rar5_solid.rar.uu \
 	libarchive/test/test_read_format_rar5_stored.rar.uu \
 	libarchive/test/test_read_format_rar5_stored_manyfiles.rar.uu \
@@ -889,6 +892,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_arm_filter_on_window_boundary.rar.uu \
 	libarchive/test/test_read_format_rar5_different_winsize_on_merge.rar.uu \
 	libarchive/test/test_read_format_rar5_block_size_is_too_small.rar.uu \
+	libarchive/test/test_read_format_rar5_decode_number_out_of_bounds_read.rar.uu \
+	libarchive/test/test_read_format_rar5_window_buf_and_size_desync.rar.uu \
+	libarchive/test/test_read_format_rar5_bad_window_sz_in_mltarc_file.rar.uu \
 	libarchive/test/test_read_format_raw.bufr.uu \
 	libarchive/test/test_read_format_raw.data.gz.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \
@@ -952,6 +958,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_xz_multi.zipx.uu \
 	libarchive/test/test_read_format_zip_zip64a.zip.uu \
 	libarchive/test/test_read_format_zip_zip64b.zip.uu \
+	libarchive/test/test_read_format_zip_zstd.zipx.uu \
+	libarchive/test/test_read_format_zip_zstd_multi.zipx.uu \
 	libarchive/test/test_read_large_splitted_rar_aa.uu \
 	libarchive/test/test_read_large_splitted_rar_ab.uu \
 	libarchive/test/test_read_large_splitted_rar_ac.uu \
@@ -1022,7 +1030,7 @@ endif
 
 bsdtar_LDADD= libarchive.la libarchive_fe.la $(LTLIBICONV)
 bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic) $(PLATFORMCPPFLAGS)
-bsdtar_LDFLAGS= $(bsdtar_ldstatic)
+bsdtar_LDFLAGS= $(bsdtar_ldstatic) $(GC_SECTIONS)
 
 bsdtar_EXTRA_DIST= \
 	tar/bsdtar.1 \
@@ -1188,7 +1196,7 @@ endif
 
 bsdcpio_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcpio_ccstatic) $(PLATFORMCPPFLAGS)
-bsdcpio_LDFLAGS= $(bsdcpio_ldstatic)
+bsdcpio_LDFLAGS= $(bsdcpio_ldstatic) $(GC_SECTIONS)
 
 bsdcpio_EXTRA_DIST= \
 	cpio/bsdcpio.1 \
@@ -1342,7 +1350,7 @@ endif
 
 bsdcat_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdcat_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcat_ccstatic) $(PLATFORMCPPFLAGS)
-bsdcat_LDFLAGS= $(bsdcat_ldstatic)
+bsdcat_LDFLAGS= $(bsdcat_ldstatic) $(GC_SECTIONS)
 
 bsdcat_EXTRA_DIST= \
 	cat/bsdcat.1 \
