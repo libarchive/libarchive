@@ -36,13 +36,14 @@
 /* This is for mkdir(); this may need to be changed for some platforms. */
 #include <sys/stat.h>  /* For mkdir() */
 
-#ifdef _MSC_VER
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define NUM_FORMAT "zu"
+#include <direct.h>
 #elif defined(__linux__) || defined(linux) || defined(__linux)
 #define NUM_FORMAT "d"
 #else
 #define NUM_FORMAT "lu"
-#endif /* _MSC_VER */
+#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 
 #define TO_STRING(x) #x
 #define STR(x) TO_STRING(x)
@@ -89,7 +90,11 @@ create_dir(char *pathname, int mode)
 		pathname[strlen(pathname) - 1] = '\0';
 
 	/* Try creating the directory. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	r = _mkdir(pathname);
+#else
 	r = mkdir(pathname, mode);
+#endif
 
 	if (r != 0) {
 		/* On failure, try creating parent directory. */
@@ -98,7 +103,11 @@ create_dir(char *pathname, int mode)
 			*p = '\0';
 			create_dir(pathname, 0755);
 			*p = '/';
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			r = _mkdir(pathname);
+#else
 			r = mkdir(pathname, mode);
+#endif
 		}
 	}
 	if (r != 0)

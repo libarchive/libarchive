@@ -1,6 +1,5 @@
-/*
- * Copyright (c) 2003-2012 Tim Kientzle
- * Copyright (c) 2012 Andres Mejia
+/*-
+ * Copyright (c) 2003-2021 Wei-Cheng Pan
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,14 +22,36 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
+__FBSDID("$FreeBSD$");
 
-#ifndef TEST_UTILS_H
-#define TEST_UTILS_H
+DEFINE_TEST(test_read_format_rar_filter)
+{
+    const char *refname = "test_read_format_rar_filter.rar";
+    struct archive *a;
+    struct archive_entry *ae;
+    char *buff[12];
+    const char signature[12] = {
+        0xff, 0xd8, 0xff, 0xe0,
+        0x00, 0x10, 0x4a, 0x46,
+        0x49, 0x46, 0x00, 0x01,
+    };
 
-#include <stddef.h>
-#include <stdint.h>
+    extract_reference_file(refname);
+    assert((a = archive_read_new()) != NULL);
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
 
-/* Fill a buffer with pseudorandom data */
-void fill_with_pseudorandom_data(void* buffer, size_t size);
+    assertA(0 == archive_read_next_header(a, &ae));
+    assertEqualString("013.jpg", archive_entry_pathname(ae));
+    assertA((int)archive_entry_mtime(ae));
+    assertEqualInt(1215721, archive_entry_size(ae));
+    assertA(12 == archive_read_data(a, buff, 12));
+    assertEqualMem(buff, signature, 12);
 
-#endif /* TEST_UTILS_H */
+    assertA(1 == archive_read_next_header(a, &ae));
+    assertEqualInt(1, archive_file_count(a));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+    assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

@@ -96,6 +96,12 @@ jobs:
       run: ./build/ci/build.sh -a distcheck
       env:
         SKIP_OPEN_FD_ERR_TEST: 1
+    - name: Dist-Artifact
+      run: ./build/ci/build.sh -a dist-artifact
+    - uses: actions/upload-artifact@v1
+      with:
+        name: libarchive-${{ github.sha }}
+        path: libarchive-dist.tar
 
   Windows:
     runs-on: windows-latest
