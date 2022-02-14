@@ -153,7 +153,7 @@ verify_checksum(const char *p)
 static void
 untar(FILE *a, const char *path)
 {
-#define BUF_SIZE 512
+    enum { BUF_SIZE=512 };
 	char buff[BUF_SIZE];
 	FILE *f = NULL;
 	size_t bytes_read;
@@ -229,7 +229,6 @@ untar(FILE *a, const char *path)
 			f = NULL;
 		}
 	}
-#undef BUF_SIZE
 }
 
 int
