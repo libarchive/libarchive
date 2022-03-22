@@ -1736,13 +1736,15 @@ zip_read_data_zipx_xz(struct archive_read *a, const void **buff,
 	}
 
 	compressed_buf = __archive_read_ahead(a, 1, &bytes_avail);
-	if (bytes_avail < 0) {
+
+	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+
+	if (in_bytes < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated xz file body");
 		return (ARCHIVE_FATAL);
 	}
 
-	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
 	zip->zipx_lzma_stream.next_in = compressed_buf;
 	zip->zipx_lzma_stream.avail_in = in_bytes;
 	zip->zipx_lzma_stream.total_in = 0;
@@ -1829,15 +1831,16 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	 * data.
 	 */
 	compressed_buf = __archive_read_ahead(a, 1, &bytes_avail);
-	if (bytes_avail < 0) {
+
+	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+
+	if (in_bytes < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated lzma file body");
 		return (ARCHIVE_FATAL);
 	}
 
 	/* Set decompressor parameters. */
-	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
-
 	zip->zipx_lzma_stream.next_in = compressed_buf;
 	zip->zipx_lzma_stream.avail_in = in_bytes;
 	zip->zipx_lzma_stream.total_in = 0;
