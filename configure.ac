@@ -1209,24 +1209,7 @@ fi
 if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/evp.h])
     saved_LIBS=$LIBS
-    case "$host_os" in
-      *mingw* | *cygwin* | *msys*)
-        case "$host_cpu" in
-          x86_64)
-            AC_CHECK_LIB(eay64,OPENSSL_config)
-            if test "x$ac_cv_lib_eay64_main" != "xyes"; then
-              AC_CHECK_LIB(eay32,OPENSSL_config)
-            fi
-            ;;
-          *)
-            AC_CHECK_LIB(eay32,OPENSSL_config)
-            ;;
-        esac
-        ;;
-      *)
-        AC_CHECK_LIB(crypto,OPENSSL_config)
-        ;;
-    esac
+    AC_CHECK_LIB(crypto,OPENSSL_config)
     CRYPTO_CHECK(MD5, OPENSSL, md5)
     CRYPTO_CHECK(RMD160, OPENSSL, rmd160)
     CRYPTO_CHECK(SHA1, OPENSSL, sha1)
