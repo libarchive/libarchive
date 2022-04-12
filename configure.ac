@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.6.1dev])
-m4_define([LIBARCHIVE_VERSION_N],[3006001])
+m4_define([LIBARCHIVE_VERSION_S],[3.6.2dev])
+m4_define([LIBARCHIVE_VERSION_N],[3006002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -1209,24 +1209,7 @@ fi
 if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/evp.h])
     saved_LIBS=$LIBS
-    case "$host_os" in
-      *mingw* | *cygwin* | *msys*)
-        case "$host_cpu" in
-          x86_64)
-            AC_CHECK_LIB(eay64,OPENSSL_config)
-            if test "x$ac_cv_lib_eay64_main" != "xyes"; then
-              AC_CHECK_LIB(eay32,OPENSSL_config)
-            fi
-            ;;
-          *)
-            AC_CHECK_LIB(eay32,OPENSSL_config)
-            ;;
-        esac
-        ;;
-      *)
-        AC_CHECK_LIB(crypto,OPENSSL_config)
-        ;;
-    esac
+    AC_CHECK_LIB(crypto,OPENSSL_config)
     CRYPTO_CHECK(MD5, OPENSSL, md5)
     CRYPTO_CHECK(RMD160, OPENSSL, rmd160)
     CRYPTO_CHECK(SHA1, OPENSSL, sha1)
