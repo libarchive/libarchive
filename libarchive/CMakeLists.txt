@@ -5,6 +5,10 @@
 #
 ############################################
 
+if (ANDROID)
+  include_directories(${PROJECT_SOURCE_DIR}/contrib/android/include)
+endif()
+
 # Public headers
 SET(include_HEADERS
   archive.h
