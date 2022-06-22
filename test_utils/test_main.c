@@ -426,7 +426,7 @@ failure(const char *fmt, ...)
 		nextmsg = NULL;
 	} else {
 		va_start(ap, fmt);
-		vsprintf(msgbuff, fmt, ap);
+		vsnprintf(msgbuff, sizeof(msgbuff), fmt, ap);
 		va_end(ap);
 		nextmsg = msgbuff;
 	}
@@ -551,7 +551,7 @@ test_skipping(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	vsprintf(buff, fmt, ap);
+	vsnprintf(buff, sizeof(buff), fmt, ap);
 	va_end(ap);
 	/* Use failure() message if set. */
 	msg = nextmsg;
@@ -3065,7 +3065,7 @@ systemf(const char *fmt, ...)
 	int r;
 
 	va_start(ap, fmt);
-	vsprintf(buff, fmt, ap);
+	vsnprintf(buff, sizeof(buff), fmt, ap);
 	if (verbosity > VERBOSITY_FULL)
 		logprintf("Cmd: %s\n", buff);
 	r = system(buff);
@@ -3090,7 +3090,7 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	int r;
 
 	va_start(ap, fmt);
-	vsprintf(filename, fmt, ap);
+	vsnprintf(filename, sizeof(filename), fmt, ap);
 	va_end(ap);
 
 	f = fopen(filename, "rb");
@@ -3157,7 +3157,7 @@ extract_reference_file(const char *name)
 	char buff[1024];
 	FILE *in, *out;
 
-	sprintf(buff, "%s/%s.uu", refdir, name);
+	snprintf(buff, sizeof(buff), "%s/%s.uu", refdir, name);
 	in = fopen(buff, "r");
 	failure("Couldn't open reference file %s", buff);
 	assert(in != NULL);
@@ -3218,7 +3218,7 @@ copy_reference_file(const char *name)
 	FILE *in, *out;
 	size_t rbytes;
 
-	sprintf(buff, "%s/%s", refdir, name);
+	snprintf(buff, sizeof(buff), "%s/%s", refdir, name);
 	in = fopen(buff, "rb");
 	failure("Couldn't open reference file %s", buff);
 	assert(in != NULL);
@@ -3545,7 +3545,7 @@ test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	/* Create a log file for this test. */
-	sprintf(logfilename, "%s.log", tests[i].name);
+	snprintf(logfilename, sizeof(logfilename), "%s.log", tests[i].name);
 	logfile = fopen(logfilename, "w");
 	fprintf(logfile, "%s\n\n", tests[i].name);
 	/* Chdir() to a work dir for this specific test. */

@@ -776,7 +776,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	}
 
 	/* Set up a more descriptive format name. */
-	sprintf(zip->format_name, "7-Zip");
+	snprintf(zip->format_name, sizeof(zip->format_name), "7-Zip");
 	a->archive.archive_format_name = zip->format_name;
 
 	return (ret);

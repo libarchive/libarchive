@@ -996,7 +996,7 @@ archive_read_format_cab_read_header(struct archive_read *a,
 		cab->end_of_entry_cleanup = cab->end_of_entry = 1;
 
 	/* Set up a more descriptive format name. */
-	sprintf(cab->format_name, "CAB %d.%d (%s)",
+	snprintf(cab->format_name, sizeof(cab->format_name), "CAB %d.%d (%s)",
 	    hd->major, hd->minor, cab->entry_cffolder->compname);
 	a->archive.archive_format_name = cab->format_name;
 
