@@ -3911,6 +3911,13 @@ static int do_unpack(struct archive_read* a, struct rar5* rar,
 			case GOOD:
 				/* fallthrough */
 			case BEST:
+				/* No data is returned here. But because a sparse-file aware
+				 * caller (like archive_read_data_into_fd) may treat zero-size
+				 * as a sparse file block, we need to update the offset
+				 * accordingly. At this point the decoder doesn't have any
+				 * pending uncompressed data blocks, so the current position in
+				 * the output file should be last_write_ptr. */
+				if (offset) *offset = rar->cstate.last_write_ptr;
 				return uncompress_file(a);
 			default:
 				archive_set_error(&a->archive,
