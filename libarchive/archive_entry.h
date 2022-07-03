@@ -122,6 +122,8 @@ typedef ssize_t la_ssize_t;
 #   define __LA_DECL	__declspec(dllimport)
 #  endif
 # endif
+#elif defined __LIBARCHIVE_ENABLE_VISIBILITY
+#  define __LA_DECL __attribute__((visibility("default")))
 #else
 /* Static libraries on all platforms and shared libraries on non-Windows. */
 # define __LA_DECL
