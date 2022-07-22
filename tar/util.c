@@ -329,7 +329,7 @@ do_chdir(struct bsdtar *bsdtar)
 		return;
 
 	if (chdir(bsdtar->pending_chdir) != 0) {
-		lafe_errc(1, 0, "could not chdir to '%s'\n",
+		lafe_errc(1, 0, "could not chdir to '%s'",
 		    bsdtar->pending_chdir);
 	}
 	free(bsdtar->pending_chdir);

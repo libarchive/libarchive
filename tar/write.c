@@ -519,6 +519,9 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		bsdtar->argv++;
 	}
 
+	if (bsdtar->pending_chdir)
+		do_chdir(bsdtar);
+
 	archive_read_disk_set_matching(bsdtar->diskreader, NULL, NULL, NULL);
 	archive_read_disk_set_metadata_filter_callback(
 	    bsdtar->diskreader, NULL, NULL);
