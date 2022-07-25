@@ -2108,6 +2108,21 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 			/* "size" is the size of the data in the entry. */
 			tar->entry_bytes_remaining
 			    = tar_atol10(value, strlen(value));
+			if (tar->entry_bytes_remaining < 0) {
+				tar->entry_bytes_remaining = 0;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Tar size attribute is negative");
+				return (ARCHIVE_FATAL);
+			}
+			if (tar->entry_bytes_remaining == INT64_MAX) {
+				/* Note: tar_atol returns INT64_MAX on overflow */
+				tar->entry_bytes_remaining = 0;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Tar size attribute overflow");
+				return (ARCHIVE_FATAL);
+			}
 			/*
 			 * The "size" pax header keyword always overrides the
 			 * "size" field in the tar header.
