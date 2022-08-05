@@ -1347,3 +1347,26 @@ DEFINE_TEST(test_read_format_rar5_bad_window_size_in_multiarchive_file)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_read_data_block_uninitialized_offset)
+{
+	const void *buf;
+	size_t size;
+	la_int64_t offset;
+
+	PROLOGUE("test_read_format_rar5_compressed.rar");
+	assertA(0 == archive_read_next_header(a, &ae));
+
+	/* A real code may pass a pointer to an uninitialized variable as an offset
+	 * output argument. Here we want to check this situation. But because
+	 * relying on a value of an uninitialized variable in a test is not a good
+	 * idea, let's pretend that 0xdeadbeef is a random value of the
+	 * uninitialized variable. */
+	offset = 0xdeadbeef;
+	assertEqualInt(ARCHIVE_OK, archive_read_data_block(a, &buf, &size, &offset));
+	/* The test archive doesn't contain a sparse file. And because of that, here
+	 * we assume that the first returned offset should be 0. */
+	assertEqualInt(0, offset);
+
+	EPILOGUE();
+}
