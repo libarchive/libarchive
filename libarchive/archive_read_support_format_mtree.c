@@ -1250,9 +1250,17 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 				archive_entry_filetype(entry) == AE_IFDIR) {
 			mtree->fd = open(path, O_RDONLY | O_BINARY | O_CLOEXEC);
 			__archive_ensure_cloexec_flag(mtree->fd);
-			if (mtree->fd == -1 &&
-				(errno != ENOENT ||
-				 archive_strlen(&mtree->contents_name) > 0)) {
+			if (mtree->fd == -1 && (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+        /*
+         * On Windows, attempting to open a file with an
+         * invalid name result in EINVAL (Error 22)
+         */
+				(errno != ENOENT && errno != EINVAL)
+#else
+				errno != ENOENT
+#endif
+        || archive_strlen(&mtree->contents_name) > 0)) {
 				archive_set_error(&a->archive, errno,
 						"Can't open %s", path);
 				r = ARCHIVE_WARN;
