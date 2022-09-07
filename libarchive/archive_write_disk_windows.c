@@ -2258,6 +2258,9 @@ cleanup_pathname(struct archive_write_disk *a, wchar_t *name)
 			return (ARCHIVE_FAILED);
 		} else
 			p += 4;
+    /* Network drive path like "\\<server-name>\<share-name>\file" */
+    } else if (p[0] == L'\\' && p[1] == L'\\') {
+        p += 2;
 	}
 
 	/* Skip leading drive letter from archives created
