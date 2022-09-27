@@ -50,7 +50,7 @@
 .Nm
 copies files between archives and directories.
 This implementation can extract from tar, pax, cpio, zip, jar, ar,
-and ISO 9660 cdrom images and can create tar, pax, cpio, ar,
+and ISO 9660 cdrom images and can create tar, cpio, ar,
 and shar archives.
 .Pp
 The first option to
@@ -133,12 +133,17 @@ Supported formats include:
 .It Ar cpio
 Synonym for
 .Ar odc .
-.It Ar newc
-The SVR4 portable cpio format.
+.It Ar pwb
+PWB binary cpio format is the original format,
+when cpio was introduced as part of the 
+Programmer's Work Bench system,
+a variant of 6th Edition UNIX
+.It Ar bin
+Binary cpio (big-endian or little-endian).
 .It Ar odc
 The old POSIX.1 portable octet-oriented cpio format.
-.It Ar pax
-The POSIX.1 pax format, an extension of the ustar format.
+.It Ar newc
+The SVR4 portable cpio format.
 .It Ar ustar
 The POSIX.1 tar format.
 .El
@@ -393,7 +398,6 @@ standard syntax.
 .Xr bzip2 1 ,
 .Xr gzip 1 ,
 .Xr mt 1 ,
-.Xr pax 1 ,
 .Xr tar 1 ,
 .Xr libarchive 3 ,
 .Xr cpio 5 ,
