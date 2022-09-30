@@ -1071,7 +1071,7 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 			continue;
 		/* Non-printable characters are not allowed */
 		for (s = p;s < p + len - 1; s++) {
-			if (!isprint((unsigned char)*s)) {
+			if (!isprint((unsigned char)*s) && *s != '\t') {
 				r = ARCHIVE_FATAL;
 				break;
 			}
