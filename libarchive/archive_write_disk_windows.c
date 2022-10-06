@@ -2155,6 +2155,8 @@ check_symlinks(struct archive_write_disk *a)
 				return (ARCHIVE_FAILED);
 			}
 		}
+		if (!c)
+			break;
 		pn[0] = c;
 		pn++;
 	}
