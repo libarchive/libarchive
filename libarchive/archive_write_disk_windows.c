@@ -1370,6 +1370,7 @@ archive_write_disk_new(void)
 		free(a);
 		return (NULL);
 	}
+	a->path_safe.s[0] = 0;
 	return (&a->archive);
 }
 
