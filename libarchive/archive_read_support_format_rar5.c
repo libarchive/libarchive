@@ -2821,11 +2821,13 @@ static int parse_block_header(struct archive_read* a, const uint8_t* p,
 	    ^ (uint8_t) (*block_size >> 16);
 
 	if(calculated_cksum != hdr->block_cksum) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Block checksum error: got 0x%x, expected 0x%x",
 		    hdr->block_cksum, calculated_cksum);
 
 		return ARCHIVE_FATAL;
+#endif
 	}
 
 	return ARCHIVE_OK;
