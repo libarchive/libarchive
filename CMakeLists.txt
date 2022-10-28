@@ -213,7 +213,7 @@ OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
 OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
-OPTION(ENABLE_LibGCC "Enable the use of the system LibGCC library if found" ON)
+OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
 OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
 
@@ -1264,9 +1264,10 @@ IF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$"
   #
   # If requested, try finding library for PCREPOSIX
   #
-  IF(ENABLE_LibGCC)
-    FIND_PACKAGE(LibGCC)
+  IF(ENABLE_LIBGCC)
+    FIND_PACKAGE(LIBGCC)
   ELSE()
+    MESSAGE(FATAL_ERROR "libgcc not found.")
     SET(LIBGCC_FOUND FALSE) # Override cached value
   ENDIF()
   IF(ENABLE_PCREPOSIX)
