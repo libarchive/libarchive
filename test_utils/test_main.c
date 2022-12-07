@@ -3869,6 +3869,14 @@ main(int argc, char **argv)
 	int tmp2_len;
 #endif
 	time_t now;
+	struct tm *tmptr;
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+	struct tm tmbuf;
+#endif
+#if defined(HAVE__LOCALTIME64_S)
+	errno_t	terr;
+	__time64_t tmptime;
+#endif
 	char *refdir_alloc = NULL;
 	const char *progname;
 	char **saved_argv;
@@ -4103,9 +4111,20 @@ main(int argc, char **argv)
 	 */
 	now = time(NULL);
 	for (i = 0; ; i++) {
+#if defined(HAVE_LOCALTIME_R)
+		tmptr = localtime_r(&now, &tmbuf);
+#elif defined(HAVE__LOCALTIME64_S)
+		tmptime = now;
+		terr = _localtime64_s(&tmbuf, &tmptime);
+		if (terr)
+			tmptr = NULL;
+		else
+			tmptr = &tmbuf;
+#else
+		tmptr = localtime(&now);
+#endif
 		strftime(tmpdir_timestamp, sizeof(tmpdir_timestamp),
-		    "%Y-%m-%dT%H.%M.%S",
-		    localtime(&now));
+		    "%Y-%m-%dT%H.%M.%S", tmptr);
 		if ((strlen(tmp) + 1 + strlen(progname) + 1 +
 		    strlen(tmpdir_timestamp) + 1 + 3) >
 		    (sizeof(tmpdir) / sizeof(char))) {
