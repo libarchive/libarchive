@@ -1134,7 +1134,7 @@ cab_checksum_update(struct archive_read *a, size_t bytes)
 	}
 	if (sumbytes) {
 		int odd = sumbytes & 3;
-		if (sumbytes - odd > 0)
+		if ((int)(sumbytes - odd) > 0)
 			cfdata->sum_calculated = cab_checksum_cfdata_4(
 			    p, sumbytes - odd, cfdata->sum_calculated);
 		if (odd)
