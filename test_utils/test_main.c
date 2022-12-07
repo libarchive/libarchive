@@ -4066,6 +4066,7 @@ main(int argc, char **argv)
 
 	{
 		char *testprg;
+		int testprg_len;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		/* Command.com sometimes rejects '/' separators. */
 		testprg = strdup(testprogfile);
@@ -4076,10 +4077,11 @@ main(int argc, char **argv)
 		testprogfile = testprg;
 #endif
 		/* Quote the name that gets put into shell command lines. */
-		testprg = malloc(strlen(testprogfile) + 3);
-		strcpy(testprg, "\"");
-		strcat(testprg, testprogfile);
-		strcat(testprg, "\"");
+		testprg_len = strlen(testprogfile) + 3;
+		testprg = malloc(testprg_len);
+		strncpy(testprg, "\"", testprg_len);
+		strncat(testprg, testprogfile, testprg_len);
+		strncat(testprg, "\"", testprg_len);
 		testprog = testprg;
 	}
 #endif
