@@ -2795,7 +2795,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	char *tail;
 	char *head;
 	int last;
-	char c;
+	char c = '\0';
 	int r;
 	struct stat st;
 	int chdir_fd;
