@@ -407,14 +407,13 @@ archive_read_format_tar_bid(struct archive_read *a, int best_bid)
 	/*
 	 * Check format of mode/uid/gid/mtime/size/rdevmajor/rdevminor fields.
 	 */
-	if (bid > 0 && (
-	    validate_number_field(header->mode, sizeof(header->mode)) == 0
+	if (validate_number_field(header->mode, sizeof(header->mode)) == 0
 	    || validate_number_field(header->uid, sizeof(header->uid)) == 0
 	    || validate_number_field(header->gid, sizeof(header->gid)) == 0
 	    || validate_number_field(header->mtime, sizeof(header->mtime)) == 0
 	    || validate_number_field(header->size, sizeof(header->size)) == 0
 	    || validate_number_field(header->rdevmajor, sizeof(header->rdevmajor)) == 0
-	    || validate_number_field(header->rdevminor, sizeof(header->rdevminor)) == 0)) {
+	    || validate_number_field(header->rdevminor, sizeof(header->rdevminor)) == 0) {
 		bid = 0;
 	}
 
