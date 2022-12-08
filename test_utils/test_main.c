@@ -3190,14 +3190,12 @@ extract_reference_file(const char *name)
 		while (bytes > 0) {
 			int n = 0;
 			/* Write out 1-3 bytes from that. */
-			if (bytes > 0) {
-				assert(VALID_UUDECODE(p[0]));
-				assert(VALID_UUDECODE(p[1]));
-				n = UUDECODE(*p++) << 18;
-				n |= UUDECODE(*p++) << 12;
-				fputc(n >> 16, out);
-				--bytes;
-			}
+			assert(VALID_UUDECODE(p[0]));
+			assert(VALID_UUDECODE(p[1]));
+			n = UUDECODE(*p++) << 18;
+			n |= UUDECODE(*p++) << 12;
+			fputc(n >> 16, out);
+			--bytes;
 			if (bytes > 0) {
 				assert(VALID_UUDECODE(p[0]));
 				n |= UUDECODE(*p++) << 6;
