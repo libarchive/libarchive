@@ -994,9 +994,11 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 			struct mtree_entry *alt;
 			alt = (struct mtree_entry *)__archive_rb_tree_find_node(
 			    &mtree->rbtree, entry->name);
-			while (alt->next_dup)
-				alt = alt->next_dup;
-			alt->next_dup = entry;
+			if (alt != NULL) {
+				while (alt->next_dup)
+					alt = alt->next_dup;
+				alt->next_dup = entry;
+			}
 		}
 	}
 
