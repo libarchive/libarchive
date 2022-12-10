@@ -952,7 +952,7 @@
 /* #undef STRERROR_R_CHAR_P */
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
-#define TIME_WITH_SYS_TIME 1
+#define HAVE_SYS_TIME_H 1
 
 
 
