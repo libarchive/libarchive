@@ -339,16 +339,16 @@ xstrftime(struct archive_string *as, const char *fmt, time_t t)
 	char strtime[100];
 	size_t len;
 
-#ifdef HAVE_GMTIME_R
-	if ((rt = gmtime_r(&t, &timeHere)) == NULL)
-		return;
-#elif defined(HAVE__GMTIME64_S)
+#if defined(HAVE__GMTIME64_S)
 	tmptime = t;
 	terr = _gmtime64_s(&timeHere, &tmptime);
 	if (terr)
 		rt = NULL;
 	else
 		rt = &timeHere;
+#elif defined(HAVE_GMTIME_R)
+	if ((rt = gmtime_r(&t, &timeHere)) == NULL)
+		return;
 #else
 	if ((rt = gmtime(&t)) == NULL)
 		return;

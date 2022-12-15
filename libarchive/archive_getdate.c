@@ -731,15 +731,15 @@ Convert(time_t Month, time_t Day, time_t Year,
 	Julian *= DAY;
 	Julian += Timezone;
 	Julian += Hours * HOUR + Minutes * MINUTE + Seconds;
-#if defined(HAVE_LOCALTIME_R)
-	ltime = localtime_r(&Julian, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE__LOCALTIME64_S)
 	tmptime = Julian;
 	terr = _localtime64_s(&tmbuf, &tmptime);
 	if (terr)
 		ltime = NULL;
 	else
 		ltime = &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
+	ltime = localtime_r(&Julian, &tmbuf);
 #else
 	ltime = localtime(&Julian);
 #endif
@@ -761,30 +761,28 @@ DSTcorrect(time_t Start, time_t Future)
 #if defined(HAVE__LOCALTIME64_S)
 	errno_t		terr;
 	__time64_t	tmptime;
-#endif
 
-#if defined(HAVE_LOCALTIME_R)
-	ltime = localtime_r(&Start, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
 	tmptime = Start;
 	terr = _localtime64_s(&tmbuf, &tmptime);
 	if (terr)
 		ltime = NULL;
 	else
 		ltime = &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
+	ltime = localtime_r(&Start, &tmbuf);
 #else
 	ltime = localtime(&Start);
 #endif
 	StartDay = (ltime->tm_hour + 1) % 24;
-#if defined(HAVE_LOCALTIME_R)
-	ltime = localtime_r(&Future, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE__LOCALTIME64_S)
 	tmptime = Future;
 	terr = _localtime64_s(&tmbuf, &tmptime);
 	if (terr)
 		ltime = NULL;
 	else
 		ltime = &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
+	ltime = localtime_r(&Future, &tmbuf);
 #else
 	ltime = localtime(&Future);
 #endif
@@ -808,15 +806,15 @@ RelativeDate(time_t Start, time_t zone, int dstmode,
 #endif
 
 	t = Start - zone;
-#if defined(HAVE_GMTIME_R)
-	tm = gmtime_r(&t, &tmbuf);
-#elif defined(HAVE__GMTIME64_S)
+#if defined(HAVE__GMTIME64_S)
 	tmptime = t;
 	terr = _gmtime64_s(&tmbuf, &tmptime);
 	if (terr)
 		tm = NULL;
 	else
 		tm = &tmbuf;
+#elif defined(HAVE_GMTIME_R)
+	tm = gmtime_r(&t, &tmbuf);
 #else
 	tm = gmtime(&t);
 #endif
@@ -845,15 +843,15 @@ RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
 
 	if (RelMonth == 0)
 		return 0;
-#if defined(HAVE_LOCALTIME_R)
-	tm = localtime_r(&Start, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE__LOCALTIME64_S)
 	tmptime = Start;
 	terr = _localtime64_s(&tmbuf, &tmptime);
 	if (terr)
 		tm = NULL;
 	else
 		tm = &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
+	tm = localtime_r(&Start, &tmbuf);
 #else
 	tm = localtime(&Start);
 #endif
@@ -1005,15 +1003,15 @@ __archive_get_date(time_t now, const char *p)
 	gds = &_gds;
 
 	/* Look up the current time. */
-#if defined(HAVE_LOCALTIME_R)
-	tm = localtime_r(&now, &local);
-#elif defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE__LOCALTIME64_S)
 	tmptime = now;
 	terr = _localtime64_s(&local, &tmptime);
 	if (terr)
 		tm = NULL;
 	else
 		tm = &local;
+#elif defined(HAVE_LOCALTIME_R)
+	tm = localtime_r(&now, &local);
 #else
 	memset(&local, 0, sizeof(local));
 	tm = localtime(&now);
@@ -1026,15 +1024,15 @@ __archive_get_date(time_t now, const char *p)
 
 	/* Look up UTC if we can and use that to determine the current
 	 * timezone offset. */
-#if defined(HAVE_GMTIME_R)
-	gmt_ptr = gmtime_r(&now, &gmt);
-#elif defined(HAVE__GMTIME64_S)
+#if defined(HAVE__GMTIME64_S)
 	tmptime = now;
 	terr = _gmtime64_s(&gmt, &tmptime);
 	if (terr)
 		gmt_ptr = NULL;
 	else
 		gmt_ptr = &gmt;
+#elif defined(HAVE_GMTIME_R)
+	gmt_ptr = gmtime_r(&now, &gmt);
 #else
 	memset(&gmt, 0, sizeof(gmt));
 	gmt_ptr = gmtime(&now);
@@ -1076,15 +1074,15 @@ __archive_get_date(time_t now, const char *p)
 	 * time components instead of the local timezone. */
 	if (gds->HaveZone && gmt_ptr != NULL) {
 		now -= gds->Timezone;
-#if defined(HAVE_GMTIME_R)
-		gmt_ptr = gmtime_r(&now, &gmt);
-#elif defined(HAVE__GMTIME64_S)
+#if defined(HAVE__GMTIME64_S)
 		tmptime = now;
 		terr = _gmtime64_s(&gmt, &tmptime);
 		if (terr)
 			gmt_ptr = NULL;
 		else
 			gmt_ptr = &gmt;
+#elif defined(HAVE_GMTIME_R)
+		gmt_ptr = gmtime_r(&now, &gmt);
 #else
 		gmt_ptr = gmtime(&now);
 #endif

@@ -652,7 +652,7 @@ struct iso_option {
 #define VOLUME_IDENTIFIER_SIZE		32
 
 	/*
-	 * Usage  : !zisofs [DEFAULT] 
+	 * Usage  : !zisofs [DEFAULT]
 	 *        :    Disable to generate RRIP 'ZF' extension.
 	 *        : zisofs
 	 *        :    Make files zisofs file and generate RRIP 'ZF'
@@ -689,7 +689,7 @@ struct iso9660 {
 	uint64_t		 bytes_remaining;
 	int			 need_multi_extent;
 
-	/* Temporary string buffer for Joliet extension. */ 
+	/* Temporary string buffer for Joliet extension. */
 	struct archive_string	 utf16be;
 	struct archive_string	 mbs;
 
@@ -2521,12 +2521,12 @@ get_gmoffset(struct tm *tm)
 static void
 get_tmfromtime(struct tm *tm, time_t *t)
 {
-#if HAVE_LOCALTIME_R
-	tzset();
-	localtime_r(t, tm);
-#elif HAVE__LOCALTIME64_S
+#if HAVE__LOCALTIME64_S
 	__time64_t tmp_t = (__time64_t) *t; //time_t may be shorter than 64 bits
 	_localtime64_s(tm, &tmp_t);
+#elif HAVE_LOCALTIME_R
+	tzset();
+	localtime_r(t, tm);
 #else
 	memcpy(tm, localtime(t), sizeof(*tm));
 #endif

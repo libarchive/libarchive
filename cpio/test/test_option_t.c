@@ -95,15 +95,15 @@ DEFINE_TEST(test_option_t)
 #ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "");
 #endif
-#if defined(HAVE_LOCALTIME_R)
-        tmptr = localtime_r(&mtime, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE__LOCALTIME64_S)
         tmptime = mtime;
         terr = _localtime64_s(&tmbuf, &tmptime);
         if (terr)
                 tmptr = NULL;
         else
                 tmptr = &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
+        tmptr = localtime_r(&mtime, &tmbuf);
 #else
         tmptr = localtime(&mtime);
 #endif
