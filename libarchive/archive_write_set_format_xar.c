@@ -906,11 +906,9 @@ xmlwrite_time(struct archive_write *a, xmlTextWriterPtr writer,
 {
 	char timestr[100];
 	struct tm tm;
-#if defined(HAVE__GMTIME64_S)
-	__time64_t tmptime;
 
-	tmptime = t;
-	_gmtime64_s(&tm, &tmptime);
+#if defined(HAVE__GMTIME64_S)
+	_gmtime64_s(&tm, &t);
 #elif defined(HAVE_GMTIME_R)
 	gmtime_r(&t, &tm);
 #else

@@ -1385,18 +1385,9 @@ dos_time(const time_t unix_time)
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
 	struct tm tmbuf;
 #endif
-#if defined(HAVE__LOCALTIME64_S)
-	errno_t terr;
-	__time64_t tmptime;
 
-	/* This will not preserve time when creating/extracting the archive
-	 * on two systems with different time zones. */
-	tmptime = unix_time;
-	terr = _localtime64_s(&tmbuf, &tmptime);
-	if (terr)
-		t = NULL;
-	else
-		t = &tmbuf;
+#if defined(HAVE__LOCALTIME64_S)
+	t = _localtime64_s(&tmbuf, &unix_time) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
 	t = localtime_r(&unix_time, &tmbuf);
 #else
