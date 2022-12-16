@@ -347,12 +347,12 @@ xstrftime(struct archive_string *as, const char *fmt, time_t t)
 	else
 		rt = &timeHere;
 #elif defined(HAVE_GMTIME_R)
-	if ((rt = gmtime_r(&t, &timeHere)) == NULL)
-		return;
+	rt = gmtime_r(&t, &timeHere);
 #else
-	if ((rt = gmtime(&t)) == NULL)
-		return;
+	rt = gmtime(&t);
 #endif
+	if (!rt)
+		return;
 	/* leave the hard yacker to our role model strftime() */
 	len = strftime(strtime, sizeof(strtime)-1, fmt, rt);
 	archive_strncat(as, strtime, len);
