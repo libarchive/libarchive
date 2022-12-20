@@ -140,15 +140,15 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	 * q walks over the local headers, the data and the data descriptors. */
 	const char *p, *q, *local_header, *extra_start;
 
-#if defined(HAVE_LOCALTIME_R)
-	tm = localtime_r(&now, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE__LOCALTIME64_S)
 	tmptime = now;
 	terr = _localtime64_s(&tmbuf, &tmptime);
 	if (terr)
 		tm = NULL;
 	else
 		tm = &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
+	tm = localtime_r(&now, &tmbuf);
 #else
 	tm = localtime(&now);
 #endif

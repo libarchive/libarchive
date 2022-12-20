@@ -98,15 +98,15 @@ DEFINE_TEST(test_write_format_zip_file)
 	zip_compression = 0;
 #endif
 
-#if defined(HAVE_LOCALTIME_R)
-	tm = localtime_r(&t, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE__LOCALTIME64_S)
 	tmptime = t;
 	terr = _localtime64_s(&tmbuf, &tmptime);
 	if (terr)
 		tm = NULL;
 	else
 		tm = &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
+	tm = localtime_r(&t, &tmbuf);
 #else
 	tm = localtime(&t);
 #endif

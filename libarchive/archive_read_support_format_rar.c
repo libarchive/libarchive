@@ -1833,10 +1833,6 @@ read_exttime(const char *p, struct rar *rar, const char *endp)
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
   struct tm tmbuf;
 #endif
-#if defined(HAVE__LOCALTIME64_S)
-  errno_t terr;
-  __time64_t tmptime;
-#endif
 
   if (p + 2 > endp)
     return (-1);
@@ -1868,15 +1864,10 @@ read_exttime(const char *p, struct rar *rar, const char *endp)
         rem = (((unsigned)(unsigned char)*p) << 16) | (rem >> 8);
         p++;
       }
-#if defined(HAVE_LOCALTIME_R)
+#if defined(HAVE__LOCALTIME64_S)
+      tm = _localtime64_s(&tmbuf, &t) ? NULL : &tmbuf;
+#elif defined(HAVE_LOCALTIME_R)
       tm = localtime_r(&t, &tmbuf);
-#elif defined(HAVE__LOCALTIME64_S)
-      tmptime = t;
-      terr = _localtime64_s(&tmbuf, &tmptime);
-      if (terr)
-        tm = NULL;
-      else
-        tm = &tmbuf;
 #else
       tm = localtime(&t);
 #endif
