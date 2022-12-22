@@ -671,10 +671,6 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
 	struct tm		tmbuf;
 #endif
-#if defined(HAVE__LOCALTIME64_S)
-	errno_t			terr;
-	__time64_t		tmptime;
-#endif
 
 	/*
 	 * We avoid collecting the entire list in memory at once by
@@ -747,12 +743,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	else
 		fmt = bsdtar->day_first ? DAY_FMT " %b %H:%M" : "%b " DAY_FMT " %H:%M";
 #if defined(HAVE__LOCALTIME64_S)
-	tmptime = tim;
-	terr = _localtime64_s(&tmbuf, &tmptime);
-	if (terr)
-		ltime = NULL;
-	else
-		ltime = &tmbuf;
+	ltime = _localtime64_s(&tmbuf, &tim) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
 	ltime = localtime_r(&tim, &tmbuf);
 #else
