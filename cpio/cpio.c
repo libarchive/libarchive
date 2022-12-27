@@ -442,6 +442,8 @@ main(int argc, char *argv[])
 	archive_match_free(cpio->matching);
 	free_cache(cpio->gname_cache);
 	free_cache(cpio->uname_cache);
+	archive_read_close(cpio->archive_read_disk);
+	archive_read_free(cpio->archive_read_disk);
 	free(cpio->destdir);
 	passphrase_free(cpio->ppbuff);
 	return (cpio->return_value);
