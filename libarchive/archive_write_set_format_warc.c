@@ -329,14 +329,14 @@ xstrftime(struct archive_string *as, const char *fmt, time_t t)
 {
 /** like strftime(3) but for time_t objects */
 	struct tm *rt;
-#if defined(HAVE_GMTIME_R) || defined(HAVE__GMTIME64_S)
+#if defined(HAVE_GMTIME_R) || defined(HAVE_GMTIME_S)
 	struct tm timeHere;
 #endif
 	char strtime[100];
 	size_t len;
 
-#if defined(HAVE__GMTIME64_S)
-	rt = _gmtime64_s(&timeHere, &t) ? NULL : &timeHere;
+#if defined(HAVE_GMTIME_S)
+	rt = gmtime_s(&timeHere, &t) ? NULL : &timeHere;
 #elif defined(HAVE_GMTIME_R)
 	rt = gmtime_r(&t, &timeHere);
 #else

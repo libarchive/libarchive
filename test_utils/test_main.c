@@ -3868,7 +3868,7 @@ main(int argc, char **argv)
 #endif
 	time_t now;
 	struct tm *tmptr;
-#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm tmbuf;
 #endif
 	char *refdir_alloc = NULL;
@@ -4105,8 +4105,8 @@ main(int argc, char **argv)
 	 */
 	now = time(NULL);
 	for (i = 0; ; i++) {
-#if defined(HAVE__LOCALTIME64_S)
-		tmptr = _localtime64_s(&tmbuf, &now) ? NULL : &tmbuf;
+#if defined(HAVE_LOCALTIME_S)
+		tmptr = localtime_s(&tmbuf, &now) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
 		tmptr = localtime_r(&now, &tmbuf);
 #else

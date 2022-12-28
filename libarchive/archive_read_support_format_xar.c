@@ -1139,8 +1139,8 @@ atohex(unsigned char *b, size_t bsize, const char *p, size_t psize)
 static time_t
 time_from_tm(struct tm *t)
 {
-#if HAVE__MKGMTIME64
-        return (_mkgmtime64(t));
+#if HAVE__MKGMTIME
+        return _mkgmtime(t);
 #elif HAVE_TIMEGM
         /* Use platform timegm() if available. */
         return (timegm(t));
