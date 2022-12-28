@@ -132,21 +132,12 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
 	struct tm tmbuf;
 #endif
-#if defined(HAVE__LOCALTIME64_S)
-	errno_t terr;
-	 __time64_t tmptime;
-#endif
 	/* p is the pointer to walk over the central directory,
 	 * q walks over the local headers, the data and the data descriptors. */
 	const char *p, *q, *local_header, *extra_start;
 
 #if defined(HAVE__LOCALTIME64_S)
-	tmptime = now;
-	terr = _localtime64_s(&tmbuf, &tmptime);
-	if (terr)
-		tm = NULL;
-	else
-		tm = &tmbuf;
+	tm = _localtime64_s(&tmbuf, &now) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
 	tm = localtime_r(&now, &tmbuf);
 #else

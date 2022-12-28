@@ -40,10 +40,6 @@ DEFINE_TEST(test_option_t)
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
 	struct tm tmbuf;
 #endif
-#if defined(HAVE__LOCALTIME64_S)
-	errno_t terr;
-	__time64_t tmptime;
-#endif
 
 	/* List reference archive, make sure the TOC is correct. */
 	extract_reference_file("test_option_t.cpio");
@@ -96,12 +92,7 @@ DEFINE_TEST(test_option_t)
 	setlocale(LC_ALL, "");
 #endif
 #if defined(HAVE__LOCALTIME64_S)
-        tmptime = mtime;
-        terr = _localtime64_s(&tmbuf, &tmptime);
-        if (terr)
-                tmptr = NULL;
-        else
-                tmptr = &tmbuf;
+        tmptr = _localtime64_s(&tmbuf, &mtime) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
         tmptr = localtime_r(&mtime, &tmbuf);
 #else

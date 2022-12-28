@@ -1156,10 +1156,6 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
 	struct tm		tmbuf;
 #endif
-#if defined(HAVE__LOCALTIME64_S)
-	errno_t			terr;
-	__time64_t		tmptime;
-#endif
 
 	if (!now)
 		time(&now);
@@ -1208,12 +1204,7 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
 #endif
 #if defined(HAVE__LOCALTIME64_S)
-	tmptime = mtime;
-	terr = _localtime64_s(&tmbuf, &tmptime);
-	if (terr)
-		ltime = NULL;
-	else
-		ltime = &tmbuf;
+	ltime = _localtime64_s(&tmbuf, &mtime) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
 	ltime = localtime_r(&mtime, &tmbuf);
 #else
