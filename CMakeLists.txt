@@ -1560,7 +1560,7 @@ ENDIF()
 #
 #
 CHECK_STRUCT_HAS_MEMBER("struct tm" tm_sec
-    "sys/types.h;sys/time.h;time.h" TIME_WITH_SYS_TIME)
+    "sys/types.h;sys/time.h;time.h" HAVE_SYS_TIME_H)
 
 #
 # Check for integer types
