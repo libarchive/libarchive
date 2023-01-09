@@ -99,7 +99,7 @@ AM_CONDITIONAL([INC_CYGWIN_FILES], [test $inc_cygwin_files = yes])
 dnl Defines that are required for specific platforms (e.g. -D_POSIX_SOURCE, etc)
 PLATFORMCPPFLAGS=
 case "$host_os" in
-  *mingw* ) PLATFORMCPPFLAGS=-D__USE_MINGW_ANSI_STDIO ;;
+  *mingw* ) PLATFORMCPPFLAGS=-D__USE_MINGW_ANSI_STDIO -D__MINGW_USE_VC2005_COMPAT ;;
 esac
 AC_SUBST(PLATFORMCPPFLAGS)
 
@@ -689,8 +689,24 @@ AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strnlen strrchr symlink])
 AC_CHECK_FUNCS([timegm tzset unlinkat unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove])
-AC_CHECK_FUNCS([_ctime64_s _fseeki64])
-AC_CHECK_FUNCS([_get_timezone _gmtime64_s _localtime64_s _mkgmtime64])
+AC_CHECK_FUNCS([_fseeki64 _get_timezone])
+AC_CHECK_DECL([cmtime_s],
+		[AC_DEFINE(HAVE_CMTIME_S, 1, [cmtime_s function])],
+		[],
+		[#include <time.h>])
+AC_CHECK_DECL([gmtime_s],
+		[AC_DEFINE(HAVE_GMTIME_S, 1, [gmtime_s function])],
+		[],
+		[#include <time.h>])
+AC_CHECK_TYPE([localtime_s],
+		[AC_DEFINE(HAVE_LOCALTIME_S, 1, [localtime_s function])],
+		[],
+		[#include <time.h>])
+AC_CHECK_DECL([_mkgmtime],
+		[AC_DEFINE(HAVE__MKGMTIME, 1, [_mkgmtime function])],
+		[],
+		[#include <time.h>])
+
 # detects cygwin-1.7, as opposed to older versions
 AC_CHECK_FUNCS([cygwin_conv_path])
 

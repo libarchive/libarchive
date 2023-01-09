@@ -1830,7 +1830,7 @@ read_exttime(const char *p, struct rar *rar, const char *endp)
   struct tm *tm;
   time_t t;
   long nsec;
-#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
   struct tm tmbuf;
 #endif
 
@@ -1864,8 +1864,8 @@ read_exttime(const char *p, struct rar *rar, const char *endp)
         rem = (((unsigned)(unsigned char)*p) << 16) | (rem >> 8);
         p++;
       }
-#if defined(HAVE__LOCALTIME64_S)
-      tm = _localtime64_s(&tmbuf, &t) ? NULL : &tmbuf;
+#if defined(HAVE_LOCALTIME_S)
+      tm = localtime_s(&tmbuf, &t) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
       tm = localtime_r(&t, &tmbuf);
 #else

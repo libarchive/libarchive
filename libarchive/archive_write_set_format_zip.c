@@ -1382,12 +1382,12 @@ dos_time(const time_t unix_time)
 {
 	struct tm *t;
 	unsigned int dt;
-#if defined(HAVE_LOCALTIME_R) || defined(HAVE__LOCALTIME64_S)
+#if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm tmbuf;
 #endif
 
-#if defined(HAVE__LOCALTIME64_S)
-	t = _localtime64_s(&tmbuf, &unix_time) ? NULL : &tmbuf;
+#if defined(HAVE_LOCALTIME_S)
+	t = localtime_s(&tmbuf, &unix_time) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
 	t = localtime_r(&unix_time, &tmbuf);
 #else
