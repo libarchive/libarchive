@@ -45,6 +45,13 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_pax.c 201162 20
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
+	/*
+	 * Technically, the mtime field in the ustar header can
+	 * support 33 bits. We are using all of them to keep
+	 * tar/test/test_option_C_mtree.c simple and passing after 2038.
+	 * Platforms that use signed 32-bit time values need to fix
+	 * their handling of timestamps anyway.
+	 */
 #define USTAR_MAX_MTIME 0x1ffffffff
 
 struct sparse_block {
@@ -1118,11 +1125,6 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/*
-	 * Technically, the mtime field in the ustar header can
-	 * support 33 bits. We are using all of them to keep
-	 * tar/test/test_option_C_mtree.c simple and passing after 2038.
-	 * Platforms that use signed 32-bit time values need to fix
-	 * their handling of timestamps anyway.
 	 * Yes, this check is duplicated just below; this helps to
 	 * avoid writing an mtime attribute just to handle a
 	 * high-resolution timestamp in "restricted pax" mode.
