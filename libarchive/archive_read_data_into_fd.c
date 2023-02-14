@@ -102,6 +102,11 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	    ARCHIVE_OK) {
 		const char *p = buff;
 		if (target_offset > actual_offset) {
+			if (!nulls) {
+				r = ARCHIVE_ZERO;
+				goto leave;
+			}
+
 			r = pad_to(a, fd, can_lseek, nulls_size, nulls,
 			    target_offset, actual_offset);
 			if (r != ARCHIVE_OK)
@@ -125,6 +130,11 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	}
 
 	if (r == ARCHIVE_EOF && target_offset > actual_offset) {
+		if (!nulls) {
+			r = ARCHIVE_ZERO;
+			goto leave;
+		}
+
 		r2 = pad_to(a, fd, can_lseek, nulls_size, nulls,
 		    target_offset, actual_offset);
 		if (r2 != ARCHIVE_OK)
@@ -133,6 +143,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 
 cleanup:
 	free(nulls);
+leave:
 	if (r != ARCHIVE_EOF)
 		return (r);
 	return (ARCHIVE_OK);
