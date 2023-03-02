@@ -164,7 +164,7 @@ typedef unsigned char uint8_t;
 #define HAVE_UINT8_T
 #endif
 
-#if !defined(HAVE_UINT16_T)
+#if !defined(HAVE_UINT8_T)
 #error No 8-bit unsigned integer type was found.
 #endif
 
