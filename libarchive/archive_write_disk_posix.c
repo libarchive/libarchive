@@ -1727,7 +1727,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 				r = hfs_write_data_block(
 				    a, null_d, a->file_remaining_bytes);
 			if (r < 0)
-                close_file_descriptor(a);
+				close_file_descriptor(a);
 				return ((int)r);
 		}
 #endif
@@ -1737,7 +1737,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		    a->filesize == 0) {
 			archive_set_error(&a->archive, errno,
 			    "File size could not be restored");
-            close_file_descriptor(a);
+			close_file_descriptor(a);
 			return (ARCHIVE_FAILED);
 		}
 #endif
@@ -1748,7 +1748,7 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		 */
 		a->pst = NULL;
 		if ((ret = lazy_stat(a)) != ARCHIVE_OK)
-            close_file_descriptor(a);
+			close_file_descriptor(a);
 			return (ret);
 		/* We can use lseek()/write() to extend the file if
 		 * ftruncate didn't work or isn't available. */
@@ -1757,13 +1757,13 @@ _archive_write_disk_finish_entry(struct archive *_a)
 			if (lseek(a->fd, a->filesize - 1, SEEK_SET) < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
-                close_file_descriptor(a);
+				close_file_descriptor(a);
 				return (ARCHIVE_FATAL);
 			}
 			if (write(a->fd, &nul, 1) < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Write to restore size failed");
-                close_file_descriptor(a);
+				close_file_descriptor(a);
 				return (ARCHIVE_FATAL);
 			}
 			a->pst = NULL;
@@ -4718,10 +4718,10 @@ archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
  */
 static void close_file_descriptor(struct archive_write_disk* a)
 {
-    if (a->fd >= 0) {
-        close(a->fd);
-        a->fd = -1;
-    }
+	if (a->fd >= 0) {
+		close(a->fd);
+		a->fd = -1;
+	}
 }
 
 
