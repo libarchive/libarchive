@@ -1217,8 +1217,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		if (la_ftruncate(a->fh, a->filesize) == -1) {
 			archive_set_error(&a->archive, errno,
 			    "File size could not be restored");
-            CloseHandle(a->fh);
-            a->fh = INVALID_HANDLE_VALUE;
+			CloseHandle(a->fh);
+			a->fh = INVALID_HANDLE_VALUE;
 			return (ARCHIVE_FAILED);
 		}
 	}
