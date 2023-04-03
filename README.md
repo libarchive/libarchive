@@ -192,6 +192,17 @@ questions we are asked about libarchive:
   functions.  On those platforms, libarchive will use the non-thread-safe
   functions.  Patches to improve this are of great interest to us.
 
+* The function `archive_write_disk_header()` is _not_ thread safe on
+  POSIX machines and could lead to security issue resulting in world
+  writeable directories.  Thus it must be mutexed by the calling code.
+  This is due to calling `umask(oldumask = umask(0))`, which sets the
+  umask for the whole process to 0 for a short time frame.
+  In case other thread calls the same function in parallel, it might
+  get interrupted by it and cause the executable to use umask=0 for the
+  remaining execution.
+  This will then lead to implicitely created directories to have 777
+  permissions without sticky bit.
+
 * In particular, libarchive's modules to read or write a directory
   tree do use `chdir()` to optimize the directory traversals.  This
   can cause problems for programs that expect to do disk access from
