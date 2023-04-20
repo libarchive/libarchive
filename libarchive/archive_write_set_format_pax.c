@@ -396,7 +396,7 @@ archive_write_pax_header_xattrs(struct archive_write *a,
 {
 	int i = archive_entry_xattr_reset(entry);
 
-	while (i--) {
+	while (i-- > 0) {
 		const char *name;
 		const void *value;
 		char *url_encoded_name = NULL, *encoded_name = NULL;
