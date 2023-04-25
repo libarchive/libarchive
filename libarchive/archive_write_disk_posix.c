@@ -1747,9 +1747,10 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		 * to see what happened.
 		 */
 		a->pst = NULL;
-		if ((ret = lazy_stat(a)) != ARCHIVE_OK)
-			close_file_descriptor(a);
-			return (ret);
+        if ((ret = lazy_stat(a)) != ARCHIVE_OK) {
+            close_file_descriptor(a);
+            return (ret);
+        }
 		/* We can use lseek()/write() to extend the file if
 		 * ftruncate didn't work or isn't available. */
 		if (a->st.st_size < a->filesize) {
