@@ -1227,7 +1227,7 @@ fi
 if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/evp.h])
     saved_LIBS=$LIBS
-    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libssl libcrypto"
+    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libcrypto"
     AC_CHECK_LIB(crypto,OPENSSL_config)
     CRYPTO_CHECK(MD5, OPENSSL, md5)
     CRYPTO_CHECK(RMD160, OPENSSL, rmd160)
