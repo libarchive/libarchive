@@ -267,6 +267,50 @@ case $host in
   ;;
 esac
 
+#
+# Options for building bsdunzip.
+#
+# Default is to build bsdunzip, but allow people to override that.
+#
+AC_ARG_ENABLE([bsdunzip],
+	[AS_HELP_STRING([--enable-bsdunzip], [enable build of bsdunzip (default)])
+	AS_HELP_STRING([--enable-bsdunzip=static], [force static build of bsdunzip])
+	AS_HELP_STRING([--enable-bsdunzip=shared], [force dynamic build of bsdunzip])
+AS_HELP_STRING([--disable-bsdunzip], [disable build of bsdunzip])],
+	[], [enable_bsdunzip=yes])
+
+case "$enable_bsdunzip" in
+yes)
+	if test "$enable_static" = "no"; then
+		static_bsdunzip=no
+	else
+		static_bsdunzip=yes
+	fi
+	build_bsdunzip=yes
+	;;
+dynamic|shared)
+	if test "$enable_shared" = "no"; then
+		AC_MSG_FAILURE([Shared linking of bsdunzip requires shared libarchive])
+	fi
+	build_bsdunzip=yes
+	static_bsdunzip=no
+	;;
+static)
+	build_bsdunzip=yes
+	static_bsdunzip=yes
+	;;
+no)
+	build_bsdunzip=no
+	static_bsdunzip=no
+	;;
+*)
+	AC_MSG_FAILURE([Unsupported value for --enable-bsdunzip])
+	;;
+esac
+
+AM_CONDITIONAL([BUILD_BSDUNZIP], [ test "$build_bsdunzip" = yes ])
+AM_CONDITIONAL([STATIC_BSDUNZIP], [ test "$static_bsdunzip" = yes ])
+
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
@@ -766,6 +810,11 @@ AC_CHECK_MEMBER(struct dirent.d_namlen,,,
 #include <dirent.h>
 #endif
 ])
+
+AC_CHECK_DECL([optreset],
+		[AC_DEFINE(HAVE_GETOPT_OPTRESET, 1, [Platform uses optreset to reset getopt])],
+		[],
+		[#include <getopt.h>])
 
 # Check for Extended Attributes support
 AC_ARG_ENABLE([xattr],
