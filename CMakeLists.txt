@@ -223,6 +223,8 @@ OPTION(ENABLE_CPIO "Enable cpio building" ON)
 OPTION(ENABLE_CPIO_SHARED "Enable dynamic build of cpio" FALSE)
 OPTION(ENABLE_CAT "Enable cat building" ON)
 OPTION(ENABLE_CAT_SHARED "Enable dynamic build of cat" FALSE)
+OPTION(ENABLE_UNZIP "Enable unzip building" ON)
+OPTION(ENABLE_UNZIP_SHARED "Enable dynamic build of unzip" FALSE)
 OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_ICONV "Enable iconv support" ON)
@@ -1461,6 +1463,9 @@ CHECK_C_SOURCE_COMPILES(
   "#include <fcntl.h>\n#include <unistd.h>\nint main() {char buf[10]; return readlinkat(AT_FDCWD, \"\", buf, 0);}"
   HAVE_READLINKAT)
 
+# Check for getopt uses optreset to reset
+CHECK_SYMBOL_EXISTS(optreset "getopt.h" HAVE_GETOPT_OPTRESET)
+
 
 # To verify major(), we need to both include the header
 # of interest and verify that the result can be linked.
@@ -2093,3 +2098,4 @@ add_subdirectory(libarchive)
 add_subdirectory(cat)
 add_subdirectory(tar)
 add_subdirectory(cpio)
+add_subdirectory(unzip)
