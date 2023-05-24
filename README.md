@@ -7,7 +7,7 @@ command-line tools that use the libarchive library.
 
 ## Questions?  Issues?
 
-* http://www.libarchive.org is the home for ongoing
+* https://www.libarchive.org is the home for ongoing
   libarchive development, including documentation,
   and links to the libarchive mailing lists.
 * To report an issue, use the issue tracker at
