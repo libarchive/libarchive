@@ -580,7 +580,7 @@ la_GetFunctionKernel32(const char *name)
 static int
 la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 {
-	static BOOLEAN (WINAPI *f)(LPWSTR, LPWSTR, LPSECURITY_ATTRIBUTES);
+	static BOOL (WINAPI *f)(LPCWSTR, LPCWSTR, LPSECURITY_ATTRIBUTES);
 	BOOL ret;
 
 #if _WIN32_WINNT < _WIN32_WINNT_XP
