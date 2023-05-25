@@ -559,6 +559,7 @@ la_mktemp(struct archive_write_disk *a)
 	return (fd);
 }
 
+#if _WIN32_WINNT < _WIN32_WINNT_VISTA
 static void *
 la_GetFunctionKernel32(const char *name)
 {
@@ -574,18 +575,24 @@ la_GetFunctionKernel32(const char *name)
 	}
 	return (void *)GetProcAddress(lib, name);
 }
+#endif
 
 static int
 la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 {
 	static BOOLEAN (WINAPI *f)(LPWSTR, LPWSTR, LPSECURITY_ATTRIBUTES);
-	static int set;
 	BOOL ret;
 
+#if _WIN32_WINNT < _WIN32_WINNT_XP
+	static int set;
+/* CreateHardLinkW is available since XP and always loaded */
 	if (!set) {
 		set = 1;
 		f = la_GetFunctionKernel32("CreateHardLinkW");
 	}
+#else
+	f = CreateHardLinkW;
+#endif
 	if (!f) {
 		errno = ENOTSUP;
 		return (0);
@@ -624,7 +631,6 @@ static int
 la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
     int linktype) {
 	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
-	static int set;
 	wchar_t *ttarget, *p;
 	size_t len;
 	DWORD attrs = 0;
@@ -632,10 +638,16 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
 	DWORD newflags = 0;
 	BOOL ret = 0;
 
+#if _WIN32_WINNT < _WIN32_WINNT_VISTA
+/* CreateSymbolicLinkW is available since Vista and always loaded */
+	static int set;
 	if (!set) {
 		set = 1;
 		f = la_GetFunctionKernel32("CreateSymbolicLinkW");
 	}
+#else
+	f = CreateSymbolicLinkW;
+#endif
 	if (!f)
 		return (0);
 
