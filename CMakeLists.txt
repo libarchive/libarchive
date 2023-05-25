@@ -199,6 +199,8 @@ ENDIF (MSVC)
 # Enable CTest/CDash support
 include(CTest)
 
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+
 OPTION(ENABLE_MBEDTLS "Enable use of mbed TLS" OFF)
 OPTION(ENABLE_NETTLE "Enable use of Nettle" OFF)
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
