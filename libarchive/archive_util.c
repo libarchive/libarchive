@@ -323,6 +323,9 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 	for (;;) {
 		wchar_t *p;
 		HANDLE h;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 
 		/* Generate a random file name through CryptGenRandom(). */
 		p = xp;
@@ -347,6 +350,17 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			/* mkstemp */
 			attr = FILE_ATTRIBUTE_NORMAL;
 		}
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+		ZeroMemory(&createExParams, sizeof(createExParams));
+		createExParams.dwSize = sizeof(createExParams);
+		createExParams.dwFileAttributes = attr & 0xFFFF;
+		createExParams.dwFileFlags = attr & 0xFFF00000;
+		h = CreateFile2(ws,
+		    GENERIC_READ | GENERIC_WRITE | DELETE,
+		    0,/* Not share */
+			CREATE_NEW,
+			&createExParams);
+#else
 		h = CreateFileW(ws,
 		    GENERIC_READ | GENERIC_WRITE | DELETE,
 		    0,/* Not share */
@@ -354,6 +368,7 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 		    CREATE_NEW,/* Create a new file only */
 		    attr,
 		    NULL);
+#endif
 		if (h == INVALID_HANDLE_VALUE) {
 			/* The same file already exists. retry with
 			 * a new filename. */

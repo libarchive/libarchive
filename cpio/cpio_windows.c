@@ -156,6 +156,9 @@ cpio_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 {
 	wchar_t *wpath;
 	HANDLE handle;
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+#endif
 
 	handle = CreateFileA(path, dwDesiredAccess, dwShareMode,
 	    lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes,
@@ -167,9 +170,21 @@ cpio_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	wpath = permissive_name(path);
 	if (wpath == NULL)
 		return (handle);
+# if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
+	ZeroMemory(&createExParams, sizeof(createExParams));
+	createExParams.dwSize = sizeof(createExParams);
+	createExParams.dwFileAttributes = dwFlagsAndAttributes & 0xFFFF;
+	createExParams.dwFileFlags = dwFlagsAndAttributes & 0xFFF00000;
+	createExParams.dwSecurityQosFlags = dwFlagsAndAttributes & 0x000F0000;
+	createExParams.lpSecurityAttributes = lpSecurityAttributes;
+	createExParams.hTemplateFile = hTemplateFile;
+	handle = CreateFile2(wpath, dwDesiredAccess, dwShareMode,
+	    dwCreationDisposition, &createExParams);
+#else
 	handle = CreateFileW(wpath, dwDesiredAccess, dwShareMode,
 	    lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes,
 	    hTemplateFile);
+#endif
 	free(wpath);
 	return (handle);
 }
