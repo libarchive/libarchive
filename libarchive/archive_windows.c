@@ -238,6 +238,7 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	CREATEFILE2_EXTENDED_PARAMETERS createExParams;
 #endif
 
+#if !defined(WINAPI_FAMILY_PARTITION) || WINAPI_FAMILY_PARTITION (WINAPI_PARTITION_DESKTOP)
 	handle = CreateFileA(path, dwDesiredAccess, dwShareMode,
 	    lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes,
 	    hTemplateFile);
@@ -245,9 +246,10 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 		return (handle);
 	if (GetLastError() != ERROR_PATH_NOT_FOUND)
 		return (handle);
+#endif
 	wpath = __la_win_permissive_name(path);
 	if (wpath == NULL)
-		return (handle);
+		return INVALID_HANDLE_VALUE;
 # if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
 	ZeroMemory(&createExParams, sizeof(createExParams));
 	createExParams.dwSize = sizeof(createExParams);
@@ -320,7 +322,10 @@ __la_open(const char *path, int flags, ...)
 		 * "Permission denied" error.
 		 */
 		attr = GetFileAttributesA(path);
-		if (attr == (DWORD)-1 && GetLastError() == ERROR_PATH_NOT_FOUND) {
+#if !defined(WINAPI_FAMILY_PARTITION) || WINAPI_FAMILY_PARTITION (WINAPI_PARTITION_DESKTOP)
+		if (attr == (DWORD)-1 && GetLastError() == ERROR_PATH_NOT_FOUND)
+#endif
+		{
 			ws = __la_win_permissive_name(path);
 			if (ws == NULL) {
 				errno = EINVAL;
@@ -335,7 +340,7 @@ __la_open(const char *path, int flags, ...)
 		}
 		if (attr & FILE_ATTRIBUTE_DIRECTORY) {
 			HANDLE handle;
-
+#if !defined(WINAPI_FAMILY_PARTITION) || WINAPI_FAMILY_PARTITION (WINAPI_PARTITION_DESKTOP)
 			if (ws != NULL)
 				handle = CreateFileW(ws, 0, 0, NULL,
 				    OPEN_EXISTING,
@@ -348,6 +353,15 @@ __la_open(const char *path, int flags, ...)
 				    FILE_FLAG_BACKUP_SEMANTICS |
 				    FILE_ATTRIBUTE_READONLY,
 					NULL);
+#else /* !WINAPI_PARTITION_DESKTOP */
+			CREATEFILE2_EXTENDED_PARAMETERS createExParams;
+			ZeroMemory(&createExParams, sizeof(createExParams));
+			createExParams.dwSize = sizeof(createExParams);
+			createExParams.dwFileAttributes = FILE_ATTRIBUTE_READONLY;
+			createExParams.dwFileFlags = FILE_FLAG_BACKUP_SEMANTICS;
+			handle = CreateFile2(ws, 0, 0,
+				OPEN_EXISTING, &createExParams);
+#endif /* !WINAPI_PARTITION_DESKTOP */
 			free(ws);
 			if (handle == INVALID_HANDLE_VALUE) {
 				la_dosmaperr(GetLastError());
