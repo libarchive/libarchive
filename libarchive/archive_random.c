@@ -58,8 +58,19 @@ static void arc4random_buf(void *, size_t);
 #include "archive.h"
 #include "archive_random_private.h"
 
-#if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+/* don't use bcrypt when XP needs to be supported */
+#include <bcrypt.h>
+
+/* Common in other bcrypt implementations, but missing from VS2008. */
+#ifndef BCRYPT_SUCCESS
+#define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
+#endif
+
+#elif defined(HAVE_WINCRYPT_H)
 #include <wincrypt.h>
+#endif
 #endif
 
 #ifndef O_CLOEXEC
@@ -75,6 +86,20 @@ int
 archive_random(void *buf, size_t nbytes)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
+# if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+	NTSTATUS status;
+	BCRYPT_ALG_HANDLE hAlg;
+
+	status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RNG_ALGORITHM, NULL, 0);
+	if (!BCRYPT_SUCCESS(status))
+		return ARCHIVE_FAILED;
+	status = BCryptGenRandom(hAlg, buf, nbytes, 0);
+	BCryptCloseAlgorithmProvider(hAlg, 0);
+	if (!BCRYPT_SUCCESS(status))
+		return ARCHIVE_FAILED;
+
+	return ARCHIVE_OK;
+# else
 	HCRYPTPROV hProv;
 	BOOL success;
 
@@ -92,6 +117,7 @@ archive_random(void *buf, size_t nbytes)
 	}
 	/* TODO: Does this case really happen? */
 	return ARCHIVE_FAILED;
+# endif
 #else
 	arc4random_buf(buf, nbytes);
 	return ARCHIVE_OK;
