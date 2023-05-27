@@ -1114,6 +1114,10 @@ main(int argc, char *argv[])
 	for (int i = 0; i < argc; ++i)
 		debug("%s%c", argv[i], (i < argc - 1) ? ' ' : '\n');
 
+#ifdef __GLIBC__
+	/* Prevent GNU getopt(3) from rearranging options. */
+	setenv("POSIXLY_CORRECT", "");
+#endif
 	/*
 	 * Info-ZIP's unzip(1) expects certain options to come before the
 	 * zipfile name, and others to come after - though it does not
@@ -1143,6 +1147,10 @@ main(int argc, char *argv[])
 
 	nopts--; /* fake argv[0] */
 	nopts += getopts(argc - nopts, argv + nopts);
+
+	/* There may be residual arguments if we encountered -- */
+	while (nopts < argc)
+		add_pattern(&include, argv[nopts++]);
 
 	if (n_opt + o_opt + u_opt > 1)
 		errorx("-n, -o and -u are contradictory");
