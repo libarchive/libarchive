@@ -2804,8 +2804,8 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
     !(defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT))
 	/* Platform doesn't have lstat, so we can't look for symlinks. */
 	(void)path; /* UNUSED */
-	(void)error_number; /* UNUSED */
-	(void)error_string; /* UNUSED */
+	(void)a_eno; /* UNUSED */
+	(void)a_estr; /* UNUSED */
 	(void)flags; /* UNUSED */
 	(void)checking_linkname; /* UNUSED */
 	return (ARCHIVE_OK);
@@ -3579,7 +3579,9 @@ set_time(int fd, int mode, const char *name,
 	(void)fd; /* UNUSED */
 	(void)mode; /* UNUSED */
 	(void)name; /* UNUSED */
+	(void)atime; /* UNUSED */
 	(void)atime_nsec; /* UNUSED */
+	(void)mtime; /* UNUSED */
 	(void)mtime_nsec; /* UNUSED */
 	return (ARCHIVE_WARN);
 #endif
