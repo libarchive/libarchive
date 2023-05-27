@@ -514,7 +514,12 @@ lazy_stat(struct archive_write_disk *a)
 	 * XXX At this point, symlinks should not be hit, otherwise
 	 * XXX a race occurred.  Do we want to check explicitly for that?
 	 */
-	if (lstat(a->name, &a->st) == 0) {
+#ifdef HAVE_LSTAT
+	if (lstat(a->name, &a->st) == 0)
+#else
+	if (la_stat(a->name, &a->st) == 0)
+#endif
+	{
 		a->pst = &a->st;
 		return (ARCHIVE_OK);
 	}
@@ -2154,7 +2159,11 @@ restore_entry(struct archive_write_disk *a)
 		 * then don't follow it.
 		 */
 		if (r != 0 || !S_ISDIR(a->mode))
+#ifdef HAVE_LSTAT
 			r = lstat(a->name, &a->st);
+#else
+			r = la_stat(a->name, &a->st);
+#endif
 		if (r != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't stat existing object");
@@ -2550,7 +2559,12 @@ _archive_write_disk_close(struct archive *_a)
 					goto skip_fixup_entry;
 				} else
 #endif
-				if (lstat(p->name, &st) != 0 ||
+				if (
+#ifdef HAVE_LSTAT
+					lstat(p->name, &st) != 0 ||
+#else
+					la_stat(p->name, &st) != 0 ||
+#endif
 				    la_verify_filetype(st.st_mode,
 				    p->filetype) == 0) {
 					goto skip_fixup_entry;
@@ -2565,7 +2579,12 @@ _archive_write_disk_close(struct archive *_a)
 				goto skip_fixup_entry;
 			} else
 #endif
-			if (lstat(p->name, &st) != 0 ||
+			if (
+#ifdef HAVE_LSTAT
+				lstat(p->name, &st) != 0 ||
+#else
+				la_stat(p->name, &st) != 0 ||
+#endif
 			    la_verify_filetype(st.st_mode,
 			    p->filetype) == 0) {
 				goto skip_fixup_entry;
@@ -2859,8 +2878,10 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 		/* Check that we haven't hit a symlink. */
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
 		r = fstatat(chdir_fd, head, &st, AT_SYMLINK_NOFOLLOW);
-#else
+#elif defined(HAVE_LSTAT)
 		r = lstat(head, &st);
+#else
+		r = la_stat(head, &st);
 #endif
 		if (r != 0) {
 			tail[0] = c;
@@ -4391,7 +4412,12 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
 	 */
 	archive_strncpy(&datafork, pathname, p - pathname);
 	archive_strcat(&datafork, p + 2);
-	if (lstat(datafork.s, &st) == -1 ||
+	if (
+#ifdef HAVE_LSTAT
+		lstat(datafork.s, &st) == -1 ||
+#else
+		la_stat(datafork.s, &st) == -1 ||
+#endif
 	    (st.st_mode & AE_IFMT) != AE_IFREG)
 		goto skip_appledouble;
 
