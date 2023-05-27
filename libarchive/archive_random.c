@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #endif
 
-static void arc4random_buf(void *, size_t);
+static void la_arc4random_buf(void *, size_t);
 
 #endif /* HAVE_ARC4RANDOM_BUF */
 
@@ -92,6 +92,9 @@ archive_random(void *buf, size_t nbytes)
 	}
 	/* TODO: Does this case really happen? */
 	return ARCHIVE_FAILED;
+#elif !defined(HAVE_ARC4RANDOM_BUF) && (!defined(_WIN32) || defined(__CYGWIN__))
+	la_arc4random_buf(buf, nbytes);
+	return ARCHIVE_OK;
 #else
 	arc4random_buf(buf, nbytes);
 	return ARCHIVE_OK;
@@ -256,7 +259,7 @@ arc4_getbyte(void)
 }
 
 static void
-arc4random_buf(void *_buf, size_t n)
+la_arc4random_buf(void *_buf, size_t n)
 {
 	uint8_t *buf = (uint8_t *)_buf;
 	_ARC4_LOCK();
