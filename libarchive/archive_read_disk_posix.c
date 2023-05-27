@@ -2567,7 +2567,11 @@ tree_current_lstat(struct tree *t)
 #else
 		if (tree_enter_working_dir(t) != 0)
 			return NULL;
+#ifdef HAVE_LSTAT
 		if (lstat(tree_current_access_path(t), &t->lst) != 0)
+#else
+		if (la_stat(tree_current_access_path(t), &t->lst) != 0)
+#endif
 #endif
 			return NULL;
 		t->flags |= hasLstat;
