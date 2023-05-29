@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
+#ifdef HAVE_ZSTD_H
+#include <zstd.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -81,6 +84,8 @@ __FBSDID("$FreeBSD$");
 #define _7Z_ARM		0x03030501
 #define _7Z_ARMTHUMB	0x03030701
 #define _7Z_SPARC	0x03030805
+
+#define _7Z_ZSTD	0x4F71101 /* Copied from https://github.com/mcmilk/7-Zip-zstd.git */
 
 /*
  * 7-Zip header property IDs.
@@ -277,6 +282,11 @@ struct _7zip {
 #ifdef HAVE_ZLIB_H
 	z_stream		 stream;
 	int			 stream_valid;
+#endif
+	/* Decoding Zstandard data. */
+#if HAVE_ZSTD_H
+	ZSTD_DStream		 *zstd_dstream;
+	int		         zstdstream_valid;
 #endif
 	/* Decoding PPMd data. */
 	int			 ppmd7_stat;
@@ -1027,6 +1037,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 	case _7Z_COPY:
 	case _7Z_BZ2:
 	case _7Z_DEFLATE:
+	case _7Z_ZSTD:
 	case _7Z_PPMD:
 		if (coder2 != NULL) {
 			if (coder2->codec != _7Z_X86 &&
@@ -1222,6 +1233,22 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		    "BZ2 codec is unsupported");
 		return (ARCHIVE_FAILED);
 #endif
+	case _7Z_ZSTD:
+	{
+#if defined(HAVE_ZSTD_H)
+		if (zip->zstdstream_valid) {
+			ZSTD_freeDStream(zip->zstd_dstream);
+			zip->zstdstream_valid = 0;
+		}
+		zip->zstd_dstream = ZSTD_createDStream();
+		zip->zstdstream_valid = 1;
+		break;
+#else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"ZSTD codec is unsupported");
+		return (ARCHIVE_FAILED);
+#endif
+	}
 	case _7Z_DEFLATE:
 #ifdef HAVE_ZLIB_H
 		if (zip->stream_valid)
@@ -1487,6 +1514,22 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		t_avail_in = zip->stream.avail_in;
 		t_avail_out = zip->stream.avail_out;
 		break;
+#endif
+#ifdef HAVE_ZSTD_H
+	case _7Z_ZSTD:
+	{
+		ZSTD_inBuffer input = { t_next_in, t_avail_in, 0 }; // src, size, pos
+		ZSTD_outBuffer output = { t_next_out, t_avail_out, 0 }; // dst, size, pos
+
+		size_t const zret = ZSTD_decompressStream(zip->zstd_dstream, &output, &input);
+		if (ZSTD_isError(zret)) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Zstd decompression failed: %s", ZSTD_getErrorName(zret));
+			return ARCHIVE_FAILED;
+		}
+		t_avail_in -= input.pos;
+		t_avail_out -= output.pos;
+		break;
+	}
 #endif
 	case _7Z_PPMD:
 	{
