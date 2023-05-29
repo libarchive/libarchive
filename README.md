@@ -87,7 +87,7 @@ Currently, the library automatically detects and reads the following formats:
   * ZIPX archives (with support for bzip2, ppmd8, lzma and xz compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
-  * 7-Zip archives
+  * 7-Zip archives (including archives that use zstandard compression)
   * Microsoft CAB format
   * LHA and LZH archives
   * RAR and RAR 5.0 archives (with some limitations due to RAR's proprietary status)
