@@ -407,6 +407,8 @@ static int	setup_decode_folder(struct archive_read *, struct _7z_folder *,
 		    int);
 static void	x86_Init(struct _7zip *);
 static size_t	x86_Convert(struct _7zip *, uint8_t *, size_t);
+static void	arm_Init(struct _7zip *);
+static size_t	arm_Convert(struct _7zip *, uint8_t *, size_t);
 static ssize_t		Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 
 
@@ -1041,7 +1043,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 	case _7Z_PPMD:
 		if (coder2 != NULL) {
 			if (coder2->codec != _7Z_X86 &&
-			    coder2->codec != _7Z_X86_BCJ2) {
+			    coder2->codec != _7Z_X86_BCJ2 &&
+			    coder2->codec != _7Z_ARM) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Unsupported filter %lx for %lx",
@@ -1052,6 +1055,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			zip->bcj_state = 0;
 			if (coder2->codec == _7Z_X86)
 				x86_Init(zip);
+			else if (coder2->codec == _7Z_ARM)
+				arm_Init(zip);
 		}
 		break;
 	default:
@@ -1615,16 +1620,21 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	/*
 	 * Decord BCJ.
 	 */
-	if (zip->codec != _7Z_LZMA2 && zip->codec2 == _7Z_X86) {
-		size_t l = x86_Convert(zip, buff, *outbytes);
-		zip->odd_bcj_size = *outbytes - l;
-		if (zip->odd_bcj_size > 0 && zip->odd_bcj_size <= 4 &&
-		    o_avail_in && ret != ARCHIVE_EOF) {
-			memcpy(zip->odd_bcj, ((unsigned char *)buff) + l,
-			    zip->odd_bcj_size);
-			*outbytes = l;
-		} else
-			zip->odd_bcj_size = 0;
+	if (zip->codec != _7Z_LZMA2 && (zip->codec2 == _7Z_X86 || zip->codec2 == _7Z_ARM)) {
+		if (zip->codec2 == _7Z_X86) {
+			size_t l = x86_Convert(zip, buff, *outbytes);
+
+			zip->odd_bcj_size = *outbytes - l;
+			if (zip->odd_bcj_size > 0 && zip->odd_bcj_size <= 4 &&
+		    	o_avail_in && ret != ARCHIVE_EOF) {
+				memcpy(zip->odd_bcj, ((unsigned char *)buff) + l,
+			    	zip->odd_bcj_size);
+				*outbytes = l;
+			} else
+				zip->odd_bcj_size = 0;
+		} else { // zip->codec2 == _7Z_ARM
+			*outbytes = arm_Convert(zip, buff, *outbytes);
+		}
 	}
 
 	/*
@@ -3768,6 +3778,53 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 	zip->bcj_prevMask = prevMask;
 	zip->bcj_ip += (uint32_t)bufferPos;
 	return (bufferPos);
+}
+
+static void
+arm_Init(struct _7zip *zip)
+{
+	zip->bcj_ip = 8;
+}
+
+static size_t
+arm_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
+{
+	// This function was adapted from
+	// static size_t bcj_arm(struct xz_dec_bcj *s, uint8_t *buf, size_t size)
+	// in https://git.tukaani.org/xz-embedded.git
+
+	/*
+	 * Branch/Call/Jump (BCJ) filter decoders
+	 *
+	 * Authors: Lasse Collin <lasse.collin@tukaani.org>
+	 *          Igor Pavlov <https://7-zip.org/>
+	 *
+	 * This file has been put into the public domain.
+	 * You can do whatever you want with this file.
+	 */
+
+	size_t i;
+	uint32_t addr;
+
+	for (i = 0; i + 4 <= size; i += 4) {
+		if (buf[i + 3] == 0xEB) {
+			// Calculate the transformed addr.
+			addr = (uint32_t)buf[i] | ((uint32_t)buf[i + 1] << 8)
+				| ((uint32_t)buf[i + 2] << 16);
+			addr <<= 2;
+			addr -= zip->bcj_ip + (uint32_t)i;
+			addr >>= 2;
+
+			// Store the transformed addr in buf.
+			buf[i] = (uint8_t)addr;
+			buf[i + 1] = (uint8_t)(addr >> 8);
+			buf[i + 2] = (uint8_t)(addr >> 16);
+		}
+	}
+
+	zip->bcj_ip += i;
+
+	return i;
 }
 
 /*
