@@ -451,7 +451,8 @@ archive_compressor_zstd_write(struct archive_write_filter *f, const void *buff,
 static int
 archive_compressor_zstd_flush(struct archive_write_filter *f)
 {
-
+        // Silence unused-parameter compiler warnings.
+        (void)f;
 	return (ARCHIVE_OK);
 }
 
