@@ -2089,6 +2089,12 @@ IF(ENABLE_TEST)
   ADD_CUSTOM_TARGET(run_all_tests)
 ENDIF(ENABLE_TEST)
 
+IF(ENABLE_INSTALL)
+  INSTALL(EXPORT libarchive_target
+          FILE libarchiveConfig.cmake
+          DESTINATION share/cmake/Libarchive)
+ENDIF(ENABLE_INSTALL)
+
 add_subdirectory(libarchive)
 add_subdirectory(cat)
 add_subdirectory(tar)
