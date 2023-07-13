@@ -254,9 +254,9 @@ static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
  * which is high-16-bits of nFileIndexHigh. */
 #define bhfi_ino(bhfi)	\
 	((((int64_t)((bhfi)->nFileIndexHigh & 0x0000FFFFUL)) << 32) \
-    + (bhfi)->nFileIndexLow)
+    | (bhfi)->nFileIndexLow)
 #define bhfi_size(bhfi)	\
-    ((((int64_t)(bhfi)->nFileSizeHigh) << 32) + (bhfi)->nFileSizeLow)
+    ((((int64_t)(bhfi)->nFileSizeHigh) << 32) | (bhfi)->nFileSizeLow)
 
 static int
 file_information(struct archive_write_disk *a, wchar_t *path,
