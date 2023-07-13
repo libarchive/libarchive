@@ -7,7 +7,7 @@ used before a patch is released.
 
 You may submit the report in the following ways:
 
-- send an email to ???@???; and/or
+- send an email to security@libarchive.de; and/or
 - send us a [private vulnerability report](https://github.com/libarchive/libarchive/security/advisories/new)
 
 Please provide the following information in your report:
