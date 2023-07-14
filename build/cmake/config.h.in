@@ -908,6 +908,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `openat' function. */
 #cmakedefine HAVE_OPENAT 1
 
+/* Define to 1 if you have the <openssl/evp.h> header file. */
+#cmakedefine HAVE_OPENSSL_EVP_H 1
+
 /* Define to 1 if you have the <paths.h> header file. */
 #cmakedefine HAVE_PATHS_H 1
 
