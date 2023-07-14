@@ -1116,7 +1116,7 @@ main(int argc, char *argv[])
 
 #ifdef __GLIBC__
 	/* Prevent GNU getopt(3) from rearranging options. */
-	setenv("POSIXLY_CORRECT", "");
+	setenv("POSIXLY_CORRECT", "", 1);
 #endif
 	/*
 	 * Info-ZIP's unzip(1) expects certain options to come before the
