@@ -780,12 +780,18 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_lzma2.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma2_arm.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
+	libarchive/test/test_read_format_7zip_solid_zstd.7z.uu \
 	libarchive/test/test_read_format_7zip_symbolic_name.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd_arm.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd_bcj.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd_nobcj.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd.7z.uu \
 	libarchive/test/test_read_format_ar.ar.uu \
 	libarchive/test/test_read_format_cab_1.cab.uu \
 	libarchive/test/test_read_format_cab_2.cab.uu \
@@ -1526,4 +1532,6 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/list.h \
 	unzip/test/test_basic.zip.uu \
 	unzip/test/test_encrypted.zip.uu \
+	unzip/test/test_singlefile.zip.uu \
+	unzip/test/test_t_bad.zip.uu \
 	unzip/test/CMakeLists.txt
