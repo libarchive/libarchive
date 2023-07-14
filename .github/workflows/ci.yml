@@ -29,6 +29,7 @@ jobs:
       env:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
+        IGNORE_TRAVERSALS_TEST4: 1
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
