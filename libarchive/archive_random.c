@@ -117,6 +117,7 @@ archive_random(void *buf, size_t nbytes)
 	}
 	/* TODO: Does this case really happen? */
 	return ARCHIVE_FAILED;
+# endif
 #elif !defined(HAVE_ARC4RANDOM_BUF) && (!defined(_WIN32) || defined(__CYGWIN__))
 	la_arc4random_buf(buf, nbytes);
 	return ARCHIVE_OK;
