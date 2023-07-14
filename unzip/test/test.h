@@ -35,6 +35,6 @@
 #undef	EXTRA_DUMP	  /* How to dump extra data */
 #undef	EXTRA_ERRNO	  /* How to dump errno */
 /* How to generate extra version info. */
-#define	EXTRA_VERSION    (system(testprog) ? "" : "")
+#define	EXTRA_VERSION     (systemf("%s -v", testprog) ? "" : "")
 
 #include "test_common.h"
