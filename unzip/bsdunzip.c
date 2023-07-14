@@ -651,7 +651,7 @@ recheck:
 #elif HAVE_STRUCT_STAT_ST_MTIME_USEC
 			    sb.st_mtime > mtime.tv_sec ||
 			    (sb.st_mtime == mtime.tv_sec &&
-			    sb.st_mtime_usec * 1000 => mtime.tv_nsec)
+			    sb.st_mtime_usec => mtime.tv_nsec / 1000)
 #else
 			    sb.st_mtime > mtime.tv_sec
 #endif
