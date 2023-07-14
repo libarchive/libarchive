@@ -635,10 +635,27 @@ recheck:
 	if (lstat(*path, &sb) == 0) {
 		if (u_opt || f_opt) {
 			/* check if up-to-date */
-			if (S_ISREG(sb.st_mode) &&
-			    (sb.st_mtim.tv_sec > mtime.tv_sec ||
+			if (S_ISREG(sb.st_mode) && (
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
+			    sb.st_mtimespec.tv_sec > mtime.tv_sec ||
+			    (sb.st_mtimespec.tv_sec == mtime.tv_sec &&
+			    sb.st_mtimespec.tv_nsec >= mtime.tv_nsec)
+#elif HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
+			    sb.st_mtim.tv_sec > mtime.tv_sec ||
 			    (sb.st_mtim.tv_sec == mtime.tv_sec &&
-			    sb.st_mtim.tv_nsec >= mtime.tv_nsec)))
+			    sb.st_mtim.tv_nsec >= mtime.tv_nsec)
+#elif HAVE_STRUCT_STAT_ST_MTIME_N
+			    sb.st_mtime > mtime.tv_sec ||
+			    (sb.st_mtime == mtime.tv_sec &&
+			    sb.st_mtime_n => mtime.tv_nsec)
+#elif HAVE_STRUCT_STAT_ST_MTIME_USEC
+			    sb.st_mtime > mtime.tv_sec ||
+			    (sb.st_mtime == mtime.tv_sec &&
+			    sb.st_mtime_usec * 1000 => mtime.tv_nsec)
+#else
+			    sb.st_mtime > mtime.tv_sec
+#endif
+			    ))
 				return;
 			(void)unlink(*path);
 		} else if (o_opt) {
