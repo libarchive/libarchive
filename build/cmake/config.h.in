@@ -588,6 +588,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `flistxattr' function. */
 #cmakedefine HAVE_FLISTXATTR 1
 
+/* Define to 1 if you have the `fnmatch' function. */
+#cmakedefine HAVE_FNMATCH 1
+
+/* Define to 1 if you have the <fnmatch.h> header file. */
+#cmakedefine HAVE_FNMATCH_H 1
+
 /* Define to 1 if you have the `fork' function. */
 #cmakedefine HAVE_FORK 1
 
@@ -1105,6 +1111,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <sys/poll.h> header file. */
 #cmakedefine HAVE_SYS_POLL_H 1
+
+/* Define to 1 if you have the <sys/queue.h> header file. */
+#cmakedefine HAVE_SYS_QUEUE_H 1
 
 /* Define to 1 if you have the <sys/richacl.h> header file. */
 #cmakedefine HAVE_SYS_RICHACL_H 1
