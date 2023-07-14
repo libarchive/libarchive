@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   MacOS:
-    runs-on: macos-12
+    runs-on: macos-13
     strategy:
       matrix:
         bs: [autotools, cmake]
