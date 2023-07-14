@@ -1442,7 +1442,6 @@ bsdcat_test_EXTRA_DIST= \
 
 bsdunzip_SOURCES= \
 		unzip/bsdunzip.c \
-		unzip/bsdunzip.h \
 		unzip/bsdunzip_platform.h
 
 if INC_WINDOWS_FILES
