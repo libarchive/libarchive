@@ -1149,6 +1149,7 @@ test_arm64_filter(const char *refname)
 
 DEFINE_TEST(test_read_format_7zip_lzma2_arm64)
 {
+#ifdef HAVE_LZMA_FILTER_ARM64
 	struct archive *a;
 
 	assert((a = archive_read_new()) != NULL);
@@ -1161,6 +1162,9 @@ DEFINE_TEST(test_read_format_7zip_lzma2_arm64)
 	}
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#else
+	skipping("This version of liblzma does not support LZMA_FILTER_ARM64");
+#endif
 }
 
 DEFINE_TEST(test_read_format_7zip_deflate_arm64)
