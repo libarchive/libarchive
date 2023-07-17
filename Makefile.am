@@ -768,6 +768,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_copy.7z.uu \
 	libarchive/test/test_read_format_7zip_copy_2.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_arm64.7z.uu \
 	libarchive/test/test_read_format_7zip_delta_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_delta4_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_delta_lzma2.7z.uu \
@@ -780,8 +781,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_lzma2.7z.uu \
-	libarchive/test/test_read_format_7zip_lzma2_arm.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma2_arm64.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma2_arm.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \

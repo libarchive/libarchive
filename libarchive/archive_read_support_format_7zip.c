@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #define _7Z_IA64	0x03030401
 #define _7Z_ARM		0x03030501
 #define _7Z_ARMTHUMB	0x03030701
+#define _7Z_ARM64	0xa
 #define _7Z_SPARC	0x03030805
 
 #define _7Z_ZSTD	0x4F71101 /* Copied from https://github.com/mcmilk/7-Zip-zstd.git */
@@ -409,6 +410,7 @@ static void	x86_Init(struct _7zip *);
 static size_t	x86_Convert(struct _7zip *, uint8_t *, size_t);
 static void	arm_Init(struct _7zip *);
 static size_t	arm_Convert(struct _7zip *, uint8_t *, size_t);
+static size_t	arm64_Convert(struct _7zip *, uint8_t *, size_t);
 static ssize_t		Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 
 
@@ -1044,7 +1046,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		if (coder2 != NULL) {
 			if (coder2->codec != _7Z_X86 &&
 			    coder2->codec != _7Z_X86_BCJ2 &&
-			    coder2->codec != _7Z_ARM) {
+			    coder2->codec != _7Z_ARM &&
+			    coder2->codec != _7Z_ARM64) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Unsupported filter %lx for %lx",
@@ -1153,6 +1156,12 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				filters[fi].id = LZMA_FILTER_ARMTHUMB;
 				fi++;
 				break;
+#ifdef LZMA_FILTER_ARM64
+			case _7Z_ARM64:
+				filters[fi].id = LZMA_FILTER_ARM64;
+				fi++;
+				break;
+#endif
 			case _7Z_SPARC:
 				filters[fi].id = LZMA_FILTER_SPARC;
 				fi++;
@@ -1620,7 +1629,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	/*
 	 * Decord BCJ.
 	 */
-	if (zip->codec != _7Z_LZMA2 && (zip->codec2 == _7Z_X86 || zip->codec2 == _7Z_ARM)) {
+	if (zip->codec != _7Z_LZMA2) {
 		if (zip->codec2 == _7Z_X86) {
 			size_t l = x86_Convert(zip, buff, *outbytes);
 
@@ -1632,8 +1641,10 @@ decompress(struct archive_read *a, struct _7zip *zip,
 				*outbytes = l;
 			} else
 				zip->odd_bcj_size = 0;
-		} else { // zip->codec2 == _7Z_ARM
+		} else if (zip->codec2 == _7Z_ARM) {
 			*outbytes = arm_Convert(zip, buff, *outbytes);
+		} else if (zip->codec2 == _7Z_ARM64) {
+			*outbytes = arm64_Convert(zip, buff, *outbytes);
 		}
 	}
 
@@ -3819,6 +3830,69 @@ arm_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 			buf[i] = (uint8_t)addr;
 			buf[i + 1] = (uint8_t)(addr >> 8);
 			buf[i + 2] = (uint8_t)(addr >> 16);
+		}
+	}
+
+	zip->bcj_ip += i;
+
+	return i;
+}
+
+static size_t
+arm64_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
+{
+	// This function was adapted from
+	// static size_t bcj_arm64(struct xz_dec_bcj *s, uint8_t *buf, size_t size)
+	// in https://git.tukaani.org/xz-embedded.git
+
+	/*
+	 * Branch/Call/Jump (BCJ) filter decoders
+	 *
+	 * Authors: Lasse Collin <lasse.collin@tukaani.org>
+	 *          Igor Pavlov <https://7-zip.org/>
+	 *
+	 * This file has been put into the public domain.
+	 * You can do whatever you want with this file.
+	 */
+
+	size_t i;
+	uint32_t instr;
+	uint32_t addr;
+
+	for (i = 0; i + 4 <= size; i += 4) {
+		instr = (uint32_t)buf[i]
+			| ((uint32_t)buf[i+1] << 8)
+			| ((uint32_t)buf[i+2] << 16)
+			| ((uint32_t)buf[i+3] << 24);
+
+		if ((instr >> 26) == 0x25) {
+			/* BL instruction */
+			addr = instr - ((zip->bcj_ip + (uint32_t)i) >> 2);
+			instr = 0x94000000 | (addr & 0x03FFFFFF);
+
+			buf[i]   = (uint8_t)instr;
+			buf[i+1] = (uint8_t)(instr >> 8);
+			buf[i+2] = (uint8_t)(instr >> 16);
+			buf[i+3] = (uint8_t)(instr >> 24);
+		} else if ((instr & 0x9F000000) == 0x90000000) {
+			/* ADRP instruction */
+			addr = ((instr >> 29) & 3) | ((instr >> 3) & 0x1FFFFC);
+
+			/* Only convert values in the range +/-512 MiB. */
+			if ((addr + 0x020000) & 0x1C0000)
+				continue;
+
+			addr -= (zip->bcj_ip + (uint32_t)i) >> 12;
+
+			instr &= 0x9000001F;
+			instr |= (addr & 3) << 29;
+			instr |= (addr & 0x03FFFC) << 3;
+			instr |= (0U - (addr & 0x020000)) & 0xE00000;
+
+			buf[i]   = (uint8_t)instr;
+			buf[i+1] = (uint8_t)(instr >> 8);
+			buf[i+2] = (uint8_t)(instr >> 16);
+			buf[i+3] = (uint8_t)(instr >> 24);
 		}
 	}
 

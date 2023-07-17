@@ -482,6 +482,19 @@ if test "x$with_lzma" != "xno"; then
   if test "x$ac_cv_lzma_has_mt" != xno; then
 	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the `lzma_stream_encoder_mt' function.])
   fi
+
+  AC_CACHE_CHECK(
+    [whether we have ARM64 filter support in lzma],
+    ac_cv_lzma_has_arm64,
+    [AC_LINK_IFELSE([
+      AC_LANG_PROGRAM([[#include <lzma.h>]
+                       [#ifndef LZMA_FILTER_ARM64]
+                       [#error unsupported]
+                       [#endif]])],
+      [ac_cv_lzma_has_arm64=yes], [ac_cv_lzma_has_arm64=no])])
+  if test "x$ac_cv_lzma_has_arm64" != xno; then
+	  AC_DEFINE([HAVE_LZMA_FILTER_ARM64], [1], [Define to 1 if you have the `LZMA_FILTER_ARM64' macro.])
+  fi
 fi
 
 AC_ARG_WITH([lzo2],

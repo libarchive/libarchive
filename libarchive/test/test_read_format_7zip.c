@@ -1110,3 +1110,75 @@ DEFINE_TEST(test_read_format_7zip_ppmd)
 {
 	test_ppmd();
 }
+
+static void
+test_arm64_filter(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[70368];
+	uint32_t computed_crc = 0;
+	uint32_t expected_crc = 0xde97d594;
+
+	assert((a = archive_read_new()) != NULL);
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt((AE_IFREG | 0775), archive_entry_mode(ae));
+	assertEqualString("hw-arm64", archive_entry_pathname(ae));
+	assertEqualInt(sizeof(buff), archive_entry_size(ae));
+	assertEqualInt(sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
+	computed_crc = crc32(computed_crc, buff, sizeof(buff));
+	assertEqualInt(computed_crc, expected_crc);
+
+	assertEqualInt(1, archive_file_count(a));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_lzma2_arm64)
+{
+#ifdef HAVE_LZMA_FILTER_ARM64
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_arm64_filter("test_read_format_7zip_lzma2_arm64.7z");
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#else
+	skipping("This version of liblzma does not support LZMA_FILTER_ARM64");
+#endif
+}
+
+DEFINE_TEST(test_read_format_7zip_deflate_arm64)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_gzip(a)) {
+		skipping(
+		    "7zip:deflate decoding is not supported on this platform");
+	} else {
+		test_arm64_filter("test_read_format_7zip_deflate_arm64.7z");
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
