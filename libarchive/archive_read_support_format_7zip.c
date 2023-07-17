@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #define _7Z_IA64	0x03030401
 #define _7Z_ARM		0x03030501
 #define _7Z_ARMTHUMB	0x03030701
+#define _7Z_ARM64	0xa
 #define _7Z_SPARC	0x03030805
 
 #define _7Z_ZSTD	0x4F71101 /* Copied from https://github.com/mcmilk/7-Zip-zstd.git */
@@ -1153,6 +1154,12 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				filters[fi].id = LZMA_FILTER_ARMTHUMB;
 				fi++;
 				break;
+#ifdef LZMA_FILTER_ARM64
+			case _7Z_ARM64:
+				filters[fi].id = LZMA_FILTER_ARM64;
+				fi++;
+				break;
+#endif
 			case _7Z_SPARC:
 				filters[fi].id = LZMA_FILTER_SPARC;
 				fi++;
