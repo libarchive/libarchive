@@ -694,8 +694,10 @@ recheck:
 		if (symlink(linkname, *path) != 0)
 			error("symlink('%s')", *path);
 		info(" extracting: %s -> %s\n", *path, linkname);
+#ifdef HAVE_LCHMOD
 		if (lchmod(*path, mode) != 0)
 			warning("Cannot set mode for '%s'", *path);
+#endif
 		/* set access and modification time */
 		if (utimensat(AT_FDCWD, *path, ts, AT_SYMLINK_NOFOLLOW) != 0)
 			warning("utimensat('%s')", *path);
@@ -1053,7 +1055,10 @@ getopts(int argc, char *argv[])
 {
 	int opt;
 
-	optreset = optind = 1;
+	optind = 1;
+#ifdef HAVE_GETOPT_OPTRESET
+	optreset = 1;
+#endif
 	while ((opt = getopt(argc, argv, "aCcd:fjLlnopP:qtuvx:yZ1")) != -1)
 		switch (opt) {
 		case '1':
