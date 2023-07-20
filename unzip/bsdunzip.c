@@ -1121,6 +1121,7 @@ getopts(int argc, char *argv[])
 		case 'I':
 		case 'O':
 			O_arg = optarg;
+			break;
 		case 'j':
 			j_opt = 1;
 			break;
