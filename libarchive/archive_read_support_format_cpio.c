@@ -637,7 +637,7 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_mtime(entry, atol16(header + newc_mtime_offset, newc_mtime_size), 0);
 	*namelength = (size_t)atol16(header + newc_namesize_offset, newc_namesize_size);
 	/* Pad name to 2 more than a multiple of 4. */
-	*name_pad = (2 - *namelength) & 3;
+	*name_pad = 6 - (*namelength & 3);
 
 	/* Make sure that the padded name length fits into size_t. */
 	if (*name_pad > SIZE_MAX - *namelength) {
