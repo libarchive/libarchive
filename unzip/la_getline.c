@@ -29,8 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HAVE_GETLINE
 #include "bsdunzip_platform.h"
+#ifndef HAVE_GETLINE
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
