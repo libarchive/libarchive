@@ -59,6 +59,9 @@
 #ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
 #endif
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>
+#endif
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -103,6 +106,7 @@ static int		 u_opt;		/* update */
 static int		 v_opt;		/* verbose/list */
 static const char	*y_str = "";	/* 4 digit year */
 static int		 Z1_opt;	/* zipinfo mode list files only */
+static int		 version_opt;	/* version string */
 
 /* debug flag */
 static int		 unzip_debug;
@@ -1089,17 +1093,34 @@ usage(void)
 	exit(EXIT_FAILURE);
 }
 
+static void
+version(void)
+{
+        printf("bsdunzip %s - %s \n",
+            BSDUNZIP_VERSION_STRING,
+            archive_version_details());
+        exit(0);
+}
+
 static int
 getopts(int argc, char *argv[])
 {
 	int opt;
 
+	static struct option longopts[] = {
+	    { "version", no_argument, &version_opt, 1 },
+	    { 0, 0, 0, 0}
+	};
+
 	optind = 1;
 #ifdef HAVE_GETOPT_OPTRESET
 	optreset = 1;
 #endif
-	while ((opt = getopt(argc, argv, "aCcd:fI:jLlnO:opP:qtuvx:yZ1")) != -1)
+	while ((opt = getopt_long(argc, argv,
+	    "aCcd:fI:jLlnO:opP:qtuvx:yZ1", longopts, NULL)) != -1) {
 		switch (opt) {
+		case 0:
+			break;
 		case '1':
 			Z1_opt = 1;
 			break;
@@ -1169,7 +1190,7 @@ getopts(int argc, char *argv[])
 		default:
 			usage();
 		}
-
+	}
 	return (optind);
 }
 
@@ -1178,6 +1199,8 @@ main(int argc, char *argv[])
 {
 	const char *zipfile;
 	int nopts;
+
+	lafe_setprogname(*argv, "bsdunzip");
 
 	if (isatty(STDOUT_FILENO))
 		tty = 1;
@@ -1198,6 +1221,11 @@ main(int argc, char *argv[])
 	 * before and after the zipfile name.
 	 */
 	nopts = getopts(argc, argv);
+
+	if (version_opt == 1) {
+		version();
+		exit(EXIT_SUCCESS);
+	}
 
 	/*
 	 * When more of the zipinfo mode options are implemented, this
