@@ -60,4 +60,6 @@ enum {
 
 int bsdunzip_getopt(struct bsdunzip *);
 
+extern int bsdunzip_optind;
+
 #endif
