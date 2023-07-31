@@ -696,7 +696,6 @@ int main(void) { return EXT2_IOC_GETFLAGS; }" HAVE_WORKING_EXT2_IOC_GETFLAGS)
 
 LA_CHECK_INCLUDE_FILE("fcntl.h" HAVE_FCNTL_H)
 LA_CHECK_INCLUDE_FILE("fnmatch.h" HAVE_FNMATCH_H)
-LA_CHECK_INCLUDE_FILE("getopt.h" HAVE_GETOPT_H)
 LA_CHECK_INCLUDE_FILE("grp.h" HAVE_GRP_H)
 LA_CHECK_INCLUDE_FILE("inttypes.h" HAVE_INTTYPES_H)
 LA_CHECK_INCLUDE_FILE("io.h" HAVE_IO_H)
@@ -1488,10 +1487,6 @@ CHECK_C_SOURCE_COMPILES(
 CHECK_C_SOURCE_COMPILES(
   "#include <fcntl.h>\n#include <unistd.h>\nint main() {char buf[10]; return readlinkat(AT_FDCWD, \"\", buf, 0);}"
   HAVE_READLINKAT)
-
-# Check for getopt uses optreset to reset
-CHECK_SYMBOL_EXISTS(optreset "getopt.h" HAVE_GETOPT_OPTRESET)
-
 
 # To verify major(), we need to both include the header
 # of interest and verify that the result can be linked.

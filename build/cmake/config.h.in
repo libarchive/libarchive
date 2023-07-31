@@ -648,12 +648,6 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `getline' function. */
 #cmakedefine HAVE_GETLINE 1
 
-/* Define to 1 if you have the <getopt.h> header file. */
-#cmakedefine HAVE_GETOPT_H 1
-
-/* Define to 1 if platform uses `optreset` to reset `getopt` */
-#cmakedefine HAVE_GETOPT_OPTRESET 1
-
 /* Define to 1 if you have the `getpid' function. */
 #cmakedefine HAVE_GETPID 1
 

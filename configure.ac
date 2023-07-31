@@ -329,7 +329,7 @@ AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h])
 AC_CHECK_HEADERS([copyfile.h ctype.h])
-AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h fnmatch.h getopt.h grp.h])
+AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h fnmatch.h grp.h])
 
 AC_CACHE_CHECK([whether EXT2_IOC_GETFLAGS is usable],
     [ac_cv_have_decl_EXT2_IOC_GETFLAGS],
@@ -836,11 +836,6 @@ AC_CHECK_MEMBER(struct dirent.d_namlen,,,
 #include <dirent.h>
 #endif
 ])
-
-AC_CHECK_DECL([optreset],
-		[AC_DEFINE(HAVE_GETOPT_OPTRESET, 1, [Platform uses optreset to reset getopt])],
-		[],
-		[#include <getopt.h>])
 
 # Check for Extended Attributes support
 AC_ARG_ENABLE([xattr],

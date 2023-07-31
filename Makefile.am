@@ -1451,7 +1451,9 @@ bsdcat_test_EXTRA_DIST= \
 
 bsdunzip_SOURCES= \
 		unzip/bsdunzip.c \
+		unzip/bsdunzip.h \
 		unzip/bsdunzip_platform.h \
+		unzip/cmdline.c \
 		unzip/la_getline.c \
 		unzip/la_queue.h
 
@@ -1489,7 +1491,7 @@ bsdunzip_programs=
 endif
 
 #
-# bsdcat_test
+# bsdunzip_test
 #
 
 bsdunzip_test_SOURCES= \
