@@ -1162,6 +1162,37 @@ make_fflags_entry(struct archive_write *a, struct xml_writer *writer,
 	return (ARCHIVE_OK);
 }
 
+/*
+ * This function determines whether a UTF-8 string contains
+ * only codepoints that are convertible to Latin-1. Strings
+ * beyond Latin-1 are stored base64-encoded in the XAR TOC.
+ */
+static int
+is_u8_zstring_latin1(const char *in)
+{
+	unsigned int c;
+	while (*in) {
+		c = *in++;
+		if (c < 0x80) continue;
+		/*
+		 * Filter out non-continuation, any continuation of 2-3
+		 * bytes, and any continuation of 1 byte whose high 3 bits
+		 * are non-zero. Recall, 1-byte continuations can store 11
+		 * bits whereas Latin-1 codepoints are only 8 bits wide.
+		 */
+		if ((c & 0xFC) != 0xC0)
+			return (0);
+		c = *in++;
+		/*
+		 * If we get any non-continuation byte (including 0x00!),
+		 * the string is not valid UTF-8.
+		 */
+		if ((c & 0xC0) != 0x80)
+			return (0); /* invalid unicode */
+	}
+	return (1);
+}
+
 static int
 make_file_entry(struct archive_write *a, struct xml_writer *writer,
     struct file *file)
@@ -1170,10 +1201,9 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 	const char *filetype, *filelink, *fflags;
 	struct archive_string linkto;
 	struct heap_data *heap;
-	unsigned char *tmp;
 	const char *p;
 	size_t len;
-	int r, r2, l, ll;
+	int r, r2;
 
 	xar = (struct xar *)a->format_data;
 	r2 = ARCHIVE_OK;
@@ -1181,16 +1211,7 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 	/*
 	 * Make a file name entry, "<name>".
 	 */
-	l = ll = (int)archive_strlen(&(file->basename));
-	tmp = malloc(l);
-	if (tmp == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory");
-		return (ARCHIVE_FATAL);
-	}
-	r = UTF8Toisolat1(tmp, &l, BAD_CAST(file->basename.s), &ll);
-	free(tmp);
-	if (r < 0) {
+	if (!is_u8_zstring_latin1(file->basename.s)) {
 		r = xml_writer_start_element(writer, "name");
 		if (r < 0) {
 			archive_set_error(&a->archive,
