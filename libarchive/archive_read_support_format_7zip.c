@@ -122,6 +122,14 @@ __FBSDID("$FreeBSD$");
 #define FILE_ATTRIBUTE_READONLY 0x00000001
 #endif
 
+#ifndef FILE_ATTRIBUTE_HIDDEN
+#define FILE_ATTRIBUTE_HIDDEN 0x00000002
+#endif
+
+#ifndef FILE_ATTRIBUTE_SYSTEM
+#define FILE_ATTRIBUTE_SYSTEM 0x00000004
+#endif
+
 #ifndef FILE_ATTRIBUTE_DIRECTORY
 #define FILE_ATTRIBUTE_DIRECTORY 0x00000010
 #endif
@@ -754,6 +762,18 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		zip->entry_bytes_remaining = 0;
 		archive_entry_set_size(entry, 0);
 	}
+
+#if defined(_WIN32)
+	// These settings are only (directly) usable on windows as far as I can tell.
+	// Other platforms should probably use the mode field instead.
+
+	// These attributes are supported by the windows implementation of archive_write_disk.
+	const int supported_attrs = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM;
+
+	unsigned long set_bits = zip_entry->attr & supported_attrs;
+	if (set_bits != 0)
+		archive_entry_set_fflags(entry, set_bits, 0 /* clear bits */);
+#endif  // _WIN32
 
 	/* If there's no body, force read_data() to return EOF immediately. */
 	if (zip->entry_bytes_remaining < 1)
@@ -2744,7 +2764,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			}
 			entries[i].ssIndex = -1;
 		}
-		if (entries[i].attr & 0x01)
+		if (entries[i].attr & FILE_ATTRIBUTE_READONLY)
 			entries[i].mode &= ~0222;/* Read only. */
 
 		if ((entries[i].flg & HAS_STREAM) == 0 && indexInFolder == 0) {
