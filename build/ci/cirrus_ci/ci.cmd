@@ -1,5 +1,5 @@
 @ECHO OFF
-SET ZLIB_VERSION=1.2.11
+SET ZLIB_VERSION=1.2.13
 IF NOT "%BE%"=="cygwin-gcc"  (
   IF NOT "%BE%"=="mingw-gcc" (
     IF NOT "%BE%"=="msvc" (
