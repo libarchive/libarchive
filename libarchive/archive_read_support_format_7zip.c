@@ -763,17 +763,36 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		archive_entry_set_size(entry, 0);
 	}
 
-#if defined(_WIN32)
-	// These settings are only (directly) usable on windows as far as I can tell.
-	// Other platforms should probably use the mode field instead.
-
 	// These attributes are supported by the windows implementation of archive_write_disk.
 	const int supported_attrs = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM;
 
-	unsigned long set_bits = zip_entry->attr & supported_attrs;
-	if (set_bits != 0)
-		archive_entry_set_fflags(entry, set_bits, 0 /* clear bits */);
-#endif  // _WIN32
+	if (zip_entry->attr & supported_attrs) {
+		char *fflags_text, *ptr;
+		/* allocate for "rdonly,hidden,system," */
+		fflags_text = malloc(22 * sizeof(char));
+		if (fflags_text != NULL) {
+			ptr = fflags_text; 
+			if (zip_entry->attr & FILE_ATTRIBUTE_READONLY) { 
+ 			strcpy(ptr, "rdonly,"); 
+ 			ptr = ptr + 7; 
+ 		} 
+ 		if (zip_entry->attr & FILE_ATTRIBUTE_HIDDEN) { 
+ 			strcpy(ptr, "hidden,"); 
+ 			ptr = ptr + 7; 
+ 		} 
+ 		if (zip_entry->attr & FILE_ATTRIBUTE_SYSTEM) { 
+ 			strcpy(ptr, "system,"); 
+ 			ptr = ptr + 7; 
+ 		} 
+ 		if (ptr > fflags_text) { 
+ 			/* Delete trailing comma */ 
+ 			*(ptr - 1) = '\0'; 
+ 			archive_entry_copy_fflags_text(entry, 
+				fflags_text); 
+ 		} 
+ 		free(fflags_text); 
+		}
+	}
 
 	/* If there's no body, force read_data() to return EOF immediately. */
 	if (zip->entry_bytes_remaining < 1)

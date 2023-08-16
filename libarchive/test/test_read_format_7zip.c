@@ -1182,3 +1182,79 @@ DEFINE_TEST(test_read_format_7zip_deflate_arm64)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_7zip_win_attrib)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	// This archive has four files and four directories:
+	// * hidden directory
+	// * readonly directory
+	// * regular directory
+	// * system directory
+	// * regular "archive" file
+	// * hidden file
+	// * readonly file
+	// * system file
+	const char *refname = "test_read_format_7zip_win_attrib.7z";
+	extract_reference_file(refname);
+
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	struct archive_entry *ae;
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("hidden_dir/", archive_entry_pathname(ae));
+	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
+	assertEqualString("hidden", archive_entry_fflags_text(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("readonly_dir/", archive_entry_pathname(ae));
+	assertEqualInt((AE_IFDIR | 0555), archive_entry_mode(ae));
+	assertEqualString("rdonly", archive_entry_fflags_text(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("regular_dir/", archive_entry_pathname(ae));
+	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
+	assertEqualString(NULL, archive_entry_fflags_text(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("system_dir/", archive_entry_pathname(ae));
+	assertEqualInt((AE_IFDIR | 0755), archive_entry_mode(ae));
+	assertEqualString("system", archive_entry_fflags_text(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("archive_file.txt", archive_entry_pathname(ae));
+	assertEqualInt((AE_IFREG | 0644), archive_entry_mode(ae));
+	assertEqualString(NULL, archive_entry_fflags_text(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("hidden_file.txt", archive_entry_pathname(ae));
+	assertEqualInt((AE_IFREG | 0644), archive_entry_mode(ae));
+	assertEqualString("hidden", archive_entry_fflags_text(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("readonly_file.txt", archive_entry_pathname(ae));
+	assertEqualInt((AE_IFREG | 0444), archive_entry_mode(ae));
+	assertEqualString("rdonly", archive_entry_fflags_text(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("system_file.txt", archive_entry_pathname(ae));
+	assertEqualInt((AE_IFREG | 0644), archive_entry_mode(ae));
+	assertEqualString("system", archive_entry_fflags_text(ae));
+
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
