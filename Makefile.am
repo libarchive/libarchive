@@ -790,6 +790,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_solid_zstd.7z.uu \
 	libarchive/test/test_read_format_7zip_symbolic_name.7z.uu \
+	libarchive/test/test_read_format_7zip_win_attrib.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd_arm.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd_bcj.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd_nobcj.7z.uu \
