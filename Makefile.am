@@ -454,6 +454,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_program.c \
 	libarchive/test/test_read_filter_program_signature.c \
 	libarchive/test/test_read_filter_uudecode.c \
+	libarchive/test/test_read_filter_uudecode_raw.c \
 	libarchive/test/test_read_format_7zip.c \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
 	libarchive/test/test_read_format_7zip_encryption_partially.c \
@@ -748,6 +749,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu \
 	libarchive/test/test_read_filter_lzop.tar.lzo.uu \
 	libarchive/test/test_read_filter_lzop_multiple_parts.tar.lzo.uu \
+	libarchive/test/test_read_filter_uudecode_raw.uu \
+	libarchive/test/test_read_filter_uudecode_base64_raw.uu \
 	libarchive/test/test_read_format_mtree_crash747.mtree.bz2.uu \
 	libarchive/test/test_read_format_mtree_noprint.mtree.uu \
 	libarchive/test/test_read_format_7zip_bcj2_bzip2.7z.uu \
