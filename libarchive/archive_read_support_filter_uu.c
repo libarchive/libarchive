@@ -574,9 +574,9 @@ read_more:
 				    ((int)(b[l+1] - '0') * 8) +
 				     (int)(b[l+2] - '0'));
 				uudecode->mode_set = 1;
-				namelen = len - l - 5;
+				namelen = len - nl - 4 - l;
 				if (namelen > 1) {
-					uudecode->name = malloc(namelen);
+					uudecode->name = malloc(namelen + 1);
 					strncpy(uudecode->name,
 					    (const char *)(b + l + 4),
 					    namelen);
