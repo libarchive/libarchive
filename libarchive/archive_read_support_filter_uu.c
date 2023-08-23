@@ -576,6 +576,8 @@ read_more:
 				uudecode->mode_set = 1;
 				namelen = len - nl - 4 - l;
 				if (namelen > 1) {
+					if (uudecode->name != NULL)
+						free(uudecode->name);
 					uudecode->name = malloc(namelen + 1);
 			                if (uudecode->name == NULL) {
 					archive_set_error(
