@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 struct private_data {
 	int		 compression_level;
 	int		 threads;
+	int		 long_distance;
 #if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 	enum {
 		running,
@@ -81,8 +82,11 @@ struct private_data {
 #define CLEVEL_STD_MAX 19 /* without using --ultra */
 #define CLEVEL_MAX 22
 
+#define LONG_STD 27
+
 #define MINVER_NEGCLEVEL 10304
 #define MINVER_MINCLEVEL 10306
+#define MINVER_LONG 10302
 
 static int archive_compressor_zstd_options(struct archive_write_filter *,
 		    const char *, const char *);
@@ -125,6 +129,7 @@ archive_write_add_filter_zstd(struct archive *_a)
 	f->name = "zstd";
 	data->compression_level = CLEVEL_DEFAULT;
 	data->threads = 0;
+	data->long_distance = 0;
 #if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 	data->frame_per_file = 0;
 	data->min_frame_size = 0;
@@ -251,6 +256,18 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		data->max_frame_size = max_frame_size;
 		return (ARCHIVE_OK);
 #endif
+#if ZSTD_VERSION_NUMBER >= MINVER_LONG
+	}
+	else if (strcmp(key, "long") == 0) {
+		intmax_t long_distance;
+		if (string_to_number(value, &long_distance) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
+		if (((int)long_distance) < 0)
+		    return (ARCHIVE_WARN);
+		data->long_distance = (int)long_distance;
+		return (ARCHIVE_OK);
+#endif
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -300,6 +317,10 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 	}
 
 	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_nbWorkers, data->threads);
+
+#if ZSTD_VERSION_NUMBER >= MINVER_LONG
+	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_windowLog, data->long_distance);
+#endif
 
 	return (ARCHIVE_OK);
 }
@@ -431,6 +452,10 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 
 	if (data->threads != 0) {
 		archive_string_sprintf(&as, " --threads=%d", data->threads);
+	}
+
+	if (data->long_distance != 0) {
+		archive_string_sprintf(&as, " --long=%d", data->long_distance);
 	}
 
 	f->write = archive_compressor_zstd_write;
