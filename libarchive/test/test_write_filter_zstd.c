@@ -160,6 +160,12 @@ DEFINE_TEST(test_write_filter_zstd)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "max-frame-size", "1048576"));
 #endif
+#if ZSTD_VERSION_NUMBER >= MINVER_LONG
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "long", "27"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "long", "-1")); /* negative */
+#endif
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 100; i++) {
 		snprintf(path, sizeof(path), "file%03d", i);
