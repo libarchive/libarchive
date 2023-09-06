@@ -256,18 +256,29 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		data->max_frame_size = max_frame_size;
 		return (ARCHIVE_OK);
 #endif
-#if ZSTD_VERSION_NUMBER >= MINVER_LONG
 	}
 	else if (strcmp(key, "long") == 0) {
 		intmax_t long_distance;
 		if (string_to_number(value, &long_distance) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-		if (((int)long_distance) < 0)
+#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR && ZSTD_VERSION_NUMBER >= MINVER_LONG
+		ZSTD_bounds bounds = ZSTD_cParam_getBounds(ZSTD_c_windowLog);
+		if (ZSTD_isError(bounds.error)) {
+			int max_distance = ((int)(sizeof(size_t) == 4 ? 30 : 31));
+			if (((int)long_distance) < 10 || (int)long_distance > max_distance)
+				return (ARCHIVE_WARN);
+		} else {
+			if ((int)long_distance < bounds.lowerBound || (int)long_distance > bounds.upperBound)
+				return (ARCHIVE_WARN);
+		}
+#else
+		int max_distance = ((int)(sizeof(size_t) == 4 ? 30 : 31));
+		if (((int)long_distance) < 10 || (int)long_distance > max_distance)
 		    return (ARCHIVE_WARN);
+#endif
 		data->long_distance = (int)long_distance;
 		return (ARCHIVE_OK);
-#endif
 	}
 
 	/* Note: The "warn" return is just to inform the options
