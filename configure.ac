@@ -482,7 +482,7 @@ if test "x$with_lzma" != "xno"; then
                        [#if LZMA_VERSION < 50020000]
                        [#error unsupported]
                        [#endif]],
-                      [[lzma_stream_encoder_mt(0, 0);]])],
+                      [[int ignored __attribute__((unused)); ignored = lzma_stream_encoder_mt(0, 0);]])],
       [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
   if test "x$ac_cv_lzma_has_mt" != xno; then
 	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the `lzma_stream_encoder_mt' function.])

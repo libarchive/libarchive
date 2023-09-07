@@ -523,7 +523,7 @@ IF(LIBLZMA_FOUND)
     "#include <lzma.h>\nint main() {return (int)lzma_version_number(); }"
     "WITHOUT_LZMA_API_STATIC;LZMA_API_STATIC")
   CHECK_C_SOURCE_COMPILES(
-    "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){lzma_stream_encoder_mt(0, 0); return 0;}"
+    "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){int ignored __attribute__((unused)); ignored = lzma_stream_encoder_mt(0, 0); return 0;}"
     HAVE_LZMA_STREAM_ENCODER_MT)
   IF(NOT WITHOUT_LZMA_API_STATIC AND LZMA_API_STATIC)
     ADD_DEFINITIONS(-DLZMA_API_STATIC)
