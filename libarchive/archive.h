@@ -1091,6 +1091,8 @@ __LA_DECL void		 archive_set_error(struct archive *, int _err,
 __LA_DECL void		 archive_copy_error(struct archive *dest,
 			    struct archive *src);
 __LA_DECL int		 archive_file_count(struct archive *);
+__LA_DECL const char	*archive_charset(struct archive *);
+__LA_DECL int		 archive_set_charset(struct archive *, const char *);
 
 /*
  * ARCHIVE_MATCH API
