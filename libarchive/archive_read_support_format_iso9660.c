@@ -3015,6 +3015,11 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 	uint64_t file_key, parent_key;
 	int hole, parent;
 
+	/* Reserve 16 bits for possible key collisions (needed for linked items) */
+	/* For ISO files with more than 65535 entries, reordering will still occur */
+	key <<= 16;
+	key += heap->used & 0xFFFF;
+
 	/* Expand our pending files list as necessary. */
 	if (heap->used >= heap->allocated) {
 		struct file_info **new_pending_files;
