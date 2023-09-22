@@ -816,7 +816,7 @@ DEFINE_TEST(test_read_format_rar5_unicode)
 	const wchar_t* italic_name = L"\U0001d4ae\U0001d4ce\U0001d4c2\U0001d4b7\U0001d45c\U0001d4c1\U0001d4be\U0001d4b8 \U0001d43f\U0001d4be\U0001d4c3\U0001d4c0.txt";
 	const wchar_t* circle_name = L"\u24bd\u24d0\u24e1\u24d3 \u24c1\u24d8\u24dd\u24da.txt";
 
-if !defined(WIN32) || defined(__CYGWIN__)
+#if !defined(WIN32) || defined(__CYGWIN__)
 	skipping("Skipping test on non-Windows");
 	return;
 #else
