@@ -818,8 +818,8 @@ DEFINE_TEST(test_read_format_rar5_unicode)
 
 if !defined(WIN32) || defined(__CYGWIN__)
 	skipping("Skipping test on non-Windows");
-#endif
-
+	return;
+#else
 	PROLOGUE("test_read_format_rar5_unicode.rar");
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualWString(emoji_name, archive_entry_pathname_w(ae));
@@ -833,6 +833,7 @@ if !defined(WIN32) || defined(__CYGWIN__)
 	assertEqualInt(archive_entry_mode(ae), AE_IFLNK | 0644);
 	assertEqualWString(emoji_name, archive_entry_symlink_w(ae));
 	EPILOGUE();
+#endif
 }
 
 DEFINE_TEST(test_read_format_rar5_block_by_block)
