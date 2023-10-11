@@ -253,7 +253,6 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 	default:
 		break;
 	}
-	return;
 }
 
 static struct links_entry *

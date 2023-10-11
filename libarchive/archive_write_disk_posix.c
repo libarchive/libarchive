@@ -2063,7 +2063,6 @@ edit_deep_directories(struct archive_write_disk *a)
 		/* The chdir() succeeded; we've now shortened the path. */
 		a->name = tail;
 	}
-	return;
 }
 #endif
 
@@ -3890,7 +3889,7 @@ set_fflags(struct archive_write_disk *a)
 		 * The first test encourages the compiler to eliminate
 		 * all of this if it's not necessary.
 		 */
-		if ((critical_flags != 0)  &&  (set & critical_flags)) {
+		if ((set & critical_flags) != 0) {
 			le = current_fixup(a, a->name);
 			if (le == NULL)
 				return (ARCHIVE_FATAL);
@@ -4631,7 +4630,7 @@ set_xattrs(struct archive_write_disk *a)
 				e = extattr_set_fd(a->fd, namespace, name,
 				    value, size);
 				if (e == 0 && errno == 0) {
-					e = size;
+					e = (int)size;
 				}
 			} else {
 				e = extattr_set_link(
