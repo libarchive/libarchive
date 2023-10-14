@@ -289,7 +289,7 @@ endif
 
 # -no-undefined marks that libarchive doesn't rely on symbols
 # defined in the application.  This is mandatory for cygwin.
-libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) $(GC_SECTIONS)
+libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) $(DEAD_CODE_REMOVAL)
 libarchive_la_LIBADD= $(LTLIBICONV)
 
 # Manpages to install
@@ -1050,7 +1050,7 @@ endif
 
 bsdtar_LDADD= libarchive.la libarchive_fe.la $(LTLIBICONV)
 bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic) $(PLATFORMCPPFLAGS)
-bsdtar_LDFLAGS= $(bsdtar_ldstatic) $(GC_SECTIONS)
+bsdtar_LDFLAGS= $(bsdtar_ldstatic) $(DEAD_CODE_REMOVAL)
 
 bsdtar_EXTRA_DIST= \
 	tar/bsdtar.1 \
@@ -1216,7 +1216,7 @@ endif
 
 bsdcpio_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdcpio_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcpio_ccstatic) $(PLATFORMCPPFLAGS)
-bsdcpio_LDFLAGS= $(bsdcpio_ldstatic) $(GC_SECTIONS)
+bsdcpio_LDFLAGS= $(bsdcpio_ldstatic) $(DEAD_CODE_REMOVAL)
 
 bsdcpio_EXTRA_DIST= \
 	cpio/bsdcpio.1 \
@@ -1370,7 +1370,7 @@ endif
 
 bsdcat_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdcat_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdcat_ccstatic) $(PLATFORMCPPFLAGS)
-bsdcat_LDFLAGS= $(bsdcat_ldstatic) $(GC_SECTIONS)
+bsdcat_LDFLAGS= $(bsdcat_ldstatic) $(DEAD_CODE_REMOVAL)
 
 bsdcat_EXTRA_DIST= \
 	cat/bsdcat.1 \
@@ -1478,7 +1478,7 @@ endif
 
 bsdunzip_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdunzip_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdunzip_ccstatic) $(PLATFORMCPPFLAGS)
-bsdunzip_LDFLAGS= $(bsdunzip_ldstatic) $(GC_SECTIONS)
+bsdunzip_LDFLAGS= $(bsdunzip_ldstatic) $(DEAD_CODE_REMOVAL)
 
 bsdunzip_EXTRA_DIST= \
 	unzip/bsdunzip.1 \
