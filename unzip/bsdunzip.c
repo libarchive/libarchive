@@ -1229,10 +1229,8 @@ main(int argc, char *argv[])
 	 */
 	nopts = getopts(argc, argv);
 
-	if (version_opt == 1) {
+	if (version_opt == 1)
 		version();
-		exit(EXIT_SUCCESS);
-	}
 
 	/*
 	 * When more of the zipinfo mode options are implemented, this

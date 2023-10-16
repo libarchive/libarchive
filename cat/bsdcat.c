@@ -130,12 +130,16 @@ main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 			usage(stdout, 0);
-			break;
+			/* NOTREACHED */
+			/* Fallthrough */
 		case OPTION_VERSION:
 			version();
-			break;
+			/* NOTREACHED */
+			/* Fallthrough */
 		default:
 			usage(stderr, 1);
+			/* Fallthrough */
+			/* NOTREACHED */
 		}
 	}
 

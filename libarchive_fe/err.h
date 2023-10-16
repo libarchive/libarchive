@@ -27,10 +27,12 @@
 #define LAFE_ERR_H
 
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
-                          (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
-#define __LA_DEAD       __attribute__((__noreturn__))
+						  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define __LA_NORETURN __attribute__((__noreturn__))
+#elif defined(_MSC_VER)
+#define __LA_NORETURN __declspec(noreturn)
 #else
-#define __LA_DEAD
+#define __LA_NORETURN
 #endif
 
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
@@ -46,7 +48,7 @@
 #endif
 
 void	lafe_warnc(int code, const char *fmt, ...) __LA_PRINTFLIKE(2, 3);
-void	lafe_errc(int eval, int code, const char *fmt, ...) __LA_DEAD
+void	lafe_errc(int eval, int code, const char *fmt, ...) __LA_NORETURN
 		  __LA_PRINTFLIKE(3, 4);
 
 const char *	lafe_getprogname(void);
