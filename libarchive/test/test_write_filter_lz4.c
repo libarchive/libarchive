@@ -62,7 +62,7 @@ DEFINE_TEST(test_write_filter_lz4)
 	assert(NULL != (buff = (char *)malloc(buffsize)));
 
 	datasize = 10000;
-	assert(NULL != (data = (char *)calloc(1, datasize)));
+	assert(NULL != (data = (char *)calloc(datasize, 1)));
 	filecount = 10;
 
 	/*
@@ -306,7 +306,7 @@ test_options(const char *options)
 	assert(NULL != (buff = (char *)malloc(buffsize)));
 
 	datasize = 10000;
-	assert(NULL != (data = (char *)calloc(1, datasize)));
+	assert(NULL != (data = (char *)calloc(datasize, 1)));
 	filecount = 10;
 
 	/*

@@ -185,7 +185,7 @@ file_open(struct archive *a, void *data)
     mydata->fd = open(mydata->filename, O_RDONLY | O_BINARY);
     if (mydata->fd >= 0)
     {
-      if ((mydata->buffer = (void*)calloc(1, BLOCK_SIZE)) == NULL)
+      if ((mydata->buffer = (void*)calloc(BLOCK_SIZE, 1)) == NULL)
         return (ARCHIVE_FAILED);
     }
   }
@@ -287,7 +287,7 @@ test_customized_multiple_data_objects(void)
       return;
     }
     assert((mydata->filename =
-      (char *)calloc(1, strlen(filename) + 1)) != NULL);
+      (char *)calloc(strlen(filename) + 1, sizeof(char))) != NULL);
     if (mydata->filename == NULL) {
       free(mydata);
       assertEqualInt(ARCHIVE_OK, archive_read_free(a));
