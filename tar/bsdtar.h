@@ -103,6 +103,8 @@ struct bsdtar {
 	struct siginfo_data	*siginfo;	/* for siginfo.c */
 	struct substitution	*substitution;	/* for subst.c */
 	char			*ppbuff;	/* for util.c */
+        int                      media_volume_number; /* 0 for no multi-volume, 1+ for multi */
+        int                      write_fd;            /* for write.c */
 };
 
 /* Options for flags bitfield */
@@ -134,7 +136,7 @@ struct bsdtar {
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_ACLS = 1,
+	OPTION_ACLS = 257,
 	OPTION_B64ENCODE,
 	OPTION_CHECK_LINKS,
 	OPTION_CHROOT,

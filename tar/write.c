@@ -82,6 +82,21 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/write.c,v 1.79 2008/11/27 05:49:52 kientzle 
 #define	O_BINARY 0
 #endif
 
+/* Originally these were in archive_write_open_{filename|fd}.c,
+ * but we need to move them in here in service of being able
+ * to change media.  If they weren't all static and the design
+ * was a bit different, you might get away with only the
+ * media change callback --- but the design doesn't exactly
+ * allow that.
+ */
+
+static int      bsdtar_write_open_filename(struct bsdtar *b, struct archive *a);
+static int      bsdtar_write_open_fd(struct bsdtar *b, struct archive *a, int fd);
+static int	file_close(struct archive *, void *);
+static int	file_open(struct archive *, void *);
+static int	file_open_fd(struct archive *, void *);
+static ssize_t	file_write(struct archive *, void *, const void *buff, size_t);
+
 struct archive_dir_entry {
 	struct archive_dir_entry	*next;
 	time_t			 mtime_sec;
@@ -246,7 +261,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 			&passphrase_callback);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(a));
-	if (ARCHIVE_OK != archive_write_open_filename(a, bsdtar->filename))
+	if (ARCHIVE_OK != bsdtar_write_open_filename(bsdtar, a))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	write_archive(a, bsdtar);
 }
@@ -337,7 +352,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
 		lafe_errc(1, errno, "Could not seek to archive end");
 	set_writer_options(bsdtar, a);
-	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
+	if (ARCHIVE_OK != bsdtar_write_open_fd(bsdtar, a, bsdtar->fd))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 
 	write_archive(a, bsdtar); /* XXX check return val XXX */
@@ -414,7 +429,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 	if (lseek(bsdtar->fd, end_offset, SEEK_SET) < 0)
 		lafe_errc(1, errno, "Could not seek to archive end");
 	set_writer_options(bsdtar, a);
-	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
+	if (ARCHIVE_OK != bsdtar_write_open_fd(bsdtar, a, bsdtar->fd))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 
 	write_archive(a, bsdtar);
@@ -1056,4 +1071,191 @@ test_for_append(struct bsdtar *bsdtar)
 		lafe_errc(1, 0, "Cannot append");
 */
 
+}
+
+static int
+bsdtar_write_open_fd(struct bsdtar *b, struct archive *a, int fd)
+{
+#if defined(__CYGWIN__) || defined(_WIN32)
+	setmode(mine->fd, O_BINARY);
+#endif
+        b->write_fd = fd;
+        
+	return (archive_write_open2(a, b,
+                                    file_open_fd, file_write,
+                                    NULL, NULL));
+}
+
+static int
+bsdtar_write_open_filename(struct bsdtar *b, struct archive *a)
+{
+
+	if (b->filename == NULL || b->filename[0] == '\0')
+                return (bsdtar_write_open_fd(b, a, 1));
+
+        b->write_fd = -1;
+        
+	return (archive_write_open2(a, b,
+		    file_open, file_write, file_close, NULL));
+}
+
+static int
+file_open_fd(struct archive *a, void *client_data)
+{
+	struct bsdtar *mine;
+	struct stat st;
+
+	mine = (struct bsdtar *)client_data;
+
+	if (fstat(mine->write_fd, &st) != 0) {
+		archive_set_error(a, errno, "Couldn't stat fd %d", mine->write_fd);
+		return (ARCHIVE_FATAL);
+	}
+
+	/*
+	 * If this is a regular file, don't add it to itself.
+	 */
+	if (S_ISREG(st.st_mode))
+		archive_write_set_skip_file(a, st.st_dev, st.st_ino);
+
+	/*
+	 * If client hasn't explicitly set the last block handling,
+	 * then set it here.
+	 */
+	if (archive_write_get_bytes_in_last_block(a) < 0) {
+		/* If the output is a block or character device, fifo,
+		 * or stdout, pad the last block, otherwise leave it
+		 * unpadded. */
+		if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode) ||
+		    S_ISFIFO(st.st_mode) || (mine->fd == 1))
+			/* Last block will be fully padded. */
+			archive_write_set_bytes_in_last_block(a, 0);
+		else
+			archive_write_set_bytes_in_last_block(a, 1);
+	}
+
+	return (ARCHIVE_OK);
+}
+
+static int
+file_open(struct archive *a, void *client_data)
+{
+	int flags;
+	struct bsdtar *mine = (struct bsdtar*) client_data;
+	struct stat st;
+
+	mine = (struct bsdtar *)client_data;
+	flags = O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_CLOEXEC;
+
+	/*
+	 * Open the file.
+	 */
+	mine->write_fd = open(mine->filename, flags, 0666);
+	/* see __archive_ensure_cloexec_flag(mine->write_fd); */
+        /* Apparently this is both a "private" and "linux bug" function */
+        if (mine->write_fd >= 0) {
+                flags = fcntl(mine->write_fd, F_GETFD);
+                if (flags != -1 && (flags & FD_CLOEXEC) == 0)
+                        fcntl(mine->write_fd, F_SETFD, flags | FD_CLOEXEC);
+        }
+
+	if (mine->write_fd < 0) {
+			archive_set_error(a, errno, "Failed to open '%s'", mine->filename);
+	}
+
+	if (fstat(mine->write_fd, &st) != 0) {
+			archive_set_error(a, errno, "Couldn't stat '%s'", mine->filename);
+	}
+
+	/*
+	 * Set up default last block handling.
+	 */
+	if (archive_write_get_bytes_in_last_block(a) < 0) {
+		if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode) ||
+		    S_ISFIFO(st.st_mode))
+			/* Pad last block when writing to device or FIFO. */
+			archive_write_set_bytes_in_last_block(a, 0);
+		else
+			/* Don't pad last block otherwise. */
+			archive_write_set_bytes_in_last_block(a, 1);
+	}
+
+	/*
+	 * If the output file is a regular file, don't add it to
+	 * itself.  If it's a device file, it's okay to add the device
+	 * entry to the output archive.
+	 */
+	if (S_ISREG(st.st_mode))
+		archive_write_set_skip_file(a, st.st_dev, st.st_ino);
+
+	return (ARCHIVE_OK);
+}
+
+static ssize_t
+file_write(struct archive *a, void *client_data, const void *buff,
+    size_t length)
+{
+	struct bsdtar	*mine;
+	ssize_t	bytesWritten;
+
+	mine = (struct bsdtar *)client_data;
+	for (;;) {
+		bytesWritten = write(mine->write_fd, buff, length);
+		if (bytesWritten <= 0) {
+			if (errno == EINTR)
+				continue;
+                        /* Can't close the fd if we have no filename --- can't
+                         * do multi-volume with stdout
+                         */
+                        if (bytesWritten == 0 && mine->filename
+                            && mine->media_volume_number > 0) {
+                                int errno_orig = errno;
+                                
+                                close(mine->write_fd);
+                                
+                                if (yes("\nSwitch media in '%s': Remove %d, Insert %d",
+                                        mine->filename, mine->media_volume_number,
+                                        mine->media_volume_number +1)) {
+
+                                        mine->media_volume_number++;
+                                        if (file_open(a, mine) != ARCHIVE_OK) {
+                                                archive_set_error(a, errno_orig,
+                                                                  "(file_write) Open error");
+                                        return (-1);
+                                        }
+                                        
+                                        continue;
+                                }
+                                else {
+                                        archive_set_error(a, errno_orig,
+                                                          "(bsd_file_write) Write error %ld %ld",
+                                                          length, bytesWritten);
+                                        return (-1);
+                                }
+                        }
+                        
+                        archive_set_error(a, errno,
+                                          "(file_write) Write error %ld %ld",
+                                          length, bytesWritten);
+                        return (-1);
+                }
+                
+		return (bytesWritten);
+	}
+}
+
+static int
+file_close(struct archive *a, void *client_data)
+{
+	struct bsdtar	*mine = (struct bsdtar *)client_data;
+
+	(void)a; /* UNUSED */
+
+	if (mine == NULL)
+		return (ARCHIVE_FATAL);
+
+	if (mine->write_fd >= 0)
+		close(mine->write_fd);
+
+	return (ARCHIVE_OK);
 }

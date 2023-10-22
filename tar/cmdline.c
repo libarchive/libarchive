@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * Short options for tar.  Please keep this sorted.
  */
 static const char *short_options
-	= "aBb:C:cf:HhI:JjkLlmnOoPpqrSs:T:tUuvW:wX:xyZz";
+	= "aBb:C:cf:HhI:JjkLlMmnOoPpqrSs:T:tUuvW:wX:xyZz";
 
 /*
  * Long options for tar.  Please keep this list sorted.
@@ -113,6 +113,7 @@ static const struct bsdtar_option {
 	{ "lzop",                 0, OPTION_LZOP },
 	{ "mac-metadata",         0, OPTION_MAC_METADATA },
 	{ "modification-time",    0, 'm' },
+        { "muti-volume",          0, 'M' },
 	{ "newer",		  1, OPTION_NEWER_CTIME },
 	{ "newer-ctime",	  1, OPTION_NEWER_CTIME },
 	{ "newer-ctime-than",	  1, OPTION_NEWER_CTIME_THAN },

@@ -169,6 +169,8 @@ main(int argc, char **argv)
 	bsdtar->gid = -1;
 	bsdtar->uid = -1;
 	bsdtar->flags = 0;
+        bsdtar->media_volume_number = 0; /* No multi-volume */
+        
 	compression = compression2 = '\0';
 	compression_name = compression2_name = NULL;
 	compress_program = NULL;
@@ -483,6 +485,9 @@ main(int argc, char **argv)
 			case OPTION_ZSTD: compression_name = "zstd"; break;
 			}
 			break;
+                case 'M':
+                        bsdtar->media_volume_number = 1;
+                        break;
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
 			break;

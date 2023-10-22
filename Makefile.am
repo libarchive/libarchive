@@ -204,7 +204,6 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_disk_posix.c \
 	libarchive/archive_write_disk_private.h \
 	libarchive/archive_write_disk_set_standard_lookup.c \
-	libarchive/archive_write_open_fd.c \
 	libarchive/archive_write_open_file.c \
 	libarchive/archive_write_open_filename.c \
 	libarchive/archive_write_open_memory.c \
