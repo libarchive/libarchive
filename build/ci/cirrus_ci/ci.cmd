@@ -41,10 +41,11 @@ IF "%1%"=="prepare" (
   IF NOT EXIST zlib-%ZLIB_VERSION% (
     tar -x -z -f zlib-%ZLIB_VERSION%.tar.gz
   )
-  SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+  SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+
   CD zlib-%ZLIB_VERSION%
   IF "%BE%"=="mingw-gcc" (
-    cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
+    cmake -G "MinGW Makefiles" -D CMAKE_MAKE_PROGRAM="mingw32-make" -D CMAKE_C_COMPILER="${CC}" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
     mingw32-make || EXIT /b 1
     mingw32-make test || EXIT /b 1
     mingw32-make install || EXIT /b 1
