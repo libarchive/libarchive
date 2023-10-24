@@ -41,10 +41,10 @@ IF "%1%"=="prepare" (
   IF NOT EXIST zlib-%ZLIB_VERSION% (
     tar -x -z -f zlib-%ZLIB_VERSION%.tar.gz
   )
-  SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+  SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
   CD zlib-%ZLIB_VERSION%
   IF "%BE%"=="mingw-gcc" (
-    cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
+    cmake -G "MinGW Makefiles" -D CMAKE_MAKE_PROGRAM="mingw32-make" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
     mingw32-make || EXIT /b 1
     mingw32-make test || EXIT /b 1
     mingw32-make install || EXIT /b 1
@@ -60,12 +60,12 @@ IF "%1%"=="prepare" (
     SET CONFIGURE_ARGS=-DENABLE_ACL=OFF
     C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a configure" || EXIT /b 1
   ) ELSE IF "%BE%"=="mingw-gcc" (
-    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
     MKDIR build_ci\cmake
     CD build_ci\cmake
-    cmake -G "MinGW Makefiles" ..\.. || EXIT /b 1
+    cmake -G "MinGW Makefiles" -D CMAKE_MAKE_PROGRAM="mingw32-make" ..\.. || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
-    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
     MKDIR build_ci\cmake
     CD build_ci\cmake
     cmake -G "Visual Studio 15 2017" -D CMAKE_BUILD_TYPE="Release" ..\.. || EXIT /b 1
@@ -75,11 +75,11 @@ IF "%1%"=="prepare" (
     SET BS=cmake
     C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a build"
   ) ELSE IF "%BE%"=="mingw-gcc" (
-    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
     CD build_ci\cmake
     mingw32-make || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
-    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
     CD build_ci\cmake
     cmake --build . --target ALL_BUILD --config Release
   )
@@ -91,13 +91,13 @@ IF "%1%"=="prepare" (
     REM SET SKIP_TEST_SPARSE=1
     REM C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a test"
   ) ELSE IF "%BE%"=="mingw-gcc" (
-    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
     COPY "C:\Program Files (x86)\zlib\bin\libzlib.dll" build_ci\cmake\bin\
     CD build_ci\cmake
     SET SKIP_TEST_SPARSE=1
     mingw32-make test
   ) ELSE IF "%BE%"=="msvc" (
-    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
     ECHO "Skipping tests on this platform"
     EXIT /b 0
     REM CD build_ci\cmake
@@ -108,11 +108,11 @@ IF "%1%"=="prepare" (
     SET BS=cmake
     C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a install"
   ) ELSE IF "%BE%"=="mingw-gcc" (
-    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
     CD build_ci\cmake
     mingw32-make install DESTDIR=%cd%\destdir
   ) ELSE IF "%BE%"=="msvc" (
-    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+    SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
     cmake --build . --target INSTALL --config Release
   )
 ) ELSE (

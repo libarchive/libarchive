@@ -12,7 +12,7 @@ IF NOT "%BE%"=="mingw-gcc" (
 
 SET ORIGPATH=%PATH%
 IF "%BE%"=="mingw-gcc" (
-  SET MINGWPATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
+  SET MINGWPATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw32\bin
 )
 
 IF "%1"=="deplibs" (
@@ -55,7 +55,7 @@ IF "%1"=="deplibs" (
   CD zlib-%ZLIB_VERSION%
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
-    cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
+    cmake -G "MinGW Makefiles" -D CMAKE_MAKE_PROGRAM="mingw32-make" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
     mingw32-make || EXIT /b 1
     mingw32-make test || EXIT /b 1
     mingw32-make install || EXIT /b 1
@@ -69,7 +69,7 @@ IF "%1"=="deplibs" (
   CD bzip2-%BZIP2_VERSION%
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
-    cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" -D ENABLE_LIB_ONLY=ON -D ENABLE_SHARED_LIB=OFF -D ENABLE_STATIC_LIB=ON . || EXIT /b 1
+    cmake -G "MinGW Makefiles" -D CMAKE_MAKE_PROGRAM="mingw32-make" -D CMAKE_BUILD_TYPE="Release" -D ENABLE_LIB_ONLY=ON -D ENABLE_SHARED_LIB=OFF -D ENABLE_STATIC_LIB=ON . || EXIT /b 1
     mingw32-make || EXIT /b 1
     REM mingw32-make test || EXIT /b 1
     mingw32-make install || EXIT /b 1
@@ -83,7 +83,7 @@ IF "%1"=="deplibs" (
   CD xz-%XZ_VERSION%
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
-    cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
+    cmake -G "MinGW Makefiles" -D CMAKE_MAKE_PROGRAM="mingw32-make" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
     mingw32-make || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
@@ -95,7 +95,7 @@ IF "%1"=="deplibs" (
   CD zstd-%ZSTD_VERSION%\build\cmake
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
-    cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
+    cmake -G "MinGW Makefiles" -D CMAKE_MAKE_PROGRAM="mingw32-make" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
     mingw32-make || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
@@ -108,7 +108,7 @@ IF "%1"=="deplibs" (
     SET PATH=%MINGWPATH%
     MKDIR build_ci\cmake
     CD build_ci\cmake
-    cmake -G "MinGW Makefiles" -D ZLIB_LIBRARY="C:/Program Files (x86)/zlib/lib/libzlibstatic.a" -D ZLIB_INCLUDE_DIR="C:/Program Files (x86)/zlib/include" -D BZIP2_LIBRARIES="C:/Program Files (x86)/bzip2/lib/libbz2_static.a" -D BZIP2_INCLUDE_DIR="C:/Program Files (x86)/bzip2/include" -D LIBLZMA_LIBRARY="C:/Program Files (x86)/xz/lib/liblzma.a" -D LIBLZMA_INCLUDE_DIR="C:/Program Files (x86)/xz/include" -D ZSTD_LIBRARY="C:/Program Files (x86)/zstd/lib/libzstd.a" -D ZSTD_INCLUDE_DIR="C:/Program Files (x86)/zstd/include" ..\.. || EXIT /b 1
+    cmake -G "MinGW Makefiles" -D CMAKE_MAKE_PROGRAM="mingw32-make" -D ZLIB_LIBRARY="C:/Program Files (x86)/zlib/lib/libzlibstatic.a" -D ZLIB_INCLUDE_DIR="C:/Program Files (x86)/zlib/include" -D BZIP2_LIBRARIES="C:/Program Files (x86)/bzip2/lib/libbz2_static.a" -D BZIP2_INCLUDE_DIR="C:/Program Files (x86)/bzip2/include" -D LIBLZMA_LIBRARY="C:/Program Files (x86)/xz/lib/liblzma.a" -D LIBLZMA_INCLUDE_DIR="C:/Program Files (x86)/xz/include" -D ZSTD_LIBRARY="C:/Program Files (x86)/zstd/lib/libzstd.a" -D ZSTD_INCLUDE_DIR="C:/Program Files (x86)/zstd/include" ..\.. || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     MKDIR build_ci\cmake
     CD build_ci\cmake
