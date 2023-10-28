@@ -78,6 +78,9 @@
 #include <sys/time.h>
 #endif
 #endif
+#ifdef HAVE_GETOPT_OPTRESET
+#include <getopt.h>
+#endif
 
 #include "bsdunzip.h"
 #include "passphrase.h"
