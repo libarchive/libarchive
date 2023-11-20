@@ -30,7 +30,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
 
 /*
  * This test doesn't actually check that the zip writer is
