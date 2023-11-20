@@ -55,14 +55,6 @@
 #error Oops: No config.h and no built-in configuration in bsdtar_platform.h.
 #endif /* !HAVE_CONFIG_H */
 
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>  /* For __FBSDID */
-#else
-/* Just leaving this macro replacement empty leads to a dangling semicolon. */
-#define	__FBSDID(a)     struct _undefined_hack
-#endif
-
 #ifdef HAVE_LIBARCHIVE
 /* If we're using the platform libarchive, include system headers. */
 #include <archive.h>
