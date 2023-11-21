@@ -119,6 +119,7 @@ jobs:
   Windows:
     runs-on: windows-2022
     strategy:
+      fail-fast: false
       matrix:
         be: [mingw-gcc, msvc]
     steps:
