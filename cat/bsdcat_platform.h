@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD: src/usr.bin/tar/bsdtar_platform.h,v 1.26 2008/12/06 07:37:14 kientzle Exp $
  */
 
 /*
@@ -40,16 +38,6 @@
 #else
 /* Not having a config.h of some sort is a serious problem. */
 #include "config.h"
-#endif
-
-/* Get a real definition for __FBSDID if we can */
-#if HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
-/* If not, define it so as to avoid dangling semicolons. */
-#ifndef __FBSDID
-#define	__FBSDID(a)     struct _undefined_hack
 #endif
 
 #ifdef HAVE_LIBARCHIVE
