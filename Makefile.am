@@ -1503,6 +1503,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test.h \
 	unzip/test/test_0.c \
 	unzip/test/test_basic.c \
+	unzip/test/test_doubledash.c \
 	unzip/test/test_glob.c \
 	unzip/test/test_not_exist.c \
 	unzip/test/test_singlefile.c \
