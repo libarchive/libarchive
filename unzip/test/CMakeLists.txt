@@ -11,6 +11,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test.h
     test_0.c
     test_basic.c
+    test_doubledash.c
     test_glob.c
     test_singlefile.c
     test_C.c
