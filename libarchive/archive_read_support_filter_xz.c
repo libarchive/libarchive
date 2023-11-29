@@ -710,7 +710,7 @@ xz_filter_read(struct archive_read_filter *self, const void **p)
 	if (decompressed == 0) {
 		if (member_in != state->member_in &&
 		    self->code == ARCHIVE_FILTER_LZIP &&
-		    state->eof ) {
+		    state->eof) {
 			ret = lzip_tail(self);
 			if (ret != ARCHIVE_OK)
 				return (ret);
