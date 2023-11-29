@@ -654,7 +654,7 @@ xz_filter_read(struct archive_read_filter *self, const void **p)
 	struct private_data *state;
 	size_t decompressed;
 	ssize_t avail_in;
-	size_t member_in;
+	int64_t member_in;
 	int ret;
 
 	state = (struct private_data *)self->data;
