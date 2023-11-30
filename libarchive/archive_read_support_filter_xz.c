@@ -659,6 +659,7 @@ xz_filter_read(struct archive_read_filter *self, const void **p)
 
 	state = (struct private_data *)self->data;
 
+	redo:
 	/* Empty our output buffer. */
 	state->stream.next_out = state->out_block;
 	state->stream.avail_out = state->out_block_size;
@@ -715,7 +716,7 @@ xz_filter_read(struct archive_read_filter *self, const void **p)
 			if (ret != ARCHIVE_OK)
 				return (ret);
 			if (!state->eof)
-				return (xz_filter_read(self, p)); /* redo */
+				goto redo;
 		}
 		*p = NULL;
 	} else {
