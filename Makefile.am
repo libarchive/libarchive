@@ -690,6 +690,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lz4_B7BD.tar.lz4.uu \
 	libarchive/test/test_compat_lzip_1.tlz.uu \
 	libarchive/test/test_compat_lzip_2.tlz.uu \
+	libarchive/test/test_compat_lzip_3.lz.uu \
+	libarchive/test/test_compat_lzip_4.tlz.uu \
 	libarchive/test/test_compat_lzma_1.tlz.uu \
 	libarchive/test/test_compat_lzma_2.tlz.uu \
 	libarchive/test/test_compat_lzma_3.tlz.uu \
