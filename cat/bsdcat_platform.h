@@ -52,12 +52,14 @@
 
 /* How to mark functions that don't return. */
 /* This facilitates use of some newer static code analysis tools. */
-#undef __LA_DEAD
+#undef __LA_NORETURN
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
-			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
-#define	__LA_DEAD	__attribute__((__noreturn__))
-#else
-#define	__LA_DEAD
+                          (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define __LA_NORETURN       __attribute__((__noreturn__))
+#elif defined(_MSC_VER)
+#define __LA_NORETURN __declspec(noreturn)
+#else 
+#define __LA_NORETURN
 #endif
 
 #endif /* !BSDCAT_PLATFORM_H_INCLUDED */

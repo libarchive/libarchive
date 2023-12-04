@@ -329,7 +329,7 @@ lafe_readpassphrase(const char *prompt, char *buf, size_t bufsiz)
 			break;
 		default:
 			lafe_errc(1, errno, "Couldn't read passphrase");
-			break;
+			/* NOTREACHED */
 		}
 	}
 	return (p);

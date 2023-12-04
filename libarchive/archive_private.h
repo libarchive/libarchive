@@ -38,10 +38,12 @@
 #include "archive_string.h"
 
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
-			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
-#define	__LA_DEAD	__attribute__((__noreturn__))
+						  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define __LA_NORETURN __attribute__((__noreturn__))
+#elif defined(_MSC_VER)
+#define __LA_NORETURN __declspec(noreturn)
 #else
-#define	__LA_DEAD
+#define __LA_NORETURN
 #endif
 
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
@@ -151,7 +153,7 @@ int	__archive_check_magic(struct archive *, unsigned int magic,
 			return ARCHIVE_FATAL; \
 	} while (0)
 
-void	__archive_errx(int retvalue, const char *msg) __LA_DEAD;
+void	__archive_errx(int retvalue, const char *msg) __LA_NORETURN;
 
 void	__archive_ensure_cloexec_flag(int fd);
 int	__archive_mktemp(const char *tmpdir);

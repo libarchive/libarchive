@@ -158,6 +158,7 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 			break;
 		default:
 			lafe_errc(1, 0, "Invalid replacement flag %c", *end_pattern);
+			/* NOTREACHED */
 		}
 	}
 }

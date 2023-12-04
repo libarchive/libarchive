@@ -57,9 +57,11 @@
 /* How to mark functions that don't return. */
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
                           (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
-#define __LA_DEAD       __attribute__((__noreturn__))
+#define __LA_NORETURN __attribute__((__noreturn__))
+#elif defined(_MSC_VER)
+#define __LA_NORETURN __declspec(noreturn)
 #else
-#define __LA_DEAD
+#define __LA_NORETURN
 #endif
 
 #endif /* !CPIO_PLATFORM_H_INCLUDED */

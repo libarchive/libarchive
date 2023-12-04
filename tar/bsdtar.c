@@ -113,11 +113,11 @@ need_report(void)
 }
 #endif
 
-static void		 long_help(void) __LA_DEAD;
+static void		 long_help(void) __LA_NORETURN;
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
 static void		 set_mode(struct bsdtar *, char opt);
-static void		 version(void) __LA_DEAD;
+static void		 version(void) __LA_NORETURN;
 
 /* A basic set of security flags to request from libarchive. */
 #define	SECURITY					\
@@ -399,8 +399,7 @@ main(int argc, char **argv)
 			break;
 		case OPTION_HELP: /* GNU tar, others */
 			long_help();
-			exit(0);
-			break;
+			/* NOTREACHED*/
 		case OPTION_HFS_COMPRESSION: /* Mac OS X v10.6 or later */
 			bsdtar->extract_flags |=
 			    ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED;
@@ -737,7 +736,7 @@ main(int argc, char **argv)
 			break;
 		case OPTION_VERSION: /* GNU convention */
 			version();
-			break;
+			/* NOTREACHED */
 #if 0
 		/*
 		 * The -W longopt feature is handled inside of
@@ -803,7 +802,6 @@ main(int argc, char **argv)
 	/* If no "real" mode was specified, treat -h as --help. */
 	if ((bsdtar->mode == '\0') && possible_help_request) {
 		long_help();
-		exit(0);
 	}
 
 	/* Otherwise, a mode is required. */
