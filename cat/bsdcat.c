@@ -47,7 +47,7 @@ static const char *bsdcat_current_path;
 static int exit_status = 0;
 
 
-static void
+__LA_NORETURN static void
 usage(FILE *stream, int eval)
 {
 	const char *p;
@@ -57,7 +57,7 @@ usage(FILE *stream, int eval)
 	exit(eval);
 }
 
-static void
+__LA_NORETURN static void
 version(void)
 {
 	printf("bsdcat %s - %s \n",
