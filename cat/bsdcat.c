@@ -36,6 +36,9 @@
 #include <string.h>
 #endif
 
+#include <archive.h>
+#include <archive_entry.h>
+
 #include "bsdcat.h"
 #include "err.h"
 
@@ -47,7 +50,7 @@ static const char *bsdcat_current_path;
 static int exit_status = 0;
 
 
-__LA_NORETURN static void
+static __LA_NORETURN void
 usage(FILE *stream, int eval)
 {
 	const char *p;
@@ -57,7 +60,7 @@ usage(FILE *stream, int eval)
 	exit(eval);
 }
 
-__LA_NORETURN static void
+static __LA_NORETURN void
 version(void)
 {
 	printf("bsdcat %s - %s \n",

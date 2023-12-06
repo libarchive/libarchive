@@ -34,9 +34,6 @@
 #include "config.h"
 #endif
 
-#include <archive.h>
-#include <archive_entry.h>
-
 struct bsdcat {
 	/* Option parser state */
 	int		  getopt_state;
