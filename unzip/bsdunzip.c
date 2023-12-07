@@ -57,6 +57,9 @@
 #ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
 #endif
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -1209,6 +1212,11 @@ main(int argc, char *argv[])
 	int nopts;
 
 	lafe_setprogname(*argv, "bsdunzip");
+
+#if HAVE_SETLOCALE
+	if (setlocale(LC_ALL, "") == NULL)
+		lafe_warnc(0, "Failed to set default locale");
+#endif
 
 	if (isatty(STDOUT_FILENO))
 		tty = 1;
