@@ -113,11 +113,11 @@ need_report(void)
 }
 #endif
 
-static void		 long_help(void) __LA_NORETURN;
+static __LA_NORETURN void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
 static void		 set_mode(struct bsdtar *, char opt);
-static void		 version(void) __LA_NORETURN;
+static __LA_NORETURN void		 version(void);
 
 /* A basic set of security flags to request from libarchive. */
 #define	SECURITY					\

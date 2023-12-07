@@ -153,7 +153,7 @@ int	__archive_check_magic(struct archive *, unsigned int magic,
 			return ARCHIVE_FATAL; \
 	} while (0)
 
-void	__archive_errx(int retvalue, const char *msg) __LA_NORETURN;
+__LA_NORETURN void	__archive_errx(int retvalue, const char *msg);
 
 void	__archive_ensure_cloexec_flag(int fd);
 int	__archive_mktemp(const char *tmpdir);

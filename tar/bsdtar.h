@@ -206,7 +206,7 @@ void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);
 void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
-void	usage(void) __LA_NORETURN;
+__LA_NORETURN void	usage(void);
 int	yes(const char *fmt, ...) __LA_PRINTF(1, 2);
 
 #if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
