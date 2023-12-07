@@ -1522,7 +1522,8 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_version.c \
 	unzip/test/test_x.c \
 	unzip/test/test_Z1.c \
-	unzip/test/test_P_encryption.c
+	unzip/test/test_P_encryption.c \
+	unzip/test/test_I.c
 
 bsdunzip_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
