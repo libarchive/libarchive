@@ -1551,4 +1551,5 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/test_encrypted.zip.uu \
 	unzip/test/test_singlefile.zip.uu \
 	unzip/test/test_t_bad.zip.uu \
+	unzip/test/test_I.zip.uu \
 	unzip/test/CMakeLists.txt
