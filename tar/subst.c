@@ -25,12 +25,14 @@
 
 #include "bsdtar_platform.h"
 
-#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2POSIX_H)
 #include "bsdtar.h"
 
 #include <errno.h>
-#ifdef HAVE_PCREPOSIX_H
+#if defined(HAVE_PCREPOSIX_H)
 #include <pcreposix.h>
+#elif defined(HAVE_PCRE2POSIX_H)
+#include <pcre2posix.h>
 #else
 #include <regex.h>
 #endif
@@ -325,4 +327,4 @@ cleanup_substitution(struct bsdtar *bsdtar)
 	}
 	free(subst);
 }
-#endif /* defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) */
+#endif /* defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2POSIX_H) */

@@ -668,7 +668,7 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_SPARSE;
 			break;
 		case 's': /* NetBSD pax-as-tar */
-#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2POSIX_H)
 			add_substitution(bsdtar, bsdtar->argument);
 #else
 			lafe_warnc(0,
@@ -947,7 +947,7 @@ main(int argc, char **argv)
 	}
 
 	archive_match_free(bsdtar->matching);
-#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2POSIX_H)
 	cleanup_substitution(bsdtar);
 #endif
 	cset_free(bsdtar->cset);
