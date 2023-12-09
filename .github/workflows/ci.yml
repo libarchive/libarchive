@@ -124,7 +124,11 @@ jobs:
         be: [mingw-gcc, msvc]
     steps:
     - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
-    - name: Install dependencies
+    - name: Install mingw
+      if:  ${{ matrix.be=='mingw-gcc' }}
+      run: choco install mingw
+      shell: cmd
+    - name: Install library dependencies
       run: ./build/ci/github_actions/ci.cmd deplibs
       shell: cmd
       env:
