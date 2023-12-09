@@ -217,6 +217,7 @@ OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
 OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
+OPTION(ENABLE_PCRE2POSIX "Enable the use of the system PCRE2POSIX library if found" ON)
 OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
 OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
@@ -1348,6 +1349,68 @@ IF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$"
   MARK_AS_ADVANCED(CLEAR PCRE_LIBRARIES)
   MARK_AS_ADVANCED(CLEAR LIBGCC_LIBRARIES)
 ENDIF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$")
+
+IF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCRE2POSIX)$")
+  #
+  # If requested, try finding library for PCRE2POSIX
+  #
+  IF(ENABLE_LIBGCC)
+    FIND_PACKAGE(LIBGCC)
+  ELSE()
+    MESSAGE(FATAL_ERROR "libgcc not found.")
+    SET(LIBGCC_FOUND FALSE) # Override cached value
+  ENDIF()
+  IF(ENABLE_PCRE2POSIX)
+    FIND_PACKAGE(PCRE2POSIX)
+  ELSE()
+    SET(PCRE2POSIX_FOUND FALSE) # Override cached value
+  ENDIF()
+  IF(PCRE2POSIX_FOUND)
+    INCLUDE_DIRECTORIES(${PCRE2_INCLUDE_DIR})
+    LIST(APPEND ADDITIONAL_LIBS ${PCRE2POSIX_LIBRARIES})
+    # Test if a macro is needed for the library.
+    TRY_MACRO_FOR_LIBRARY(
+      "${PCRE2_INCLUDE_DIR}" "${PCRE2POSIX_LIBRARIES}"
+      COMPILES
+      "#include <pcre2posix.h>\nint main() {regex_t r;return pcre2_regcomp(&r, \"\", 0);}"
+      "WITHOUT_PCRE2_STATIC;PCRE2_STATIC")
+    IF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+      ADD_DEFINITIONS(-DPCRE2_STATIC)
+	ELSEIF(NOT WITHOUT_PCRE2_STATIC AND NOT PCRE2_STATIC AND PCRE2_FOUND)
+	  # Determine if pcre2 static libraries are to be used.
+      LIST(APPEND ADDITIONAL_LIBS ${PCRE2_LIBRARIES})
+      SET(TMP_LIBRARIES ${PCRE2POSIX_LIBRARIES} ${PCRE2_LIBRARIES})
+      MESSAGE(STATUS "trying again with -lpcre2-8 included")
+      TRY_MACRO_FOR_LIBRARY(
+        "${PCRE2_INCLUDE_DIR}" "${TMP_LIBRARIES}"
+        COMPILES
+        "#include <pcre2posix.h>\nint main() {regex_t r;return pcre2_regcomp(&r, \"\", 0);}"
+        "WITHOUT_PCRE2_STATIC;PCRE2_STATIC")
+      IF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+        ADD_DEFINITIONS(-DPCRE2_STATIC)
+      ELSEIF(NOT WITHOUT_PCRE2_STATIC AND NOT PCRE2_STATIC AND MSVC AND LIBGCC_FOUND)
+        # When doing a Visual Studio build using pcre2 static libraries
+        # built using the mingw toolchain, -lgcc is needed to resolve
+        # ___chkstk_ms.
+        MESSAGE(STATUS "Visual Studio build detected, trying again with -lgcc included")
+        LIST(APPEND ADDITIONAL_LIBS ${LIBGCC_LIBRARIES})
+        SET(TMP_LIBRARIES ${PCRE2POSIX_LIBRARIES} ${PCRE2_LIBRARIES} ${LIBGCC_LIBRARIES})
+          TRY_MACRO_FOR_LIBRARY(
+            "${PCRE2_INCLUDE_DIR}" "${TMP_LIBRARIES}"
+            COMPILES
+            "#include <pcre2posix.h>\nint main() {regex_t r;return pcre2_regcomp(&r, \"\", 0);}"
+            "WITHOUT_PCRE2_STATIC;PCRE2_STATIC")
+          IF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+            ADD_DEFINITIONS(-DPCRE2_STATIC)
+          ENDIF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+      ENDIF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+    ENDIF(NOT WITHOUT_PCRE2_STATIC AND PCRE2_STATIC)
+  ENDIF(PCRE2POSIX_FOUND)
+  MARK_AS_ADVANCED(CLEAR PCRE2_INCLUDE_DIR)
+  MARK_AS_ADVANCED(CLEAR PCRE2POSIX_LIBRARIES)
+  MARK_AS_ADVANCED(CLEAR PCRE2_LIBRARIES)
+  MARK_AS_ADVANCED(CLEAR LIBGCC_LIBRARIES)
+ENDIF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCRE2POSIX)$")
 
 #
 # Check functions
