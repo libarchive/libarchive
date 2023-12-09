@@ -28,6 +28,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_x.c
     test_Z1.c
     test_P_encryption.c
+    test_I.c
   )
 
   #
