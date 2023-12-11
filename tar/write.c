@@ -998,8 +998,13 @@ write_entry(struct bsdtar *bsdtar, struct archive *a,
 	 * that case, just skip the write.
 	 */
 	if (e >= ARCHIVE_WARN && archive_entry_size(entry) > 0) {
-		if (copy_file_data_block(bsdtar, a, bsdtar->diskreader, entry))
-			exit(1);
+		if (copy_file_data_block(bsdtar, a, bsdtar->diskreader, entry)) {
+			if (errno == EIO) {
+				lafe_errc(1, errno, "failed to read input file");
+			} else {
+				exit(1);
+			}
+		}
 	}
 }
 
