@@ -49,7 +49,7 @@ struct subst_rule {
 	struct subst_rule *next;
 	regex_t re;
 	char *result;
-	unsigned int global:1, print:1, regular:1, symlink:1, hardlink:1;
+	unsigned int global:1, print:1, regular:1, symlink:1, hardlink:1, from_begin:1;
 };
 
 struct substitution {
@@ -129,9 +129,14 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 	rule->regular = 1; /* Rewrite regular filenames. */
 	rule->symlink = 1; /* Rewrite symlink targets. */
 	rule->hardlink = 1; /* Rewrite hardlink targets. */
+	rule->from_begin = 0; /* Don't match from start. */
 
 	while (*++end_pattern) {
 		switch (*end_pattern) {
+		case 'b':
+		case 'B':
+			rule->from_begin = 1;
+			break;
 		case 'g':
 		case 'G':
 			rule->global = 1;
@@ -214,6 +219,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
 {
 	const char *path = name;
 	regmatch_t matches[10];
+	char* buffer = NULL;
 	size_t i, j;
 	struct subst_rule *rule;
 	struct substitution *subst;
@@ -237,6 +243,13 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
 		} else { /* Regular filename. */
 			if (!rule->regular)
 				continue;
+		}
+
+		if (rule->from_begin && *result) {
+			realloc_strcat(result, name);
+			realloc_strcat(&buffer, *result);
+			name = buffer;
+			(*result)[0] = 0;
 		}
 
 		while (1) {
@@ -278,6 +291,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
 				case '9':
 					realloc_strncat(result, rule->result + j, i - j - 1);
 					if ((size_t)(c - '0') > (size_t)(rule->re.re_nsub)) {
+						free(buffer);
 						free(*result);
 						*result = NULL;
 						return -1;
@@ -303,6 +317,8 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
 
 	if (got_match)
 		realloc_strcat(result, name);
+
+	free(buffer);
 
 	if (print_match)
 		fprintf(stderr, "%s >> %s\n", path, *result);
