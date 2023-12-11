@@ -209,7 +209,7 @@ void	tar_mode_x(struct bsdtar *bsdtar);
 __LA_NORETURN void	usage(void);
 int	yes(const char *fmt, ...) __LA_PRINTF(1, 2);
 
-#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2POSIX_H)
 void	add_substitution(struct bsdtar *, const char *);
 int	apply_substitution(struct bsdtar *, const char *, char **, int, int);
 void	cleanup_substitution(struct bsdtar *);
