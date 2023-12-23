@@ -581,6 +581,11 @@ archive_entry_pathname(struct archive_entry *entry)
 	if (archive_mstring_get_mbs(
 	    entry->archive, &entry->ae_pathname, &p) == 0)
 		return (p);
+	if (entry->ae_pathname.aes_set & AES_SET_UTF8) {
+		if (archive_mstring_get_utf8(
+			entry->archive, &entry->ae_pathname, &p) == 0)
+			return (p);
+	}
 #if HAVE_EILSEQ  /*{*/
     if (errno == EILSEQ) {
 	    if (archive_mstring_get_utf8(
