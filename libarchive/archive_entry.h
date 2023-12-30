@@ -275,6 +275,7 @@ __LA_DECL const char	*archive_entry_pathname_utf8(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_pathname_w(struct archive_entry *);
 __LA_DECL __LA_MODE_T	 archive_entry_perm(struct archive_entry *);
 __LA_DECL int		 archive_entry_perm_is_set(struct archive_entry *);
+__LA_DECL int		 archive_entry_rdev_is_set(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdev(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdevmajor(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdevminor(struct archive_entry *);
@@ -324,6 +325,8 @@ __LA_DECL void	archive_entry_set_fflags(struct archive_entry *,
 /* Note that all recognized tokens are processed, regardless. */
 __LA_DECL const char *archive_entry_copy_fflags_text(struct archive_entry *,
 	    const char *);
+__LA_DECL const char *archive_entry_copy_fflags_text_len(struct archive_entry *,
+	    const char *, size_t);
 __LA_DECL const wchar_t *archive_entry_copy_fflags_text_w(struct archive_entry *,
 	    const wchar_t *);
 __LA_DECL void	archive_entry_set_gid(struct archive_entry *, la_int64_t);

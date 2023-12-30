@@ -118,7 +118,7 @@
 static char *	 ae_fflagstostr(unsigned long bitset, unsigned long bitclear);
 static const wchar_t	*ae_wcstofflags(const wchar_t *stringp,
 		    unsigned long *setp, unsigned long *clrp);
-static const char	*ae_strtofflags(const char *stringp,
+static const char	*ae_strtofflags(const char *stringp, size_t length,
 		    unsigned long *setp, unsigned long *clrp);
 
 #ifndef HAVE_WCSCPY
@@ -648,32 +648,50 @@ archive_entry_perm_is_set(struct archive_entry *entry)
 	return (entry->ae_set & AE_SET_PERM);
 }
 
+int
+archive_entry_rdev_is_set(struct archive_entry *entry)
+{
+	return (entry->ae_set & AE_SET_RDEV);
+}
+
 dev_t
 archive_entry_rdev(struct archive_entry *entry)
 {
-	if (entry->ae_stat.aest_rdev_is_broken_down)
-		return ae_makedev(entry->ae_stat.aest_rdevmajor,
-		    entry->ae_stat.aest_rdevminor);
-	else
-		return (entry->ae_stat.aest_rdev);
+	if (archive_entry_rdev_is_set(entry)) {
+		if (entry->ae_stat.aest_rdev_is_broken_down)
+			return ae_makedev(entry->ae_stat.aest_rdevmajor,
+			    entry->ae_stat.aest_rdevminor);
+		else
+			return (entry->ae_stat.aest_rdev);
+	} else {
+		return 0;
+	}
 }
 
 dev_t
 archive_entry_rdevmajor(struct archive_entry *entry)
 {
-	if (entry->ae_stat.aest_rdev_is_broken_down)
-		return (entry->ae_stat.aest_rdevmajor);
-	else
-		return major(entry->ae_stat.aest_rdev);
+	if (archive_entry_rdev_is_set(entry)) {
+		if (entry->ae_stat.aest_rdev_is_broken_down)
+			return (entry->ae_stat.aest_rdevmajor);
+		else
+			return major(entry->ae_stat.aest_rdev);
+	} else {
+		return 0;
+	}
 }
 
 dev_t
 archive_entry_rdevminor(struct archive_entry *entry)
 {
-	if (entry->ae_stat.aest_rdev_is_broken_down)
-		return (entry->ae_stat.aest_rdevminor);
-	else
-		return minor(entry->ae_stat.aest_rdev);
+	if (archive_entry_rdev_is_set(entry)) {
+		if (entry->ae_stat.aest_rdev_is_broken_down)
+			return (entry->ae_stat.aest_rdevminor);
+		else
+			return minor(entry->ae_stat.aest_rdev);
+	} else {
+		return 0;
+	}
 }
 
 la_int64_t
@@ -864,10 +882,17 @@ archive_entry_set_fflags(struct archive_entry *entry,
 
 const char *
 archive_entry_copy_fflags_text(struct archive_entry *entry,
-    const char *flags)
+	const char *flags)
 {
-	archive_mstring_copy_mbs(&entry->ae_fflags_text, flags);
-	return (ae_strtofflags(flags,
+	return archive_entry_copy_fflags_text_len(entry, flags, strlen(flags));
+}
+
+const char *
+archive_entry_copy_fflags_text_len(struct archive_entry *entry,
+    const char *flags, size_t flags_length)
+{
+	archive_mstring_copy_mbs_len(&entry->ae_fflags_text, flags, flags_length);
+	return (ae_strtofflags(flags, flags_length,
 		    &entry->ae_fflags_set, &entry->ae_fflags_clear));
 }
 
@@ -1255,6 +1280,9 @@ archive_entry_set_rdev(struct archive_entry *entry, dev_t m)
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_rdev = m;
 	entry->ae_stat.aest_rdev_is_broken_down = 0;
+	entry->ae_stat.aest_rdevmajor = 0;
+	entry->ae_stat.aest_rdevminor = 0;
+	entry->ae_set |= AE_SET_RDEV;
 }
 
 void
@@ -1262,7 +1290,9 @@ archive_entry_set_rdevmajor(struct archive_entry *entry, dev_t m)
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_rdev_is_broken_down = 1;
+	entry->ae_stat.aest_rdev = 0;
 	entry->ae_stat.aest_rdevmajor = m;
+	entry->ae_set |= AE_SET_RDEV;
 }
 
 void
@@ -1270,7 +1300,9 @@ archive_entry_set_rdevminor(struct archive_entry *entry, dev_t m)
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_rdev_is_broken_down = 1;
+	entry->ae_stat.aest_rdev = 0;
 	entry->ae_stat.aest_rdevminor = m;
+	entry->ae_set |= AE_SET_RDEV;
 }
 
 void
@@ -2031,7 +2063,7 @@ ae_fflagstostr(unsigned long bitset, unsigned long bitclear)
  *	provided string.
  */
 static const char *
-ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
+ae_strtofflags(const char *s, size_t l, unsigned long *setp, unsigned long *clrp)
 {
 	const char *start, *end;
 	const struct flag *flag;
@@ -2042,15 +2074,19 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 	start = s;
 	failed = NULL;
 	/* Find start of first token. */
-	while (*start == '\t'  ||  *start == ' '  ||  *start == ',')
+	while (l > 0 && (*start == '\t'  ||  *start == ' '  ||  *start == ',')) {
 		start++;
-	while (*start != '\0') {
+		l--;
+	}
+	while (l > 0) {
 		size_t length;
 		/* Locate end of token. */
 		end = start;
-		while (*end != '\0'  &&  *end != '\t'  &&
-		    *end != ' '  &&  *end != ',')
+		while (l > 0 && *end != '\t'  &&
+		    *end != ' '  &&  *end != ',') {
 			end++;
+			l--;
+		}
 		length = end - start;
 		for (flag = fileflags; flag->name != NULL; flag++) {
 			size_t flag_length = strlen(flag->name);
@@ -2074,8 +2110,10 @@ ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 
 		/* Find start of next token. */
 		start = end;
-		while (*start == '\t'  ||  *start == ' '  ||  *start == ',')
+		while (l > 0 && (*start == '\t'  ||  *start == ' '  ||  *start == ',')) {
 			start++;
+			l--;
+		}
 
 	}
 

@@ -149,6 +149,7 @@ struct archive_entry {
 #define	AE_SET_FILETYPE	1024
 #define	AE_SET_UID	2048
 #define	AE_SET_GID	4096
+#define	AE_SET_RDEV	8192
 
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
