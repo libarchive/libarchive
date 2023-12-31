@@ -22,6 +22,35 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/*
+Notes on reffile creation:
+
+- I chose an existing small text file on my machine that had extended attributes.
+An easy way to generate one is to download a file from github in Google Chrome,
+as mac will automatically set a "com.apple.metadata:kMDItemWhereFroms" xattr on the file.
+It also would have worked to set an xattr manually using xattr -w [-rsx] attr_name attr_value file ...
+
+- to verify the names/values of xattrs, run: xattr -l filename
+
+- I then zipped the file using right-click > Compress in Finder
+(Apple's officially recommended method for zip file creation)
+
+- I then uuencoded the zip file by running: uuencode version.txt.zip test_mac_metadata_zip.zip
+
+Zip created 12-31-2023 on a 2022 Mac Studio running macOS Ventura 13.6.3 (22G436) (Apple M1 Ultra - arm64)
+
+Contents:
+ Length   Method    Size  Cmpr    Date    Time   CRC-32   Name
+--------  ------  ------- ---- ---------- ----- --------  ----
+      15  Defl:N       17 -13% 09-21-2023 01:05 f542663d  version.txt
+    1038  Defl:N      668  36% 09-21-2023 01:05 85bdc448  __MACOSX/._version.txt
+--------          -------  ---                            -------
+    1053              685  35%                            2 files
+
+For additional notes, see: https://github.com/libarchive/libarchive/issues/2041#issuecomment-1873018929
+*/
+
 #include "test.h"
 
 DEFINE_TEST(test_mac_metadata_zip)
