@@ -35,6 +35,7 @@ jobs:
         SKIP_OPEN_FD_ERR_TEST: 1
         IGNORE_TRAVERSALS_TEST4: 1
         MAKE_ARGS: -j
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
@@ -81,6 +82,7 @@ jobs:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
         MAKE_ARGS: -j
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
@@ -148,6 +150,7 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/github_actions/ci.cmd install
       shell: cmd
