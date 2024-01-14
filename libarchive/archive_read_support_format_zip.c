@@ -1344,38 +1344,72 @@ check_authentication_code(struct archive_read *a, const void *_p)
 }
 
 /*
- * The Zip end-of-file marker is inherently ambiguous.  In addition,
- * subtle differences in various implementations make this even more
- * interesting.
+ * The Zip end-of-file marker is inherently ambiguous.  The specification
+ * in APPNOTE.TXT allows any of four possible formats, and there is no
+ * guaranteed-correct way for a reader to know a priori which one the writer
+ * will have used.  The four formats are:
+ * 1. 32-bit format with an initial PK78 marker
+ * 2. 32-bit format without that marker
+ * 3. 64-bit format with the marker
+ * 4. 64-bit format without the marker
  *
  * Mark Adler's `sunzip` streaming unzip program solved this ambiguity
- * by just looking at every possible combination and using the one
- * that provides the expected results.  His approach always consumes
- * the longest possible matching EOF marker, based on an analysis of
- * all the possible failures and how the values could overlap.
+ * by just looking at every possible combination and accepting the
+ * longest one that matches the expected values.  His approach always
+ * consumes the longest possible matching EOF marker, based on an
+ * analysis of all the possible failures and how the values could
+ * overlap.
  *
- * This code follows Adler in simply trying every combination, but
- * instead consumes the _shortest_ EOF marker that has the right
- * values.  This is based on two considerations:
+ * For example, suppose both of the first two formats listed
+ * above match.  In that case, we know the next four
+ * 32-bit words match this pattern:
+ * ```
+ *  [PK\07\08] [CRC32]        [compressed size]   [uncompressed size]
+ * ```
+ * but we know they must also match this pattern:
+ * ```
+ *  [CRC32] [compressed size] [uncompressed size] [other PK marker]
+ * ```
  *
- * First, the real goal of this logic is to test whether or not we
- * have a correct marker.  The CRC32 and size values should be
- * considered error-checking values for the purposes here; if they all
- * match, that means the just-read entry is correct.  The real design
- * oddity is that Zip uses variable amounts of error-checking
- * information and provides no real way to determine which was
- * intended.  But accepting a small number of variations doesn't
- * significantly reduce the usefulness of this error check.
+ * Since the first word here matches both the PK78 signature in the
+ * first form and the CRC32 in the second, we know those two values
+ * are equal, the CRC32 must be exactly 0x08074b50.  Similarly, the
+ * compressed and uncompressed size must also be exactly this value.
+ * So we know these four words are all 0x08074b50.  If we were to
+ * accept the shorter pattern, it would be immediately followed by
+ * another PK78 marker, which is not possible in a well-formed ZIP
+ * archive unless there is garbage between entries. This implies we
+ * should not accept the shorter form in such a case; we should accept
+ * the longer form.
  *
- * Less importantly, we would like to skip the right number of bytes
- * in order to avoid having to resync for the next entry, but this
- * isn't critical, since the resync logic exists and should have no
- * problems recovering as long as we don't skip too far.
+ * If the second and third possibilities above both match, we
+ * have a slightly different situation.  The following words
+ * must match both the 32-bit format
+ * ```
+ *  [CRC32] [compressed size] [uncompressed size] [other PK marker]
+ * ```
+ * and the 64-bit format
+ * ```
+ *  [CRC32] [compressed low] [compressed high] [uncompressed low] [uncompressed high] [other PK marker]
+ * ```
+ * Since the 32-bit and 64-bit compressed sizes both match, the
+ * actualy size must fit in 32 bits, which implies the high-order
+ * word of the compressed size is zero.  So we know the uncompressed
+ * low word is zero, which again implies that if we accept the shorter
+ * format, there will not be a valid PK marker following it.
  *
- * The above considerations mean that: We can accept the end-of-file
- * marker as correct as long as one of the few possible formats
- * matches, and we generally want to err on the side of consuming too
- * few bytes rather than too many.
+ * Similar considerations rule out the shorter form in every other
+ * possibly-ambiguous pair.  So if two of the four possible formats
+ * match, we should accept the longer option.
+ *
+ * If none of the four formats matches, we know the archive must be
+ * corrupted in some fashion.  In particular, it's possible that the
+ * length-at-end bit was incorrect and we should not really be looking
+ * for an EOF marker at all.  To allow for this possibility, we
+ * evaluate the following words to collect data for a later error
+ * report but do not consume any bytes.  We instead rely on the later
+ * search for a new PK marker to re-sync to the next well-formed
+ * entry.
  */
 static void
 consume_end_of_file_marker(struct archive_read *a, struct zip *zip)
@@ -1387,7 +1421,7 @@ consume_end_of_file_marker(struct archive_read *a, struct zip *zip)
 	uint64_t compressed_actual, uncompressed_actual;
 	uint32_t crc32_actual;
 	const uint32_t PK78 = 0x08074B50ULL;
-	int crc32_ignored;
+	uint8_t crc32_ignored, crc32_may_be_zero;
 
 	/* If there shouldn't be a marker, don't consume it. */
 	if ((zip->entry->zip_flags & ZIP_LENGTH_AT_END) == 0) {
@@ -1415,47 +1449,69 @@ consume_end_of_file_marker(struct archive_read *a, struct zip *zip)
 	 * attempt to parse out the pieces.
 	 */
 
-	/* Two additional wrinkles:
-	 *
-	 * 1. We cannot always rely on the CRC32 field.
-	 *    = Test suites sometimes suppress CRC32 calculations
-	 *    = This might be an encrypted entry that doesn't store the CRC.
-	 *      (Note: AES AE-1 did store it; AE-2 does not)
-	 *
-	 * 2. Old 32-bit Zip implementations could support entries
-	 *    over 4GiB by storing only the least-significant 32 bits
-	 *    of all the size fields.  So we only check the
-	 *    least-significant 32 bits when verifying 32-bit size
-	 *    fields.
+	/* CRC32 checking can be tricky:
+	 * * Test suites sometimes ignore the CRC32
+	 * * AES AE-2 always writes zero for the CRC32
+	 * * AES AE-1 sometimes writes zero for the CRC32
 	 */
-
-	crc32_ignored = zip->ignore_crc32
-		|| (zip->hctx_valid
-		    && zip->entry->aes_extra.vendor != AES_VENDOR_AE_1);
+	crc32_ignored = zip->ignore_crc32;
+	crc32_may_be_zero = 0;
+	crc32_actual = zip->computed_crc32;
+	if (zip->hctx_valid) {
+	  switch (zip->entry->aes_extra.vendor) {
+	  case AES_VENDOR_AE_2:
+	    crc32_actual = 0;
+	    break;
+	  case AES_VENDOR_AE_1:
+	  default:
+	    crc32_may_be_zero = 1;
+	    break;
+	  }
+	}
 
 	/* Values computed from the actual data in the archive. */
-	crc32_actual = zip->computed_crc32;
 	compressed_actual = (uint64_t)zip->entry_compressed_bytes_read;
 	uncompressed_actual = (uint64_t)zip->entry_uncompressed_bytes_read;
 
-	/* Shortest: No PK78 marker, all 32-bit fields (12 bytes total) */
-	if (((archive_le32dec(p) == crc32_actual) || crc32_ignored)
-	    && (archive_le32dec(p + 4) == (compressed_actual & UINT32_MAX))
-	    && (archive_le32dec(p + 8) == (uncompressed_actual & UINT32_MAX))) {
+
+	/* Longest: PK78 marker, all 64-bit fields (24 bytes total) */
+	if (archive_le32dec(p) == PK78
+	    && ((archive_le32dec(p + 4) == crc32_actual)
+		|| (crc32_may_be_zero && (archive_le32dec(p + 4) == 0))
+		|| crc32_ignored)
+	    && (archive_le64dec(p + 8) == compressed_actual)
+	    && (archive_le64dec(p + 16) == uncompressed_actual)) {
 		if (!crc32_ignored) {
 			zip->entry->crc32 = crc32_actual;
 		}
 		zip->entry->compressed_size = compressed_actual;
 		zip->entry->uncompressed_size = uncompressed_actual;
-		zip->unconsumed += 12;
+		zip->unconsumed += 24;
+		return;
+	}
+
+	/* No PK78 marker, 64-bit fields (20 bytes total) */
+	if (((archive_le32dec(p) == crc32_actual)
+	     || (crc32_may_be_zero && (archive_le32dec(p + 4) == 0))
+	     || crc32_ignored)
+	    && (archive_le64dec(p + 4) == compressed_actual)
+	    && (archive_le64dec(p + 12) == uncompressed_actual)) {
+	        if (!crc32_ignored) {
+			zip->entry->crc32 = crc32_actual;
+		}
+		zip->entry->compressed_size = compressed_actual;
+		zip->entry->uncompressed_size = uncompressed_actual;
+		zip->unconsumed += 20;
 		return;
 	}
 
 	/* PK78 marker and 32-bit fields (16 bytes total) */
 	if (archive_le32dec(p) == PK78
-	    && ((archive_le32dec(p + 4) == crc32_actual) || crc32_ignored)
-	    && (archive_le32dec(p + 8) == (compressed_actual & UINT32_MAX))
-	    && (archive_le32dec(p + 12) == (uncompressed_actual & UINT32_MAX))) {
+	    && ((archive_le32dec(p + 4) == crc32_actual)
+		|| (crc32_may_be_zero && (archive_le32dec(p + 4) == 0))
+		|| crc32_ignored)
+	    && (archive_le32dec(p + 8) == compressed_actual)
+	    && (archive_le32dec(p + 12) == uncompressed_actual)) {
 		if (!crc32_ignored) {
 			zip->entry->crc32 = crc32_actual;
 		}
@@ -1465,30 +1521,18 @@ consume_end_of_file_marker(struct archive_read *a, struct zip *zip)
 		return;
 	}
 
-	/* No PK78 marker, 64-bit fields (20 bytes total) */
-	if (((archive_le32dec(p) == crc32_actual) || crc32_ignored)
-	    && (archive_le64dec(p + 4) == compressed_actual)
-	    && (archive_le64dec(p + 12) == uncompressed_actual)) {
+	/* Shortest: No PK78 marker, all 32-bit fields (12 bytes total) */
+	if (((archive_le32dec(p) == crc32_actual)
+	     || (crc32_may_be_zero && (archive_le32dec(p + 4) == 0))
+	     || crc32_ignored)
+	    && (archive_le32dec(p + 4) == compressed_actual)
+	    && (archive_le32dec(p + 8) == uncompressed_actual)) {
 		if (!crc32_ignored) {
 			zip->entry->crc32 = crc32_actual;
 		}
 		zip->entry->compressed_size = compressed_actual;
 		zip->entry->uncompressed_size = uncompressed_actual;
-		zip->unconsumed += 20;
-		return;
-	}
-
-	/* Longest: PK78 marker, all 64-bit fields (24 bytes total) */
-	if (archive_le32dec(p) == PK78
-	    && ((archive_le32dec(p + 4) == crc32_actual) || crc32_ignored)
-	    && (archive_le64dec(p + 8) == compressed_actual)
-	    && (archive_le64dec(p + 16) == uncompressed_actual)) {
-		if (!crc32_ignored) {
-			zip->entry->crc32 = crc32_actual;
-		}
-		zip->entry->compressed_size = compressed_actual;
-		zip->entry->uncompressed_size = uncompressed_actual;
-		zip->unconsumed += 24;
+		zip->unconsumed += 12;
 		return;
 	}
 
