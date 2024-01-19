@@ -272,6 +272,15 @@ will be used instead.
 On create, this sets the group name that will be stored
 in the archive;
 the name will not be verified against the system group database.
+.It Fl Fl group Ar name Ns Op : Ns Ar gid
+Use the provided group, if
+.Ar gid
+is not provided,
+.Ar name
+can be either a group name or numeric id.
+See the
+.Fl Fl gname
+option for details.
 .It Fl H
 (c and r modes only)
 Symbolic links named on the command line will be followed; the

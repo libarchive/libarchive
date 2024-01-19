@@ -43,6 +43,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_exclude_vcs.c
     test_option_fflags.c
     test_option_gid_gname.c
+    test_option_group.c
     test_option_grzip.c
     test_option_ignore_zeros.c
     test_option_j.c
