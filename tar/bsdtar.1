@@ -904,6 +904,15 @@ the name is not verified against the system user database.
 Pipe the input (in x or t mode) or the output (in c mode) through
 .Pa program
 instead of using the builtin compression support.
+.It Fl Fl owner Ar name Ns Op : Ns Ar uid
+Use the provided user, if
+.Ar uid
+is not provided,
+.Ar name
+can be either an username or numeric id.
+See the
+.Fl Fl uname
+option for details.
 .It Fl v , Fl Fl verbose
 Produce verbose output.
 In create and extract modes,

@@ -626,6 +626,36 @@ main(int argc, char **argv)
 		case OPTION_OPTIONS:
 			bsdtar->option_options = bsdtar->argument;
 			break;
+		case OPTION_OWNER: /* GNU tar */
+			errno = 0;
+			tptr = NULL;
+
+			uptr = strchr(bsdtar->argument, ':');
+			if(uptr != NULL) {
+				if(uptr[1] == 0) {
+					lafe_errc(1, 0, "Invalid argument to --owner (missing id after :)");
+				}
+				uptr[0] = 0;
+				uptr++;
+				t = (int)strtol(uptr, &tptr, 10);
+				if (errno || t < 0 || *uptr == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					lafe_errc(1, 0, "Invalid argument to --owner (%s is not a number)", uptr);
+				} else {
+					bsdtar->uid = t;
+				}
+				bsdtar->uname = bsdtar->argument;
+			} else {
+				t = (int)strtol(bsdtar->argument, &tptr, 10);
+				if (errno || t < 0 || *(bsdtar->argument) == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					bsdtar->uname = bsdtar->argument;
+				} else {
+					bsdtar->uid = t;
+					bsdtar->uname = "";
+				}
+			}
+			break;
 #if 0
 		/*
 		 * The common BSD -P option is not necessary, since
