@@ -12,7 +12,7 @@ jobs:
       matrix:
         bs: [autotools, cmake]
     steps:
-    - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
     - name: Install dependencies
       run: ./build/ci/github_actions/macos.sh prepare
     - name: Autogen
@@ -35,6 +35,7 @@ jobs:
         SKIP_OPEN_FD_ERR_TEST: 1
         IGNORE_TRAVERSALS_TEST4: 1
         MAKE_ARGS: -j
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
@@ -56,7 +57,7 @@ jobs:
         bs: [autotools, cmake]
         crypto: [mbedtls, nettle, openssl]
     steps:
-    - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
     - name: Update apt cache
       run: sudo apt-get update
     - name: Install dependencies
@@ -81,6 +82,7 @@ jobs:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
         MAKE_ARGS: -j
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
@@ -96,7 +98,7 @@ jobs:
   Ubuntu-distcheck:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
     - name: Update package definitions
       run: sudo apt-get update
     - name: Install dependencies
@@ -119,11 +121,16 @@ jobs:
   Windows:
     runs-on: windows-2022
     strategy:
+      fail-fast: false
       matrix:
         be: [mingw-gcc, msvc]
     steps:
-    - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-    - name: Install dependencies
+    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+    - name: Install mingw
+      if:  ${{ matrix.be=='mingw-gcc' }}
+      run: choco install mingw
+      shell: cmd
+    - name: Install library dependencies
       run: ./build/ci/github_actions/ci.cmd deplibs
       shell: cmd
       env:
@@ -143,6 +150,7 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+        CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/github_actions/ci.cmd install
       shell: cmd

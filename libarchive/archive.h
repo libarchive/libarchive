@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD: src/lib/libarchive/archive.h.in,v 1.50 2008/05/26 17:00:22 kientzle Exp $
  */
 
 #ifndef ARCHIVE_H_INCLUDED
@@ -535,6 +533,10 @@ __LA_DECL int archive_read_open_filenames(struct archive *,
 		     const char **_filenames, size_t _block_size);
 __LA_DECL int archive_read_open_filename_w(struct archive *,
 		     const wchar_t *_filename, size_t _block_size);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+__LA_DECL int archive_read_open_filenames_w(struct archive *,
+		     const wchar_t **_filenames, size_t _block_size);
+#endif
 /* archive_read_open_file() is a deprecated synonym for ..._open_filename(). */
 __LA_DECL int archive_read_open_file(struct archive *,
 		     const char *_filename, size_t _block_size) __LA_DEPRECATED;

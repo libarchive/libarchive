@@ -23,9 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
-.Dd December 1, 2022
+.Dd December 10, 2023
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -403,6 +401,8 @@ This is the reverse of
 and the default behavior in c, r, and u modes or if
 .Nm
 is run in x mode as root.
+Currently supported only for pax formats
+(including "pax restricted", the default tar format for bsdtar.)
 .It Fl n , Fl Fl norecurse , Fl Fl no-recursion
 Do not operate recursively on the content of directories.
 .It Fl Fl newer Ar date
@@ -774,7 +774,7 @@ This works similar to the conv=sparse option of dd.
 Modify file or archive member names according to
 .Pa pattern .
 The pattern has the format
-.Ar /old/new/ Ns Op ghHprRsS
+.Ar /old/new/ Ns Op bghHprRsS
 where
 .Ar old
 is a basic regular expression,
@@ -796,6 +796,9 @@ of symbolic links.
 The optional trailing p specifies that after a successful substitution
 the original path name and the new path name should be printed to
 standard error.
+The optional trailing b specifies that the substitution should be
+matched from the beginning of the string rather than from right after the
+position at which the previous matching substitution ended.
 Optional trailing H, R, or S characters suppress substitutions
 for hardlink targets, regular filenames, or symlink targets,
 respectively.

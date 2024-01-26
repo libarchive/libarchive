@@ -25,7 +25,6 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_write_filter_zstd)
 {
