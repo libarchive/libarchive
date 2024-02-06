@@ -133,6 +133,7 @@ main(int argc, char *argv[])
 	struct cpio _cpio; /* Allocated on stack. */
 	struct cpio *cpio;
 	const char *errmsg;
+	char *uname, *gname;
 	char *tptr;
 	int uid, gid;
 	int opt, t;
@@ -320,21 +321,22 @@ main(int argc, char *argv[])
 			cpio->quiet = 1;
 			break;
 		case 'R': /* GNU cpio, also --owner */
-			/* TODO: owner_parse should return uname/gname
-			 * also; use that to set [ug]name_override. */
-			errmsg = owner_parse(cpio->argument, &uid, &gid);
+			errmsg = owner_parse(cpio->argument, &uid, &gid, &uname, &gname);
 			if (errmsg) {
 				lafe_warnc(-1, "%s", errmsg);
 				usage();
 			}
-			if (uid != -1) {
+			if (uid != -1)
 				cpio->uid_override = uid;
-				cpio->uname_override = NULL;
-			}
-			if (gid != -1) {
+
+			free(cpio->uname_override);
+			cpio->uname_override = uname;
+
+			if (gid != -1)
 				cpio->gid_override = gid;
-				cpio->gname_override = NULL;
-			}
+			
+			free(cpio->gname_override);
+			cpio->gname_override = gname;
 			break;
 		case 'r': /* POSIX 1997 */
 			cpio->option_rename = 1;
@@ -439,11 +441,14 @@ main(int argc, char *argv[])
 	}
 
 	archive_match_free(cpio->matching);
-	free_cache(cpio->gname_cache);
 	free_cache(cpio->uname_cache);
+	free(cpio->uname_override);
+	free_cache(cpio->gname_cache);
+	free(cpio->gname_override);
 	archive_read_close(cpio->archive_read_disk);
 	archive_read_free(cpio->archive_read_disk);
 	free(cpio->destdir);
+
 	passphrase_free(cpio->ppbuff);
 	return (cpio->return_value);
 }
