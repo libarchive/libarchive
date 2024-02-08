@@ -1112,6 +1112,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_exclude_vcs.c \
 	tar/test/test_option_fflags.c \
 	tar/test/test_option_gid_gname.c \
+	tar/test/test_option_group.c \
 	tar/test/test_option_grzip.c \
 	tar/test/test_option_ignore_zeros.c \
 	tar/test/test_option_j.c \
@@ -1125,6 +1126,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_newer_than.c \
 	tar/test/test_option_nodump.c \
 	tar/test/test_option_older_than.c \
+	tar/test/test_option_owner.c \
 	tar/test/test_option_passphrase.c \
 	tar/test/test_option_q.c \
 	tar/test/test_option_r.c \

@@ -154,7 +154,7 @@ main(int argc, char **argv)
 	char			 compression, compression2;
 	const char		*compression_name, *compression2_name;
 	const char		*compress_program;
-	char			*tptr;
+	char			*tptr, *uptr;
 	char			 possible_help_request;
 	char			 buff[16];
 
@@ -380,6 +380,36 @@ main(int argc, char **argv)
 			break;
 		case OPTION_GNAME: /* cpio */
 			bsdtar->gname = bsdtar->argument;
+			break;
+		case OPTION_GROUP: /* GNU tar */
+			errno = 0;
+			tptr = NULL;
+
+			uptr = strchr(bsdtar->argument, ':');
+			if(uptr != NULL) {
+				if(uptr[1] == 0) {
+					lafe_errc(1, 0, "Invalid argument to --group (missing id after :)");
+				}
+				uptr[0] = 0;
+				uptr++;
+				t = (int)strtol(uptr, &tptr, 10);
+				if (errno || t < 0 || *uptr == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					lafe_errc(1, 0, "Invalid argument to --group (%s is not a number)", uptr);
+				} else {
+					bsdtar->gid = t;
+				}
+				bsdtar->gname = bsdtar->argument;
+			} else {
+				t = (int)strtol(bsdtar->argument, &tptr, 10);
+				if (errno || t < 0 || *(bsdtar->argument) == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					bsdtar->gname = bsdtar->argument;
+				} else {
+					bsdtar->gid = t;
+					bsdtar->gname = "";
+				}
+			}
 			break;
 		case OPTION_GRZIP:
 			if (compression != '\0')
@@ -625,6 +655,36 @@ main(int argc, char **argv)
 			break;
 		case OPTION_OPTIONS:
 			bsdtar->option_options = bsdtar->argument;
+			break;
+		case OPTION_OWNER: /* GNU tar */
+			errno = 0;
+			tptr = NULL;
+
+			uptr = strchr(bsdtar->argument, ':');
+			if(uptr != NULL) {
+				if(uptr[1] == 0) {
+					lafe_errc(1, 0, "Invalid argument to --owner (missing id after :)");
+				}
+				uptr[0] = 0;
+				uptr++;
+				t = (int)strtol(uptr, &tptr, 10);
+				if (errno || t < 0 || *uptr == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					lafe_errc(1, 0, "Invalid argument to --owner (%s is not a number)", uptr);
+				} else {
+					bsdtar->uid = t;
+				}
+				bsdtar->uname = bsdtar->argument;
+			} else {
+				t = (int)strtol(bsdtar->argument, &tptr, 10);
+				if (errno || t < 0 || *(bsdtar->argument) == '\0' ||
+				    tptr == NULL || *tptr != '\0') {
+					bsdtar->uname = bsdtar->argument;
+				} else {
+					bsdtar->uid = t;
+					bsdtar->uname = "";
+				}
+			}
 			break;
 #if 0
 		/*
