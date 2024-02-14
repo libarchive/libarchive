@@ -272,6 +272,15 @@ will be used instead.
 On create, this sets the group name that will be stored
 in the archive;
 the name will not be verified against the system group database.
+.It Fl Fl group Ar name Ns Op : Ns Ar gid
+Use the provided group, if
+.Ar gid
+is not provided,
+.Ar name
+can be either a group name or numeric id.
+See the
+.Fl Fl gname
+option for details.
 .It Fl H
 (c and r modes only)
 Symbolic links named on the command line will be followed; the
@@ -904,6 +913,15 @@ the name is not verified against the system user database.
 Pipe the input (in x or t mode) or the output (in c mode) through
 .Pa program
 instead of using the builtin compression support.
+.It Fl Fl owner Ar name Ns Op : Ns Ar uid
+Use the provided user, if
+.Ar uid
+is not provided,
+.Ar name
+can be either an username or numeric id.
+See the
+.Fl Fl uname
+option for details.
 .It Fl v , Fl Fl verbose
 Produce verbose output.
 In create and extract modes,
