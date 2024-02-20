@@ -654,6 +654,11 @@ main(int argc, char **argv)
 			    ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS;
 			break;
 		case OPTION_OPTIONS:
+			if (bsdtar->option_options != NULL) {
+				lafe_warnc(0,
+				    "Ignoring previous option '%s', separate multiple options with commas",
+				    bsdtar->option_options);
+			}
 			bsdtar->option_options = bsdtar->argument;
 			break;
 		case OPTION_OWNER: /* GNU tar */
