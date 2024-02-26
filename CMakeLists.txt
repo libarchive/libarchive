@@ -20,6 +20,7 @@ endif()
 #   Release        : Release build
 #   RelWithDebInfo : Release build with Debug Info
 #   MinSizeRel     : Release Min Size build
+#   None           : No build type
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build Type" FORCE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
@@ -31,12 +32,12 @@ IF("${cached_type}" STREQUAL "UNINITIALIZED")
 ENDIF("${cached_type}" STREQUAL "UNINITIALIZED")
 # Check the Build Type.
 IF(NOT "${CMAKE_BUILD_TYPE}"
-       MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)\$")
+       MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|None)\$")
   MESSAGE(FATAL_ERROR
           "Unknown keyword for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n"
-          "Acceptable keywords: Debug,Release,RelWithDebInfo,MinSizeRel")
+          "Acceptable keywords: Debug,Release,RelWithDebInfo,MinSizeRel,None")
 ENDIF(NOT "${CMAKE_BUILD_TYPE}"
-          MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)\$")
+          MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|None)\$")
 
 # On MacOS, prefer MacPorts libraries to system libraries.
 # I haven't come up with a compelling argument for this to be conditional.
