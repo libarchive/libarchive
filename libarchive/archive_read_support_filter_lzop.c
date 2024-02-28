@@ -280,8 +280,8 @@ consume_header(struct archive_read_filter *self)
 		checksum = crc32(crc32(0, NULL, 0), p, len);
 	else
 		checksum = adler32(adler32(0, NULL, 0), p, len);
-	if (archive_be32dec(p + len) != checksum)
 #ifndef DONT_FAIL_ON_CRC_ERROR
+	if (archive_be32dec(p + len) != checksum)
 		goto corrupted;
 #endif
 	__archive_read_filter_consume(self->upstream, len + 4);

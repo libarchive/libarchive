@@ -3050,8 +3050,8 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 
 		/* Check the EncodedHeader CRC.*/
 		if (r == 0 && zip->header_crc32 != next_header_crc) {
-			archive_set_error(&a->archive, -1,
 #ifndef DONT_FAIL_ON_CRC_ERROR
+			archive_set_error(&a->archive, -1,
 			    "Damaged 7-Zip archive");
 			r = -1;
 #endif
