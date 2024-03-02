@@ -447,8 +447,8 @@ lz4_filter_read_descriptor(struct archive_read_filter *self)
 	chsum = __archive_xxhash.XXH32(read_buf, (int)descriptor_bytes -1, 0);
 	chsum = (chsum >> 8) & 0xff;
 	chsum_verifier = read_buf[descriptor_bytes-1] & 0xff;
-	if (chsum != chsum_verifier)
 #ifndef DONT_FAIL_ON_CRC_ERROR
+	if (chsum != chsum_verifier)
 		goto malformed_error;
 #endif
 
@@ -520,8 +520,8 @@ lz4_filter_read_data_block(struct archive_read_filter *self, const void **p)
 			read_buf + 4, (int)compressed_size, 0);
 		unsigned int chsum_block =
 		    archive_le32dec(read_buf + 4 + compressed_size);
-		if (chsum != chsum_block)
 #ifndef DONT_FAIL_ON_CRC_ERROR
+		if (chsum != chsum_block)
 			goto malformed_error;
 #endif
 	}
