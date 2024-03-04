@@ -29,6 +29,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
@@ -37,6 +40,9 @@
 #endif
 #ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 #ifdef HAVE_ZSTD_H
 #include <zstd.h>
@@ -266,7 +272,13 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		if (string_to_number(value, &threads) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-		if (threads < 0) {
+
+#if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
+		if (threads == 0) {
+			threads = sysconf(_SC_NPROCESSORS_ONLN);
+		}
+#endif
+		if (threads < 0 || threads > INT_MAX) {
 			return (ARCHIVE_WARN);
 		}
 		data->threads = (int)threads;
