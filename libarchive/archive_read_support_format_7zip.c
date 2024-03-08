@@ -78,7 +78,7 @@
  */
 #define ELF_HDR_MIN_LEN 0x34
 #define ELF_HDR_EI_CLASS_OFFSET 0x04
-#define ELF_HDR_EI_DATA_OFFSET 0x0
+#define ELF_HDR_EI_DATA_OFFSET 0x05
 
 /*
  * Codec ID
@@ -256,6 +256,7 @@ struct _7zip_entry {
 struct _7zip {
 	/* Structural information about the archive. */
 	struct _7z_stream_info	 si;
+	struct _7z_stream_info   asi;
 
 	int			 header_is_being_read;
 	int			 header_is_encoded;
@@ -2722,6 +2723,18 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 	}
 
 	/*
+	 * Read AdditionalStreamsInfo.
+	 */
+	if (*p == kAdditionalStreamsInfo) {
+		if (read_StreamsInfo(a, &(zip->asi)) < 0)
+			return (-1);
+		if ((p = header_bytes(a, 1)) == NULL)
+			return (-1);
+	}
+	if (*p == kEnd)
+		return (0);
+
+	/*
 	 * Read MainStreamsInfo.
 	 */
 	if (*p == kMainStreamsInfo) {
@@ -2832,9 +2845,19 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 				return (-1);
 			ll--;
 
+			/* Read external */
+			if (*p) {
+				if (parse_7zip_uint64(a, &(h->dataIndex)) < 0)
+					return (-1);
+				if (UMAX_ENTRY < h->dataIndex)
+					return (-1);
+				break;
+			} 
+
+			ll--;
 			if ((ll & 1) || ll < zip->numFiles * 4)
 				return (-1);
-
+			
 			if (zip->entry_names != NULL)
 				return (-1);
 			zip->entry_names = malloc(ll);
@@ -2886,7 +2909,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 		{
 			int allAreDefined;
 
-			if ((p = header_bytes(a, 2)) == NULL)
+			if ((p = header_bytes(a, 1)) == NULL)
 				return (-1);
 			allAreDefined = *p;
 			if (h->attrBools != NULL)
@@ -2898,10 +2921,24 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			if (allAreDefined)
 				memset(h->attrBools, 1, (size_t)zip->numFiles);
 			else {
+				if ((p = header_bytes(a, 1)) == NULL)
+					return (-1);
 				if (read_Bools(a, h->attrBools,
 				      (size_t)zip->numFiles) < 0)
 					return (-1);
 			}
+
+			/* Read external */
+			if ((p = header_bytes(a, 1)) == NULL)
+				return (-1);
+			if (*p) {
+				if (parse_7zip_uint64(a, &(h->dataIndex)) < 0)
+					return (-1);
+				if (UMAX_ENTRY < h->dataIndex)
+					return (-1);
+				break;
+			} 
+
 			for (i = 0; i < zip->numFiles; i++) {
 				if (h->attrBools[i]) {
 					if ((p = header_bytes(a, 4)) == NULL)
