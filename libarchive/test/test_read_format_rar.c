@@ -214,6 +214,14 @@ DEFINE_TEST(test_read_format_rar_unicode_UTF8)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_support_filter_all(a));
   assertA(0 == archive_read_support_format_all(a));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+  /* Windows will use OEMCP as default, but the file is UTF-8. */
+  if (ARCHIVE_OK != archive_read_set_options(a, "rar:hdrcharset=UTF-8")) {
+	skipping("This system cannot read input as UTF-8.");
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	return;
+  }
+#endif
   assertA(0 == archive_read_open_filename(a, reffile, 10240));
 
   /* First header. */
