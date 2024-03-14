@@ -227,8 +227,8 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target,
 	if (f == NULL)
 		return (0);
 
-	tlen = strlen(target);
-	llen = strlen(linkname);
+	tlen = (int)strlen(target);
+	llen = (int)strlen(linkname);
 
 	if (tlen == 0 || llen == 0)
 		return (0);
@@ -3921,7 +3921,7 @@ main(int argc, char **argv)
 	 * tree.
 	 */
 	progname = p = argv[0];
-	testprogdir_len = strlen(progname) + 1;
+	testprogdir_len = (int)strlen(progname) + 1;
 	if ((testprogdir = (char *)malloc(testprogdir_len)) == NULL)
 	{
 		fprintf(stderr, "ERROR: Out of memory.");
@@ -4069,7 +4069,7 @@ main(int argc, char **argv)
 #ifdef PROGRAM
 	if (testprogfile == NULL)
 	{
-		tmp2_len = strlen(testprogdir) + 1 + strlen(PROGRAM) + 1;
+		tmp2_len = (int)(strlen(testprogdir) + 1 + strlen(PROGRAM) + 1);
 		if ((tmp2 = (char *)malloc(tmp2_len)) == NULL)
 		{
 			fprintf(stderr, "ERROR: Out of memory.");
@@ -4094,7 +4094,7 @@ main(int argc, char **argv)
 		testprogfile = testprg;
 #endif
 		/* Quote the name that gets put into shell command lines. */
-		testprg_len = strlen(testprogfile) + 3;
+		testprg_len = (int)strlen(testprogfile) + 3;
 		testprg = malloc(testprg_len);
 		strncpy(testprg, "\"", testprg_len);
 		strncat(testprg, testprogfile, testprg_len);

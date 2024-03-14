@@ -107,7 +107,7 @@ endif ()
 # aggressive about diagnosing build problems; this can get
 # relaxed somewhat in final shipping versions.
 IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
-    CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+    CMAKE_C_COMPILER_ID MATCHES "^Clang$" AND NOT MSVC)
   SET(CMAKE_REQUIRED_FLAGS "-Wall -Wformat -Wformat-security")
   #################################################################
   # Set compile flags for all build types.
@@ -144,7 +144,7 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
     SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
   ENDIF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
 ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
-       CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+       CMAKE_C_COMPILER_ID MATCHES "^Clang$" AND NOT MSVC)
 IF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
   SET(CMAKE_C_COMPILER "xlc_r")
   SET(CMAKE_REQUIRED_FLAGS "-qflag=e:e -qformat=sec")
@@ -2166,7 +2166,7 @@ ENDIF(WIN32 AND NOT CYGWIN)
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 #
 IF(MSVC)
-  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
+  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS)
 ENDIF(MSVC)
 
 IF(APPLE)
