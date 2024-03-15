@@ -42,63 +42,59 @@ DEFINE_TEST(test_7zip_filename_encoding_UTF16_win)
 	 * work as expected
 	 */
 
-	/* Part 1: file */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_7zip(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
+	/* Part 1: file */
 	entry = archive_entry_new2(a);
-	/* Set the filename using a UTF-16 string */
 	archive_entry_copy_pathname_w(entry, L"\u8868.txt");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
-	archive_entry_free(entry);
-	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
-
-	/* Check UTF-16 version. */
-	assertEqualMem(buff + 44, L"\u8868.txt", 10);
 
 	/* Part 2: directory */
-	a = archive_write_new();
-	assertEqualInt(ARCHIVE_OK, archive_write_set_format_7zip(a));
-	assertEqualInt(ARCHIVE_OK,
-	    archive_write_open_memory(a, buff, sizeof(buff), &used));
-
-	entry = archive_entry_new2(a);
-	/* Set the directory name using a UTF-16 string */
-	/* NOTE: Explicitly not adding trailing slash to test that code path */
+	archive_entry_clear(entry);
 	archive_entry_copy_pathname_w(entry, L"\u8868");
 	archive_entry_set_filetype(entry, AE_IFDIR);
 	archive_entry_set_size(entry, 0);
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
-	archive_entry_free(entry);
-	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
-
-	/* NOTE: Directories do not get trailing slash for 7zip files */
-	assertEqualMem(buff + 41, L"\u8868", 2);
 
 	/* Part 3: symlink */
-	a = archive_write_new();
-	assertEqualInt(ARCHIVE_OK, archive_write_set_format_7zip(a));
-	assertEqualInt(ARCHIVE_OK,
-	    archive_write_open_memory(a, buff, sizeof(buff), &used));
-
-	entry = archive_entry_new2(a);
-	/* Set the symlink target using a UTF-16 string */
+	archive_entry_clear(entry);
 	archive_entry_set_pathname(entry, "link.txt");
 	archive_entry_copy_symlink_w(entry, L"\u8868.txt");
 	archive_entry_set_filetype(entry, AE_IFLNK);
 	archive_entry_set_symlink_type(entry, AE_SYMLINK_TYPE_FILE);
 	archive_entry_set_size(entry, 0);
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+
+	/* NOTE: 7zip does not support hardlinks */
+
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* NOTE: link names are stored in UTF-8 */
-	assertEqualMem(buff + 32, "\xE8\xA1\xA8.txt", 7);
+	/* Ensure that the archive contents can be read properly */
+	/* NOTE: 7zip file contents are not in the order we wrote them! */
+	a = archive_read_new();
+	archive_read_support_format_all(a);
+	archive_read_support_filter_all(a);
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 
-	/* NOTE: 7zip does not support hardlinks */
+	/* Read part 3: symlink */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u8868.txt", archive_entry_symlink_w(entry));
+
+	/* Read part 1: file */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u8868.txt", archive_entry_pathname_w(entry));
+
+	/* Read part 2: directory */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	/* NOTE: Trailing slash added automatically for us */
+	assertEqualWString(L"\u8868/", archive_entry_pathname_w(entry));
+
+	archive_read_free(a);
 #endif
 }
