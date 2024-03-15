@@ -579,6 +579,116 @@ DEFINE_TEST(test_pax_filename_encoding_KOI8R_CP1251)
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
 
+/*
+ * Verify that unicode filenames are correctly preserved on Windows
+ */
+DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling"
+		" on Windows with UTF-16 names");
+	return;
+#else
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	/*
+	 * Don't call setlocale because we're verifying that the '_w' functions
+	 * work as expected when 'hdrcharset' is UTF-8
+	 */
+
+	/* Check if the platform completely supports the string conversion. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-16 to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+
+	/* Re-create a write archive object since filenames should be written
+	 * in UTF-8 by default. */
+	archive_write_free(a);
+
+	/* Part 1: file */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_copy_pathname_w(entry, L"\u043f\u0440\u0438");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Above three characters in UTF-16 should translate to the following
+	 * three characters (two bytes each) in UTF-8. */
+	assertEqualMem(buff + 512, "15 path=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
+
+	/* Part 2: directory */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* NOTE: Explicitly not adding trailing slash to test that code path */
+	archive_entry_copy_pathname_w(entry, L"\u043f\u0440\u0438");
+	archive_entry_set_filetype(entry, AE_IFDIR);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Above three characters in UTF-16 should translate to the following
+	 * three characters (two bytes each) in UTF-8, with trailing slash. */
+	assertEqualMem(buff + 512, "16 path=\xD0\xBF\xD1\x80\xD0\xB8\x2f\x0A", 15);
+
+	/* Part 3: symlink */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "link.txt");
+	archive_entry_copy_symlink_w(entry, L"\u043f\u0440\u0438");
+	archive_entry_set_filetype(entry, AE_IFLNK);
+	archive_entry_set_symlink_type(entry, AE_SYMLINK_TYPE_FILE);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Above three characters in UTF-16 should translate to the following
+	 * three characters (two bytes each) in UTF-8. */
+	assertEqualMem(buff + 512, "19 linkpath=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
+
+	/* Part 4: hardlink */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "link.txt");
+	archive_entry_copy_hardlink_w(entry, L"\u043f\u0440\u0438");
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Above three characters in UTF-16 should translate to the following
+	 * three characters (two bytes each) in UTF-8. */
+	assertEqualMem(buff + 512, "19 linkpath=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
+#endif
+}
 
 DEFINE_TEST(test_pax_filename_encoding)
 {
