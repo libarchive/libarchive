@@ -523,7 +523,11 @@ archive_write_gnutar_header(struct archive_write *a,
 			goto exit_write_header;
 	}
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (archive_entry_hardlink_w(entry) != NULL) {
+#else
 	if (archive_entry_hardlink(entry) != NULL) {
+#endif
 		tartype = '1';
 	} else
 		switch (archive_entry_filetype(entry)) {
