@@ -282,7 +282,8 @@ and other special entries.
 .It Cm compression-level
 The value is interpreted as a decimal integer specifying the
 compression level.
-Values between 0 and 9 are supported.
+Values between 0 and 9 are supported, with the exception of bzip2
+which only supports values between 1 and 9.
 The interpretation of the compression level depends on the chosen
 compression method.
 .El
