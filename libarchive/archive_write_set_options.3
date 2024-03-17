@@ -270,6 +270,7 @@ of physical CPU cores.
 .It Cm compression
 The value is one of
 .Dq store ,
+.Dq copy ,
 .Dq deflate ,
 .Dq bzip2 ,
 .Dq lzma1 ,
@@ -277,6 +278,11 @@ The value is one of
 or
 .Dq ppmd
 to indicate how the following entries should be compressed.
+The values
+.Dq store
+and
+.Dq copy
+are synonyms.
 Note that this setting is ignored for directories, symbolic links,
 and other special entries.
 .It Cm compression-level
