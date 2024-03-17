@@ -1394,7 +1394,7 @@ archive_write_pax_header(struct archive_write *a,
 	 * numeric fields, though they're less critical.
 	 */
 	if (__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0,
-	    NULL) == ARCHIVE_FATAL) {
+	    sconv) == ARCHIVE_FATAL) {
 		archive_entry_free(entry_main);
 		archive_string_free(&entry_name);
 		return (ARCHIVE_FATAL);
@@ -1454,7 +1454,7 @@ archive_write_pax_header(struct archive_write *a,
 		archive_entry_set_ctime(pax_attr_entry, 0, 0);
 
 		r = __archive_write_format_header_ustar(a, paxbuff,
-		    pax_attr_entry, 'x', 1, NULL);
+		    pax_attr_entry, 'x', 1, sconv);
 
 		archive_entry_free(pax_attr_entry);
 

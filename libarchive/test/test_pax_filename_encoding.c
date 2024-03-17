@@ -591,7 +591,7 @@ DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
 #else
 	struct archive *a;
 	struct archive_entry *entry;
-	char buff[4096];
+	char buff[0x2000];
 	size_t used;
 
 	/*
@@ -613,80 +613,66 @@ DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
 	 * in UTF-8 by default. */
 	archive_write_free(a);
 
-	/* Part 1: file */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
+	/* Part 1: file */
 	entry = archive_entry_new2(a);
-	archive_entry_copy_pathname_w(entry, L"\u043f\u0440\u0438");
+	archive_entry_copy_pathname_w(entry, L"\u4f60\u597d.txt");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
-	archive_entry_free(entry);
-	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
-
-	/* Above three characters in UTF-16 should translate to the following
-	 * three characters (two bytes each) in UTF-8. */
-	assertEqualMem(buff + 512, "15 path=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
 
 	/* Part 2: directory */
-	a = archive_write_new();
-	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	assertEqualInt(ARCHIVE_OK,
-	    archive_write_open_memory(a, buff, sizeof(buff), &used));
-
-	entry = archive_entry_new2(a);
 	/* NOTE: Explicitly not adding trailing slash to test that code path */
 	archive_entry_copy_pathname_w(entry, L"\u043f\u0440\u0438");
 	archive_entry_set_filetype(entry, AE_IFDIR);
 	archive_entry_set_size(entry, 0);
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
-	archive_entry_free(entry);
-	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
-
-	/* Above three characters in UTF-16 should translate to the following
-	 * three characters (two bytes each) in UTF-8, with trailing slash. */
-	assertEqualMem(buff + 512, "16 path=\xD0\xBF\xD1\x80\xD0\xB8\x2f\x0A", 15);
 
 	/* Part 3: symlink */
-	a = archive_write_new();
-	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	assertEqualInt(ARCHIVE_OK,
-	    archive_write_open_memory(a, buff, sizeof(buff), &used));
-
-	entry = archive_entry_new2(a);
-	archive_entry_set_pathname(entry, "link.txt");
-	archive_entry_copy_symlink_w(entry, L"\u043f\u0440\u0438");
+	archive_entry_copy_pathname_w(entry, L"\u518d\u89c1.txt");
+	archive_entry_copy_symlink_w(entry, L"\u4f60\u597d.txt");
 	archive_entry_set_filetype(entry, AE_IFLNK);
 	archive_entry_set_symlink_type(entry, AE_SYMLINK_TYPE_FILE);
 	archive_entry_set_size(entry, 0);
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
-	archive_entry_free(entry);
-	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
-
-	/* Above three characters in UTF-16 should translate to the following
-	 * three characters (two bytes each) in UTF-8. */
-	assertEqualMem(buff + 512, "19 linkpath=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
 
 	/* Part 4: hardlink */
-	a = archive_write_new();
-	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
-	assertEqualInt(ARCHIVE_OK,
-	    archive_write_open_memory(a, buff, sizeof(buff), &used));
-
-	entry = archive_entry_new2(a);
-	archive_entry_set_pathname(entry, "link.txt");
-	archive_entry_copy_hardlink_w(entry, L"\u043f\u0440\u0438");
+	archive_entry_copy_pathname_w(entry, L"\u665a\u5b89.txt");
+	archive_entry_copy_hardlink_w(entry, L"\u4f60\u597d.txt");
+	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* Above three characters in UTF-16 should translate to the following
-	 * three characters (two bytes each) in UTF-8. */
-	assertEqualMem(buff + 512, "19 linkpath=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
+	/* Ensure that the names round trip properly */
+	a = archive_read_new();
+	archive_read_support_format_all(a);
+	archive_read_support_filter_all(a);
+	assertEqualInt(0, archive_read_open_memory(a, buff, used));
+
+	/* Read part 1: file */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_pathname_w(entry));
+
+	/* Read part 2: directory */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u043f\u0440\u0438/", archive_entry_pathname_w(entry));
+
+	/* Read part 3: symlink */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u518d\u89c1.txt", archive_entry_pathname_w(entry));
+	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_symlink_w(entry));
+
+	/* Read part 4: hardlink */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u665a\u5b89.txt", archive_entry_pathname_w(entry));
+	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_hardlink_w(entry));
 #endif
 }
 
