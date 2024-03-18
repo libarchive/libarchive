@@ -883,8 +883,12 @@ DEFINE_TEST(test_archive_string_conversion)
 	test_archive_string_set_get();
 }
 
-DEFINE_TEST(test_archive_string_update_utf8_C)
+DEFINE_TEST(test_archive_string_update_utf8_win)
 {
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling on Windows"
+	    " with the C locale");
+#else
 	static const char utf8_string[] = "\xD0\xBF\xD1\x80\xD0\xB8";
 	static const wchar_t wcs_string[] = L"\U0000043f\U00000440\U00000438";
 	struct archive_mstring mstr;
@@ -894,14 +898,9 @@ DEFINE_TEST(test_archive_string_update_utf8_C)
 
 	r = archive_mstring_update_utf8(NULL, &mstr, utf8_string);
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* On Windows, this should reliably fail with the C locale */
 	assertEqualInt(-1, r);
 	assertEqualInt(0, mstr.aes_set & AES_SET_MBS);
-#else
-	/* Only guaranteed to fail on Windows */
-	(void)r;
-#endif
 
 	/* NOTE: We access the internals to validate that they were set by the
 	 *       'archive_mstring_update_utf8' function */
@@ -913,6 +912,7 @@ DEFINE_TEST(test_archive_string_update_utf8_C)
 	assertEqualWString(wcs_string, mstr.aes_wcs.s);
 
 	archive_mstring_clean(&mstr);
+#endif
 }
 
 DEFINE_TEST(test_archive_string_update_utf8_utf8)
