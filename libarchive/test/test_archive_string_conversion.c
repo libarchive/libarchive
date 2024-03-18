@@ -898,6 +898,9 @@ DEFINE_TEST(test_archive_string_update_utf8_C)
 	/* On Windows, this should reliably fail with the C locale */
 	assertEqualInt(-1, r);
 	assertEqualInt(0, mstr.aes_set & AES_SET_MBS);
+#else
+	/* Only guaranteed to fail on Windows */
+	(void)r;
 #endif
 
 	/* NOTE: We access the internals to validate that they were set by the
