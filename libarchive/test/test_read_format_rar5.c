@@ -1402,3 +1402,89 @@ DEFINE_TEST(test_read_format_rar5_read_data_block_uninitialized_offset)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_unicode)
+{
+	PROLOGUE("test_read_format_rar5_unicode.rar");
+
+	/* Script "file.txt" */
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	assertEqualWString(L"\U0001d4bb\U0001d4be\U0001d4c1\U0001d452.txt",
+	    archive_entry_pathname_w(ae));
+#else
+	assertEqualString(
+	    "\xf0\x9d\x92\xbb\xf0\x9d\x92\xbe\xf0\x9d\x93\x81\xf0\x9d\x91\x92.txt",
+	    archive_entry_pathname(ae));
+#endif
+
+	/* Script "hardlink.txt" */
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	assertEqualWString(L"\U0001d4bd\U0001d4b6\U0001d4c7\U0001d4b9\U0001d4c1"
+	    "\U0001d4be\U0001d4c3\U0001d4c0.txt", archive_entry_pathname_w(ae));
+	assertEqualWString(L"\U0001d4bb\U0001d4be\U0001d4c1\U0001d452.txt",
+	    archive_entry_hardlink_w(ae));
+#else
+	assertEqualString(
+	    "\xf0\x9d\x92\xbd\xf0\x9d\x92\xb6\xf0\x9d\x93\x87\xf0\x9d\x92\xb9\xf0"
+	    "\x9d\x93\x81\xf0\x9d\x92\xbe\xf0\x9d\x93\x83\xf0\x9d\x93\x80.txt",
+	    archive_entry_pathname(ae));
+	assertEqualString(
+	    "\xf0\x9d\x92\xbb\xf0\x9d\x92\xbe\xf0\x9d\x93\x81\xf0\x9d\x91\x92.txt",
+	    archive_entry_hardlink(ae));
+#endif
+
+	/* Script "symlink.txt" */
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualInt(AE_SYMLINK_TYPE_FILE, archive_entry_symlink_type(ae));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	assertEqualWString(L"\U0001d4c8\U0001d4ce\U0001d4c2\U0001d4c1\U0001d4be"
+	    "\U0001d4c3\U0001d4c0.txt", archive_entry_pathname_w(ae));
+	assertEqualWString(L"\U0001d4bb\U0001d4be\U0001d4c1\U0001d452.txt",
+	    archive_entry_symlink_w(ae));
+#else
+	assertEqualString("\xf0\x9d\x93\x88\xf0\x9d\x93\x8e\xf0\x9d\x93\x82\xf0"
+	    "\x9d\x93\x81\xf0\x9d\x92\xbe\xf0\x9d\x93\x83\xf0\x9d\x93\x80.txt",
+	    archive_entry_pathname(ae));
+	assertEqualString(
+	    "\xf0\x9d\x92\xbb\xf0\x9d\x92\xbe\xf0\x9d\x93\x81\xf0\x9d\x91\x92.txt",
+	    archive_entry_symlink(ae));
+#endif
+
+	/* Script "dir" */
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	assertEqualWString(L"\U0001d4b9\U0001d4be\U0001d4c7",
+	    archive_entry_pathname_w(ae));
+#else
+	assertEqualString("\xf0\x9d\x92\xb9\xf0\x9d\x92\xbe\xf0\x9d\x93\x87",
+	    archive_entry_pathname(ae));
+#endif
+
+	/* Script "dir_symlink" */
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualInt(AE_SYMLINK_TYPE_DIRECTORY, archive_entry_symlink_type(ae));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	assertEqualWString(L"\U0001d4b9\U0001d4be\U0001d4c7_\U0001d4c8"
+	    "\U0001d4ce\U0001d4c2\U0001d4c1\U0001d4be\U0001d4c3\U0001d4c0",
+	    archive_entry_pathname_w(ae));
+	assertEqualWString(L"\U0001d4b9\U0001d4be\U0001d4c7",
+	    archive_entry_symlink_w(ae));
+#else
+	assertEqualString("\xf0\x9d\x92\xb9\xf0\x9d\x92\xbe\xf0\x9d\x93\x87\x5f\xf0"
+	    "\x9d\x93\x88\xf0\x9d\x93\x8e\xf0\x9d\x93\x82\xf0\x9d\x93\x81\xf0\x9d"
+	    "\x92\xbe\xf0\x9d\x93\x83\xf0\x9d\x93\x80", archive_entry_pathname(ae));
+	assertEqualString("\xf0\x9d\x92\xb9\xf0\x9d\x92\xbe\xf0\x9d\x93\x87",
+	    archive_entry_symlink(ae));
+#endif
+
+	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}

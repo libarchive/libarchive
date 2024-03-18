@@ -815,7 +815,7 @@ wcsdump(const char *e, const wchar_t *w)
 {
 	logprintf("      %s = ", e);
 	if (w == NULL) {
-		logprintf("(null)");
+		logprintf("(null)\n");
 		return;
 	}
 	logprintf("\"");

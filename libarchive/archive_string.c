@@ -3994,6 +3994,32 @@ archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes,
 	}
 
 	*wp = NULL;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * On Windows, prefer converting from UTF-8 directly to WCS because:
+	 * (1) there's no guarantee that the string can be represented in MBS (e.g.
+	 * with CP_ACP), and (2) in order to convert from UTF-8 to MBS, we're going
+	 * to need to convert from UTF-8 to WCS anyway and its wasteful to throw
+	 * away that intermediate result
+	 */
+	if (aes->aes_set & AES_SET_UTF8) {
+		struct archive_string_conv *sc;
+
+		sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
+		if (sc != NULL) {
+			archive_wstring_empty((&aes->aes_wcs));
+			r = archive_wstring_append_from_mbs_in_codepage(&(aes->aes_wcs),
+			    aes->aes_utf8.s, aes->aes_utf8.length, sc);
+			if (a == NULL)
+				free_sconv_object(sc);
+			if (r == 0) {
+				aes->aes_set |= AES_SET_WCS;
+				*wp = aes->aes_wcs.s;
+				return (0);
+			}
+		}
+	}
+#endif
 	/* Try converting UTF8 to MBS first if MBS does not exist yet. */
 	if ((aes->aes_set & AES_SET_MBS) == 0) {
 		const char *p; /* unused */
