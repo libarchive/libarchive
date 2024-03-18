@@ -4273,21 +4273,32 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 
 	aes->aes_set = AES_SET_UTF8;	/* Only UTF8 is set now. */
 
-	/* Try converting UTF-8 to MBS, return false on failure. */
 	sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
 	if (sc == NULL)
 		return (-1);/* Couldn't allocate memory for sc. */
-	r = archive_strcpy_l(&(aes->aes_mbs), utf8, sc);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* On failure, make an effort to convert UTF8 to WCS as the active code page
-	 * may not be able to represent all characters in the string */
-	if (r != 0) {
-		if (archive_wstring_append_from_mbs_in_codepage(&(aes->aes_wcs),
-			aes->aes_utf8.s, aes->aes_utf8.length, sc) == 0)
-			aes->aes_set = AES_SET_UTF8 | AES_SET_WCS;
-	}
-#endif
+	/* On Windows, there's no good way to convert from UTF8 -> MBS directly, so
+	 * prefer to first convert to WCS as (1) it's wasteful to throw away the
+	 * intermediate result, and (2) WCS will still be set even if we fail to
+	 * convert to MBS (e.g. with ACP that can't represent the characters) */
+	r = archive_wstring_append_from_mbs_in_codepage(&(aes->aes_wcs),
+		aes->aes_utf8.s, aes->aes_utf8.length, sc);
+
+	if (a == NULL)
+		free_sconv_object(sc);
+	if (r != 0)
+		return (-1); /* This will guarantee we can't convert to MBS */
+	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS; /* Both UTF8 and WCS set. */
+
+	/* Try converting WCS to MBS, return false on failure. */
+	if (archive_string_append_from_wcs(&(aes->aes_mbs), aes->aes_wcs.s,
+	    aes->aes_wcs.length))
+		return (-1);
+#else
+
+	/* Try converting UTF-8 to MBS, return false on failure. */
+	r = archive_strcpy_l(&(aes->aes_mbs), utf8, sc);
 
 	if (a == NULL)
 		free_sconv_object(sc);
@@ -4299,8 +4310,10 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	if (archive_wstring_append_from_mbs(&(aes->aes_wcs), aes->aes_mbs.s,
 	    aes->aes_mbs.length))
 		return (-1);
-	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
+#endif
 
 	/* All conversions succeeded. */
+	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
+
 	return (0);
 }
