@@ -3897,7 +3897,7 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
 		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
 		if (sc == NULL)
 			return (-1);/* Couldn't allocate memory for sc. */
-		aes->aes_utf8.length = 0;
+		archive_string_empty(&(aes->aes_utf8));
 		r = archive_string_append_from_wcs_in_codepage(&(aes->aes_utf8),
 			aes->aes_wcs.s, aes->aes_wcs.length, sc);
 		if (a == NULL)
