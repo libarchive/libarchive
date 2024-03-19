@@ -462,7 +462,7 @@ DEFINE_TEST(test_pax_filename_encoding_EUCJP)
 	/* Check the Unicode version. */
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
-	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
