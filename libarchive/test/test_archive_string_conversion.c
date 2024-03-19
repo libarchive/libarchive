@@ -963,7 +963,13 @@ DEFINE_TEST(test_archive_string_update_utf8_koi8)
 	assertEqualInt(AES_SET_MBS | AES_SET_WCS | AES_SET_UTF8, mstr.aes_set);
 	assertEqualString(utf8_string, mstr.aes_utf8.s);
 	assertEqualString(koi8_string, mstr.aes_mbs.s);
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	assertEqualWString(wcs_string, mstr.aes_wcs.s);
+#else
+	/* No guarantee of how WCS strings behave, however this test test is
+	 * primarily meant for Windows */
+	(void)wcs_string;
+#endif
 
 	archive_mstring_clean(&mstr);
 }
