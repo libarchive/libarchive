@@ -1039,6 +1039,14 @@ archive_write_pax_header(struct archive_write *a,
 					archive_entry_set_symlink(entry_main,
 					    "././@LongSymLink");
 			}
+			else {
+				/* Otherwise, has non-ASCII characters; update the paths to
+				 * however they got decoded above */
+				if (hardlink != NULL) 
+					archive_entry_set_hardlink(entry_main, linkpath);
+				else
+					archive_entry_set_symlink(entry_main, linkpath);
+			}
 			need_extension = 1;
 		}
 	}
@@ -1394,7 +1402,7 @@ archive_write_pax_header(struct archive_write *a,
 	 * numeric fields, though they're less critical.
 	 */
 	if (__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0,
-	    sconv) == ARCHIVE_FATAL) {
+	    NULL) == ARCHIVE_FATAL) {
 		archive_entry_free(entry_main);
 		archive_string_free(&entry_name);
 		return (ARCHIVE_FATAL);
@@ -1454,7 +1462,7 @@ archive_write_pax_header(struct archive_write *a,
 		archive_entry_set_ctime(pax_attr_entry, 0, 0);
 
 		r = __archive_write_format_header_ustar(a, paxbuff,
-		    pax_attr_entry, 'x', 1, sconv);
+		    pax_attr_entry, 'x', 1, NULL);
 
 		archive_entry_free(pax_attr_entry);
 
