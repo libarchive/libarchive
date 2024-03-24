@@ -9,6 +9,7 @@ IF(ENABLE_TEST)
     ../../test_utils/test_main.c
     read_open_memory.c
     test.h
+    test_7zip_filename_encoding.c
     test_acl_nfs4.c
     test_acl_pax.c
     test_acl_platform_nfs4.c
