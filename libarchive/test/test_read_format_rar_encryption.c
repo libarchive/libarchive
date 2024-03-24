@@ -33,7 +33,7 @@
  *
  * For all files the file contents is "This is from <filename>" (i.e. "This is from a.txt" etc.)
  */
-void test_encrypted_rar_archive(const char *filename, int filenamesEncrypted, int solid)
+static void test_encrypted_rar_archive(const char *filename, int filenamesEncrypted, int solid)
 {
 	struct archive_entry *ae;
 	struct archive *a;
