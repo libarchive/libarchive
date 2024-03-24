@@ -352,6 +352,11 @@ struct rar5 {
 	/* The header of currently processed RARv5 block. Used in main
 	 * decompression logic loop. */
 	struct compressed_block_header last_block_hdr;
+
+	/*
+	 * Custom field to denote that this archive contains encrypted entries
+	 */
+	int has_encrypted_entries;
 };
 
 /* Forward function declarations. */
@@ -1590,6 +1595,7 @@ static int process_head_file_extra(struct archive_read* a,
 		if(!read_var_sized(a, &extra_field_id, &var_size))
 			return ARCHIVE_EOF;
 
+		extra_field_size -= var_size;
 		extra_data_size -= var_size;
 		if(ARCHIVE_OK != consume(a, var_size)) {
 			return ARCHIVE_EOF;
@@ -1617,12 +1623,18 @@ static int process_head_file_extra(struct archive_read* a,
 				    &extra_data_size);
 				break;
 			case EX_CRYPT:
+				/* Mark the entry as encrypted */
+				archive_entry_set_is_data_encrypted(e, 1);
+				rar->has_encrypted_entries = 1;
 				/* fallthrough */
 			case EX_SUBDATA:
 				/* fallthrough */
 			default:
 				/* Skip unsupported entry. */
-				return consume(a, extra_data_size);
+				extra_data_size -= extra_field_size;
+				if (ARCHIVE_OK != consume(a, extra_field_size)) {
+					return ARCHIVE_EOF;
+				}
 		}
 	}
 
@@ -2266,6 +2278,9 @@ static int process_base_block(struct archive_read* a,
 			ret = process_head_file(a, rar, entry, header_flags);
 			return ret;
 		case HEAD_CRYPT:
+			archive_entry_set_is_metadata_encrypted(entry, 1);
+			archive_entry_set_is_data_encrypted(entry, 1);
+			rar->has_encrypted_entries = 1;
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Encryption is not supported");
@@ -2409,6 +2424,14 @@ static int rar5_read_header(struct archive_read *a,
 {
 	struct rar5* rar = get_context(a);
 	int ret;
+
+	/*
+	 * It should be sufficient to call archive_read_next_header() for
+	 * a reader to determine if an entry is encrypted or not.
+	 */
+	if (rar->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		rar->has_encrypted_entries = 0;
+	}
 
 	if(rar->header_initialized == 0) {
 		init_header(a);
@@ -4059,6 +4082,10 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	if (size)
 		*size = 0;
 
+	if (rar->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		rar->has_encrypted_entries = 0;
+	}
+
 	if(rar->file.dir > 0) {
 		/* Don't process any data if this file entry was declared
 		 * as a directory. This is needed, because entries marked as
@@ -4110,11 +4137,14 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 static int rar5_read_data_skip(struct archive_read *a) {
 	struct rar5* rar = get_context(a);
 
-	if(rar->main.solid) {
+	if(rar->main.solid && (rar->has_encrypted_entries <= 0)) {
 		/* In solid archives, instead of skipping the data, we need to
 		 * extract it, and dispose the result. The side effect of this
 		 * operation will be setting up the initial window buffer state
-		 * needed to be able to extract the selected file. */
+		 * needed to be able to extract the selected file. Note that
+		 * this is only possible when no entries are encrypted. If any
+		 * entries are encrypted, then we need to just skip the data;
+		 * we'll fail any later attempts to read data from the archive. */
 
 		int ret;
 
@@ -4189,14 +4219,19 @@ static int rar5_cleanup(struct archive_read *a) {
 
 static int rar5_capabilities(struct archive_read * a) {
 	(void) a;
-	return 0;
+	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA
+			| ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
 }
 
 static int rar5_has_encrypted_entries(struct archive_read *_a) {
-	(void) _a;
+	if (_a && _a->format) {
+		struct rar5 *rar = (struct rar5 *)_a->format->data;
+		if (rar) {
+			return rar->has_encrypted_entries;
+		}
+	}
 
-	/* Unsupported for now. */
-	return ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED;
+	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 }
 
 static int rar5_init(struct rar5* rar) {
@@ -4204,6 +4239,12 @@ static int rar5_init(struct rar5* rar) {
 
 	if(CDE_OK != cdeque_init(&rar->cstate.filters, 8192))
 		return ARCHIVE_FATAL;
+
+	/*
+	 * Until enough data has been read, we cannot tell about
+	 * any encrypted entries yet.
+	 */
+	rar->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 
 	return ARCHIVE_OK;
 }
