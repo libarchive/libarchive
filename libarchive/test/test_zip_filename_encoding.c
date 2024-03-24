@@ -617,7 +617,7 @@ DEFINE_TEST(test_zip_filename_encoding_UTF16_win)
 	 * because the file name is ASCII. */
 	assertEqualInt(0, buff[7]);
 	/* Check UTF-8 version. */
-	assertEqualMem(buff + 58, "\xE8\xA1\xA8.txt", 7);
+	assertEqualMem(buff + 38, "\xE8\xA1\xA8.txt", 7);
 
 	/* NOTE: ZIP does not support hardlinks */
 #endif
