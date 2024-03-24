@@ -26,6 +26,7 @@
 
 DEFINE_TEST(test_option_exclude_vcs)
 {
+	assertUmask(0);
 	assertMakeDir("in", 0755);
 	assertChdir("in");
 	assertMakeFile("file", 0644, "");

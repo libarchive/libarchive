@@ -6,6 +6,9 @@ endif()
 if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW) #3.12.0 `find_package()`` uses ``<PackageName>_ROOT`` variables.
 endif()
+if(POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW) #3.12.0 `check_include_file()`` and friends use ``CMAKE_REQUIRED_LIBRARIES``.
+endif()
 #
 PROJECT(libarchive C)
 #
