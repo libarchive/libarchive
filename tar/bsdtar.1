@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 10, 2023
+.Dd March 1, 2024
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -655,16 +655,56 @@ use as many threads as there are CPU cores on the system.
 .It Cm zstd:frame-per-file
 Start a new compression frame at the beginning of each file in the
 archive.
-.It Cm zstd:min-frame-size Ns = Ns Ar N
+.It Cm zstd:min-frame-in Ns = Ns Ar N
 In combination with
 .Cm zstd:frame-per-file ,
-do not start a new compression frame unless the current frame is at least
+do not start a new compression frame unless the uncompressed size of
+the current frame is at least
 .Ar N
 bytes.
-.It Cm zstd:max-frame-size Ns = Ns Ar N
-Start a new compression frame as soon as the current frame exceeds
+The number may be followed by
+.Li k / Li kB ,
+.Li M / Li MB ,
+or
+.Li G / Li GB
+to indicate kilobytes, megabytes or gigabytes respectively.
+.It Cm zstd:min-frame-out Ns = Ns Ar N , Cm zstd:min-frame-size Ns = Ns Ar N
+In combination with
+.Cm zstd:frame-per-file ,
+do not start a new compression frame unless the compressed size of the
+current frame is at least
 .Ar N
 bytes.
+The number may be followed by
+.Li k / Li kB ,
+.Li M / Li MB ,
+or
+.Li G / Li GB
+to indicate kilobytes, megabytes or gigabytes respectively.
+.It Cm zstd:max-frame-in Ns = Ns Ar N , Cm zstd:max-frame-size Ns = Ns Ar N
+Start a new compression frame as soon as possible after the
+uncompressed size of the current frame exceeds
+.Ar N
+bytes.
+The number may be followed by
+.Li k / Li kB ,
+.Li M / Li MB ,
+or
+.Li G / Li GB
+to indicate kilobytes, megabytes or gigabytes respectively.
+Values less than 1,024 will be rejected.
+.It Cm zstd:max-frame-out Ns = Ns Ar N
+Start a new compression frame as soon as possible after the compressed
+size of the current frame exceeds
+.Ar N
+bytes.
+The number may be followed by
+.Li k / Li kB ,
+.Li M / Li MB ,
+or
+.Li G / Li GB
+to indicate kilobytes, megabytes or gigabytes respectively.
+Values less than 1,024 will be rejected.
 .It Cm lzop:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level
