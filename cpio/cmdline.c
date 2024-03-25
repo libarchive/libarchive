@@ -303,13 +303,16 @@ cpio_getopt(struct cpio *cpio)
  *
  */
 const char *
-owner_parse(const char *spec, int *uid, int *gid)
+owner_parse(const char *spec, int *uid, int *gid, char **uname, char **gname)
 {
 	static char errbuff[128];
 	const char *u, *ue, *g;
 
 	*uid = -1;
 	*gid = -1;
+
+	*uname = NULL;
+	*gname = NULL;
 
 	if (spec[0] == '\0')
 		return ("Invalid empty user/group spec");
@@ -346,6 +349,11 @@ owner_parse(const char *spec, int *uid, int *gid)
 		user[ue - u] = '\0';
 		if ((pwent = getpwnam(user)) != NULL) {
 			*uid = pwent->pw_uid;
+			*uname = strdup(pwent->pw_name);
+			if (*uname == NULL) {
+				free(user);
+				return ("Couldn't allocate memory");
+			}
 			if (*ue != '\0')
 				*gid = pwent->pw_gid;
 		} else {
@@ -354,7 +362,7 @@ owner_parse(const char *spec, int *uid, int *gid)
 			*uid = (int)strtoul(user, &end, 10);
 			if (errno || *end != '\0') {
 				snprintf(errbuff, sizeof(errbuff),
-				    "Couldn't lookup user ``%s''", user);
+						 "Couldn't lookup user ``%s''", user);
 				errbuff[sizeof(errbuff) - 1] = '\0';
 				free(user);
 				return (errbuff);
@@ -367,13 +375,16 @@ owner_parse(const char *spec, int *uid, int *gid)
 		struct group *grp;
 		if ((grp = getgrnam(g)) != NULL) {
 			*gid = grp->gr_gid;
+			*gname = strdup(grp->gr_name);
+			if (*gname == NULL)
+				return ("Couldn't allocate memory");
 		} else {
 			char *end;
 			errno = 0;
 			*gid = (int)strtoul(g, &end, 10);
 			if (errno || *end != '\0') {
 				snprintf(errbuff, sizeof(errbuff),
-				    "Couldn't lookup group ``%s''", g);
+						 "Couldn't lookup group ``%s''", g);
 				errbuff[sizeof(errbuff) - 1] = '\0';
 				return (errbuff);
 			}

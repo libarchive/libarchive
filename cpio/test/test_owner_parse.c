@@ -63,58 +63,89 @@ DEFINE_TEST(test_owner_parse)
 	skipping("No uid/gid configuration for this OS");
 #else
 	int uid, gid;
+	char *uname, *gname;
 
-	assert(NULL == owner_parse(ROOT, &uid, &gid));
+	assert(NULL == owner_parse(ROOT, &uid, &gid, &uname, &gname));
 	assert(int_in_list(uid, root_uids,
 		sizeof(root_uids)/sizeof(root_uids[0])));
 	assertEqualInt(-1, gid);
+	free(uname);
+	free(gname);
 
 
-	assert(NULL == owner_parse(ROOT ":", &uid, &gid));
+	assert(NULL == owner_parse(ROOT ":", &uid, &gid, &uname, &gname));
 	assert(int_in_list(uid, root_uids,
 		sizeof(root_uids)/sizeof(root_uids[0])));
 	assert(int_in_list(gid, root_gids,
 		sizeof(root_gids)/sizeof(root_gids[0])));
+	free(uname);
+	free(gname);
 
-	assert(NULL == owner_parse(ROOT ".", &uid, &gid));
+
+	assert(NULL == owner_parse(ROOT ".", &uid, &gid, &uname, &gname));
 	assert(int_in_list(uid, root_uids,
 		sizeof(root_uids)/sizeof(root_uids[0])));
 	assert(int_in_list(gid, root_gids,
 		sizeof(root_gids)/sizeof(root_gids[0])));
+	free(uname);
+	free(gname);
 
-	assert(NULL == owner_parse("111", &uid, &gid));
+
+	assert(NULL == owner_parse("111", &uid, &gid, &uname, &gname));
 	assertEqualInt(111, uid);
 	assertEqualInt(-1, gid);
+	free(uname);
+	free(gname);
 
-	assert(NULL == owner_parse("112:", &uid, &gid));
+
+	assert(NULL == owner_parse("112:", &uid, &gid, &uname, &gname));
 	assertEqualInt(112, uid);
 	/* Can't assert gid, since we don't know gid for user #112. */
+	free(uname);
+	free(gname);
 
-	assert(NULL == owner_parse("113.", &uid, &gid));
+	assert(NULL == owner_parse("113.", &uid, &gid, &uname, &gname));
 	assertEqualInt(113, uid);
 	/* Can't assert gid, since we don't know gid for user #113. */
+	free(uname);
+	free(gname);
 
-	assert(NULL == owner_parse(":114", &uid, &gid));
+
+	assert(NULL == owner_parse(":114", &uid, &gid, &uname, &gname));
 	assertEqualInt(-1, uid);
 	assertEqualInt(114, gid);
+	free(uname);
+	free(gname);
 
-	assert(NULL == owner_parse(".115", &uid, &gid));
+
+	assert(NULL == owner_parse(".115", &uid, &gid, &uname, &gname));
 	assertEqualInt(-1, uid);
 	assertEqualInt(115, gid);
+	free(uname);
+	free(gname);
 
-	assert(NULL == owner_parse("116:117", &uid, &gid));
+
+	assert(NULL == owner_parse("116:117", &uid, &gid, &uname, &gname));
 	assertEqualInt(116, uid);
 	assertEqualInt(117, gid);
 
 	/*
-	 * TODO: Lookup current user/group name, build strings and
+	 * TODO: Build strings and
 	 * use those to verify username/groupname lookups for ordinary
 	 * users.
 	 */
 
-	assert(NULL != owner_parse(":nonexistentgroup", &uid, &gid));
-	assert(NULL != owner_parse(ROOT ":nonexistentgroup", &uid, &gid));
-	assert(NULL !=
-	    owner_parse("nonexistentuser:nonexistentgroup", &uid, &gid));
+    assert(NULL != owner_parse(":nonexistentgroup", &uid, &gid, &uname, &gname));
+	free(uname);
+	free(gname);
+
+    assert(NULL != owner_parse(ROOT ":nonexistentgroup", &uid, &gid, &uname, &gname));
+	free(uname);
+	free(gname);
+
+    assert(NULL !=
+        owner_parse("nonexistentuser:nonexistentgroup", &uid, &gid, &uname, &gname));
+	free(uname);
+	free(gname);
 #endif
 }

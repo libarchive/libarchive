@@ -94,7 +94,7 @@ struct cpio {
 	char		 *ppbuff;
 };
 
-const char *owner_parse(const char *, int *, int *);
+const char *owner_parse(const char *, int *, int *, char **, char **);
 
 
 /* Fake short equivalents for long options that otherwise lack them. */
