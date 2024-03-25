@@ -89,8 +89,6 @@ struct cpio {
 
 	/* Work data. */
 	struct archive   *matching;
-	char		 *buff;
-	size_t		  buff_size;
 	char		 *ppbuff;
 };
 
