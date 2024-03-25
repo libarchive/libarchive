@@ -116,6 +116,9 @@ struct file_header {
 	uint64_t redir_type;
 	uint64_t redir_flags;
 
+	/* Optional encryption fields */
+	int data_encrypted;
+
 	ssize_t solid_window_size; /* Used in file format check. */
 };
 
@@ -210,7 +213,11 @@ struct comp_state {
 	   or just a part of it. */
 	uint8_t block_parsing_finished : 1;
 
-	signed int notused : 4;
+	/* Flag used to indicate that a previous file using this buffer was
+	   encrypted, meaning no data in the buffer can be trusted */
+	uint8_t data_encrypted : 1;
+
+	signed int notused : 3;
 
 	int flags;                   /* Uncompression flags. */
 	int method;                  /* Uncompression algorithm method. */
@@ -357,6 +364,7 @@ struct rar5 {
 	 * Custom field to denote that this archive contains encrypted entries
 	 */
 	int has_encrypted_entries;
+	int headers_are_encrypted;
 };
 
 /* Forward function declarations. */
@@ -1626,6 +1634,8 @@ static int process_head_file_extra(struct archive_read* a,
 				/* Mark the entry as encrypted */
 				archive_entry_set_is_data_encrypted(e, 1);
 				rar->has_encrypted_entries = 1;
+				rar->file.data_encrypted = 1;
+				rar->cstate.data_encrypted = 1;
 				/* fallthrough */
 			case EX_SUBDATA:
 				/* fallthrough */
@@ -1752,9 +1762,11 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	rar->file.solid = (compression_info & SOLID) > 0;
 
 	/* Archives which declare solid files without initializing the window
-	 * buffer first are invalid. */
+	 * buffer first are invalid, unless previous data was encrypted, in
+	 * which case we may never have had the chance */
 
-	if(rar->file.solid > 0 && rar->cstate.window_buf == NULL) {
+	if(rar->file.solid > 0 && rar->cstate.data_encrypted == 0 &&
+	    rar->cstate.window_buf == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 				  "Declared solid file, but no window buffer "
 				  "initialized yet.");
@@ -1783,6 +1795,8 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 			return ARCHIVE_FATAL;
 		}
 	}
+	else
+		rar->cstate.data_encrypted = 0; /* Reset for new buffer */
 
 	if(rar->cstate.window_size < (ssize_t) window_size &&
 	    rar->cstate.window_buf)
@@ -2281,6 +2295,7 @@ static int process_base_block(struct archive_read* a,
 			archive_entry_set_is_metadata_encrypted(entry, 1);
 			archive_entry_set_is_data_encrypted(entry, 1);
 			rar->has_encrypted_entries = 1;
+			rar->headers_are_encrypted = 1;
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Encryption is not supported");
@@ -4086,6 +4101,12 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 		rar->has_encrypted_entries = 0;
 	}
 
+	if (rar->headers_are_encrypted || rar->cstate.data_encrypted) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Reading encrypted data is not currently supported");
+		return ARCHIVE_FATAL;
+	}
+
 	if(rar->file.dir > 0) {
 		/* Don't process any data if this file entry was declared
 		 * as a directory. This is needed, because entries marked as
@@ -4137,14 +4158,14 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 static int rar5_read_data_skip(struct archive_read *a) {
 	struct rar5* rar = get_context(a);
 
-	if(rar->main.solid && (rar->has_encrypted_entries <= 0)) {
+	if(rar->main.solid && (rar->cstate.data_encrypted == 0)) {
 		/* In solid archives, instead of skipping the data, we need to
 		 * extract it, and dispose the result. The side effect of this
 		 * operation will be setting up the initial window buffer state
 		 * needed to be able to extract the selected file. Note that
-		 * this is only possible when no entries are encrypted. If any
-		 * entries are encrypted, then we need to just skip the data;
-		 * we'll fail any later attempts to read data from the archive. */
+		 * this is only possible when data withing this solid block is
+		 * not encrypted, in which case we'll skip and fail if the user
+		 * tries to read data. */
 
 		int ret;
 
