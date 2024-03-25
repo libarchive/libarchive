@@ -1257,3 +1257,94 @@ DEFINE_TEST(test_read_format_7zip_win_attrib)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_7z_sfx_pe)
+{
+	/*
+	 * This is a regular 7z SFX PE file
+	 * created by 7z tool v22.01 on Windows 64-bit
+	 */
+	struct archive *a;
+	struct archive_entry *ae;
+	int bs = 10240;
+	char buff[32];
+	const char reffile[] = "test_read_format_7z_sfx_pe.exe";
+	const char test_txt[] = "123";
+	int size = sizeof(test_txt) - 1;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_filename(a, reffile, bs));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("test.txt.txt", archive_entry_pathname(ae));
+
+	assertA(size == archive_read_data(a, buff, size));
+	assertEqualMem(buff, test_txt, size);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7z_sfx_modified_pe)
+{
+	/*
+	 * This test simulates a modified 7z SFX PE
+	 * the compressed data in the SFX file is still stored as PE overlay
+	 * but the decompressor code is replaced
+	 */
+	struct archive *a;
+	struct archive_entry *ae;
+	int bs = 10240;
+	char buff[32];
+	const char reffile[] = "test_read_format_7z_sfx_modified_pe.exe";
+	const char test_txt[] = "123";
+	int size = sizeof(test_txt) - 1;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_filename(a, reffile, bs));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("test.txt.txt", archive_entry_pathname(ae));
+
+	assertA(size == archive_read_data(a, buff, size));
+	assertEqualMem(buff, test_txt, size);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7z_sfx_elf)
+{
+	/*
+	 * This is a regular 7z SFX ELF file
+	 * created by 7z tool v16.02 on Ubuntu
+	 */
+	struct archive *a;
+	struct archive_entry *ae;
+	int bs = 10240;
+	char buff[32];
+	const char reffile[] = "test_read_format_7z_sfx_elf.elf";
+	const char test_txt[] = "123";
+	int size = sizeof(test_txt) - 1;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_filename(a, reffile, bs));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("test.txt.txt", archive_entry_pathname(ae));
+
+	assertA(size == archive_read_data(a, buff, size));
+	assertEqualMem(buff, test_txt, size);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
