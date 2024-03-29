@@ -306,7 +306,7 @@ DEFINE_TEST(test_write_disk_appledouble_zip)
 
 	/* Test apple_double_dir_test */
 	failure("'%s' should have quarantine xattr", "apple_double_dir_test");
-	assertEqualInt(0, has_xattr("apple_double_dir/apple_double_dir_test", "com.apple.quarantine"));
+	assertEqualInt(1, has_xattr("apple_double_dir/apple_double_dir_test", "com.apple.quarantine"));
 
 	/* Test ._test_file. */
 	failure("'apple_double_dir/._test_file' should be merged and removed");
@@ -314,7 +314,7 @@ DEFINE_TEST(test_write_disk_appledouble_zip)
 
 	/* Test ._apple_double_dir_test */
 	failure("'apple_double_dir/._._apple_double_dir_test' should be merged and removed");
-	assertFileExists("apple_double_dir/._apple_double_dir_test");
+	assertFileNotExists("apple_double_dir/._apple_double_dir_test");
 
 	assertChdir("..");
 
