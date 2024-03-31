@@ -1561,7 +1561,7 @@ consume_end_of_file_marker(struct archive_read *a, struct zip *zip)
 	compressed32 = archive_le32dec(p);
 	uncompressed32 = archive_le32dec(p + 4);
 	compressed64 = archive_le64dec(p);
-	uncompressed64 = archive_le32dec(p + 8);
+	uncompressed64 = archive_le64dec(p + 8);
 
 	/* The earlier patterns may have failed because of CRC32
 	 * mismatch, so it's still possible that both sizes match.
