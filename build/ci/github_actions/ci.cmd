@@ -5,7 +5,7 @@ SET XZ_VERSION=5.4.4
 SET ZSTD_VERSION=
 REM v1.5.6 has a bug with the CMake files & MSVC: https://github.com/facebook/zstd/issues/3999
 REM Fall back to 1.5.5 for MSVC until fixed
-if "%BE"=="msvc" (
+IF "%BE%"=="msvc" (
   SET ZSTD_VERSION=1.5.5
 ) else (
   SET ZSTD_VERSION=1.5.6
