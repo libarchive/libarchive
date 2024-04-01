@@ -724,39 +724,10 @@ __archive_num_logical_cores()
 	static int cores = 0;
 	if (cores > 0) return cores;
 
-#if defined(__FreeBSD__)
-	int sysctlbynameCores = 0;
-	size_t size = sizeof(sysctlbynameCores);
-	if (sysctlbyname("hw.ncpu", &sysctlbynameCores, &size, NULL, 0) != 0)
-		goto unixfallback;
-
-	if (sysctlbynameCores <= 0) goto unixfallback;
-	cores = sysctlbynameCores;
-	return cores;
-#endif
-
-#ifdef __APPLE__
-	int32_t sysctlbynameCores = 0;
-	size_t size = sizeof(sysctlbynameCores);
-	if (sysctlbyname("hw.logicalcpu", &sysctlbynameCores, &size, NULL, 0) != 0)
-		goto unixfallback;
-
-	if (sysctlbynameCores <= 0) goto unixfallback;
-	cores = sysctlbynameCores;
-	return cores;
-#endif // __APPLE__
-
-goto unixfallback; // Avoid -Wunused-label warnings.
-unixfallback:
-
 #if defined(HAVE_UNISTD_H) && defined(_SC_NPROCESSORS_ONLN)
-
-	// Fall back to sysconf on unix, if none of the more platform-specific
-	// methods worked.
-	{
-		int sysconfCores = 0;
-		sysconfCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
-		if (sysconfCores <= 0) goto failure;
+	int sysconfCores = 0;
+	sysconfCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+	if (sysconfCores > 0) {
 		cores = sysconfCores;
 		return cores;
 	}
@@ -770,8 +741,6 @@ unixfallback:
 	}
 #endif // _WIN32_WINNT >= 0x0601
 
-goto failure; // Avoid -Wunused-label warnings.
-failure:
 	if (cores <= 0) cores = 1;
 	return cores;
 }
