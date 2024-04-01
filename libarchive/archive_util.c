@@ -29,9 +29,6 @@
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <sys/sysctl.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -81,7 +78,7 @@
 #endif
 
 #if defined(_WIN32)
-#include <sysinfoapi.h>
+#include <winbase.h>
 #endif
 
 #include "archive.h"
