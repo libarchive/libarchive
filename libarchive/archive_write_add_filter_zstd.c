@@ -29,6 +29,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
@@ -267,7 +270,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		if (threads == 0) {
 			threads = __archive_num_logical_cores();
 		}
-		if (threads < 0) {
+		if (threads < 0 || threads > INT_MAX) {
 			return (ARCHIVE_WARN);
 		}
 		data->threads = (int)threads;
