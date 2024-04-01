@@ -2,7 +2,6 @@
 SET ZLIB_VERSION=1.3
 SET BZIP2_VERSION=1ea1ac188ad4b9cb662e3f8314673c63df95a589
 SET XZ_VERSION=5.4.4
-SET ZSTD_VERSION=
 IF NOT "%BE%"=="mingw-gcc" (
   IF NOT "%BE%"=="msvc" (
     ECHO Environment variable BE must be mingw-gcc or msvc
@@ -10,7 +9,6 @@ IF NOT "%BE%"=="mingw-gcc" (
   )
 )
 
-REM v1.5.6 has a bug with the CMake files & MSVC: https://github.com/facebook/zstd/issues/3999
 REM Fall back to 1.5.5 for MSVC until fixed
 IF "%BE%"=="msvc" (
   SET ZSTD_VERSION=1.5.5
