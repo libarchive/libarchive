@@ -9,6 +9,8 @@ IF NOT "%BE%"=="mingw-gcc" (
   )
 )
 
+REM v1.5.6 has a bug with the CMake files & MSVC
+REM https://github.com/facebook/zstd/issues/3999
 REM Fall back to 1.5.5 for MSVC until fixed
 IF "%BE%"=="msvc" (
   SET ZSTD_VERSION=1.5.5
