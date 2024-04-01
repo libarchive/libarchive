@@ -177,6 +177,6 @@ void __archive_reset_read_data(struct archive *);
 # define	ARCHIVE_LITERAL_ULL(x)	x##ull
 #endif
 
-int __archive_num_physical_cores(void);
+int __archive_num_logical_cores(void);
 
 #endif

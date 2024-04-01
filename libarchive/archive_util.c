@@ -38,6 +38,9 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDIO_H
 #include <stdio.h>
 #endif
@@ -715,11 +718,8 @@ archive_utility_string_sort(char **strings)
 	  return archive_utility_string_sort_helper(strings, size);
 }
 
-// This should be enough to find "cpu cores<whitespace>:<space><number>" at the start of a line in /proc/cpuinfo
-#define PROC_CPUINFO_BUF_SIZE 80
-
 int
-__archive_num_physical_cores()
+__archive_num_logical_cores()
 {
 	static int cores = 0;
 	if (cores > 0) return cores;
@@ -727,7 +727,7 @@ __archive_num_physical_cores()
 #if defined(__FreeBSD__)
 	int sysctlbynameCores = 0;
 	size_t size = sizeof(sysctlbynameCores);
-	if (sysctlbyname("kern.smp.cores", &sysctlbynameCores, &size, NULL, 0) != 0)
+	if (sysctlbyname("hw.ncpu", &sysctlbynameCores, &size, NULL, 0) != 0)
 		goto unixfallback;
 
 	if (sysctlbynameCores <= 0) goto unixfallback;
@@ -738,7 +738,7 @@ __archive_num_physical_cores()
 #ifdef __APPLE__
 	int32_t sysctlbynameCores = 0;
 	size_t size = sizeof(sysctlbynameCores);
-	if (sysctlbyname("hw.physicalcpu", &sysctlbynameCores, &size, NULL, 0) != 0)
+	if (sysctlbyname("hw.logicalcpu", &sysctlbynameCores, &size, NULL, 0) != 0)
 		goto unixfallback;
 
 	if (sysctlbynameCores <= 0) goto unixfallback;
@@ -746,62 +746,13 @@ __archive_num_physical_cores()
 	return cores;
 #endif // __APPLE__
 
-#if defined(__linux__)
-	// Look in /proc/cpuinfo for a line like "cpu cores       : <num>"
-
-	FILE *fp = fopen("/proc/cpuinfo", "r");
-	if (fp == NULL) goto unixfallback;
-
-	char buf[PROC_CPUINFO_BUF_SIZE];
-
-	for (;;) {
-		if (fgets(buf, PROC_CPUINFO_BUF_SIZE, fp) == NULL) {
-			// Reached EOF without finding the value.
-			fclose(fp);
-			goto unixfallback;
-		}
-
-		if (strncmp(buf, "cpu cores", 9) == 0) {
-			// Found the right line. We don't need to read any more.
-			fclose(fp);
-
-			const char *colon = strchr(buf, ':');
-			if (colon == NULL || *colon == '\0') {
-				// Unable to parse the line.
-				goto unixfallback;
-			}
-
-			int cpuinfoCores = atoi(colon + 1);
-			if (cpuinfoCores <= 0) goto unixfallback;
-			cores = cpuinfoCores;
-			return cores;
-		}
-
-		// Skip the rest of the line.
-
-		for (;;) {
-			if (strchr(buf, '\n') != NULL) {
-				break; // Found the end of the line.
-			}
-
-			if (fgets(buf, PROC_CPUINFO_BUF_SIZE, fp) == NULL) {
-				// No data left to read.
-				fclose(fp);
-				goto unixfallback;
-			}
-		}
-	}
-#endif // __linux__
-
 goto unixfallback; // Avoid -Wunused-label warnings.
 unixfallback:
 
 #if defined(HAVE_UNISTD_H) && defined(_SC_NPROCESSORS_ONLN)
 
 	// Fall back to sysconf on unix, if none of the more platform-specific
-	// methods worked. This might return logical cores instead of physical
-	// cores, but maybe that's better than returning 1?
-
+	// methods worked.
 	{
 		int sysconfCores = 0;
 		sysconfCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
@@ -812,32 +763,9 @@ unixfallback:
 #endif // HAVE_UNISTD_H && _SC_NPROCESSORS_ONLN
 
 #if _WIN32_WINNT >= 0x0601 /* _WIN32_WINNT_WIN7 */
-	DWORD len = 0;
-
-	if (GetLogicalProcessorInformationEx(RelationProcessorCore, NULL, &len)) goto windowsfallback;
-	if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) goto windowsfallback;
-
-	BOOL should_free_buffer = 0;
-	PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)malloc(len);
-	if (buffer == NULL) goto windowsfallback;
-	should_free_buffer = 1;
-
-	if (!GetLogicalProcessorInformationEx(RelationProcessorCore, buffer, &len)) goto windowsfallback;
-
-	cores = len / buffer->Size;
-	free(buffer);
-	should_free_buffer = 0;
-
-	if (cores > 0) return cores;
-
-windowsfallback:
-	if (should_free_buffer)
-		free(buffer);
-
-	SYSTEM_INFO sysinfo;
-	GetSystemInfo(&sysinfo);
-	if (sysinfo.dwNumberOfProcessors > 0) { // Logical processors.
-		cores = sysinfo.dwNumberOfProcessors;
+	DWORD winCores = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+	if (winCores > 0 && winCores <= INT_MAX) {
+		cores = winCores;
 		return cores;
 	}
 #endif // _WIN32_WINNT >= 0x0601

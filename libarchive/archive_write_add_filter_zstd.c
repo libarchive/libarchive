@@ -265,7 +265,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 			return (ARCHIVE_WARN);
 		}
 		if (threads == 0) {
-			threads = __archive_num_physical_cores();
+			threads = __archive_num_logical_cores();
 		}
 		if (threads < 0) {
 			return (ARCHIVE_WARN);
