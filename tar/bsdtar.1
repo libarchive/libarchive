@@ -649,8 +649,8 @@ A decimal integer specifying the zstd compression level.
 Supported values depend
 on the library version, common values are from 1 to 22.
 .It Cm zstd:threads Ns = Ns Ar N
-Specify the number of worker threads to use, or 0 to use as many
-threads as there are CPU cores in the system.
+Specify the number of worker threads to use, or 0 to attempt to use as many
+threads as there are logical CPU cores in the system.
 .It Cm zstd:frame-per-file
 Start a new compression frame at the beginning of each file in the
 archive.
