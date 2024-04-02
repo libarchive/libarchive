@@ -116,9 +116,6 @@ struct file_header {
 	uint64_t redir_type;
 	uint64_t redir_flags;
 
-	/* Optional encryption fields */
-	int data_encrypted;
-
 	ssize_t solid_window_size; /* Used in file format check. */
 };
 
@@ -1634,7 +1631,6 @@ static int process_head_file_extra(struct archive_read* a,
 				/* Mark the entry as encrypted */
 				archive_entry_set_is_data_encrypted(e, 1);
 				rar->has_encrypted_entries = 1;
-				rar->file.data_encrypted = 1;
 				rar->cstate.data_encrypted = 1;
 				/* fallthrough */
 			case EX_SUBDATA:
