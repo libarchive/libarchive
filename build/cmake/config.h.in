@@ -774,9 +774,8 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `zstd' library (-lzstd). */
 #cmakedefine HAVE_LIBZSTD 1
 
-/* Define to 1 if you have the `zstd' library (-lzstd) with compression
-   support. */
-#cmakedefine HAVE_LIBZSTD_COMPRESSOR 1
+/* Define to 1 if you have the ZSTD_compressStream function. */
+#cmakedefine HAVE_ZSTD_compressStream 1
 
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H 1
