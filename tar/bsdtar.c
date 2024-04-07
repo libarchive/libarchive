@@ -747,7 +747,7 @@ main(int argc, char **argv)
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
 			tptr = NULL;
 			l = strtol(bsdtar->argument, &tptr, 10);
-			if (l < 0 || l > 1000 || *(bsdtar->argument) == '\0' ||
+			if (l < 0 || l > 100000L || *(bsdtar->argument) == '\0' ||
 			    tptr == NULL || *tptr != '\0') {
 				lafe_errc(1, 0, "Invalid argument to "
 				    "--strip-components");
