@@ -47,6 +47,7 @@ static int
 system_mkdir(char *pathname, int mode)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
+	(void)mode; /* UNUSED */
 	return _mkdir(pathname);
 #else
 	return mkdir(pathname, mode);
