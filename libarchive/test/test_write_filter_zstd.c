@@ -132,7 +132,7 @@ DEFINE_TEST(test_write_filter_zstd)
 	    archive_write_set_filter_option(a, NULL, "threads", "-1")); /* negative */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "threads", "4"));
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 	/* frame-per-file: boolean */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "frame-per-file", ""));
