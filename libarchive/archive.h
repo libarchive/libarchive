@@ -34,7 +34,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3007003
+#define	ARCHIVE_VERSION_NUMBER 3007004
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
