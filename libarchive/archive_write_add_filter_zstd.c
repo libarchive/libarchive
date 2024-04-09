@@ -190,6 +190,7 @@ string_to_number(const char *string, intmax_t *numberp)
 	return (ARCHIVE_OK);
 }
 
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 static int
 string_to_size(const char *string, size_t *numberp)
 {
@@ -224,6 +225,7 @@ string_to_size(const char *string, size_t *numberp)
 	*numberp = (size_t)(number << shift);
 	return (ARCHIVE_OK);
 }
+#endif
 
 /*
  * Set write options.
