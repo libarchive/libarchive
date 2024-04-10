@@ -662,7 +662,7 @@ AC_LINK_IFELSE(
         DEAD_CODE_REMOVAL="";])
 LDFLAGS=$save_LDFLAGS
 
-if test "$DEAD_CODE_REMOVAL" == ""; then
+if test "$DEAD_CODE_REMOVAL" = ""; then
     # Macos linkers have a -dead_strip flag, which is similar to --gc-sections.
     save_LDFLAGS=$LDFLAGS
     LDFLAGS="$LDFLAGS -Wl,-dead_strip"
