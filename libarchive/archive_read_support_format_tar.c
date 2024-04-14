@@ -231,12 +231,12 @@ static void	tar_flush_unconsumed(struct archive_read *, size_t *);
  * allocate extreme amounts of memory.  But of course, they
  * need to be high enough for any correct value.  These
  * will likely need some adjustment as we get more experience. */
-static const int64_t guname_limit = 65536; /* Longest uname or gname: 64kiB */
-static const int64_t pathname_limit = 1048576; /* Longest path name: 1MiB */
-static const int64_t sparse_map_limit = 8 * 1048576; /* Longest sparse map: 8MiB */
-static const int64_t xattr_limit = 16 * 1048576; /* Longest xattr: 16MiB */
-static const int64_t fflags_limit = 512; /* Longest fflags */
-static const int64_t acl_limit = 131072; /* Longest textual ACL: 128kiB */
+static const size_t guname_limit = 65536; /* Longest uname or gname: 64kiB */
+static const size_t pathname_limit = 1048576; /* Longest path name: 1MiB */
+static const size_t sparse_map_limit = 8 * 1048576; /* Longest sparse map: 8MiB */
+static const size_t xattr_limit = 16 * 1048576; /* Longest xattr: 16MiB */
+static const size_t fflags_limit = 512; /* Longest fflags */
+static const size_t acl_limit = 131072; /* Longest textual ACL: 128kiB */
 
 int
 archive_read_support_format_gnutar(struct archive *a)
