@@ -1745,7 +1745,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 	struct archive_string_conv *sconv;
 	struct archive_string *pas = NULL;
 	struct archive_string attr_name;
-	int err, r;
+	int err = ARCHIVE_OK, r;
 
 	header = (const struct archive_entry_header_ustar *)h;
 	ext_size  = tar_atol(header->size, sizeof(header->size));
@@ -2011,6 +2011,7 @@ pax_attribute_SCHILY_xattr(struct archive_entry *entry,
 	char * null_terminated_name = malloc(name_length + 1);
 	if (null_terminated_name != NULL) {
 		memcpy(null_terminated_name, name, name_length);
+		null_terminated_name[name_length] = '\0';
 		archive_entry_xattr_add_entry(entry, null_terminated_name, value, value_length);
 		free(null_terminated_name);
 	}
