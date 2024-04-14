@@ -1573,8 +1573,15 @@ read_mac_metadata_blob(struct archive_read *a,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (size > xattr_limit) {
-		/* TODO: ... */
+	/* TODO: Should this merely skip the overlarge entry and
+	 * WARN?  Or is xattr_limit sufficiently large that we can
+	 * safely assume anything larger is malicious? */
+	if (size > (int64_t)xattr_limit) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Oversized AppleDouble extension has size %llu > %llu",
+		    (unsigned long long)size,
+		    (unsigned long long)xattr_limit);
+		return (ARCHIVE_FATAL);
 	}
 
 	/*
