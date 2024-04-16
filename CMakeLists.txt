@@ -41,7 +41,8 @@ IF(NOT "${CMAKE_BUILD_TYPE_UPPER}"
   MESSAGE(FATAL_ERROR
           "Unknown keyword for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n"
           "Acceptable keywords: Debug, Release, RelWithDebInfo, MinSizeRel, None")
-ENDIF()
+ENDIF(NOT "${CMAKE_BUILD_TYPE_UPPER}"
+       MATCHES "^(DEBUG|RELEASE|RELWITHDEBINFO|MINSIZEREL|NONE)\$")
 
 # On MacOS, prefer MacPorts libraries to system libraries.
 # I haven't come up with a compelling argument for this to be conditional.
