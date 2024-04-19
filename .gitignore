@@ -17,6 +17,7 @@
 .deps/
 .libs/
 bin/
+out/
 .dirstamp
 Makefile
 Makefile.in
@@ -62,6 +63,7 @@ CMakeCache.txt
 CMakeFiles/
 DartConfiguration.tcl
 cmake.tmp/
+.vs/
 .vscode/
 
 doc/html/*.html
