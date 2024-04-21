@@ -3615,7 +3615,7 @@ execute_filter_e8(struct rar_filter *filter, struct rar_virtual_machine *vm, siz
   uint32_t filesize = 0x1000000;
   uint32_t i;
 
-  if (length > PROGRAM_WORK_SIZE || length < 4)
+  if (length > PROGRAM_WORK_SIZE || length <= 4)
     return 0;
 
   for (i = 0; i <= length - 5; i++)
