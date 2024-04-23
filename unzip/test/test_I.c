@@ -25,11 +25,24 @@
  */
 #include "test.h"
 
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
+
 /* Test I arg - file name encoding */
 DEFINE_TEST(test_I)
 {
 	const char *reffile = "test_I.zip";
 	int r;
+
+#if HAVE_SETLOCALE
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
+		return;
+	}
+#else
+	skipping("setlocale() not available on this system.");
+#endif
 
 	extract_reference_file(reffile);
 	r = systemf("%s -I UTF-8 %s >test.out 2>test.err", testprog, reffile);
