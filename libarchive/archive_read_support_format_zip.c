@@ -1393,7 +1393,7 @@ check_authentication_code(struct archive_read *a, const void *_p)
  *  [CRC32] [compressed low] [compressed high] [uncompressed low] [uncompressed high] [other PK marker]
  * ```
  * Since the 32-bit and 64-bit compressed sizes both match, the
- * actualy size must fit in 32 bits, which implies the high-order
+ * actual size must fit in 32 bits, which implies the high-order
  * word of the compressed size is zero.  So we know the uncompressed
  * low word is zero, which again implies that if we accept the shorter
  * format, there will not be a valid PK marker following it.
