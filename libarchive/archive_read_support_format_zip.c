@@ -4089,7 +4089,7 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 				 * as the actual resource fork doesn't end with '/'.
 				 */
 				size_t tmp_length = filename_length;
-				if (name[tmp_length - 1] == '/') {
+				if (tmp_length > 0 && name[tmp_length - 1] == '/') {
 					tmp_length--;
 					r = rsrc_basename(name, tmp_length);
 				}
