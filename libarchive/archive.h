@@ -895,7 +895,7 @@ __LA_DECL int archive_write_set_options(struct archive *_a,
 			    const char *opts);
 
 /*
- * Set a encryption passphrase.
+ * Set an encryption passphrase.
  */
 __LA_DECL int archive_write_set_passphrase(struct archive *_a, const char *p);
 __LA_DECL int archive_write_set_passphrase_callback(struct archive *,
