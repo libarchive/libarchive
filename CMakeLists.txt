@@ -25,7 +25,7 @@ endif()
 #   MinSizeRel     : Release Min Size build
 #   None           : No build type
 IF(NOT CMAKE_BUILD_TYPE)
-  SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type" FORCE)
+  SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build Type" FORCE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 # Set a value type to properly display CMAKE_BUILD_TYPE on GUI if the
 # value type is "UNINITIALIZED".
