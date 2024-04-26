@@ -3612,7 +3612,15 @@ execute_filter_delta(struct rar_filter *filter, struct rar_virtual_machine *vm)
   {
     uint8_t lastbyte = 0;
     for (idx = i; idx < length; idx += numchannels)
+    {
+      /*
+       * The src block should not overlap with the dst block.
+       * If so it would be better to consider this archive is broken.
+       */
+      if (src >= dst)
+        return 0;
       lastbyte = dst[idx] = lastbyte - *src++;
+    }
   }
 
   filter->filteredblockaddress = length;
