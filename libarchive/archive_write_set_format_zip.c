@@ -906,7 +906,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			archive_le32enc(e, (uint32_t)archive_entry_ctime(entry));
 			e += 4;
 		}
-		archive_le16enc(ut + 2, e - ut - 4);
+		archive_le16enc(ut + 2, (uint16_t)(e - ut - 4));
 	}
 
 	/*
