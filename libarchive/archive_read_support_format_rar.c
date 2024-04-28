@@ -3722,6 +3722,13 @@ execute_filter_audio(struct rar_filter *filter, struct rar_virtual_machine *vm)
     memset(&state, 0, sizeof(state));
     for (j = i; j < length; j += numchannels)
     {
+      /*
+       * The src block should not overlap with the dst block.
+       * If so it would be better to consider this archive is broken.
+       */
+      if (src >= dst)
+        return 0;
+
       int8_t delta = (int8_t)*src++;
       uint8_t predbyte, byte;
       int prederror;
