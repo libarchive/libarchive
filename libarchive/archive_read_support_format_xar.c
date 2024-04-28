@@ -3256,6 +3256,9 @@ expat_start_cb(void *userData, const XML_Char *name, const XML_Char **atts)
 	struct xmlattr_list list;
 	int r;
 
+	if (ud->state != ARCHIVE_OK)
+		return;
+
 	r = expat_xmlattr_setup(a, &list, atts);
 	if (r == ARCHIVE_OK)
 		r = xml_start(a, (const char *)name, &list);
