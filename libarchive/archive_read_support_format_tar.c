@@ -634,7 +634,8 @@ archive_read_format_tar_read_data(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 		if (*buff == NULL) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Truncated tar archive");
+			    "Truncated tar archive"
+			    " detected while reading data");
 			return (ARCHIVE_FATAL);
 		}
 		if (bytes_read > tar->entry_bytes_remaining)
@@ -765,7 +766,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			if (bytes < 512) {  /* Short block at EOF; this is bad. */
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Truncated tar archive");
+				    "Truncated tar archive"
+				    " detected while reading next heaader");
 				return (ARCHIVE_FATAL);
 			}
 			*unconsumed += 512;
@@ -1226,7 +1228,8 @@ read_bytes_to_string(struct archive_read *a,
 	src = __archive_read_ahead(a, size, NULL);
 	if (src == NULL) {
 		archive_set_error(&a->archive, EINVAL,
-		    "Truncated archive");
+		    "Truncated archive"
+		    " detected while reading metadata");
 		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
 	}
@@ -1783,7 +1786,8 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		}
 		if (did_read == 0) { /* EOF */
 			archive_set_error(&a->archive, EINVAL,
-					  "Truncated tar archive");
+					  "Truncated tar archive"
+					  " detected while reading pax attribute name");
 			return (ARCHIVE_FATAL);
 		}
 		if (did_read > ext_size) {
@@ -1882,7 +1886,8 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		}
 		if (did_read == 0) {
 			archive_set_error(&a->archive, EINVAL,
-					  "Truncated tar archive");
+					  "Truncated tar archive"
+					  " detected while completing pax attribute");
 			return (ARCHIVE_FATAL);
 		}
 		if (p[0] != '\n') {
