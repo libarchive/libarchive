@@ -24,6 +24,8 @@
  */
 #include "test.h"
 
+#include <locale.h>
+
 /* Some tests will want to calculate some CRC32's, and this header can
  * help. */
 #define __LIBARCHIVE_BUILD
