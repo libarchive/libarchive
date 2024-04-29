@@ -1377,6 +1377,14 @@ DEFINE_TEST(test_read_format_rar5_unicode)
 {
 	PROLOGUE("test_read_format_rar5_unicode.rar");
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
+		EPILOGUE();
+		return;
+	}
+#endif
+
 	/* Script "file.txt" */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
