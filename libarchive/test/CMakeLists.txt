@@ -130,6 +130,7 @@ IF(ENABLE_TEST)
     test_read_format_gtar_lzma.c
     test_read_format_gtar_sparse.c
     test_read_format_gtar_sparse_skip_entry.c
+    test_read_format_huge_rpm.c
     test_read_format_iso_Z.c
     test_read_format_iso_multi_extent.c
     test_read_format_iso_xorriso.c
