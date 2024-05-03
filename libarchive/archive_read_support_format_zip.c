@@ -3680,7 +3680,7 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 	if (archive_le16dec(p + 10) != archive_le16dec(p + 8))
 		return 0;
 	/* Central directory can't extend beyond start of EOCD record. */
-	if (cd_offset + cd_size > current_offset)
+	if ((int64_t)cd_offset + cd_size > current_offset)
 		return 0;
 
 	/* Save the central directory location for later use. */
