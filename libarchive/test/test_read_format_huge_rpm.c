@@ -36,12 +36,13 @@ DEFINE_TEST(test_read_format_huge_rpm)
 	extract_reference_file(name);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 2));
 
+	/* This archive should have no entries -- if it has entries, the bid has screwed up */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify that the format detection worked. */
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_RPM);
-	assertEqualString(archive_filter_name(a, 0), "rpm");
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_EMPTY);
+	assertEqualInt(ARCHIVE_FILTER_RPM, archive_filter_code(a, 0));
+	assertEqualString("rpm", archive_filter_name(a, 0));
+	assertEqualInt(ARCHIVE_FORMAT_EMPTY, archive_format(a));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
