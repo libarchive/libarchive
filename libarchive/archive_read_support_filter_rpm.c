@@ -39,8 +39,8 @@
 
 struct rpm {
 	int64_t		 total_in;
-	size_t		 hpos;
-	size_t		 hlen;
+	uint64_t	 hpos;
+	uint64_t	 hlen;
 	unsigned char	 header[16];
 	enum {
 		ST_LEAD,	/* Skipping 'Lead' section. */
@@ -161,9 +161,9 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 	struct rpm *rpm;
 	const unsigned char *b;
 	ssize_t avail_in, total;
-	size_t used, n;
-	uint32_t section;
-	uint32_t bytes;
+	uint64_t used, n;
+	uint64_t section;
+	uint64_t bytes;
 
 	rpm = (struct rpm *)self->data;
 	*buff = NULL;
