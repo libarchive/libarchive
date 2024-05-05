@@ -43,6 +43,8 @@
 /* Maximum lookahead during bid phase */
 #define UUENCODE_BID_MAX_READ 128*1024 /* in bytes */
 
+#define UUENCODE_MAX_LINE_LENGTH 34*1024 /* in bytes */
+
 struct uudecode {
 	int64_t		 total;
 	unsigned char	*in_buff;
@@ -484,6 +486,12 @@ read_more:
 		goto finish;
 	}
 	if (uudecode->in_cnt) {
+		if (uudecode->in_cnt > UUENCODE_MAX_LINE_LENGTH) {
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Invalid format data");
+			return (ARCHIVE_FATAL);
+		}
 		/*
 		 * If there is remaining data which is saved by
 		 * previous calling, use it first.
