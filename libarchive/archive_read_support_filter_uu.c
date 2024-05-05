@@ -47,7 +47,7 @@ struct uudecode {
 	int64_t		 total;
 	unsigned char	*in_buff;
 #define IN_BUFF_SIZE	(1024)
-	int		 in_cnt;
+	ssize_t		 in_cnt;
 	size_t		 in_allocated;
 	unsigned char	*out_buff;
 #define OUT_BUFF_SIZE	(64 * 1024)
@@ -533,7 +533,7 @@ read_more:
 				return (ARCHIVE_FATAL);
 			if (uudecode->in_buff != b)
 				memmove(uudecode->in_buff, b, len);
-			uudecode->in_cnt = (int)len;
+			uudecode->in_cnt = len;
 			if (total == 0) {
 				/* Do not return 0; it means end-of-file.
 				 * We should try to read bytes more. */
