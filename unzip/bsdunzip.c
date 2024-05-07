@@ -484,13 +484,8 @@ handle_existing_file(char **path)
 		fprintf(stderr,
 		    "replace %s? [y]es, [n]o, [A]ll, [N]one, [r]ename: ",
 		    *path);
-		if (fgets(buf, sizeof(buf), stdin) == NULL) {
-			clearerr(stdin);
-			printf("NULL\n(EOF or read error, "
-			    "treating as \"[N]one\"...)\n");
-			n_opt = 1;
-			return -1;
-		}
+		if (fgets(buf, sizeof(buf), stdin) == NULL)
+			goto stdin_err;
 		switch (*buf) {
 		case 'A':
 			o_opt = 1;
@@ -512,6 +507,8 @@ handle_existing_file(char **path)
 			*path = NULL;
 			alen = 0;
 			len = getline(path, &alen, stdin);
+			if (len < 1)
+				goto stdin_err;
 			if ((*path)[len - 1] == '\n')
 				(*path)[len - 1] = '\0';
 			return 0;
@@ -519,6 +516,12 @@ handle_existing_file(char **path)
 			break;
 		}
 	}
+stdin_err:
+	clearerr(stdin);
+	printf("NULL\n(EOF or read error, "
+		"treating as \"[N]one\"...)\n");
+	n_opt = 1;
+	return -1;
 }
 
 /*
