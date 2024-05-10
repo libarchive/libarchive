@@ -161,8 +161,8 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 {
 	struct rpm *rpm;
 	const unsigned char *b;
-	ssize_t avail_in, total;
-	uint64_t used, n;
+	ssize_t avail_in, total, used;
+	uint64_t n;
 	uint64_t section;
 	uint64_t bytes;
 
@@ -242,7 +242,7 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 				rpm->state = ST_PADDING;
 			break;
 		case ST_PADDING:
-			while (used < (size_t)avail_in) {
+			while (used < avail_in) {
 				if (*b != 0) {
 					/* Read next header. */
 					rpm->state = ST_HEADER;
@@ -260,7 +260,7 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 			used = avail_in;
 			break;
 		}
-		if (used == (size_t)avail_in) {
+		if (used == avail_in) {
 			rpm->total_in += used;
 			__archive_read_filter_consume(self->upstream, used);
 			b = NULL;
