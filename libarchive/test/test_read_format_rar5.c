@@ -932,19 +932,22 @@ DEFINE_TEST(test_read_format_rar5_symlink)
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	assertEqualString("file.txt", archive_entry_symlink(ae));
 	assertEqualInt(AE_SYMLINK_TYPE_FILE, archive_entry_symlink_type(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("dirlink", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	assertEqualString("dir", archive_entry_symlink(ae));
 	assertEqualInt(AE_SYMLINK_TYPE_DIRECTORY, archive_entry_symlink_type(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("dir", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 
@@ -969,7 +972,8 @@ DEFINE_TEST(test_read_format_rar5_hardlink)
 	assertEqualString("hardlink.txt", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualString("file.txt", archive_entry_hardlink(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 
