@@ -53,7 +53,8 @@ struct rpm {
 	}		 state;
 	int		 first_header;
 };
-#define RPM_LEAD_SIZE	96	/* Size of 'Lead' section. */
+#define RPM_LEAD_SIZE		96	/* Size of 'Lead' section. */
+#define RPM_MIN_HEAD_SIZE	16	/* Minimum size of 'Head'. */
 
 static int	rpm_bidder_bid(struct archive_read_filter_bidder *,
 		    struct archive_read_filter *);
@@ -197,7 +198,7 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 			}
 			break;
 		case ST_HEADER:
-			n = 16 - rpm->hpos;
+			n = RPM_MIN_HEAD_SIZE - rpm->hpos;
 			if (n > avail_in - used)
 				n = avail_in - used;
 			memcpy(rpm->header+rpm->hpos, b, n);
@@ -205,7 +206,7 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 			used += n;
 			rpm->hpos += n;
 
-			if (rpm->hpos == 16) {
+			if (rpm->hpos == RPM_MIN_HEAD_SIZE) {
 				if (rpm->header[0] != 0x8e ||
 				    rpm->header[1] != 0xad ||
 				    rpm->header[2] != 0xe8 ||
@@ -219,13 +220,13 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 					}
 					rpm->state = ST_ARCHIVE;
 					*buff = rpm->header;
-					total = rpm->hpos;
+					total = RPM_MIN_HEAD_SIZE;
 					break;
 				}
 				/* Calculate 'Header' length. */
 				section = archive_be32dec(rpm->header+8);
 				bytes = archive_be32dec(rpm->header+12);
-				rpm->hlen = 16 + section * 16 + bytes;
+				rpm->hlen = rpm->hpos + section * 16 + bytes;
 				rpm->state = ST_HEADER_DATA;
 				rpm->first_header = 0;
 			}
