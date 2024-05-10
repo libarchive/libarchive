@@ -121,6 +121,8 @@
 #define access _access
 #undef chdir
 #define chdir _chdir
+#undef chmod
+#define chmod _chmod
 #endif
 #ifndef fileno
 #define fileno _fileno
