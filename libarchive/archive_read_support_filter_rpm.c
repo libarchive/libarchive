@@ -64,6 +64,8 @@ static ssize_t	rpm_filter_read(struct archive_read_filter *,
 		    const void **);
 static int	rpm_filter_close(struct archive_read_filter *);
 
+static inline size_t rpm_limit_bytes(uint64_t, size_t);
+
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* Deprecated; remove in libarchive 4.0 */
 int
@@ -156,13 +158,19 @@ rpm_bidder_init(struct archive_read_filter *self)
 	return (ARCHIVE_OK);
 }
 
+static inline size_t
+rpm_limit_bytes(uint64_t bytes, size_t max)
+{
+	return (bytes > max ? max : (size_t)bytes);
+}
+
 static ssize_t
 rpm_filter_read(struct archive_read_filter *self, const void **buff)
 {
 	struct rpm *rpm;
 	const unsigned char *b;
 	ssize_t avail_in, total, used;
-	uint64_t n;
+	size_t n;
 	uint64_t section;
 	uint64_t bytes;
 
@@ -198,9 +206,8 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 			}
 			break;
 		case ST_HEADER:
-			n = RPM_MIN_HEAD_SIZE - rpm->hpos;
-			if (n > avail_in - used)
-				n = avail_in - used;
+			n = rpm_limit_bytes(RPM_MIN_HEAD_SIZE - rpm->hpos,
+			    avail_in - used);
 			memcpy(rpm->header+rpm->hpos, b, n);
 			b += n;
 			used += n;
@@ -232,9 +239,8 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 			}
 			break;
 		case ST_HEADER_DATA:
-			n = rpm->hlen - rpm->hpos;
-			if (n > avail_in - used)
-				n = avail_in - used;
+			n = rpm_limit_bytes(rpm->hlen - rpm->hpos,
+			    avail_in - used);
 			b += n;
 			used += n;
 			rpm->hpos += n;
