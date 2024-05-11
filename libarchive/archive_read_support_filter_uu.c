@@ -506,7 +506,7 @@ read_more:
 		uudecode->in_cnt = 0;
 	}
 	for (;used < avail_in; d += llen, used += llen) {
-		int64_t l, body;
+		ssize_t l, body;
 
 		b = d;
 		len = get_line(b, avail_in - used, &nl);
