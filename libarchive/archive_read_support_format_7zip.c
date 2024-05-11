@@ -877,10 +877,9 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	if (zip->end_of_entry)
 		return (ARCHIVE_EOF);
 
-	const uint64_t max_read_size = 16 * 1024 * 1024;  // Don't try to read more than 16 MB at a time
-	size_t bytes_to_read = max_read_size;
+	size_t bytes_to_read = 16 * 1024 * 1024;  // Don't try to read more than 16 MB at a time
 	if ((uint64_t)bytes_to_read > zip->entry_bytes_remaining) {
-		bytes_to_read = zip->entry_bytes_remaining;
+		bytes_to_read = (size_t)zip->entry_bytes_remaining;
 	}
 	bytes = read_stream(a, buff, bytes_to_read, 0);
 	if (bytes < 0)
@@ -1063,7 +1062,7 @@ ppmd_read(void *p)
 		 */
 		ssize_t bytes_avail = 0;
 		const uint8_t* data = __archive_read_ahead(a,
-		    zip->ppstream.stream_in+1, &bytes_avail);
+		    (size_t)zip->ppstream.stream_in+1, &bytes_avail);
 		if(bytes_avail < zip->ppstream.stream_in+1) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
