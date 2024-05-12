@@ -158,9 +158,8 @@ struct archive_entry {
 	unsigned long ae_fflags_set;		/* Bitmap fflags */
 	unsigned long ae_fflags_clear;
 	struct archive_mstring ae_gname;		/* Name of owning group */
-	struct archive_mstring ae_hardlink;	/* Name of target for hardlink */
+	struct archive_mstring ae_linkname;	/* Name of target for hardlink or symlink */
 	struct archive_mstring ae_pathname;	/* Name of entry */
-	struct archive_mstring ae_symlink;		/* symlink contents */
 	struct archive_mstring ae_uname;		/* Name of owner */
 
 	/* Not used within libarchive; useful for some clients. */

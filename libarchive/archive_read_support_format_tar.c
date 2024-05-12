@@ -120,7 +120,6 @@ struct tar {
 	struct archive_string	 entry_pathname;
 	/* For "GNU.sparse.name" and other similar path extensions. */
 	struct archive_string	 entry_pathname_override;
-	struct archive_string	 entry_linkpath;
 	struct archive_string	 entry_uname;
 	struct archive_string	 entry_gname;
 	struct archive_string	 longname;
@@ -293,7 +292,6 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	gnu_clear_sparse_list(tar);
 	archive_string_free(&tar->entry_pathname);
 	archive_string_free(&tar->entry_pathname_override);
-	archive_string_free(&tar->entry_linkpath);
 	archive_string_free(&tar->entry_uname);
 	archive_string_free(&tar->entry_gname);
 	archive_string_free(&tar->line);
@@ -720,7 +718,6 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	static const int32_t seen_x_header = 32; /* Also X */
 	static const int32_t seen_mac_metadata = 512;
 
-	archive_string_empty(&(tar->entry_linkpath));
 	tar->pax_hdrcharset_utf8 = 1;
 	tar->sparse_gnu_attributes_seen = 0;
 	archive_string_empty(&(tar->entry_gname));
@@ -1145,9 +1142,11 @@ header_gnu_longlink(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, size_t *unconsumed)
 {
 	int err;
-	(void)entry; /* UNUSED */
 
-	err = read_body_to_string(a, tar, &(tar->entry_linkpath), h, unconsumed);
+	struct archive_string linkpath;
+	archive_string_init(&linkpath);
+	err = read_body_to_string(a, tar, &linkpath, h, unconsumed);
+	archive_entry_set_link(entry, linkpath.s);
 	return (err);
 }
 
@@ -1290,10 +1289,6 @@ header_common(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 
-	if (header->linkname[0] && archive_strlen(&(tar->entry_linkpath)) == 0)
-		archive_strncpy(&(tar->entry_linkpath),
-		    header->linkname, sizeof(header->linkname));
-
 	/* Parse out the numeric fields (all are octal) */
 
 	/* Split mode handling: Set filetype always, perm only if not already set */
@@ -1342,12 +1337,20 @@ header_common(struct archive_read *a, struct tar *tar,
 	 */
 	switch (tar->filetype) {
 	case '1': /* Hard link */
-		if (archive_entry_copy_hardlink_l(entry, tar->entry_linkpath.s,
-		    archive_strlen(&(tar->entry_linkpath)), tar->sconv) != 0) {
-			err = set_conversion_failed_error(a, tar->sconv,
-			    "Linkname");
-			if (err == ARCHIVE_FATAL)
-				return (err);
+		archive_entry_set_link_to_hardlink(entry);
+		existing_linkpath = archive_entry_hardlink(entry);
+		if (existing_linkpath == NULL || existing_linkpath[0] == '\0') {
+			struct archive_string linkpath;
+			archive_string_init(&linkpath);
+			archive_strncpy(&linkpath,
+					header->linkname, sizeof(header->linkname));
+			if (archive_entry_copy_hardlink_l(entry, linkpath.s,
+							  archive_strlen(&linkpath), tar->sconv) != 0) {
+				err = set_conversion_failed_error(a, tar->sconv,
+								  "Linkname");
+				if (err == ARCHIVE_FATAL)
+					return (err);
+			}
 		}
 		/*
 		 * The following may seem odd, but: Technically, tar
@@ -1407,19 +1410,24 @@ header_common(struct archive_read *a, struct tar *tar,
 		 */
 		break;
 	case '2': /* Symlink */
-		archive_entry_set_filetype(entry, AE_IFLNK);
-		archive_entry_set_size(entry, 0);
-		tar->entry_bytes_remaining = 0;
+		archive_entry_set_link_to_symlink(entry);
 		existing_linkpath = archive_entry_symlink(entry);
 		if (existing_linkpath == NULL || existing_linkpath[0] == '\0') {
-			if (archive_entry_copy_symlink_l(entry, tar->entry_linkpath.s,
-			    archive_strlen(&(tar->entry_linkpath)), tar->sconv) != 0) {
+			struct archive_string linkpath;
+			archive_string_init(&linkpath);
+			archive_strncpy(&linkpath,
+					header->linkname, sizeof(header->linkname));
+			if (archive_entry_copy_symlink_l(entry, linkpath.s,
+			    archive_strlen(&linkpath), tar->sconv) != 0) {
 				err = set_conversion_failed_error(a, tar->sconv,
 				    "Linkname");
 				if (err == ARCHIVE_FATAL)
 					return (err);
 			}
 		}
+		archive_entry_set_filetype(entry, AE_IFLNK);
+		archive_entry_set_size(entry, 0);
+		tar->entry_bytes_remaining = 0;
 		break;
 	case '3': /* Character device */
 		archive_entry_set_filetype(entry, AE_IFCHR);
@@ -2609,7 +2617,10 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				*unconsumed += value_length;
 				err = ARCHIVE_WARN;
 			} else {
-				err = read_bytes_to_string(a, &(tar->entry_linkpath), value_length, unconsumed);
+				struct archive_string linkpath;
+				archive_string_init(&linkpath);
+				err = read_bytes_to_string(a, &linkpath, value_length, unconsumed);
+				archive_entry_set_link(entry, linkpath.s);
 			}
 			return (err);
 		}
