@@ -1766,6 +1766,10 @@ free_decompression(struct archive_read *a, struct _7zip *zip)
 		zip->stream_valid = 0;
 	}
 #endif
+#ifdef HAVE_ZSTD_H
+	if (zip->zstdstream_valid)
+		ZSTD_freeDStream(zip->zstd_dstream);
+#endif
 	if (zip->ppmd7_valid) {
 		__archive_ppmd7_functions.Ppmd7_Free(
 			&zip->ppmd7_context);
