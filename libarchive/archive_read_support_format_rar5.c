@@ -220,7 +220,7 @@ struct comp_state {
 	                                decompression. */
 	uint8_t* filtered_buf;       /* Buffer used when applying filters. */
 	const uint8_t* block_buf;    /* Buffer used when merging blocks. */
-	size_t window_mask;          /* Convenience field; window_size - 1. */
+	ssize_t window_mask;         /* Convenience field; window_size - 1. */
 	int64_t write_ptr;           /* This amount of data has been unpacked
 					in the window buffer. */
 	int64_t last_write_ptr;      /* This amount of data has been stored in
@@ -505,7 +505,7 @@ static inline struct rar5* get_context(struct archive_read* a) {
 }
 
 /* Convenience functions used by filter implementations. */
-static void circular_memcpy(uint8_t* dst, uint8_t* window, const uint64_t mask,
+static void circular_memcpy(uint8_t* dst, uint8_t* window, const ssize_t mask,
     int64_t start, int64_t end)
 {
 	if((start & mask) > (end & mask)) {
@@ -709,7 +709,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 static void push_data(struct archive_read* a, struct rar5* rar,
     const uint8_t* buf, int64_t idx_begin, int64_t idx_end)
 {
-	const uint64_t wmask = rar->cstate.window_mask;
+	const ssize_t wmask = rar->cstate.window_mask;
 	const ssize_t solid_write_ptr = (rar->cstate.solid_offset +
 	    rar->cstate.last_write_ptr) & wmask;
 
@@ -1246,7 +1246,7 @@ static int process_main_locator_extra_block(struct archive_read* a,
 }
 
 static int parse_file_extra_hash(struct archive_read* a, struct rar5* rar,
-    ssize_t* extra_data_size)
+    int64_t* extra_data_size)
 {
 	size_t hash_type = 0;
 	size_t value_len;
@@ -1296,7 +1296,7 @@ static uint64_t time_win_to_unix(uint64_t win_time) {
 }
 
 static int parse_htime_item(struct archive_read* a, char unix_time,
-    uint64_t* where, ssize_t* extra_data_size)
+    uint64_t* where, int64_t* extra_data_size)
 {
 	if(unix_time) {
 		uint32_t time_val;
@@ -1318,7 +1318,7 @@ static int parse_htime_item(struct archive_read* a, char unix_time,
 }
 
 static int parse_file_extra_version(struct archive_read* a,
-    struct archive_entry* e, ssize_t* extra_data_size)
+    struct archive_entry* e, int64_t* extra_data_size)
 {
 	size_t flags = 0;
 	size_t version = 0;
@@ -1372,7 +1372,7 @@ static int parse_file_extra_version(struct archive_read* a,
 }
 
 static int parse_file_extra_htime(struct archive_read* a,
-    struct archive_entry* e, struct rar5* rar, ssize_t* extra_data_size)
+    struct archive_entry* e, struct rar5* rar, int64_t* extra_data_size)
 {
 	char unix_time = 0;
 	size_t flags = 0;
@@ -1425,7 +1425,7 @@ static int parse_file_extra_htime(struct archive_read* a,
 }
 
 static int parse_file_extra_redir(struct archive_read* a,
-    struct archive_entry* e, struct rar5* rar, ssize_t* extra_data_size)
+    struct archive_entry* e, struct rar5* rar, int64_t* extra_data_size)
 {
 	uint64_t value_size = 0;
 	size_t target_size = 0;
@@ -1496,7 +1496,7 @@ static int parse_file_extra_redir(struct archive_read* a,
 }
 
 static int parse_file_extra_owner(struct archive_read* a,
-    struct archive_entry* e, ssize_t* extra_data_size)
+    struct archive_entry* e, int64_t* extra_data_size)
 {
 	uint64_t flags = 0;
 	uint64_t value_size = 0;
@@ -1576,15 +1576,15 @@ static int parse_file_extra_owner(struct archive_read* a,
 }
 
 static int process_head_file_extra(struct archive_read* a,
-    struct archive_entry* e, struct rar5* rar, ssize_t extra_data_size)
+    struct archive_entry* e, struct rar5* rar, int64_t extra_data_size)
 {
-	size_t extra_field_size;
-	size_t extra_field_id = 0;
+	uint64_t extra_field_size;
+	uint64_t extra_field_id = 0;
 	int ret = ARCHIVE_FATAL;
-	size_t var_size;
+	uint64_t var_size;
 
 	while(extra_data_size > 0) {
-		if(!read_var_sized(a, &extra_field_size, &var_size))
+		if(!read_var(a, &extra_field_size, &var_size))
 			return ARCHIVE_EOF;
 
 		extra_data_size -= var_size;
@@ -1592,7 +1592,7 @@ static int process_head_file_extra(struct archive_read* a,
 			return ARCHIVE_EOF;
 		}
 
-		if(!read_var_sized(a, &extra_field_id, &var_size))
+		if(!read_var(a, &extra_field_id, &var_size))
 			return ARCHIVE_EOF;
 
 		extra_data_size -= var_size;
@@ -1642,7 +1642,7 @@ static int process_head_file_extra(struct archive_read* a,
 static int process_head_file(struct archive_read* a, struct rar5* rar,
     struct archive_entry* entry, size_t block_flags)
 {
-	ssize_t extra_data_size = 0;
+	int64_t extra_data_size = 0;
 	size_t data_size = 0;
 	size_t file_flags = 0;
 	size_t file_attr = 0;
@@ -1682,12 +1682,12 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	}
 
 	if(block_flags & HFL_EXTRA_DATA) {
-		size_t edata_size = 0;
-		if(!read_var_sized(a, &edata_size, NULL))
+		uint64_t edata_size = 0;
+		if(!read_var(a, &edata_size, NULL))
 			return ARCHIVE_EOF;
 
 		/* Intentional type cast from unsigned to signed. */
-		extra_data_size = (ssize_t) edata_size;
+		extra_data_size = (int64_t) edata_size;
 	}
 
 	if(block_flags & HFL_DATA) {
@@ -1784,7 +1784,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		 * that its size will match new window_size. */
 
 		uint8_t* new_window_buf =
-			realloc(rar->cstate.window_buf, window_size);
+			realloc(rar->cstate.window_buf, (size_t) window_size);
 
 		if(!new_window_buf) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
@@ -1980,7 +1980,7 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
     struct archive_entry* entry, size_t block_flags)
 {
 	int ret;
-	size_t extra_data_size = 0;
+	uint64_t extra_data_size = 0;
 	size_t extra_field_size = 0;
 	size_t extra_field_id = 0;
 	size_t archive_flags = 0;
@@ -2002,7 +2002,7 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
 	(void) entry;
 
 	if(block_flags & HFL_EXTRA_DATA) {
-		if(!read_var_sized(a, &extra_data_size, NULL))
+		if(!read_var(a, &extra_data_size, NULL))
 			return ARCHIVE_EOF;
 	} else {
 		extra_data_size = 0;
@@ -2983,7 +2983,7 @@ static int decode_code_length(struct archive_read* a, struct rar5* rar,
 
 static int copy_string(struct archive_read* a, int len, int dist) {
 	struct rar5* rar = get_context(a);
-	const uint64_t cmask = rar->cstate.window_mask;
+	const ssize_t cmask = rar->cstate.window_mask;
 	const uint64_t write_ptr = rar->cstate.write_ptr +
 	    rar->cstate.solid_offset;
 	int i;
