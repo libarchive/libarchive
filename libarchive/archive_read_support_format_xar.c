@@ -1616,9 +1616,9 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 	switch (xar->rd_encoding) {
 	case GZIP:
 		xar->stream.next_in = (Bytef *)(uintptr_t)b;
-		xar->stream.avail_in = avail_in;
+		xar->stream.avail_in = (uInt)avail_in;
 		xar->stream.next_out = (unsigned char *)outbuff;
-		xar->stream.avail_out = avail_out;
+		xar->stream.avail_out = (uInt)avail_out;
 		r = inflate(&(xar->stream), 0);
 		switch (r) {
 		case Z_OK: /* Decompressor made some progress.*/
@@ -1635,9 +1635,9 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	case BZIP2:
 		xar->bzstream.next_in = (char *)(uintptr_t)b;
-		xar->bzstream.avail_in = avail_in;
+		xar->bzstream.avail_in = (unsigned int)avail_in;
 		xar->bzstream.next_out = (char *)outbuff;
-		xar->bzstream.avail_out = avail_out;
+		xar->bzstream.avail_out = (unsigned int)avail_out;
 		r = BZ2_bzDecompress(&(xar->bzstream));
 		switch (r) {
 		case BZ_STREAM_END: /* Found end of stream. */
@@ -3323,7 +3323,7 @@ expat_read_toc(struct archive_read *a)
 		xar->toc_total += outbytes;
 		PRINT_TOC(d, outbytes);
 
-		xr = XML_Parse(parser, d, outbytes, xar->toc_remaining == 0);
+		xr = XML_Parse(parser, d, (int)outbytes, xar->toc_remaining == 0);
 		__archive_read_consume(a, used);
 		if (xr == XML_STATUS_ERROR) {
 			XML_ParserFree(parser);
