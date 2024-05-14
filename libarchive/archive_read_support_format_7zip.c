@@ -3141,7 +3141,7 @@ get_uncompressed_data(struct archive_read *a, const void **buff, size_t size,
 		/* Copy mode. */
 
 		*buff = __archive_read_ahead(a, minimum, &bytes_avail);
-		if (bytes_avail <= 0) {
+		if (*buff == NULL) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated 7-Zip file data");
