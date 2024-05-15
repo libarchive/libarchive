@@ -2307,7 +2307,7 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 	usizes = ss->unpackSizes;
 	for (i = 0; i < numFolders; i++) {
 		unsigned pack;
-		uint64_t sum;
+		uint64_t size, sum;
 
 		if (f[i].numUnpackStreams == 0)
 			continue;
@@ -2317,10 +2317,15 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 			for (pack = 1; pack < f[i].numUnpackStreams; pack++) {
 				if (parse_7zip_uint64(a, usizes) < 0)
 					return (-1);
+				if (*usizes > UINT64_MAX - sum)
+					return (-1);
 				sum += *usizes++;
 			}
 		}
-		*usizes++ = folder_uncompressed_size(&f[i]) - sum;
+		size = folder_uncompressed_size(&f[i]);
+		if (size < sum)
+			return (-1);
+		*usizes++ = size - sum;
 	}
 
 	if (type == kSize) {
