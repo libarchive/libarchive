@@ -2414,6 +2414,8 @@ read_StreamsInfo(struct archive_read *a, struct _7z_stream_info *si)
 		packPos = si->pi.pos;
 		for (i = 0; i < si->pi.numPackStreams; i++) {
 			si->pi.positions[i] = packPos;
+			if (packPos > UINT64_MAX - si->pi.sizes[i])
+				return (-1);
 			packPos += si->pi.sizes[i];
 			if (packPos > zip->header_offset)
 				return (-1);
