@@ -843,7 +843,7 @@ DEFINE_TEST(test_read_format_rar5_block_by_block)
 	struct archive_entry *ae;
 	struct archive *a;
 	uint8_t buf[173];
-	int bytes_read;
+	ssize_t bytes_read;
 	uint32_t computed_crc = 0;
 
 	extract_reference_file("test_read_format_rar5_compressed.rar");
