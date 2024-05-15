@@ -145,7 +145,8 @@ static int
 archive_compressor_compress_open(struct archive_write_filter *f)
 {
 	struct private_data *state;
-	size_t bs = 65536, bpb;
+	ssize_t bpb;
+	size_t bs = 65536;
 
 	f->code = ARCHIVE_FILTER_COMPRESS;
 	f->name = "compress";
@@ -161,6 +162,10 @@ archive_compressor_compress_open(struct archive_write_filter *f)
 		/* Buffer size should be a multiple number of the bytes
 		 * per block for performance. */
 		bpb = archive_write_get_bytes_per_block(f->archive);
+		if (bpb < 0){
+                	// The `__archive_check_magic` function already set an error
+        	        return (ARCHIVE_FATAL);
+	        }
 		if (bpb > bs)
 			bs = bpb;
 		else if (bpb != 0)

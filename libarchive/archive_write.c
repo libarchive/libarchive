@@ -354,6 +354,10 @@ archive_write_client_open(struct archive_write_filter *f)
 	int ret;
 
 	f->bytes_per_block = archive_write_get_bytes_per_block(f->archive);
+	if (f->bytes_per_block < 0){
+                // The `__archive_check_magic` function already set an error
+        	return (ARCHIVE_FATAL);
+        }
 	f->bytes_in_last_block =
 	    archive_write_get_bytes_in_last_block(f->archive);
 	buffer_size = f->bytes_per_block;

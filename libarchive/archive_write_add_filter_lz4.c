@@ -233,12 +233,17 @@ archive_filter_lz4_open(struct archive_write_filter *f)
 
 	required_size = 4 + 15 + 4 + data->block_size + 4 + 4;
 	if (data->out_buffer_size < required_size) {
-		size_t bs = required_size, bpb;
+		ssize_t bpb;
+		size_t bs = required_size;
 		free(data->out_buffer);
 		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
 			/* Buffer size should be a multiple number of
 			 * the of bytes per block for performance. */
 			bpb = archive_write_get_bytes_per_block(f->archive);
+			if (bpb < 0){
+                		// The `__archive_check_magic` function already set an error
+		                return (ARCHIVE_FATAL);
+            		}
 			if (bpb > bs)
 				bs = bpb;
 			else if (bpb != 0) {

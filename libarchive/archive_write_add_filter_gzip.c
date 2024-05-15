@@ -183,11 +183,16 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	int ret;
 
 	if (data->compressed == NULL) {
-		size_t bs = 65536, bpb;
+		ssize_t bpb;
+		size_t bs = 65536;
 		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
 			/* Buffer size should be a multiple number of
 			 * the of bytes per block for performance. */
 			bpb = archive_write_get_bytes_per_block(f->archive);
+			if (bpb < 0){
+		                // The `__archive_check_magic` function already set an error
+                		return (ARCHIVE_FATAL);
+            		}
 			if (bpb > bs)
 				bs = bpb;
 			else if (bpb != 0)

@@ -360,11 +360,16 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 	struct private_data *data = (struct private_data *)f->data;
 
 	if (data->out.dst == NULL) {
-		size_t bs = ZSTD_CStreamOutSize(), bpb;
+		ssize_t bpb;
+		size_t bs = ZSTD_CStreamOutSize();
 		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
 			/* Buffer size should be a multiple number of
 			 * the of bytes per block for performance. */
 			bpb = archive_write_get_bytes_per_block(f->archive);
+			if (bpb < 0){
+				// The `__archive_check_magic` function already set an error
+				return (ARCHIVE_FATAL);
+			}
 			if (bpb > bs)
 				bs = bpb;
 			else if (bpb != 0)
