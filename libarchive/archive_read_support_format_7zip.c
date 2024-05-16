@@ -2442,6 +2442,10 @@ read_StreamsInfo(struct archive_read *a, struct _7z_stream_info *si)
 		f = si->ci.folders;
 		for (i = 0; i < si->ci.numFolders; i++) {
 			f[i].packIndex = packIndex;
+			if (f[i].numPackedStreams > UINT32_MAX)
+				return (-1);
+			if (packIndex > UINT32_MAX - (uint32_t)f[i].numPackedStreams)
+				return (-1);
 			packIndex += (uint32_t)f[i].numPackedStreams;
 			if (packIndex > si->pi.numPackStreams)
 				return (-1);
