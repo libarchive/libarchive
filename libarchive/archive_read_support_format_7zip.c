@@ -2307,7 +2307,7 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 	usizes = ss->unpackSizes;
 	for (i = 0; i < numFolders; i++) {
 		unsigned pack;
-		uint64_t sum;
+		uint64_t size, sum;
 
 		if (f[i].numUnpackStreams == 0)
 			continue;
@@ -2317,10 +2317,15 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 			for (pack = 1; pack < f[i].numUnpackStreams; pack++) {
 				if (parse_7zip_uint64(a, usizes) < 0)
 					return (-1);
+				if (*usizes > UINT64_MAX - sum)
+					return (-1);
 				sum += *usizes++;
 			}
 		}
-		*usizes++ = folder_uncompressed_size(&f[i]) - sum;
+		size = folder_uncompressed_size(&f[i]);
+		if (size < sum)
+			return (-1);
+		*usizes++ = size - sum;
 	}
 
 	if (type == kSize) {
@@ -2414,6 +2419,8 @@ read_StreamsInfo(struct archive_read *a, struct _7z_stream_info *si)
 		packPos = si->pi.pos;
 		for (i = 0; i < si->pi.numPackStreams; i++) {
 			si->pi.positions[i] = packPos;
+			if (packPos > UINT64_MAX - si->pi.sizes[i])
+				return (-1);
 			packPos += si->pi.sizes[i];
 			if (packPos > zip->header_offset)
 				return (-1);
@@ -2435,6 +2442,10 @@ read_StreamsInfo(struct archive_read *a, struct _7z_stream_info *si)
 		f = si->ci.folders;
 		for (i = 0; i < si->ci.numFolders; i++) {
 			f[i].packIndex = packIndex;
+			if (f[i].numPackedStreams > UINT32_MAX)
+				return (-1);
+			if (packIndex > UINT32_MAX - (uint32_t)f[i].numPackedStreams)
+				return (-1);
 			packIndex += (uint32_t)f[i].numPackedStreams;
 			if (packIndex > si->pi.numPackStreams)
 				return (-1);
@@ -3141,7 +3152,7 @@ get_uncompressed_data(struct archive_read *a, const void **buff, size_t size,
 		/* Copy mode. */
 
 		*buff = __archive_read_ahead(a, minimum, &bytes_avail);
-		if (bytes_avail <= 0) {
+		if (*buff == NULL) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated 7-Zip file data");
