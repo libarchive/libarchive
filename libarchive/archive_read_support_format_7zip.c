@@ -3010,7 +3010,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	/* CRC check. */
 	if (crc32(0, (const unsigned char *)p + 12, 20)
 	    != archive_le32dec(p + 8)) {
-#ifdef DONT_FAIL_ON_CRC_ERROR
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, -1, "Header CRC error");
 		return (ARCHIVE_FATAL);
 #endif
