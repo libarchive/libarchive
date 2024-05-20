@@ -122,6 +122,7 @@ struct tar {
 	struct archive_string	 entry_pathname_override;
 	struct archive_string	 entry_uname;
 	struct archive_string	 entry_gname;
+	struct archive_string	 entry_linkpath;
 	struct archive_string	 longname;
 	struct archive_string	 pax_global;
 	struct archive_string	 line;
@@ -1911,17 +1912,15 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 	*unconsumed += ext_size + ext_padding;
 
 	/*
-	 * PAX format uses UTF-8 as default charset for its metadata
-	 * unless hdrcharset=BINARY is present in its header.
-	 * We apply the charset specified by the hdrcharset option only
-	 * when the hdrcharset attribute(in PAX header) is BINARY because
-	 * we respect the charset described in PAX header and BINARY also
-	 * means that metadata(filename,uname and gname) character-set
-	 * is unknown.
+	 * Some PAX values -- pathname, linkpath, uname, gname --
+	 * can't be copied into the entry until we know the character
+	 * set to use:
 	 */
 	if (!tar->pax_hdrcharset_utf8)
+		/* PAX specified "BINARY", so use the default charset */
 		sconv = tar->opt_sconv;
 	else {
+		/* PAX default UTF-8 */
 		sconv = archive_string_conversion_from_charset(
 		    &(a->archive), "UTF-8", 1);
 		if (sconv == NULL)
@@ -1931,48 +1930,58 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			    SCONV_SET_OPT_UTF8_LIBARCHIVE2X);
 	}
 
-	if (archive_strlen(&(tar->entry_gname)) > 0) {
-		if (archive_entry_copy_gname_l(entry, tar->entry_gname.s,
-		    archive_strlen(&(tar->entry_gname)), sconv) != 0) {
-			err = set_conversion_failed_error(a, sconv, "Gname");
-			if (err == ARCHIVE_FATAL)
-				return (err);
-			/* Use a converted an original name. */
-			archive_entry_copy_gname(entry, tar->entry_gname.s);
-		}
-	}
-	/*
-	 * Some extensions (such as the GNU sparse file extensions)
-	 * deliberately store a synthetic name under the regular 'path'
-	 * attribute and the real file name under a different attribute.
-	 * Since we're supposed to not care about the order, we
-	 * have no choice but to store all of the various filenames
-	 * we find and figure it all out afterwards.  This is the
-	 * figuring out part.
-	 */
+	/* Pathname */
 	pas = NULL;
-	if (archive_strlen(&(tar->entry_pathname_override)) > 0)
+	if (archive_strlen(&(tar->entry_pathname_override)) > 0) {
+		/* Prefer GNU.sparse.name attribute if present */
+		/* GNU sparse files store a fake name under the standard
+		 * "pathname" key. */
 		pas = &(tar->entry_pathname_override);
-	else if (archive_strlen(&(tar->entry_pathname)) > 0)
+	} else if (archive_strlen(&(tar->entry_pathname)) > 0) {
+		/* Use standard "pathname" PAX extension */
 		pas = &(tar->entry_pathname);
+	}
 	if (pas != NULL) {
 		if (archive_entry_copy_pathname_l(entry, pas->s,
 		    archive_strlen(pas), sconv) != 0) {
 			err = set_conversion_failed_error(a, sconv, "Pathname");
 			if (err == ARCHIVE_FATAL)
 				return (err);
-			/* Use a converted an original name. */
+			/* Use raw name without conversion */
 			archive_entry_copy_pathname(entry, pas->s);
 		}
 	}
+	/* Uname */
 	if (archive_strlen(&(tar->entry_uname)) > 0) {
 		if (archive_entry_copy_uname_l(entry, tar->entry_uname.s,
 		    archive_strlen(&(tar->entry_uname)), sconv) != 0) {
 			err = set_conversion_failed_error(a, sconv, "Uname");
 			if (err == ARCHIVE_FATAL)
 				return (err);
-			/* Use a converted an original name. */
+			/* Use raw name without conversion */
 			archive_entry_copy_uname(entry, tar->entry_uname.s);
+		}
+	}
+	/* Gname */
+	if (archive_strlen(&(tar->entry_gname)) > 0) {
+		if (archive_entry_copy_gname_l(entry, tar->entry_gname.s,
+		    archive_strlen(&(tar->entry_gname)), sconv) != 0) {
+			err = set_conversion_failed_error(a, sconv, "Gname");
+			if (err == ARCHIVE_FATAL)
+				return (err);
+			/* Use raw name without conversion */
+			archive_entry_copy_gname(entry, tar->entry_gname.s);
+		}
+	}
+	/* Linkpath */
+	if (archive_strlen(&(tar->entry_linkpath)) > 0) {
+		if (archive_entry_copy_link_l(entry, tar->entry_linkpath.s,
+		    archive_strlen(&(tar->entry_linkpath)), sconv) != 0) {
+			err = set_conversion_failed_error(a, sconv, "Linkpath");
+			if (err == ARCHIVE_FATAL)
+				return (err);
+			/* Use raw name without conversion */
+			archive_entry_copy_link(entry, tar->entry_linkpath.s);
 		}
 	}
 
@@ -2617,10 +2626,7 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				*unconsumed += value_length;
 				err = ARCHIVE_WARN;
 			} else {
-				struct archive_string linkpath;
-				archive_string_init(&linkpath);
-				err = read_bytes_to_string(a, &linkpath, value_length, unconsumed);
-				archive_entry_set_link(entry, linkpath.s);
+				err = read_bytes_to_string(a, &tar->entry_linkpath, value_length, unconsumed);
 			}
 			return (err);
 		}
