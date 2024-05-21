@@ -1544,7 +1544,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       fn_end = filename_size * 2;
       filename_size = 0;
       offset = (unsigned)strlen(filename) + 1;
-      highbyte = *(p + offset++);
+      highbyte = offset >= end ? 0 : *(p + offset++);
       flagbits = 0;
       flagbyte = 0;
       while (offset < end && filename_size < fn_end)
@@ -1559,14 +1559,22 @@ read_header(struct archive_read *a, struct archive_entry *entry,
         switch((flagbyte >> flagbits) & 3)
         {
           case 0:
+            if (offset >= end)
+              continue;
             filename[filename_size++] = '\0';
             filename[filename_size++] = *(p + offset++);
             break;
           case 1:
+            if (offset >= end)
+              continue;
             filename[filename_size++] = highbyte;
             filename[filename_size++] = *(p + offset++);
             break;
           case 2:
+            if (offset >= end - 1) {
+              offset = end;
+              continue;
+            }
             filename[filename_size++] = *(p + offset + 1);
             filename[filename_size++] = *(p + offset);
             offset += 2;
@@ -1574,9 +1582,15 @@ read_header(struct archive_read *a, struct archive_entry *entry,
           case 3:
           {
             char extra, high;
-            uint8_t length = *(p + offset++);
+            uint8_t length;
 
+            if (offset >= end)
+              continue;
+
+            length = *(p + offset++);
             if (length & 0x80) {
+              if (offset >= end)
+                continue;
               extra = *(p + offset++);
               high = (char)highbyte;
             } else
