@@ -3142,7 +3142,7 @@ copy_from_lzss_window_to_unp(struct archive_read *a, const void **buffer,
   } else {
       goto fatal;
   }
-  rar->unp_offset += length;
+  rar->unp_offset += (unsigned int) length;
   if (rar->unp_offset >= rar->unp_buffer_size)
     *buffer = rar->unp_buffer;
   else
