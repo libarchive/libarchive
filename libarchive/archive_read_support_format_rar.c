@@ -3691,6 +3691,13 @@ execute_filter_rgb(struct rar_filter *filter, struct rar_virtual_machine *vm)
     uint8_t *prev = dst + i - stride;
     for (j = i; j < blocklength; j += 3)
     {
+      /*
+       * The src block should not overlap with the dst block.
+       * If so it would be better to consider this archive is broken.
+       */
+      if (src >= dst)
+        return 0;
+
       if (prev >= dst)
       {
         uint32_t delta1 = abs(prev[3] - prev[0]);
