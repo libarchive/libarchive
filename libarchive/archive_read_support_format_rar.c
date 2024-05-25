@@ -3681,7 +3681,7 @@ execute_filter_rgb(struct rar_filter *filter, struct rar_virtual_machine *vm)
   uint8_t *src, *dst;
   uint32_t i, j;
 
-  if (blocklength > PROGRAM_WORK_SIZE / 2 || stride > blocklength)
+  if (blocklength > PROGRAM_WORK_SIZE / 2 || stride > blocklength || blocklength < 3 || byteoffset > 2)
     return 0;
 
   src = &vm->memory[0];
