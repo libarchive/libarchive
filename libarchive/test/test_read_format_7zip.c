@@ -1050,6 +1050,7 @@ test_arm_filter(const char *refname)
 
 	extract_reference_file(refname);
 
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1123,6 +1124,7 @@ test_arm64_filter(const char *refname)
 
 	extract_reference_file(refname);
 
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));

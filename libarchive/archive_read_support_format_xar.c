@@ -3190,8 +3190,11 @@ xml2_read_toc(struct archive_read *a)
 			if (r == ARCHIVE_OK)
 				r = xml_start(a, name, &list);
 			xmlattr_cleanup(&list);
-			if (r != ARCHIVE_OK)
+			if (r != ARCHIVE_OK) {
+				xmlFreeTextReader(reader);
+				xmlCleanupParser();
 				return (r);
+			}
 			if (empty)
 				xml_end(a, name);
 			break;
@@ -3316,8 +3319,10 @@ expat_read_toc(struct archive_read *a)
 
 		d = NULL;
 		r = rd_contents(a, &d, &outbytes, &used, xar->toc_remaining);
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			XML_ParserFree(parser);
 			return (r);
+		}
 		xar->toc_remaining -= used;
 		xar->offset += used;
 		xar->toc_total += outbytes;
