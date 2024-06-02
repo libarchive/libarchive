@@ -380,6 +380,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_match_path.c \
 	libarchive/test/test_archive_match_time.c \
 	libarchive/test/test_archive_pathmatch.c \
+	libarchive/test/test_archive_read.c \
 	libarchive/test/test_archive_read_add_passphrase.c \
 	libarchive/test/test_archive_read_close_twice.c \
 	libarchive/test/test_archive_read_close_twice_open_fd.c \
