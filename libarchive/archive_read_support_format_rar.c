@@ -3388,7 +3388,7 @@ run_filters(struct archive_read *a)
   if (filters == NULL || filter == NULL)
     return (0);
 
-  start = filters->filterstart;
+  start = (size_t)filters->filterstart;
   end = start + filter->blocklength;
 
   filters->filterstart = INT64_MAX;
@@ -3428,7 +3428,7 @@ run_filters(struct archive_read *a)
   ret = copy_from_lzss_window(a, filters->vm->memory, start, filter->blocklength);
   if (ret != ARCHIVE_OK)
     return 0;
-  if (!execute_filter(a, filter, filters->vm, rar->offset))
+  if (!execute_filter(a, filter, filters->vm, (size_t)rar->offset))
     return 0;
 
   lastfilteraddress = filter->filteredblockaddress;
@@ -3440,7 +3440,7 @@ run_filters(struct archive_read *a)
   while ((filter = filters->stack) != NULL && (int64_t)filter->blockstartpos == filters->filterstart && filter->blocklength == lastfilterlength)
   {
     memmove(&filters->vm->memory[0], &filters->vm->memory[lastfilteraddress], lastfilterlength);
-    if (!execute_filter(a, filter, filters->vm, rar->offset))
+    if (!execute_filter(a, filter, filters->vm, (size_t)rar->offset))
       return 0;
 
     lastfilteraddress = filter->filteredblockaddress;
