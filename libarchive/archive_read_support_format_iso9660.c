@@ -1212,7 +1212,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			}
 		}
 		if (iso9660->utf16be_previous_path == NULL) {
-			iso9660->utf16be_previous_path = malloc(UTF16_NAME_MAX);
+			iso9660->utf16be_previous_path = calloc(1, UTF16_NAME_MAX);
 			if (iso9660->utf16be_previous_path == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory");
@@ -3033,7 +3033,7 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 			return (ARCHIVE_FATAL);
 		}
 		new_pending_files = (struct file_info **)
-		    malloc(new_size * sizeof(new_pending_files[0]));
+		    calloc(new_size, sizeof(new_pending_files[0]));
 		if (new_pending_files == NULL) {
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
