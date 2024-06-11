@@ -885,6 +885,9 @@ DEFINE_TEST(test_archive_string_conversion)
 
 DEFINE_TEST(test_archive_string_conversion_utf16_utf8)
 {
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling on Windows");
+#else
 	struct archive_mstring mstr;
 	const char* utf8_string;
 
@@ -899,10 +902,14 @@ DEFINE_TEST(test_archive_string_conversion_utf16_utf8)
 	assertEqualString("\xD0\xBF\xD1\x80\xD0\xB8", utf8_string);
 
 	archive_mstring_clean(&mstr);
+#endif
 }
 
 DEFINE_TEST(test_archive_string_conversion_utf8_utf16)
 {
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling on Windows");
+#else
 	struct archive_mstring mstr;
 	const wchar_t* wcs_string;
 
@@ -917,6 +924,7 @@ DEFINE_TEST(test_archive_string_conversion_utf8_utf16)
 	assertEqualWString(L"\U0000043f\U00000440\U00000438", wcs_string);
 
 	archive_mstring_clean(&mstr);
+#endif
 }
 
 DEFINE_TEST(test_archive_string_update_utf8_win)
