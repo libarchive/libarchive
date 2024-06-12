@@ -2229,10 +2229,12 @@ static int process_base_block(struct archive_read* a,
 	/* Verify the CRC32 of the header data. */
 	computed_crc = (uint32_t) crc32(0, p, (int) hdr_size);
 	if(computed_crc != hdr_crc) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Header CRC error");
 
 		return ARCHIVE_FATAL;
+#endif
 	}
 
 	/* If the checksum is OK, we proceed with parsing. */
