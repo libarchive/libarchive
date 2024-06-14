@@ -2707,6 +2707,9 @@ xml_data(void *userData, const char *s, size_t len)
 
 	switch (xar->xmlsts) {
 	case FILE_NAME:
+		if (xar->file->has & HAS_PATHNAME)
+			break;
+
 		if (xar->file->parent != NULL) {
 			archive_string_concat(&(xar->file->pathname),
 			    &(xar->file->parent->pathname));
