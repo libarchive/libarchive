@@ -773,7 +773,7 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + SVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (p[DR_length_offset] != 34 && p[DR_length_offset] != 68)
 		return (0);
 
 	return (48);
@@ -851,7 +851,7 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + PVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (p[DR_length_offset] != 34 && p[DR_length_offset] != 68)
 		return (0);
 
 	return (48);
@@ -935,7 +935,7 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + PVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (p[DR_length_offset] != 34 && p[DR_length_offset] != 68)
 		return (0);
 
 	if (!iso9660->primary.location) {
