@@ -53,11 +53,10 @@ test1(void)
 }
 
 static void
-test2(void)
+test_small(const char *name)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	const char *name = "test_read_format_iso_2.iso.Z";
 
 	extract_reference_file(name);
 
@@ -98,5 +97,8 @@ test2(void)
 DEFINE_TEST(test_read_format_iso_Z)
 {
 	test1();
-	test2();
+	/* A very small ISO image with a variety of contents. */
+	test_small("test_read_format_iso_2.iso.Z");
+	/* As above, but with a non-standard 68-byte root directory in the PVD */
+	test_small("test_read_format_iso_3.iso.Z");
 }
