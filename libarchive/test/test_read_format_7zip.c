@@ -1259,3 +1259,45 @@ DEFINE_TEST(test_read_format_7zip_win_attrib)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_7zip_extract_second)
+{
+	struct archive *a;
+	char buffer[256];
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	/*
+	 * The test archive has two files: first.txt which is a 65,536 file (the
+	 * size of the uncompressed buffer), and second.txt which has contents
+	 * we will validate. This test ensures we can skip first.txt and still
+	 * be able to read the contents of second.txt
+	 */
+	const char *refname = "test_read_format_7zip_extract_second.7z";
+	extract_reference_file(refname);
+
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	struct archive_entry *ae;
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("first.txt", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("second.txt", archive_entry_pathname(ae));
+
+	assertEqualInt(23, archive_read_data(a, buffer, sizeof(buffer)));
+	assertEqualMem("This is from second.txt", buffer, 23);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
