@@ -103,7 +103,8 @@ DEFINE_TEST(test_option_t)
 	_snprintf(date, sizeof(date)-1, "%12s file", date2);
 #else
 	strftime(date2, sizeof(date2)-1, "%b %e  %Y", tmptr);
-	(void)snprintf(date, sizeof(date)-1, "%12s file", date2);
+	if (snprintf(date, sizeof(date)-1, "%12s file", date2) < 0)
+		__builtin_unreachable();
 #endif
 	assertEqualMem(p + 42, date, strlen(date));
 	free(p);
