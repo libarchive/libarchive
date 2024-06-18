@@ -104,7 +104,6 @@ DEFINE_TEST(test_option_t)
 #else
 	strftime(date2, sizeof(date2)-1, "%b %e  %Y", tmptr);
 #ifdef __GNUC__
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wformat-truncation"
 #endif
 	snprintf(date, sizeof(date)-1, "%12s file", date2);
