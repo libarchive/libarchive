@@ -103,6 +103,9 @@ DEFINE_TEST(test_option_t)
 	_snprintf(date, sizeof(date)-1, "%12s file", date2);
 #else
 	strftime(date2, sizeof(date2)-1, "%b %e  %Y", tmptr);
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
 	snprintf(date, sizeof(date)-1, "%12s file", date2);
 #endif
 	assertEqualMem(p + 42, date, strlen(date));
