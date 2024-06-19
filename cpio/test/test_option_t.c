@@ -33,7 +33,7 @@ DEFINE_TEST(test_option_t)
 	char *p;
 	int r;
 	time_t mtime;
-	char date[32];
+	char date[48];
 	char date2[32];
 	struct tm *tmptr;
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
