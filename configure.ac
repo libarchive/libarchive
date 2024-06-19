@@ -113,8 +113,8 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CPP
 AC_USE_SYSTEM_EXTENSIONS
-AC_LIBTOOL_WIN32_DLL
-AC_PROG_LIBTOOL
+
+LT_INIT([win32-dll])
 AC_CHECK_TOOL([STRIP],[strip])
 AC_PROG_MKDIR_P
 
@@ -362,7 +362,7 @@ AC_CHECK_HEADERS([locale.h membership.h paths.h poll.h pthread.h pwd.h])
 AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/ea.h sys/extattr.h])
-AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h sys/queue.h])
+AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/richacl.h])
 AC_CHECK_HEADERS([sys/select.h sys/statfs.h sys/statvfs.h sys/sysmacros.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h sys/xattr.h])
@@ -777,7 +777,6 @@ AX_COMPILE_CHECK_SIZEOF(long)
 AC_CHECK_HEADERS_ONCE([sys/time.h])
 
 # Checks for library functions.
-AC_PROG_GCC_TRADITIONAL
 AC_HEADER_MAJOR
 AC_FUNC_FSEEKO
 AC_FUNC_MEMCMP

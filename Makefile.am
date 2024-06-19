@@ -522,6 +522,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_tar_empty_with_gnulabel.c \
 	libarchive/test/test_read_format_tar_filename.c \
 	libarchive/test/test_read_format_tar_invalid_pax_size.c \
+	libarchive/test/test_read_format_tar_pax_large_attr.c \
 	libarchive/test/test_read_format_tbz.c \
 	libarchive/test/test_read_format_tgz.c \
 	libarchive/test/test_read_format_tlz.c \
@@ -832,6 +833,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_huge_rpm.rpm.uu \
 	libarchive/test/test_read_format_iso.iso.Z.uu \
 	libarchive/test/test_read_format_iso_2.iso.Z.uu \
+	libarchive/test/test_read_format_iso_3.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet_by_nero.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet_long.iso.Z.uu \
@@ -932,11 +934,13 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_tar_empty_pax.tar.Z.uu \
 	libarchive/test/test_read_format_tar_filename_koi8r.tar.Z.uu \
 	libarchive/test/test_read_format_tar_invalid_pax_size.tar.uu \
+	libarchive/test/test_read_format_tar_pax_large_attr.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_cp866.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_eucjp.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_koi8r.tar.Z.uu \
 	libarchive/test/test_read_format_warc.warc.uu \
 	libarchive/test/test_read_format_xar_doublelink.xar.uu \
+	libarchive/test/test_read_format_xar_duplicate_filename_node.xar.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.zip.uu \
 	libarchive/test/test_read_format_zip_7z_deflate.zip.uu \

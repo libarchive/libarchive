@@ -1242,7 +1242,7 @@ heap_add_entry(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 		}
 		new_pending_files = (struct xar_file **)
-		    malloc(new_size * sizeof(new_pending_files[0]));
+		    calloc(new_size, sizeof(new_pending_files[0]));
 		if (new_pending_files == NULL) {
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
@@ -2707,6 +2707,9 @@ xml_data(void *userData, const char *s, size_t len)
 
 	switch (xar->xmlsts) {
 	case FILE_NAME:
+		if (xar->file->has & HAS_PATHNAME)
+			break;
+
 		if (xar->file->parent != NULL) {
 			archive_string_concat(&(xar->file->pathname),
 			    &(xar->file->parent->pathname));
