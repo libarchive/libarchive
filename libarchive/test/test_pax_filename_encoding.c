@@ -579,6 +579,102 @@ DEFINE_TEST(test_pax_filename_encoding_KOI8R_CP1251)
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
 
+/*
+ * Verify that unicode filenames are correctly preserved on Windows
+ */
+DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling"
+		" on Windows with UTF-16 names");
+	return;
+#else
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[0x2000];
+	size_t used;
+
+	/*
+	 * Don't call setlocale because we're verifying that the '_w' functions
+	 * work as expected when 'hdrcharset' is UTF-8
+	 */
+
+	/* Check if the platform completely supports the string conversion. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-16 to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+
+	/* Re-create a write archive object since filenames should be written
+	 * in UTF-8 by default. */
+	archive_write_free(a);
+
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	/* Part 1: file */
+	entry = archive_entry_new2(a);
+	archive_entry_copy_pathname_w(entry, L"\u4f60\u597d.txt");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+
+	/* Part 2: directory */
+	/* NOTE: Explicitly not adding trailing slash to test that code path */
+	archive_entry_copy_pathname_w(entry, L"\u043f\u0440\u0438");
+	archive_entry_set_filetype(entry, AE_IFDIR);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+
+	/* Part 3: symlink */
+	archive_entry_copy_pathname_w(entry, L"\u518d\u89c1.txt");
+	archive_entry_copy_symlink_w(entry, L"\u4f60\u597d.txt");
+	archive_entry_set_filetype(entry, AE_IFLNK);
+	archive_entry_set_symlink_type(entry, AE_SYMLINK_TYPE_FILE);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+
+	/* Part 4: hardlink */
+	archive_entry_copy_pathname_w(entry, L"\u665a\u5b89.txt");
+	archive_entry_copy_hardlink_w(entry, L"\u4f60\u597d.txt");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Ensure that the names round trip properly */
+	a = archive_read_new();
+	archive_read_support_format_all(a);
+	archive_read_support_filter_all(a);
+	assertEqualInt(0, archive_read_open_memory(a, buff, used));
+
+	/* Read part 1: file */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_pathname_w(entry));
+
+	/* Read part 2: directory */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u043f\u0440\u0438/", archive_entry_pathname_w(entry));
+
+	/* Read part 3: symlink */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u518d\u89c1.txt", archive_entry_pathname_w(entry));
+	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_symlink_w(entry));
+
+	/* Read part 4: hardlink */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualWString(L"\u665a\u5b89.txt", archive_entry_pathname_w(entry));
+	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_hardlink_w(entry));
+#endif
+}
 
 DEFINE_TEST(test_pax_filename_encoding)
 {

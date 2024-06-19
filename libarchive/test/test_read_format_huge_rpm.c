@@ -1,13 +1,12 @@
-/*
- * Copyright (c) 2023 Adrian Vovk
+/*-
+ * Copyright (c) 2003-2024 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -25,23 +24,27 @@
  */
 #include "test.h"
 
-/* Test o arg - overwrite existing files */
-DEFINE_TEST(test_o)
+DEFINE_TEST(test_read_format_huge_rpm)
 {
-	const char *reffile = "test_basic.zip";
-	int r;
+	struct archive_entry *ae;
+	struct archive *a;
+	const char *name = "test_read_format_huge_rpm.rpm";
 
-	assertMakeDir("test_basic", 0755);
-	assertMakeFile("test_basic/a", 0644, "orig a\n");
-	assertMakeFile("test_basic/b", 0644, "orig b\n");
+	assert((a = archive_read_new()) != NULL);
+        assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 2));
 
-	extract_reference_file(reffile);
-	r = systemf("%s -o %s >test.out 2>test.err", testprog, reffile);
-	assertEqualInt(0, r);
-	assertEmptyFile("test.err");
+	/* This archive should have no entries -- if it has entries, the bid has screwed up */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertTextFileContents("contents a\n", "test_basic/a");
-	assertTextFileContents("contents b\n", "test_basic/b");
-	assertTextFileContents("contents c\n", "test_basic/c");
-	assertTextFileContents("contents CAPS\n", "test_basic/CAPS");
+	/* Verify that the format detection worked. */
+	assertEqualInt(ARCHIVE_FILTER_RPM, archive_filter_code(a, 0));
+	assertEqualString("rpm", archive_filter_name(a, 0));
+	assertEqualInt(ARCHIVE_FORMAT_EMPTY, archive_format(a));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+

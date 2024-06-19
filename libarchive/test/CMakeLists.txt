@@ -24,6 +24,7 @@ IF(ENABLE_TEST)
     test_archive_match_path.c
     test_archive_match_time.c
     test_archive_pathmatch.c
+    test_archive_read.c
     test_archive_read_add_passphrase.c
     test_archive_read_close_twice.c
     test_archive_read_close_twice_open_fd.c
@@ -130,6 +131,7 @@ IF(ENABLE_TEST)
     test_read_format_gtar_lzma.c
     test_read_format_gtar_sparse.c
     test_read_format_gtar_sparse_skip_entry.c
+    test_read_format_huge_rpm.c
     test_read_format_iso_Z.c
     test_read_format_iso_multi_extent.c
     test_read_format_iso_xorriso.c
@@ -165,6 +167,7 @@ IF(ENABLE_TEST)
     test_read_format_tar_empty_pax.c
     test_read_format_tar_filename.c
     test_read_format_tar_invalid_pax_size.c
+    test_read_format_tar_pax_large_attr.c
     test_read_format_tbz.c
     test_read_format_tgz.c
     test_read_format_tlz.c
@@ -173,6 +176,7 @@ IF(ENABLE_TEST)
     test_read_format_ustar_filename.c
     test_read_format_warc.c
     test_read_format_xar.c
+    test_read_format_xar_doublelink.c
     test_read_format_zip.c
     test_read_format_zip_7075_utf8_paths.c
     test_read_format_zip_comment_stored.c

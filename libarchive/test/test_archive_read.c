@@ -1,13 +1,12 @@
-/*
- * Copyright (c) 2023 Adrian Vovk
+/*-
+ * Copyright (c) 2024 Tobias Stoeckmann
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -23,25 +22,42 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include "test.h"
 
-/* Test o arg - overwrite existing files */
-DEFINE_TEST(test_o)
+#define __LIBARCHIVE_TEST
+#include "archive_read_private.h"
+
+static char buf[1024];
+
+DEFINE_TEST(test_archive_read_ahead_eof)
 {
-	const char *reffile = "test_basic.zip";
-	int r;
+	struct archive *a;
+	struct archive_read *ar;
+	ssize_t avail;
 
-	assertMakeDir("test_basic", 0755);
-	assertMakeFile("test_basic/a", 0644, "orig a\n");
-	assertMakeFile("test_basic/b", 0644, "orig b\n");
+	/* prepare a reader of raw in-memory data */
+	assert((a = archive_read_new()) != NULL);
+	ar = (struct archive_read *)a;
 
-	extract_reference_file(reffile);
-	r = systemf("%s -o %s >test.out 2>test.err", testprog, reffile);
-	assertEqualInt(0, r);
-	assertEmptyFile("test.err");
+	assertA(0 == archive_read_support_format_raw(a));
+	assertA(0 == archive_read_open_memory(a, buf, sizeof(buf)));
 
-	assertTextFileContents("contents a\n", "test_basic/a");
-	assertTextFileContents("contents b\n", "test_basic/b");
-	assertTextFileContents("contents c\n", "test_basic/c");
-	assertTextFileContents("contents CAPS\n", "test_basic/CAPS");
+	/* perform a read which can be fulfilled */
+	assert(NULL != __archive_read_ahead(ar, sizeof(buf) - 1, &avail));
+	assertEqualInt(sizeof(buf), avail);
+
+	/* perform a read which cannot be fulfilled due to EOF */
+	assert(NULL == __archive_read_ahead(ar, sizeof(buf) + 1, &avail));
+	assertEqualInt(sizeof(buf), avail);
+
+	/* perform the same read again */
+	assert(NULL == __archive_read_ahead(ar, sizeof(buf) + 1, &avail));
+	assertEqualInt(sizeof(buf), avail);
+
+	/* perform another read which can be fulfilled */
+	assert(NULL != __archive_read_ahead(ar, sizeof(buf), &avail));
+	assertEqualInt(sizeof(buf), avail);
+
+	assert(0 == archive_read_free(a));
 }
