@@ -527,6 +527,12 @@ archive_entry_hardlink_w(struct archive_entry *entry)
 }
 
 int
+archive_entry_hardlink_is_set(struct archive_entry *entry)
+{
+	return (entry->ae_set & AE_SET_HARDLINK) != 0;
+}
+
+int
 _archive_entry_hardlink_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
