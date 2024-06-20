@@ -668,14 +668,12 @@ setup_suitable_read_buffer(struct archive_read_disk *a)
 		 */
 		s = (uintptr_t)cf->allocation_ptr;
 		s %= xfer_align;
-		if (s > 0)
-			s = xfer_align - s;
 
 		/*
 		 * Set a read buffer pointer in the proper alignment of
 		 * the current filesystem.
 		 */
-		cf->buff = cf->allocation_ptr + s;
+		cf->buff = cf->allocation_ptr + xfer_align - s;
 		cf->buff_size = asize - xfer_align;
 	}
 	return (ARCHIVE_OK);
