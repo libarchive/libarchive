@@ -3473,7 +3473,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 	/*
 	 * Skip the bytes we already has skipped in skip_stream().
 	 */
-	while (skip_bytes) {
+	while (1) {
 		ssize_t skipped;
 
 		if (zip->uncompressed_buffer_bytes_remaining == 0) {
@@ -3493,6 +3493,10 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 				return (ARCHIVE_FATAL);
 			}
 		}
+
+		if (!skip_bytes)
+			break;
+
 		skipped = get_uncompressed_data(
 			a, buff, (size_t)skip_bytes, 0);
 		if (skipped < 0)
