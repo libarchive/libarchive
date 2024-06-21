@@ -609,8 +609,9 @@ archive_write_pax_header(struct archive_write *a,
 
 	/* Sanity check. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* NOTE: Check both for compatability where we return ARCHIVE_WARN on
-	 * conversion failure */
+	/* NOTE: If the caller supplied a pathname that fails WCS conversion (e.g.
+	 * if it is invalid UTF-8), we are expected to return ARCHIVE_WARN later on
+	 * in execution, hence the check for both pointers */
 	if ((archive_entry_pathname_w(entry_original) == NULL) &&
 	    (archive_entry_pathname(entry_original) == NULL)) {
 #else

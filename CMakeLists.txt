@@ -34,13 +34,15 @@ IF("${cached_type}" STREQUAL "UNINITIALIZED")
   SET(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING "Build Type" FORCE)
 ENDIF("${cached_type}" STREQUAL "UNINITIALIZED")
 # Check the Build Type.
-IF(NOT "${CMAKE_BUILD_TYPE}"
-       MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|None)\$")
+# Convert the CMAKE_BUILD_TYPE to uppercase to perform a case-insensitive comparison.
+string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+IF(NOT "${CMAKE_BUILD_TYPE_UPPER}"
+       MATCHES "^(DEBUG|RELEASE|RELWITHDEBINFO|MINSIZEREL|NONE)\$")
   MESSAGE(FATAL_ERROR
           "Unknown keyword for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n"
-          "Acceptable keywords: Debug,Release,RelWithDebInfo,MinSizeRel,None")
-ENDIF(NOT "${CMAKE_BUILD_TYPE}"
-          MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|None)\$")
+          "Acceptable keywords: Debug, Release, RelWithDebInfo, MinSizeRel, None")
+ENDIF(NOT "${CMAKE_BUILD_TYPE_UPPER}"
+       MATCHES "^(DEBUG|RELEASE|RELWITHDEBINFO|MINSIZEREL|NONE)\$")
 
 # On MacOS, prefer MacPorts libraries to system libraries.
 # I haven't come up with a compelling argument for this to be conditional.
@@ -660,7 +662,7 @@ IF(ZSTD_FOUND)
   SET(CMAKE_REQUIRED_LIBRARIES ${ZSTD_LIBRARY})
   SET(CMAKE_REQUIRED_INCLUDES ${ZSTD_INCLUDE_DIR})
   CHECK_FUNCTION_EXISTS(ZSTD_decompressStream HAVE_LIBZSTD)
-  CHECK_FUNCTION_EXISTS(ZSTD_compressStream HAVE_LIBZSTD_COMPRESSOR)
+  CHECK_FUNCTION_EXISTS(ZSTD_compressStream HAVE_ZSTD_compressStream)
   #
   # TODO: test for static library.
   #
@@ -741,7 +743,6 @@ LA_CHECK_INCLUDE_FILE("sys/mkdev.h" HAVE_SYS_MKDEV_H)
 LA_CHECK_INCLUDE_FILE("sys/mount.h" HAVE_SYS_MOUNT_H)
 LA_CHECK_INCLUDE_FILE("sys/param.h" HAVE_SYS_PARAM_H)
 LA_CHECK_INCLUDE_FILE("sys/poll.h" HAVE_SYS_POLL_H)
-LA_CHECK_INCLUDE_FILE("sys/queue.h" HAVE_SYS_QUEUE_H)
 LA_CHECK_INCLUDE_FILE("sys/richacl.h" HAVE_SYS_RICHACL_H)
 LA_CHECK_INCLUDE_FILE("sys/select.h" HAVE_SYS_SELECT_H)
 LA_CHECK_INCLUDE_FILE("sys/stat.h" HAVE_SYS_STAT_H)
@@ -1193,7 +1194,7 @@ ENDIF(ENABLE_ICONV)
 #
 # Find Libxml2
 #
-IF(ENABLE_LIBXML2)
+IF(ENABLE_LIBXML2 AND HAVE_ICONV)
   FIND_PACKAGE(LibXml2)
 ELSE()
   SET(LIBXML2_FOUND FALSE)
@@ -1495,6 +1496,7 @@ CHECK_FUNCTION_EXISTS_GLIBC(strncpy_s HAVE_STRNCPY_S)
 CHECK_FUNCTION_EXISTS_GLIBC(strnlen HAVE_STRNLEN)
 CHECK_FUNCTION_EXISTS_GLIBC(strrchr HAVE_STRRCHR)
 CHECK_FUNCTION_EXISTS_GLIBC(symlink HAVE_SYMLINK)
+CHECK_FUNCTION_EXISTS_GLIBC(sysconf HAVE_SYSCONF)
 CHECK_FUNCTION_EXISTS_GLIBC(timegm HAVE_TIMEGM)
 CHECK_FUNCTION_EXISTS_GLIBC(tzset HAVE_TZSET)
 CHECK_FUNCTION_EXISTS_GLIBC(unlinkat HAVE_UNLINKAT)
@@ -2170,6 +2172,11 @@ IF(APPLE)
   # CC_MD5_Init() functions are deprecated on macOS 10.15, but we want to use them
   ADD_DEFINITIONS(-Wno-deprecated-declarations)
 ENDIF(APPLE)
+
+OPTION(DONT_FAIL_ON_CRC_ERROR "Ignore CRC errors during parsing (For fuzzing)" OFF)
+IF(DONT_FAIL_ON_CRC_ERROR)
+  ADD_DEFINITIONS(-DDONT_FAIL_ON_CRC_ERROR=1)
+ENDIF(DONT_FAIL_ON_CRC_ERROR)
 
 IF(ENABLE_TEST)
   ADD_CUSTOM_TARGET(run_all_tests)

@@ -774,9 +774,8 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `zstd' library (-lzstd). */
 #cmakedefine HAVE_LIBZSTD 1
 
-/* Define to 1 if you have the `zstd' library (-lzstd) with compression
-   support. */
-#cmakedefine HAVE_LIBZSTD_COMPRESSOR 1
+/* Define to 1 if you have the ZSTD_compressStream function. */
+#cmakedefine HAVE_ZSTD_compressStream 1
 
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H 1
@@ -1095,6 +1094,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `symlink' function. */
 #cmakedefine HAVE_SYMLINK 1
 
+/* Define to 1 if you have the `sysconf' function. */
+#cmakedefine HAVE_SYSCONF 1
+
 /* Define to 1 if you have the <sys/acl.h> header file. */
 #cmakedefine HAVE_SYS_ACL_H 1
 
@@ -1129,9 +1131,6 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <sys/poll.h> header file. */
 #cmakedefine HAVE_SYS_POLL_H 1
-
-/* Define to 1 if you have the <sys/queue.h> header file. */
-#cmakedefine HAVE_SYS_QUEUE_H 1
 
 /* Define to 1 if you have the <sys/richacl.h> header file. */
 #cmakedefine HAVE_SYS_RICHACL_H 1

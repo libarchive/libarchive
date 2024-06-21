@@ -883,6 +883,50 @@ DEFINE_TEST(test_archive_string_conversion)
 	test_archive_string_set_get();
 }
 
+DEFINE_TEST(test_archive_string_conversion_utf16_utf8)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling on Windows");
+#else
+	struct archive_mstring mstr;
+	const char* utf8_string;
+
+	memset(&mstr, 0, sizeof(mstr));
+
+	assertEqualInt(ARCHIVE_OK,
+	    archive_mstring_copy_wcs(&mstr, L"\U0000043f\U00000440\U00000438"));
+
+	/* Conversion from WCS to UTF-8 should always succeed */
+	assertEqualInt(ARCHIVE_OK,
+	    archive_mstring_get_utf8(NULL, &mstr, &utf8_string));
+	assertEqualString("\xD0\xBF\xD1\x80\xD0\xB8", utf8_string);
+
+	archive_mstring_clean(&mstr);
+#endif
+}
+
+DEFINE_TEST(test_archive_string_conversion_utf8_utf16)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling on Windows");
+#else
+	struct archive_mstring mstr;
+	const wchar_t* wcs_string;
+
+	memset(&mstr, 0, sizeof(mstr));
+
+	assertEqualInt(6,
+	    archive_mstring_copy_utf8(&mstr, "\xD0\xBF\xD1\x80\xD0\xB8"));
+
+	/* Conversion from UTF-8 to WCS should always succeed */
+	assertEqualInt(ARCHIVE_OK,
+	    archive_mstring_get_wcs(NULL, &mstr, &wcs_string));
+	assertEqualWString(L"\U0000043f\U00000440\U00000438", wcs_string);
+
+	archive_mstring_clean(&mstr);
+#endif
+}
+
 DEFINE_TEST(test_archive_string_update_utf8_win)
 {
 #if !defined(_WIN32) || defined(__CYGWIN__)
