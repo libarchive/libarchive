@@ -1063,7 +1063,7 @@ ppmd_read(void *p)
 		ssize_t bytes_avail = 0;
 		const uint8_t* data = __archive_read_ahead(a,
 		    (size_t)zip->ppstream.stream_in+1, &bytes_avail);
-		if(bytes_avail < zip->ppstream.stream_in+1) {
+		if(data == NULL || bytes_avail < zip->ppstream.stream_in+1) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated 7z file data");
