@@ -520,6 +520,14 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	struct archive_string_conv *sconv = get_sconv(a, zip);
 	int ret, ret2 = ARCHIVE_OK;
 	mode_t type;
+#if defined(_WIN32)
+	/* On Windows use MS-DOS value as internal Windows zip archiver does
+	 * Fixes charset problems like https://sourceforge.net/p/sevenzip/bugs/2463/ */
+    int create_os = 0;
+#else
+    // Use UNIX value in all other cases
+	int create_os = 3;
+#endif
 	int version_needed = 10;
 #define MIN_VERSION_NEEDED(x) do { if (version_needed < x) { version_needed = x; } } while (0)
 
@@ -803,8 +811,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	++zip->central_directory_entries;
 	memset(zip->file_header, 0, 46);
 	memcpy(zip->file_header, "PK\001\002", 4);
-	/* "Made by PKZip 2.0 on Unix." */
-	archive_le16enc(zip->file_header + 4, 3 * 256 + version_needed);
+	/* "Made by PKZip 2.0 on Unix or MS-DOS." */
+	archive_le16enc(zip->file_header + 4, create_os * 256 + version_needed);
 	archive_le16enc(zip->file_header + 6, version_needed);
 	archive_le16enc(zip->file_header + 8, zip->entry_flags);
 	if (zip->entry_encryption == ENCRYPTION_WINZIP_AES128
@@ -937,7 +945,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		e += 1;
 		if (included & 1) {
 			archive_le16enc(e, /* "Version created by" */
-			    3 * 256 + version_needed);
+			    create_os * 256 + version_needed);
 			e += 2;
 		}
 		if (included & 2) {
