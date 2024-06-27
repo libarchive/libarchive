@@ -263,6 +263,7 @@ __LA_DECL void		 archive_entry_set_link_to_hardlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink_utf8(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_hardlink_w(struct archive_entry *);
+__LA_DECL int		 archive_entry_hardlink_is_set(struct archive_entry *);
 __LA_DECL la_int64_t	 archive_entry_ino(struct archive_entry *);
 __LA_DECL la_int64_t	 archive_entry_ino64(struct archive_entry *);
 __LA_DECL int		 archive_entry_ino_is_set(struct archive_entry *);
