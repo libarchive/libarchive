@@ -382,6 +382,9 @@ AC_ARG_WITH([zlib],
 if test "x$with_zlib" != "xno"; then
   AC_CHECK_HEADERS([zlib.h])
   AC_CHECK_LIB(z,inflate)
+  if test "x$ac_cv_lib_z_inflate" = xyes; then
+    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }zlib"
+  fi
 fi
 
 AC_ARG_WITH([bz2lib],
@@ -406,6 +409,7 @@ if test "x$with_bz2lib" != "xno"; then
       if test "x$ac_cv_lib_bz2_BZ2_bzDecompressInit" = xyes; then
         AC_DEFINE([HAVE_LIBBZ2], [1], [Define to 1 if you have the `bz2' library (-lbz2).])
         LIBS="-lbz2 $LIBS"
+        LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }bzip2"
       fi
     ;;
     *)
@@ -452,6 +456,7 @@ AC_ARG_WITH([lz4],
 if test "x$with_lz4" != "xno"; then
   AC_CHECK_HEADERS([lz4.h lz4hc.h])
   AC_CHECK_LIB(lz4,LZ4_decompress_safe)
+  LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }liblz4"
 fi
 
 AC_ARG_WITH([zstd],
@@ -460,8 +465,10 @@ AC_ARG_WITH([zstd],
 if test "x$with_zstd" != "xno"; then
   AC_CHECK_HEADERS([zstd.h])
   AC_CHECK_LIB(zstd,ZSTD_decompressStream)
-  AC_CHECK_LIB(zstd,ZSTD_compressStream,
-    AC_DEFINE([HAVE_ZSTD_compressStream], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
+  AC_CHECK_LIB(zstd,ZSTD_compressStream,[
+    AC_DEFINE([HAVE_ZSTD_compressStream], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.])
+    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libzstd"
+  ])
 fi
 
 AC_ARG_WITH([lzma],
@@ -499,6 +506,7 @@ if test "x$with_lzma" != "xno"; then
       [ac_cv_lzma_has_arm64=yes], [ac_cv_lzma_has_arm64=no])])
   if test "x$ac_cv_lzma_has_arm64" != xno; then
 	  AC_DEFINE([HAVE_LZMA_FILTER_ARM64], [1], [Define to 1 if you have the `LZMA_FILTER_ARM64' macro.])
+	  LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }liblzma"
   fi
 fi
 
@@ -508,6 +516,9 @@ AC_ARG_WITH([lzo2],
 if test "x$with_lzo2" = "xyes"; then
   AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
   AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
+  if test "x$ac_cv_lib_lzo2_lzo1x_decompress_safe" = xyes; then
+    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }lzo2"
+  fi
 fi
 
 AC_ARG_WITH([cng],
@@ -534,6 +545,7 @@ if test "x$with_xml2" != "xno"; then
     CPPFLAGS="${CPPFLAGS} ${LIBXML2_PC_CFLAGS}"
     LIBS="${LIBS} ${LIBXML2_PC_LIBS}"
     AC_CHECK_LIB(xml2,xmlInitParser,[true],AC_MSG_FAILURE(Missing xml2 library))
+    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libxml-2.0"
   ], [
     AC_CHECK_LIB(xml2,xmlInitParser)
   ])
@@ -543,6 +555,9 @@ if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   if test "x$with_expat" != "xno"; then
     AC_CHECK_HEADERS([expat.h])
     AC_CHECK_LIB(expat,XML_ParserCreate)
+    if test "x$ac_cv_lib_expat_XML_ParserCreate" = xyes; then
+      LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }expat"
+    fi
   fi
 fi
 
@@ -1339,6 +1354,7 @@ if test "x$with_nettle" = "xyes"; then
     CRYPTO_CHECK(SHA512, NETTLE, sha512)
     if test "x$found_NETTLE" != "xyes"; then
       LIBS=$saved_LIBS
+      LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }nettle"
     fi
 fi
 
