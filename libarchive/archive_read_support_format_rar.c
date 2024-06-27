@@ -3361,7 +3361,10 @@ create_filter(struct rar_program_code *prog, const uint8_t *globaldata, uint32_t
   filter->globaldatalen = globaldatalen > PROGRAM_SYSTEM_GLOBAL_SIZE ? globaldatalen : PROGRAM_SYSTEM_GLOBAL_SIZE;
   filter->globaldata = calloc(1, filter->globaldatalen);
   if (!filter->globaldata)
+  {
+    free(filter);
     return NULL;
+  }
   if (globaldata)
     memcpy(filter->globaldata, globaldata, globaldatalen);
   if (registers)
