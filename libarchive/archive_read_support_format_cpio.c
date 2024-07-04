@@ -1002,7 +1002,7 @@ be4(const unsigned char *p)
 static int64_t
 atol8(const char *p, unsigned char_cnt)
 {
-	int64_t l;
+	uint64_t l;
 	int digit;
 
 	l = 0;
@@ -1010,18 +1010,18 @@ atol8(const char *p, unsigned char_cnt)
 		if (*p >= '0' && *p <= '7')
 			digit = *p - '0';
 		else
-			return (l);
+			return ((int64_t)l);
 		p++;
 		l <<= 3;
 		l |= digit;
 	}
-	return (l);
+	return ((int64_t)l);
 }
 
 static int64_t
 atol16(const char *p, unsigned char_cnt)
 {
-	int64_t l;
+	uint64_t l;
 	int digit;
 
 	l = 0;
@@ -1033,12 +1033,12 @@ atol16(const char *p, unsigned char_cnt)
 		else if (*p >= '0' && *p <= '9')
 			digit = *p - '0';
 		else
-			return (l);
+			return ((int64_t)l);
 		p++;
 		l <<= 4;
 		l |= digit;
 	}
-	return (l);
+	return ((int64_t)l);
 }
 
 static int
