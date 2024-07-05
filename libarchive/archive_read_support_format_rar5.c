@@ -1448,9 +1448,6 @@ static int parse_file_extra_redir(struct archive_read* a,
 		return ARCHIVE_EOF;
 	*extra_data_size -= target_size + 1;
 
-	if(!read_ahead(a, target_size, &p))
-		return ARCHIVE_EOF;
-
 	if(target_size > (MAX_NAME_IN_CHARS - 1)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Link target is too long");
@@ -1462,6 +1459,9 @@ static int parse_file_extra_redir(struct archive_read* a,
 		    "No link target specified");
 		return ARCHIVE_FATAL;
 	}
+
+	if(!read_ahead(a, target_size, &p))
+		return ARCHIVE_EOF;
 
 	memcpy(target_utf8_buf, p, target_size);
 	target_utf8_buf[target_size] = 0;
@@ -1876,9 +1876,6 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	if(!read_var_sized(a, &name_size, NULL))
 		return ARCHIVE_EOF;
 
-	if(!read_ahead(a, name_size, &p))
-		return ARCHIVE_EOF;
-
 	if(name_size > (MAX_NAME_IN_CHARS - 1)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 				"Filename is too long");
@@ -1892,6 +1889,9 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
 		return ARCHIVE_FATAL;
 	}
+
+	if(!read_ahead(a, name_size, &p))
+		return ARCHIVE_EOF;
 
 	memcpy(name_utf8_buf, p, name_size);
 	name_utf8_buf[name_size] = 0;
