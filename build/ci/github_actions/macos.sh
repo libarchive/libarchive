@@ -1,11 +1,13 @@
 #!/bin/sh
 if [ "$1" = "prepare" ]
 then
-	set -x
+	set -x -e
+	#Uncommenting these adds a full minute to the CI time
 	#brew update > /dev/null
 	#brew upgrade > /dev/null
-	set -x -e
-	for pkg in \
+
+	# This does an upgrade if the package is already installed
+	brew install \
 		autoconf \
 		automake \
 		libtool \
@@ -16,7 +18,4 @@ then
 		zstd \
 		libxml2 \
 		openssl
-	do
-		brew list $pkg > /dev/null && brew upgrade $pkg || brew install $pkg
-	done
 fi
