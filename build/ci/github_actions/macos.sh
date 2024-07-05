@@ -2,8 +2,8 @@
 if [ "$1" = "prepare" ]
 then
 	set -x
-	brew update > /dev/null
-	brew upgrade > /dev/null
+	#brew update > /dev/null
+	#brew upgrade > /dev/null
 	set -x -e
 	for pkg in \
 		autoconf \
