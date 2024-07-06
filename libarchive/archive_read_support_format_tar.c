@@ -237,6 +237,7 @@ static const size_t sparse_map_limit = 8 * 1048576; /* Longest sparse map: 8MiB 
 static const size_t xattr_limit = 16 * 1048576; /* Longest xattr: 16MiB */
 static const size_t fflags_limit = 512; /* Longest fflags */
 static const size_t acl_limit = 131072; /* Longest textual ACL: 128kiB */
+static const int64_t entry_limit = 0xfffffffffffffffLL; /* 2^60 bytes = 1 ExbiByte */
 
 int
 archive_read_support_format_gnutar(struct archive *a)
@@ -1201,6 +1202,9 @@ header_volume(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 	size = tar_atol(header->size, sizeof(header->size));
+	if (size > (int64_t)pathname_limit) {
+		return (ARCHIVE_FATAL);
+	}
 	to_consume = ((size + 511) & ~511);
 	*unconsumed += to_consume;
 	return (ARCHIVE_OK);
@@ -1255,7 +1259,10 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	(void)tar; /* UNUSED */
 	header = (const struct archive_entry_header_ustar *)h;
 	size  = tar_atol(header->size, sizeof(header->size));
-	if ((size > 1048576) || (size < 0)) {
+	if (size > entry_limit) {
+		return (ARCHIVE_FATAL);
+	}
+	if ((size > (int64_t)pathname_limit) || (size < 0)) {
 		archive_string_empty(as);
 		int64_t to_consume = ((size + 511) & ~511);
 		if (to_consume != __archive_read_consume(a, to_consume)) {
@@ -1314,8 +1321,7 @@ header_common(struct archive_read *a, struct tar *tar,
 		    "Tar entry has negative size");
 		return (ARCHIVE_FATAL);
 	}
-	if (tar->entry_bytes_remaining == INT64_MAX) {
-		/* Note: tar_atol returns INT64_MAX on overflow */
+	if (tar->entry_bytes_remaining > entry_limit) {
 		tar->entry_bytes_remaining = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Tar entry size overflow");
@@ -1643,6 +1649,9 @@ header_pax_global(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 	size = tar_atol(header->size, sizeof(header->size));
+	if (size > entry_limit) {
+		return (ARCHIVE_FATAL);
+	}
 	to_consume = ((size + 511) & ~511);
 	*unconsumed += to_consume;
 	return (ARCHIVE_OK);
@@ -1768,6 +1777,9 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 	ext_size  = tar_atol(header->size, sizeof(header->size));
+	if (ext_size > entry_limit) {
+		return (ARCHIVE_FATAL);
+	}
 	if (ext_size < 0) {
 	  archive_set_error(&a->archive, EINVAL,
 			    "pax extension header has invalid size: %lld",
