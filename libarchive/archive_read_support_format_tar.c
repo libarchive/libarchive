@@ -1148,6 +1148,7 @@ header_gnu_longlink(struct archive_read *a, struct tar *tar,
 	archive_string_init(&linkpath);
 	err = read_body_to_string(a, tar, &linkpath, h, unconsumed);
 	archive_entry_set_link(entry, linkpath.s);
+	archive_string_free(&linkpath);
 	return (err);
 }
 
@@ -2139,10 +2140,12 @@ pax_attribute_read_time(struct archive_read *a, size_t value_length, int64_t *ps
 	archive_string_init(&as);
 	r = read_bytes_to_string(a, &as, value_length, unconsumed);
 	if (r < ARCHIVE_OK) {
+		archive_string_free(&as);
 		return (r);
 	}
 
 	pax_time(as.s, archive_strlen(&as), ps, pn);
+	archive_string_free(&as);
 	if (*ps < 0 || *ps == INT64_MAX) {
 		return (ARCHIVE_WARN);
 	}
@@ -2165,10 +2168,12 @@ pax_attribute_read_number(struct archive_read *a, size_t value_length, int64_t *
 	r = read_bytes_to_string(a, &as, value_length, &unconsumed);
 	tar_flush_unconsumed(a, &unconsumed);
 	if (r < ARCHIVE_OK) {
+		archive_string_free(&as);
 		return (r);
 	}
 
 	*result = tar_atol10(as.s, archive_strlen(&as));
+	archive_string_free(&as);
 	if (*result < 0 || *result == INT64_MAX) {
 		*result = INT64_MAX;
 		return (ARCHIVE_WARN);
