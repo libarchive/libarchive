@@ -1294,6 +1294,7 @@ header_common(struct archive_read *a, struct tar *tar,
 {
 	const struct archive_entry_header_ustar	*header;
 	const char *existing_linkpath;
+	const wchar_t *existing_wcs_linkpath;
 	int     err = ARCHIVE_OK;
 
 	header = (const struct archive_entry_header_ustar *)h;
@@ -1346,8 +1347,10 @@ header_common(struct archive_read *a, struct tar *tar,
 	switch (tar->filetype) {
 	case '1': /* Hard link */
 		archive_entry_set_link_to_hardlink(entry);
+		existing_wcs_linkpath = archive_entry_hardlink_w(entry);
 		existing_linkpath = archive_entry_hardlink(entry);
-		if (existing_linkpath == NULL || existing_linkpath[0] == '\0') {
+		if ((existing_linkpath == NULL || existing_linkpath[0] == '\0')
+		    && (existing_wcs_linkpath == NULL || existing_wcs_linkpath[0] == '\0')) {
 			struct archive_string linkpath;
 			archive_string_init(&linkpath);
 			archive_strncpy(&linkpath,
@@ -1422,8 +1425,10 @@ header_common(struct archive_read *a, struct tar *tar,
 		break;
 	case '2': /* Symlink */
 		archive_entry_set_link_to_symlink(entry);
+		existing_wcs_linkpath = archive_entry_symlink_w(entry);
 		existing_linkpath = archive_entry_symlink(entry);
-		if (existing_linkpath == NULL || existing_linkpath[0] == '\0') {
+		if ((existing_linkpath == NULL || existing_linkpath[0] == '\0')
+		    && (existing_wcs_linkpath == NULL || existing_wcs_linkpath[0] == '\0')) {
 			struct archive_string linkpath;
 			archive_string_init(&linkpath);
 			archive_strncpy(&linkpath,
@@ -1677,7 +1682,9 @@ header_ustar(struct archive_read *a, struct tar *tar,
 
 	/* Copy name into an internal buffer to ensure null-termination. */
 	const char *existing_pathname = archive_entry_pathname(entry);
-	if (existing_pathname == NULL || existing_pathname[0] == '\0') {
+	const wchar_t *existing_wcs_pathname = archive_entry_pathname_w(entry);
+	if ((existing_pathname == NULL || existing_pathname[0] == '\0')
+	    && (existing_wcs_pathname == NULL || existing_wcs_pathname[0] == '\0')) {
 		archive_string_init(&as);
 		if (header->prefix[0]) {
 			archive_strncpy(&as, header->prefix, sizeof(header->prefix));
