@@ -361,6 +361,7 @@ static int verify_global_checksums(struct archive_read* a);
 static int rar5_read_data_skip(struct archive_read *a);
 static int push_data_ready(struct archive_read* a, struct rar5* rar,
 	const uint8_t* buf, size_t size, int64_t offset);
+static void clear_data_ready_stack(struct rar5* rar);
 
 /* CDE_xxx = Circular Double Ended (Queue) return values. */
 enum CDE_RETURN_VALUES {
@@ -652,6 +653,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 	int ret;
 	struct rar5* rar = get_context(a);
 
+	clear_data_ready_stack(rar);
 	free(rar->cstate.filtered_buf);
 
 	rar->cstate.filtered_buf = malloc(flt->block_length);
@@ -1780,6 +1782,13 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	if(rar->cstate.window_size < (ssize_t) window_size &&
 	    rar->cstate.window_buf)
 	{
+		/* The `data_ready` stack contains pointers to the `window_buf` or
+		 * `filtered_buf` buffers.  Since we're about to reallocate the first
+		 * buffer, some of those pointers could become invalid. Therefore, we
+		 * need to dispose of all entries from the stack before attempting the
+		 * realloc. */
+		clear_data_ready_stack(rar);
+
 		/* If window_buf has been allocated before, reallocate it, so
 		 * that its size will match new window_size. */
 
@@ -2454,6 +2463,8 @@ static void init_unpack(struct rar5* rar) {
 		rar->cstate.window_buf = NULL;
 		rar->cstate.filtered_buf = NULL;
 	}
+
+	clear_data_ready_stack(rar);
 
 	rar->cstate.write_ptr = 0;
 	rar->cstate.last_write_ptr = 0;
@@ -3629,6 +3640,10 @@ static int use_data(struct rar5* rar, const void** buf, size_t* size,
 	return ARCHIVE_RETRY;
 }
 
+static void clear_data_ready_stack(struct rar5* rar) {
+	memset(&rar->cstate.dready, 0, sizeof(rar->cstate.dready));
+}
+
 /* Pushes the `buf`, `size` and `offset` arguments to the rar->cstate.dready
  * FIFO stack. Those values will be popped from this stack by the `use_data`
  * function. */
@@ -4187,6 +4202,7 @@ static int rar5_cleanup(struct archive_read *a) {
 
 	free(rar->cstate.window_buf);
 	free(rar->cstate.filtered_buf);
+	clear_data_ready_stack(rar);
 
 	free(rar->vol.push_buf);
 
