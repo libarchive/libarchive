@@ -654,6 +654,7 @@ DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
 	a = archive_read_new();
 	archive_read_support_format_all(a);
 	archive_read_support_filter_all(a);
+	assertEqualInt(ARCHIVE_OK, archive_read_set_options(a, "hdrcharset=UTF-8"));
 	assertEqualInt(0, archive_read_open_memory(a, buff, used));
 
 	/* Read part 1: file */
