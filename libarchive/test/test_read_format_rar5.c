@@ -1344,7 +1344,7 @@ DEFINE_TEST(test_read_format_rar5_sfx)
 
 	assertA(size == archive_read_data(a, buff, size));
 	assertEqualMem(buff, test_txt, size);
-	
+
 	EPILOGUE();
 }
 
@@ -1403,6 +1403,29 @@ DEFINE_TEST(test_read_format_rar5_read_data_block_uninitialized_offset)
 	/* The test archive doesn't contain a sparse file. And because of that, here
 	 * we assume that the first returned offset should be 0. */
 	assertEqualInt(0, offset);
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_data_ready_pointer_leak)
+{
+	/* oss fuzz 70024 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_data_ready_pointer_leak.rar");
+
+	/* Return codes of those calls are ignored, because this sample file
+	 * is invalid. However, the unpacker shouldn't produce any SIGSEGV
+	 * errors during processing. */
+
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
+	/* This call shouldn't produce SIGSEGV. */
+	(void) archive_read_data(a, buf, sizeof(buf));
 
 	EPILOGUE();
 }
