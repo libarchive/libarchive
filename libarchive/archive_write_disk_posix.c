@@ -4360,8 +4360,7 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	 * silly dance of writing the data to disk just so that
 	 * copyfile() can read it back in again. */
 	archive_string_init(&tmp);
-	archive_strcpy(&tmp, pathname);
-	archive_strcat(&tmp, ".XXXXXX");
+	archive_strcpy(&tmp, "tar.mmd.XXXXXX");
 	fd = mkstemp(tmp.s);
 
 	if (fd < 0) {
