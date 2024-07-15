@@ -106,7 +106,7 @@ write_all_states(char *buff, unsigned int states)
 	*buff = '\0';
 
 	/* A trick for computing the lowest set bit. */
-	while ((lowbit = states & (1 + ~states)) != 0) {
+	while ((lowbit = states & (1U + ~states)) != 0) {
 		states &= ~lowbit;		/* Clear the low bit. */
 		strcat(buff, state_name(lowbit));
 		if (states != 0)

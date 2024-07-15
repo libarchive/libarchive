@@ -209,7 +209,7 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 	}
 
 	/* Optional header CRC */
-	if ((header_flags & 2)) {
+	if (header_flags & 2) {
 		p = __archive_read_filter_ahead(filter, len + 2, &avail);
 		if (p == NULL)
 			return (0);
