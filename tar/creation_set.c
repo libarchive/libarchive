@@ -134,7 +134,7 @@ _cset_add_filter(struct creation_set *cset, int program, const char *filter)
 	struct filter_set *new_ptr;
 	char *new_filter;
 
-	new_ptr = (struct filter_set *)realloc(cset->filters,
+	new_ptr = realloc(cset->filters,
 	    sizeof(*cset->filters) * (cset->filter_count + 1));
 	if (new_ptr == NULL)
 		lafe_errc(1, 0, "No memory");

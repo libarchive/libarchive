@@ -258,7 +258,7 @@ archive_read_support_format_tar(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_tar");
 
-	tar = (struct tar *)calloc(1, sizeof(*tar));
+	tar = calloc(1, sizeof(*tar));
 	if (tar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
@@ -2906,7 +2906,7 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 {
 	struct sparse_block *p;
 
-	p = (struct sparse_block *)calloc(1, sizeof(*p));
+	p = calloc(1, sizeof(*p));
 	if (p == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
 		return (ARCHIVE_FATAL);
@@ -3478,7 +3478,7 @@ base64_decode(const char *s, size_t len, size_t *out_len)
 
 	/* Allocate enough space to hold the entire output. */
 	/* Note that we may not use all of this... */
-	out = (char *)malloc(len - len / 4 + 1);
+	out = malloc(len - len / 4 + 1);
 	if (out == NULL) {
 		*out_len = 0;
 		return (NULL);
@@ -3533,7 +3533,7 @@ url_decode(const char *in, size_t length)
 	char *out, *d;
 	const char *s;
 
-	out = (char *)malloc(length + 1);
+	out = malloc(length + 1);
 	if (out == NULL)
 		return (NULL);
 	for (s = in, d = out; length > 0 && *s != '\0'; ) {

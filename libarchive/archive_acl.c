@@ -346,7 +346,7 @@ acl_new_entry(struct archive_acl *acl,
 	}
 
 	/* Add a new entry to the end of the list. */
-	ap = (struct archive_acl_entry *)calloc(1, sizeof(*ap));
+	ap = calloc(1, sizeof(*ap));
 	if (ap == NULL)
 		return (NULL);
 	if (aq == NULL)
@@ -693,7 +693,7 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 		separator = L'\n';
 
 	/* Now, allocate the string and actually populate it. */
-	wp = ws = (wchar_t *)malloc(length * sizeof(wchar_t));
+	wp = ws = malloc(length * sizeof(*wp));
 	if (wp == NULL) {
 		if (errno == ENOMEM)
 			__archive_errx(1, "No memory");
@@ -926,7 +926,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 		separator = '\n';
 
 	/* Now, allocate the string and actually populate it. */
-	p = s = (char *)malloc(length * sizeof(char));
+	p = s = malloc(length * sizeof(*p));
 	if (p == NULL) {
 		if (errno == ENOMEM)
 			__archive_errx(1, "No memory");

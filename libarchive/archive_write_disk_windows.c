@@ -1389,7 +1389,7 @@ archive_write_disk_new(void)
 {
 	struct archive_write_disk *a;
 
-	a = (struct archive_write_disk *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_WRITE_DISK_MAGIC;
@@ -2079,7 +2079,7 @@ new_fixup(struct archive_write_disk *a, const wchar_t *pathname)
 {
 	struct fixup_entry *fe;
 
-	fe = (struct fixup_entry *)calloc(1, sizeof(struct fixup_entry));
+	fe = calloc(1, sizeof(struct fixup_entry));
 	if (fe == NULL)
 		return (NULL);
 	fe->next = a->fixup_list;

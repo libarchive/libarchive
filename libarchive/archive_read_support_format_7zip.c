@@ -768,7 +768,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	if (zip_entry->attr & supported_attrs) {
 		char *fflags_text, *ptr;
 		/* allocate for "rdonly,hidden,system," */
-		fflags_text = malloc(22 * sizeof(char));
+		fflags_text = malloc(22 * sizeof(*fflags_text));
 		if (fflags_text != NULL) {
 			ptr = fflags_text; 
 			if (zip_entry->attr & FILE_ATTRIBUTE_READONLY) { 

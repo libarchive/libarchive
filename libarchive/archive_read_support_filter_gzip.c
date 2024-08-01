@@ -307,8 +307,8 @@ gzip_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_GZIP;
 	self->name = "gzip";
 
-	state = (struct private_data *)calloc(1, sizeof(*state));
-	out_block = (unsigned char *)malloc(out_block_size);
+	state = calloc(1, sizeof(*state));
+	out_block = malloc(out_block_size);
 	if (state == NULL || out_block == NULL) {
 		free(out_block);
 		free(state);

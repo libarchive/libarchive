@@ -535,8 +535,7 @@ static void write_filter_data(struct rar5* rar, uint32_t offset,
 
 /* Allocates a new filter descriptor and adds it to the filter array. */
 static struct filter_info* add_new_filter(struct rar5* rar) {
-	struct filter_info* f =
-		(struct filter_info*) calloc(1, sizeof(struct filter_info));
+	struct filter_info* f = calloc(1, sizeof(*f));
 
 	if(!f) {
 		return NULL;
@@ -1847,7 +1846,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		if (file_attr & (ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM)) {
 			char *fflags_text, *ptr;
 			/* allocate for "rdonly,hidden,system," */
-			fflags_text = malloc(22 * sizeof(char));
+			fflags_text = malloc(22 * sizeof(*fflags_text));
 			if (fflags_text != NULL) {
 				ptr = fflags_text;
 				if (file_attr & ATTR_READONLY) {

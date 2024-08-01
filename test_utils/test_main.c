@@ -236,10 +236,10 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target,
 	if (tlen == 0 || llen == 0)
 		return (0);
 
-	tgt = malloc((tlen + 1) * sizeof(char));
+	tgt = malloc(tlen + 1);
 	if (tgt == NULL)
 		return (0);
-	src = malloc((llen + 1) * sizeof(char));
+	src = malloc(llen + 1);
 	if (src == NULL) {
 		free(tgt);
 		return (0);
@@ -1769,7 +1769,12 @@ is_symlink(const char *file, int line,
 	    FILE_FLAG_OPEN_REPARSE_POINT;
 
 	/* Replace slashes with backslashes in pathname */
-	pn = malloc((strlen(pathname) + 1) * sizeof(char));
+	pn = malloc(strlen(pathname) + 1);
+	if (pn == NULL) {
+		failure_start(file, line, "Can't allocate memory");
+		failure_finish(NULL);
+		return (0);
+	}
 	p = pathname;
 	s = pn;
 	while(*p != '\0') {
@@ -3925,7 +3930,7 @@ main(int argc, char **argv)
 	 */
 	progname = p = argv[0];
 	testprogdir_len = strlen(progname) + 1;
-	if ((testprogdir = (char *)malloc(testprogdir_len)) == NULL)
+	if ((testprogdir = malloc(testprogdir_len)) == NULL)
 	{
 		fprintf(stderr, "ERROR: Out of memory.");
 		exit(1);
@@ -3953,7 +3958,7 @@ main(int argc, char **argv)
 #endif
 	{
 		/* Fixup path for relative directories. */
-		if ((testprogdir = (char *)realloc(testprogdir,
+		if ((testprogdir = realloc(testprogdir,
 			strlen(pwd) + 1 + strlen(testprogdir) + 1)) == NULL)
 		{
 			fprintf(stderr, "ERROR: Out of memory.");
@@ -4073,7 +4078,7 @@ main(int argc, char **argv)
 	if (testprogfile == NULL)
 	{
 		tmp2_len = strlen(testprogdir) + 1 + strlen(PROGRAM) + 1;
-		if ((tmp2 = (char *)malloc(tmp2_len)) == NULL)
+		if ((tmp2 = malloc(tmp2_len)) == NULL)
 		{
 			fprintf(stderr, "ERROR: Out of memory.");
 			exit(1);

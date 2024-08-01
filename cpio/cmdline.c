@@ -350,7 +350,7 @@ owner_parse(const char *spec, struct cpio_owner *owner, const char **errmsg)
 		char *user;
 		struct passwd *pwent;
 
-		user = (char *)malloc(ue - u + 1);
+		user = malloc(ue - u + 1);
 		if (user == NULL)
 			goto alloc_error;
 		memcpy(user, u, ue - u);
