@@ -313,7 +313,7 @@ int assertion_non_empty_file(const char *, int, const char *);
 int assertion_set_nodump(const char *, int, const char *);
 int assertion_text_file_contents(const char *, int, const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
-int assertion_utimes(const char *, int, const char *, long, long, long, long );
+int assertion_utimes(const char *, int, const char *, time_t, suseconds_t, time_t, suseconds_t);
 int assertion_version(const char*, int, const char *, const char *);
 
 void skipping_setup(const char *, int);
