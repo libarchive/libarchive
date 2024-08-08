@@ -3428,7 +3428,7 @@ run_filters(struct archive_read *a)
       return 0;
   }
 
-  if ( filter->blocklength > VM_MEMORY_SIZE )
+  if (filter->blocklength > VM_MEMORY_SIZE)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT, "Bad RAR file data");
     return 0;
