@@ -2476,13 +2476,13 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			}
 			else if (key_length == 8 && memcmp(key, "devmajor", 8) == 0) {
 				if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
-					archive_entry_set_rdevmajor(entry, t);
+					archive_entry_set_rdevmajor(entry, (dev_t)t);
 				}
 				return (err);
 			}
 			else if (key_length == 8 && memcmp(key, "devminor", 8) == 0) {
 				if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
-					archive_entry_set_rdevminor(entry, t);
+					archive_entry_set_rdevminor(entry, (dev_t)t);
 				}
 				return (err);
 			}
@@ -2505,7 +2505,7 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			}
 			else if (key_length == 3 && memcmp(key, "dev", 3) == 0) {
 				if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
-					archive_entry_set_dev(entry, t);
+					archive_entry_set_dev(entry, (dev_t)t);
 				}
 				return (err);
 			}
@@ -2517,7 +2517,7 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			}
 			else if (key_length == 5 && memcmp(key, "nlink", 5) == 0) {
 				if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
-					archive_entry_set_nlink(entry, t);
+					archive_entry_set_nlink(entry, (unsigned int)t);
 				}
 				return (err);
 			}
