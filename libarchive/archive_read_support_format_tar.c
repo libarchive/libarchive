@@ -2517,6 +2517,11 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			}
 			else if (key_length == 5 && memcmp(key, "nlink", 5) == 0) {
 				if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
+					if (t < 0) {
+						archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+						    "Ignoring negative nlink");
+						return (ARCHIVE_WARN);
+					}
 					archive_entry_set_nlink(entry, (unsigned int)t);
 				}
 				return (err);
