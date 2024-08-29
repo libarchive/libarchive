@@ -1,8 +1,8 @@
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
-IF(APPLE AND CMAKE_VERSION VERSION_LESS "3.17.0")
+if(APPLE AND CMAKE_VERSION VERSION_LESS "3.17.0")
   message(WARNING "CMake>=3.17.0 required to make the generated shared library have the same Mach-O headers as autotools")
-ENDIF()
+endif()
 
 if(POLICY CMP0065)
   cmake_policy(SET CMP0065 NEW) #3.4 don't use `-rdynamic` with executables
@@ -95,7 +95,7 @@ set(SOVERSION_FULL "${SOVERSION}.${_trimmed_minor}.${_trimmed_revision}")
 # - compatibility version: current + 1 = ${INTERFACE_VERSION} + 1
 # - current version: ${current + 1}.${revision}
 math(EXPR MACHO_COMPATIBILITY_VERSION "${INTERFACE_VERSION} + 1")
-SET(MACHO_CURRENT_VERSION "${MACHO_COMPATIBILITY_VERSION}.${_revision}")
+set(MACHO_CURRENT_VERSION "${MACHO_COMPATIBILITY_VERSION}.${_revision}")
 
 # Enable CMAKE_PUSH_CHECK_STATE() and CMAKE_POP_CHECK_STATE() macros
 # saving and restoring the state of the variables.
