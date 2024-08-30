@@ -3277,7 +3277,7 @@ parse_filter(struct archive_read *a, const uint8_t *bytes, uint16_t length, uint
   {
     uint8_t mask = (uint8_t)membr_bits(&br, 7);
     for (i = 0; i < 7; i++)
-      if ((mask & (1 << i)))
+      if ((mask & (1U << i)))
         registers[i] = membr_next_rarvm_number(&br);
   }
 

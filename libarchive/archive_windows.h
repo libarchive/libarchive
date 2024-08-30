@@ -70,6 +70,7 @@
 #endif
 #define NOCRYPT
 #include <windows.h>
+#include <intrin.h>
 //#define	EFTYPE 7
 
 #if defined(__BORLANDC__)
