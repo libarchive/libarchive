@@ -60,7 +60,7 @@ static int	write_header(struct archive_write *, struct archive_entry *);
 
 struct cpio {
 	uint64_t	  entry_bytes_remaining;
-	int		  padding;
+	size_t		  padding;
 
 	struct archive_string_conv *opt_sconv;
 	struct archive_string_conv *sconv_default;
@@ -98,7 +98,7 @@ struct cpio {
 #define	c_header_size 110
 
 /* Logic trick: difference between 'n' and next multiple of 4 */
-#define PAD4(n)	(3 & (1 + ~(n)))
+#define PAD4(n)	(3U & (1U + ~(n)))
 
 /*
  * Set output format to 'cpio' format.
@@ -219,12 +219,11 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	int64_t ino;
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret, ret_final;
+	int ret, ret_final;
 	char h[c_header_size];
 	struct archive_string_conv *sconv;
 	struct archive_entry *entry_main;
-	size_t len;
-	int pad;
+	size_t len, pad, pathlength;
 
 	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
@@ -261,7 +260,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		    archive_string_conversion_charset_name(sconv));
 		ret_final = ARCHIVE_WARN;
 	}
-	pathlength = (int)len + 1; /* Include trailing null. */
+	pathlength = len + 1; /* Include trailing null. */
 
 	memset(h, 0, c_header_size);
 	format_hex(0x070701, h + c_magic_offset, c_magic_size);
@@ -349,7 +348,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
-	cpio->padding = (int)PAD4(cpio->entry_bytes_remaining);
+	cpio->padding = (size_t)PAD4(cpio->entry_bytes_remaining);
 
 	/* Write the symlink now. */
 	if (p != NULL  &&  *p != '\0') {

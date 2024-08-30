@@ -894,7 +894,8 @@ setup_sparse_fiemap(struct archive_read_disk *a,
 	do_fiemap = 1;
 	size = archive_entry_size(entry);
 	for (iters = 0; ; ++iters) {
-		int i, r;
+		size_t i;
+		int r;
 
 		r = ioctl(*fd, FS_IOC_FIEMAP, fm); 
 		if (r < 0) {
@@ -911,7 +912,7 @@ setup_sparse_fiemap(struct archive_read_disk *a,
 			break;
 		}
 		fe = fm->fm_extents;
-		for (i = 0; i < (int)fm->fm_mapped_extents; i++, fe++) {
+		for (i = 0; i < fm->fm_mapped_extents; i++, fe++) {
 			if (!(fe->fe_flags & FIEMAP_EXTENT_UNWRITTEN)) {
 				/* The fe_length of the last block does not
 				 * adjust itself to its size files. */

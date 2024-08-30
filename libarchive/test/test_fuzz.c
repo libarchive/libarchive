@@ -160,7 +160,7 @@ test_fuzz(const struct files *filesets)
 			q = (int)size / 100;
 			if (q < 4)
 				q = 4;
-			numbytes = (int)(rand() % q);
+			numbytes = rand() % q;
 			for (j = 0; j < numbytes; ++j)
 				image[rand() % size] = (char)rand();
 

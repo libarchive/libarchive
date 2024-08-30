@@ -28,10 +28,6 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-
-#ifdef HAVE_ERRNO_H
-#include <errno.h>
-#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>

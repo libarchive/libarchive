@@ -1142,7 +1142,7 @@ canonical_charset_name(const char *charset)
 			c -= 'a' - 'A';
 		*p++ = c;
 	}
-	*p++ = '\0';
+	*p = '\0';
 
 	if (strcmp(cs, "UTF-8") == 0 ||
 	    strcmp(cs, "UTF8") == 0)
