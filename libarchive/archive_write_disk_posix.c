@@ -4630,7 +4630,7 @@ set_xattrs(struct archive_write_disk *a)
 				e = extattr_set_fd(a->fd, namespace, name,
 				    value, size);
 				if (e == 0 && errno == 0) {
-					e = size;
+					e = (int)size;
 				}
 			} else {
 				e = extattr_set_link(
