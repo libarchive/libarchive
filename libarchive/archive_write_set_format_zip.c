@@ -522,10 +522,13 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	mode_t type;
 #if defined(_WIN32)
 	/* On Windows use MS-DOS value as internal Windows zip archiver does
-	 * Fixes charset problems like https://sourceforge.net/p/sevenzip/bugs/2463/ */
-    int create_os = 0;
+	 * Fixes charset problems like https://sourceforge.net/p/sevenzip/bugs/2463/
+	 * Full set of possible create os values:
+	 * https://pkwaredownloads.blob.core.windows.net/pem/APPNOTE-6.3.10.txt
+	 * See "4.4.2 version made by (2 bytes)" */
+	int create_os = 0;
 #else
-    // Use UNIX value in all other cases
+	// Use UNIX value in all other cases
 	int create_os = 3;
 #endif
 	int version_needed = 10;
