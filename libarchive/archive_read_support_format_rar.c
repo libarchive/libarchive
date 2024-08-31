@@ -2607,8 +2607,7 @@ read_next_symbol(struct archive_read *a, struct huffman_code *code)
   rar_br_consume(br, code->tablesize);
 
   node = value;
-  while (!(code->tree[node].branches[0] ==
-    code->tree[node].branches[1]))
+  while (code->tree[node].branches[0] != code->tree[node].branches[1])
   {
     if (!rar_br_read_ahead(a, br, 1)) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
