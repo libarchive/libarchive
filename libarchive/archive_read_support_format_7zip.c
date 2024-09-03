@@ -1063,7 +1063,7 @@ ppmd_read(void *p)
 		ssize_t bytes_avail = 0;
 		const uint8_t* data = __archive_read_ahead(a,
 		    (size_t)zip->ppstream.stream_in+1, &bytes_avail);
-		if(bytes_avail < zip->ppstream.stream_in+1) {
+		if(data == NULL || bytes_avail < zip->ppstream.stream_in+1) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated 7z file data");
@@ -3462,7 +3462,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 	/*
 	 * Skip the bytes we already has skipped in skip_stream().
 	 */
-	while (skip_bytes) {
+	while (1) {
 		ssize_t skipped;
 
 		if (zip->uncompressed_buffer_bytes_remaining == 0) {
@@ -3482,6 +3482,10 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 				return (ARCHIVE_FATAL);
 			}
 		}
+
+		if (!skip_bytes)
+			break;
+
 		skipped = get_uncompressed_data(
 			a, buff, (size_t)skip_bytes, 0);
 		if (skipped < 0)

@@ -2607,8 +2607,7 @@ read_next_symbol(struct archive_read *a, struct huffman_code *code)
   rar_br_consume(br, code->tablesize);
 
   node = value;
-  while (!(code->tree[node].branches[0] ==
-    code->tree[node].branches[1]))
+  while (code->tree[node].branches[0] != code->tree[node].branches[1])
   {
     if (!rar_br_read_ahead(a, br, 1)) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -2983,7 +2982,7 @@ expand(struct archive_read *a, int64_t *end)
 
       if ((lensymbol = read_next_symbol(a, &rar->lengthcode)) < 0)
         goto bad_data;
-      if (lensymbol > lengthb_min)
+      if (lensymbol >= lengthb_min)
         goto bad_data;
       len = lengthbases[lensymbol] + 2;
       if (lengthbits[lensymbol] > 0) {
@@ -3015,7 +3014,7 @@ expand(struct archive_read *a, int64_t *end)
     }
     else
     {
-      if (symbol-271 > lengthb_min)
+      if (symbol-271 >= lengthb_min)
         goto bad_data;
       len = lengthbases[symbol-271]+3;
       if(lengthbits[symbol-271] > 0) {
@@ -3027,7 +3026,7 @@ expand(struct archive_read *a, int64_t *end)
 
       if ((offssymbol = read_next_symbol(a, &rar->offsetcode)) < 0)
         goto bad_data;
-      if (offssymbol > offsetb_min)
+      if (offssymbol >= offsetb_min)
         goto bad_data;
       offs = offsetbases[offssymbol]+1;
       if(offsetbits[offssymbol] > 0)
@@ -3361,7 +3360,10 @@ create_filter(struct rar_program_code *prog, const uint8_t *globaldata, uint32_t
   filter->globaldatalen = globaldatalen > PROGRAM_SYSTEM_GLOBAL_SIZE ? globaldatalen : PROGRAM_SYSTEM_GLOBAL_SIZE;
   filter->globaldata = calloc(1, filter->globaldatalen);
   if (!filter->globaldata)
+  {
+    free(filter);
     return NULL;
+  }
   if (globaldata)
     memcpy(filter->globaldata, globaldata, globaldatalen);
   if (registers)
@@ -3423,6 +3425,12 @@ run_filters(struct archive_read *a)
     filters->vm = calloc(1, sizeof(*filters->vm));
     if (!filters->vm)
       return 0;
+  }
+
+  if (filter->blocklength > VM_MEMORY_SIZE)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT, "Bad RAR file data");
+    return 0;
   }
 
   ret = copy_from_lzss_window(a, filters->vm->memory, start, filter->blocklength);
@@ -3681,7 +3689,7 @@ execute_filter_e8(struct rar_filter *filter, struct rar_virtual_machine *vm, siz
     {
       uint32_t currpos = (uint32_t)pos + i + 1;
       int32_t address = (int32_t)vm_read_32(vm, i + 1);
-      if (address < 0 && currpos >= -(uint32_t)address)
+      if (address < 0 && currpos >= (~(uint32_t)address + 1))
         vm_write_32(vm, i + 1, address + filesize);
       else if (address >= 0 && (uint32_t)address < filesize)
         vm_write_32(vm, i + 1, address - currpos);

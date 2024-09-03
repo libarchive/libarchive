@@ -592,6 +592,7 @@ DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
 	struct archive *a;
 	struct archive_entry *entry;
 	char buff[0x2000];
+	char *p;
 	size_t used;
 
 	/*
@@ -608,11 +609,11 @@ DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
 		archive_write_free(a);
 		return;
 	}
-
-	/* Re-create a write archive object since filenames should be written
-	 * in UTF-8 by default. */
 	archive_write_free(a);
 
+	/*
+	 * Create a new archive handle with default charset handling
+	 */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	assertEqualInt(ARCHIVE_OK,
@@ -650,7 +651,60 @@ DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
 	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* Ensure that the names round trip properly */
+	/*
+	 * Examine the bytes to ensure the filenames ended up UTF-8
+	 * encoded as we expect.
+	 */
+
+	/* Part 1: file */
+	p = buff + 0;
+	assertEqualString(p + 0, "PaxHeader/\xE4\xBD\xA0\xE5\xA5\xBD.txt"); /* File name */
+	assertEqualInt(p[156], 'x'); /* Pax extension header */
+	p += 512; /* Pax extension body */
+	assertEqualString(p + 0, "19 path=\xE4\xBD\xA0\xE5\xA5\xBD.txt\n");
+	p += 512; /* Ustar header */
+	assertEqualString(p + 0, "\xE4\xBD\xA0\xE5\xA5\xBD.txt"); /* File name */
+	assertEqualInt(p[156], '0');
+
+	/* Part 2: directory */
+	p += 512; /* Pax extension header */
+	assertEqualString(p + 0, "PaxHeader/\xD0\xBF\xD1\x80\xD0\xB8"); /* File name */
+	assertEqualInt(p[156], 'x');
+	p += 512; /* Pax extension body */
+	assertEqualString(p + 0, "16 path=\xD0\xBF\xD1\x80\xD0\xB8/\n");
+	p += 512; /* Ustar header */
+	assertEqualString(p + 0, "\xD0\xBF\xD1\x80\xD0\xB8/"); /* File name */
+	assertEqualInt(p[156], '5'); /* directory */
+
+	/* Part 3: symlink */
+	p += 512; /* Pax Extension Header */
+	assertEqualString(p + 0, "PaxHeader/\xE5\x86\x8D\xE8\xA7\x81.txt"); /* File name */
+	p += 512; /* Pax extension body */
+	assertEqualString(p + 0,
+			  "19 path=\xE5\x86\x8D\xE8\xA7\x81.txt\n"
+			  "23 linkpath=\xE4\xBD\xA0\xE5\xA5\xBD.txt\n"
+			  "31 LIBARCHIVE.symlinktype=file\n");
+	p += 512; /* Ustar header */
+	assertEqualString(p + 0, "\xE5\x86\x8D\xE8\xA7\x81.txt"); /* File name */
+	assertEqualInt(p[156], '2'); /* symlink */
+	assertEqualString(p + 157, "\xE4\xBD\xA0\xE5\xA5\xBD.txt"); /* link name */
+
+	/* Part 4: hardlink */
+	p += 512; /* Pax extension header */
+	assertEqualString(p + 0, "PaxHeader/\xE6\x99\x9A\xE5\xAE\x89.txt"); /* File name */
+	p += 512; /* Pax extension body */
+	assertEqualString(p + 0,
+			  "19 path=\xE6\x99\x9A\xE5\xAE\x89.txt\n"
+			  "23 linkpath=\xE4\xBD\xA0\xE5\xA5\xBD.txt\n"
+			  "31 LIBARCHIVE.symlinktype=file\n");
+	p += 512; /* Ustar header */
+	assertEqualString(p + 0, "\xE6\x99\x9A\xE5\xAE\x89.txt"); /* File name */
+	assertEqualInt(p[156], '1'); /* hard link */
+	assertEqualString(p + 157, "\xE4\xBD\xA0\xE5\xA5\xBD.txt"); /* link name */
+
+	/*
+	 * Read back the archive to see if we get the original names
+	 */
 	a = archive_read_new();
 	archive_read_support_format_all(a);
 	archive_read_support_filter_all(a);
@@ -673,6 +727,8 @@ DEFINE_TEST(test_pax_filename_encoding_UTF16_win)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
 	assertEqualWString(L"\u665a\u5b89.txt", archive_entry_pathname_w(entry));
 	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_hardlink_w(entry));
+
+	archive_free(a);
 #endif
 }
 
