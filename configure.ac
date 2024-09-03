@@ -435,6 +435,7 @@ if test "x$with_iconv" != "xno"; then
     am_save_LIBS="$LIBS"
     LIBS="${LIBS} ${LIBICONV}"
     if test -n "$LIBICONV"; then
+	  AC_DEFINE([HAVE_LIBICONV], [1], [Define to 1 if you have the `iconv' library (-liconv).])
       LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }iconv"
     fi
     AC_CHECK_FUNCS([locale_charset])
@@ -537,7 +538,7 @@ if test "x$with_xml2" != "xno"; then
   ], [
     AC_CHECK_LIB(xml2,xmlInitParser)
   ])
-  AC_CHECK_HEADERS([libxml/xmlreader.h libxml/xmlwriter.h])
+  AC_CHECK_HEADERS([libxml/xmlreader.h libxml/xmlwriter.h libxml/xmlversion.h])
 fi
 if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   if test "x$with_expat" != "xno"; then
@@ -1313,6 +1314,7 @@ fi
 
 if test "x$with_mbedtls" = "xyes"; then
     AC_CHECK_HEADERS([mbedtls/aes.h mbedtls/md.h mbedtls/pkcs5.h])
+    AC_CHECK_HEADERS([mbedtls/version.h])
     saved_LIBS=$LIBS
     AC_CHECK_LIB(mbedcrypto,mbedtls_sha1_init)
     CRYPTO_CHECK(MD5, MBEDTLS, md5)
@@ -1329,6 +1331,7 @@ fi
 if test "x$with_nettle" = "xyes"; then
     AC_CHECK_HEADERS([nettle/md5.h nettle/ripemd160.h nettle/sha.h])
     AC_CHECK_HEADERS([nettle/pbkdf2.h nettle/aes.h nettle/hmac.h])
+    AC_CHECK_HEADERS([nettle/version.h])
     saved_LIBS=$LIBS
     AC_CHECK_LIB(nettle,nettle_sha1_init)
     CRYPTO_CHECK(MD5, NETTLE, md5)
@@ -1343,7 +1346,7 @@ if test "x$with_nettle" = "xyes"; then
 fi
 
 if test "x$with_openssl" != "xno"; then
-    AC_CHECK_HEADERS([openssl/evp.h])
+    AC_CHECK_HEADERS([openssl/evp.h openssl/opensslv.h])
     saved_LIBS=$LIBS
     LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libcrypto"
     AC_CHECK_LIB(crypto,OPENSSL_config)
