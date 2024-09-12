@@ -443,7 +443,10 @@ SET(ADDITIONAL_LIBS "")
 # Find ZLIB
 #
 IF(ENABLE_ZLIB)
-  FIND_PACKAGE(ZLIB)
+  # Require zlib >= 1.2.1, see: https://github.com/libarchive/libarchive/issues/615
+  # zlib 1.2.0 should also work, but it is difficult to test for. Let's require
+  # zlib >= 1.2.1 for consistency with the autoconf build.
+  FIND_PACKAGE(ZLIB 1.2.1 REQUIRED)
 ELSE()
   SET(ZLIB_FOUND FALSE) # Override cached value
 ENDIF()
