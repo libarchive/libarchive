@@ -1,5 +1,9 @@
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
+if(APPLE AND CMAKE_VERSION VERSION_LESS "3.17.0")
+  message(WARNING "CMake>=3.17.0 required to make the generated shared library have the same Mach-O headers as autotools")
+endif()
+
 if(POLICY CMP0065)
   cmake_policy(SET CMP0065 NEW) #3.4 don't use `-rdynamic` with executables
 endif()
@@ -83,9 +87,21 @@ SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 # libarchive 3.1 == interface version 13
 math(EXPR INTERFACE_VERSION  "13 + ${_minor}")
 
-# Set SOVERSION == Interface version
-# ?? Should there be more here ??
-SET(SOVERSION "${INTERFACE_VERSION}")
+# Set SOVERSION so it matches libtool's conventions
+# libtool accepts a string "current:revision:age"; in libarchive, that's set to
+# - current: ${INTERFACE_VERSION} = 13 + ${_minor}
+# - revision: ${_revision}
+# - age: ${_minor}
+# Since libtool computes SOVERSION as "current - age", it's just '13' again
+math(EXPR SOVERSION "${INTERFACE_VERSION} - ${_minor}")
+set(SOVERSION_FULL "${SOVERSION}.${_trimmed_minor}.${_trimmed_revision}")
+
+# Override CMake's default shared library versioning scheme, which uses SOVERSION and VERSION,
+# to match libtool's conventions (see https://github.com/mesonbuild/meson/issues/1451)
+# - compatibility version: current + 1 = ${INTERFACE_VERSION} + 1
+# - current version: ${current + 1}.${revision}
+math(EXPR MACHO_COMPATIBILITY_VERSION "${INTERFACE_VERSION} + 1")
+set(MACHO_CURRENT_VERSION "${MACHO_COMPATIBILITY_VERSION}.${_revision}")
 
 # Enable CMAKE_PUSH_CHECK_STATE() and CMAKE_POP_CHECK_STATE() macros
 # saving and restoring the state of the variables.
