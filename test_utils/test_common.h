@@ -48,6 +48,9 @@
 #endif
 
 #include <sys/types.h>  /* Windows requires this before sys/stat.h */
+#if !HAVE_SUSECONDS_T
+#define suseconds_t long
+#endif
 #include <sys/stat.h>
 
 #if HAVE_DIRENT_H
