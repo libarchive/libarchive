@@ -49,6 +49,9 @@
 #ifdef HAVE_LZMA_H
 #include <lzma.h>
 #endif
+#ifdef HAVE_BZLIB_H
+#include <bzlib.h>
+#endif
 
 #include "archive.h"
 #include "archive_cryptor_private.h"
@@ -65,12 +68,12 @@
 #include "archive_crc32.h"
 #endif
 
-#define ZIP_ENTRY_FLAG_ENCRYPTED	(1<<0)
+#define ZIP_ENTRY_FLAG_ENCRYPTED	(1 << 0)
 #define ZIP_ENTRY_FLAG_LZMA_EOPM	(1 << 1)
 #define ZIP_ENTRY_FLAG_DEFLATE_MAX	(1 << 1) /* i.e. compression levels 8 & 9 */
 #define ZIP_ENTRY_FLAG_DEFLATE_FAST	(1 << 2) /* i.e. compression levels 3 & 4 */
 #define ZIP_ENTRY_FLAG_DEFLATE_SUPER_FAST	(1 << 1) | (1 << 2) /* i.e. compression levels 1 & 2 */
-#define ZIP_ENTRY_FLAG_LENGTH_AT_END	(1<<3)
+#define ZIP_ENTRY_FLAG_LENGTH_AT_END	(1 << 3)
 #define ZIP_ENTRY_FLAG_UTF8_NAME	(1 << 11)
 
 #define ZIP_4GB_MAX ARCHIVE_LITERAL_LL(0xffffffff)
@@ -80,6 +83,7 @@ enum compression {
 	COMPRESSION_UNSPECIFIED = -1,
 	COMPRESSION_STORE = 0,
 	COMPRESSION_DEFLATE = 8,
+	COMPRESSION_BZIP2 = 12,
 	COMPRESSION_LZMA = 14,
 	COMPRESSION_XZ = 95
 };
@@ -172,7 +176,7 @@ struct zip {
 #define ZIP_FLAG_FORCE_ZIP64 2
 #define ZIP_FLAG_EXPERIMENT_xl 4
 	int flags;
-#if defined(HAVE_LZMA_H) || defined(HAVE_ZLIB_H)
+#if defined(HAVE_LZMA_H) || defined(HAVE_ZLIB_H) || defined(HAVE_BZLIB_H)
 	union {
 #ifdef HAVE_LZMA_H
 		/* ZIP's XZ format (id 95) is easy enough: copy Deflate, mutatis
@@ -188,6 +192,9 @@ struct zip {
 #endif
 #ifdef HAVE_ZLIB_H
 		z_stream deflate;
+#endif
+#ifdef HAVE_BZLIB_H
+		bz_stream bzip2;
 #endif
 	} stream;
 #endif
@@ -336,6 +343,14 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		} else if (strcmp(val, "store") == 0) {
 			zip->requested_compression = COMPRESSION_STORE;
 			ret = ARCHIVE_OK;
+		} else if (strcmp(val, "bzip2") == 0) {
+#ifdef HAVE_BZLIB_H
+			zip->requested_compression = COMPRESSION_BZIP2;
+			ret = ARCHIVE_OK;
+#else
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "bzip2 compression not supported");
+#endif
 		} else if (strcmp(val, "lzma") == 0) {
 #ifdef HAVE_LZMA_H
 			zip->requested_compression = COMPRESSION_LZMA;
@@ -363,11 +378,13 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->requested_compression = COMPRESSION_STORE;
 			return ARCHIVE_OK;
 		} else {
-#if defined(HAVE_ZLIB_H) || defined(HAVE_LZMA_H)
+#if defined(HAVE_ZLIB_H) || defined(HAVE_LZMA_H) || defined(HAVE_BZLIB_H)
 			// Not forcing an already specified compression algorithm
 			if (zip->requested_compression == COMPRESSION_UNSPECIFIED) {
 #ifdef HAVE_ZLIB_H
 				zip->requested_compression = COMPRESSION_DEFLATE;
+#elif defined(HAVE_BZLIB_H)
+				zip->requested_compression = COMPRESSION_BZIP2;
 #else
 				// Arbitrarily choosing LZMA of the two LZMA methods
 				zip->requested_compression = COMPRESSION_LZMA;
@@ -518,6 +535,34 @@ archive_write_zip_set_compression_deflate(struct archive *_a)
 #else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			"deflate compression not supported");
+		ret = ARCHIVE_FAILED;
+#endif
+	}
+	return (ret);
+}
+
+int
+archive_write_zip_set_compression_bzip2(struct archive *_a)
+{
+	struct archive_write *a = (struct archive_write *)_a;
+	int ret = ARCHIVE_FAILED;
+
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+		ARCHIVE_STATE_NEW | ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+		"archive_write_zip_set_compression_bzip2");
+	if (a->archive.archive_format != ARCHIVE_FORMAT_ZIP) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		"Can only use archive_write_zip_set_compression_bzip2"
+		" with zip format");
+		ret = ARCHIVE_FATAL;
+	} else {
+#ifdef HAVE_BZLIB_H
+		struct zip *zip = a->format_data;
+		zip->requested_compression = COMPRESSION_BZIP2;
+		ret = ARCHIVE_OK;
+#else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"bzip2 compression not supported");
 		ret = ARCHIVE_FAILED;
 #endif
 	}
@@ -862,6 +907,10 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			zip->entry_uncompressed_size = size;
 			MIN_VERSION_NEEDED(63);
 			break;
+		case COMPRESSION_BZIP2:
+			zip->entry_uncompressed_size = size;
+			MIN_VERSION_NEEDED(46);
+			break;
 		default: // i.e. deflate compression
 			zip->entry_uncompressed_size = size;
 			switch (zip->compression_level) {
@@ -951,6 +1000,9 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			break;
 		case COMPRESSION_XZ:
 			MIN_VERSION_NEEDED(63);
+			break;
+		case COMPRESSION_BZIP2:
+			MIN_VERSION_NEEDED(46);
 			break;
 		default: // i.e. deflate compression
 			switch (zip->compression_level) {
@@ -1215,6 +1267,18 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		}
 		break;
 #endif
+#ifdef HAVE_BZLIB_H
+	case COMPRESSION_BZIP2:
+		memset(&zip->stream.bzip2, 0, sizeof(bz_stream));
+		zip->stream.bzip2.next_out = (char*)zip->buf;
+		zip->stream.bzip2.avail_out = (unsigned int)zip->len_buf;
+		if (BZ2_bzCompressInit(&zip->stream.bzip2, zip->compression_level, 0, 0) != BZ_OK) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't init bzip2 compressor");
+			return (ARCHIVE_FATAL);
+		}
+		break;
+#endif
 #ifdef HAVE_LZMA_H
 	case COMPRESSION_LZMA:
 		{/* Set compression level 9 as the no-holds barred one */
@@ -1428,6 +1492,46 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		} while (zip->stream.deflate.avail_in != 0);
 		break;
 #endif
+#ifdef HAVE_BZLIB_H
+	case COMPRESSION_BZIP2:
+		zip->stream.bzip2.next_in = (char*)(uintptr_t)buff;
+		zip->stream.bzip2.avail_in = (unsigned int)s;
+		do {
+			ret = BZ2_bzCompress(&zip->stream.bzip2, BZ_RUN);
+			if (ret != BZ_RUN_OK)
+				return (ARCHIVE_FATAL);
+			if (zip->stream.bzip2.avail_out == 0) {
+				if (zip->tctx_valid) {
+					trad_enc_encrypt_update(&zip->tctx,
+						zip->buf, zip->len_buf,
+						zip->buf, zip->len_buf);
+				} else if (zip->cctx_valid) {
+					size_t outl = zip->len_buf;
+					ret = archive_encrypto_aes_ctr_update(
+						&zip->cctx,
+						zip->buf, zip->len_buf,
+						zip->buf, &outl);
+					if (ret < 0) {
+						archive_set_error(&a->archive,
+							ARCHIVE_ERRNO_MISC,
+							"Failed to encrypt file");
+						return (ARCHIVE_FAILED);
+					}
+					archive_hmac_sha1_update(&zip->hctx,
+						zip->buf, zip->len_buf);
+				}
+				ret = __archive_write_output(a, zip->buf,
+					zip->len_buf);
+				if (ret != ARCHIVE_OK)
+					return (ret);
+				zip->entry_compressed_written += zip->len_buf;
+				zip->written_bytes += zip->len_buf;
+				zip->stream.bzip2.next_out = (char*)zip->buf;
+				zip->stream.bzip2.avail_out = (unsigned int)zip->len_buf;
+			}
+		} while (zip->stream.bzip2.avail_in != 0);
+		break;
+#endif
 #ifdef HAVE_LZMA_H
 	case COMPRESSION_LZMA:
 		if (zip->stream.lzma.headers_to_write) {
@@ -1615,6 +1719,48 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			zip->stream.deflate.avail_out = (uInt)zip->len_buf;
 		}
 		deflateEnd(&zip->stream.deflate);
+		break;
+#endif
+#ifdef HAVE_BZLIB_H
+	case COMPRESSION_BZIP2:
+		finishing = 1;
+		do {
+			size_t remainder;
+
+			ret = BZ2_bzCompress(&zip->stream.bzip2, BZ_FINISH);
+			if (ret == BZ_STREAM_END)
+				finishing = 0;
+			else if (ret != BZ_RUN_OK && ret != BZ_FINISH_OK)
+				return (ARCHIVE_FATAL);
+			remainder = zip->len_buf - zip->stream.bzip2.avail_out;
+			if (zip->tctx_valid) {
+				trad_enc_encrypt_update(&zip->tctx,
+				    zip->buf, remainder, zip->buf, remainder);
+			} else if (zip->cctx_valid) {
+				size_t outl = remainder;
+				ret = archive_encrypto_aes_ctr_update(
+				    &zip->cctx, zip->buf, remainder,
+				    zip->buf, &outl);
+				if (ret < 0) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Failed to encrypt file");
+					return (ARCHIVE_FAILED);
+				}
+				archive_hmac_sha1_update(&zip->hctx,
+				    zip->buf, remainder);
+			}
+			ret = __archive_write_output(a, zip->buf, remainder);
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			zip->entry_compressed_written += remainder;
+			zip->written_bytes += remainder;
+			zip->stream.bzip2.next_out = (char*)zip->buf;
+			if (zip->stream.bzip2.avail_out != 0)
+				finishing = 0;
+			zip->stream.bzip2.avail_out = (unsigned int)zip->len_buf;
+		} while (finishing);
+		BZ2_bzCompressEnd(&zip->stream.bzip2);
 		break;
 #endif
 #ifdef HAVE_LZMA_H
