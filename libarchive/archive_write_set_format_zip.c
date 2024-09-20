@@ -43,6 +43,12 @@
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
@@ -51,6 +57,9 @@
 #endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
+#endif
+#ifdef HAVE_ZSTD_H
+#include <zstd.h>
 #endif
 
 #include "archive.h"
@@ -85,6 +94,7 @@ enum compression {
 	COMPRESSION_DEFLATE = 8,
 	COMPRESSION_BZIP2 = 12,
 	COMPRESSION_LZMA = 14,
+	COMPRESSION_ZSTD = 93,
 	COMPRESSION_XZ = 95
 };
 
@@ -176,7 +186,7 @@ struct zip {
 #define ZIP_FLAG_FORCE_ZIP64 2
 #define ZIP_FLAG_EXPERIMENT_xl 4
 	int flags;
-#if defined(HAVE_LZMA_H) || defined(HAVE_ZLIB_H) || defined(HAVE_BZLIB_H)
+#if defined(HAVE_LZMA_H) || defined(HAVE_ZLIB_H) || defined(HAVE_BZLIB_H) || defined(HAVE_ZSTD_H)
 	union {
 #ifdef HAVE_LZMA_H
 		/* ZIP's XZ format (id 95) is easy enough: copy Deflate, mutatis
@@ -195,6 +205,15 @@ struct zip {
 #endif
 #ifdef HAVE_BZLIB_H
 		bz_stream bzip2;
+#endif
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+		struct {
+			/* Libzstd's init function gives a pointer to a memory area
+			 * it manages rather than asking for memory to initialise. */
+			ZSTD_CStream* context;
+			ZSTD_inBuffer in;
+			ZSTD_outBuffer out;
+		} zstd;
 #endif
 	} stream;
 #endif
@@ -367,30 +386,47 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "xz compression not supported");
 #endif
+		} else if (strcmp(val, "zstd") == 0) {
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+			zip->requested_compression = COMPRESSION_ZSTD;
+			ret = ARCHIVE_OK;
+#else
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "zstd compression not supported");
+#endif
 		}
 		return (ret);
 	} else if (strcmp(key, "compression-level") == 0) {
-		if (val == NULL || !(val[0] >= '0' && val[0] <= '9') || val[1] != '\0') {
-			return ARCHIVE_WARN;
+		char *endptr;
+
+		if (val == NULL)
+			return (ARCHIVE_WARN);
+		errno = 0;
+		zip->compression_level = (short)strtoul(val, &endptr, 10);
+		if (errno != 0 || *endptr != '\0' || zip->compression_level < 0 ||
+			zip->compression_level > 9) {
+			zip->compression_level = 6; // set to default
+			return (ARCHIVE_WARN);
 		}
 
-		if (val[0] == '0') {
+		if (zip->compression_level == 0) {
 			zip->requested_compression = COMPRESSION_STORE;
 			return ARCHIVE_OK;
 		} else {
-#if defined(HAVE_ZLIB_H) || defined(HAVE_LZMA_H) || defined(HAVE_BZLIB_H)
+#if defined(HAVE_ZLIB_H) || defined(HAVE_LZMA_H) || defined(HAVE_BZLIB_H) || (defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream)
 			// Not forcing an already specified compression algorithm
 			if (zip->requested_compression == COMPRESSION_UNSPECIFIED) {
 #ifdef HAVE_ZLIB_H
 				zip->requested_compression = COMPRESSION_DEFLATE;
 #elif defined(HAVE_BZLIB_H)
 				zip->requested_compression = COMPRESSION_BZIP2;
-#else
+#elif defined(HAVE_LZMA_H)
 				// Arbitrarily choosing LZMA of the two LZMA methods
 				zip->requested_compression = COMPRESSION_LZMA;
+#else
+				zip->requested_compression = COMPRESSION_ZSTD;
 #endif
 			}
-			zip->compression_level = val[0] - '0';
 			return ARCHIVE_OK;
 #else
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -413,6 +449,11 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		if (zip->threads == 0) {
 #ifdef HAVE_LZMA_STREAM_ENCODER_MT
 			zip->threads = lzma_cputhreads();
+#elif defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
+			zip->threads = sysconf(_SC_NPROCESSORS_ONLN);
+#elif !defined(__CYGWIN__) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0601
+			/* Windows 7 and up */
+			zip->threads = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
 			zip->threads = 1;
 #endif
@@ -563,6 +604,34 @@ archive_write_zip_set_compression_bzip2(struct archive *_a)
 #else
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			"bzip2 compression not supported");
+		ret = ARCHIVE_FAILED;
+#endif
+	}
+	return (ret);
+}
+
+int
+archive_write_zip_set_compression_zstd(struct archive *_a)
+{
+	struct archive_write *a = (struct archive_write *)_a;
+	int ret = ARCHIVE_FAILED;
+
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+		ARCHIVE_STATE_NEW | ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+		"archive_write_zip_set_compression_zstd");
+	if (a->archive.archive_format != ARCHIVE_FORMAT_ZIP) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		"Can only use archive_write_zip_set_compression_zstd"
+		" with zip format");
+		ret = ARCHIVE_FATAL;
+	} else {
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+		struct zip *zip = a->format_data;
+		zip->requested_compression = COMPRESSION_ZSTD;
+		ret = ARCHIVE_OK;
+#else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"zstd compression not supported");
 		ret = ARCHIVE_FAILED;
 #endif
 	}
@@ -898,6 +967,10 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			zip->entry_uncompressed_size = size;
 			MIN_VERSION_NEEDED(10);
 			break;
+		case COMPRESSION_ZSTD:
+			zip->entry_uncompressed_size = size;
+			MIN_VERSION_NEEDED(63);
+			break;
 		case COMPRESSION_LZMA:
 			zip->entry_uncompressed_size = size;
 			zip->entry_flags |= ZIP_ENTRY_FLAG_LZMA_EOPM;
@@ -993,6 +1066,9 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		switch (zip->entry_compression) {
 		case COMPRESSION_STORE:
 			MIN_VERSION_NEEDED(10);
+			break;
+		case COMPRESSION_ZSTD:
+			MIN_VERSION_NEEDED(63);
 			break;
 		case COMPRESSION_LZMA:
 			zip->entry_flags |= ZIP_ENTRY_FLAG_LZMA_EOPM;
@@ -1279,6 +1355,30 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		}
 		break;
 #endif
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+	case COMPRESSION_ZSTD:
+		{/* Libzstd, contrary to many compression libraries, doesn't use
+		 * zlib's 0 to 9 scale and its negative scale is way bigger than
+		 * its positive one. So setting 1 as the lowest allowed compression
+		 * level and rescaling to 2 to 9 to libzstd's positive scale. */
+		int zstd_compression_level = zip->compression_level == 1
+			? ZSTD_minCLevel() // ZSTD_minCLevel is negative !
+			: (zip->compression_level - 1) * ZSTD_maxCLevel() / 8;
+		zip->stream.zstd.context = ZSTD_createCStream();
+		ret = ZSTD_initCStream(zip->stream.zstd.context, zstd_compression_level);
+		if (ZSTD_isError(ret)) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't init zstd compressor");
+			return (ARCHIVE_FATAL);
+		}
+		/* Asking for the multi-threaded compressor is a no-op in zstd if
+		 * it's not supported, so no need to explicitely check for it */
+		ZSTD_CCtx_setParameter(zip->stream.zstd.context, ZSTD_c_nbWorkers, zip->threads);
+		zip->stream.zstd.out.dst = zip->buf;
+		zip->stream.zstd.out.size = zip->len_buf;
+		zip->stream.zstd.out.pos = 0;
+		break;}
+#endif
 #ifdef HAVE_LZMA_H
 	case COMPRESSION_LZMA:
 		{/* Set compression level 9 as the no-holds barred one */
@@ -1490,6 +1590,49 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 				zip->stream.deflate.avail_out = (uInt)zip->len_buf;
 			}
 		} while (zip->stream.deflate.avail_in != 0);
+		break;
+#endif
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+	case COMPRESSION_ZSTD:
+		zip->stream.zstd.in.src = buff;
+		zip->stream.zstd.in.size = s;
+		zip->stream.zstd.in.pos = 0;
+		do {
+			ret = ZSTD_compressStream(zip->stream.zstd.context,
+				&zip->stream.zstd.out, &zip->stream.zstd.in);
+			if (ZSTD_isError(ret))
+				return (ARCHIVE_FATAL);
+			if (zip->stream.zstd.out.pos == zip->stream.zstd.out.size) {
+				if (zip->tctx_valid) {
+					trad_enc_encrypt_update(&zip->tctx,
+						zip->buf, zip->len_buf,
+						zip->buf, zip->len_buf);
+				} else if (zip->cctx_valid) {
+					size_t outl = zip->len_buf;
+					ret = archive_encrypto_aes_ctr_update(
+						&zip->cctx,
+						zip->buf, zip->len_buf,
+						zip->buf, &outl);
+					if (ret < 0) {
+						archive_set_error(&a->archive,
+							ARCHIVE_ERRNO_MISC,
+							"Failed to encrypt file");
+						return (ARCHIVE_FAILED);
+					}
+					archive_hmac_sha1_update(&zip->hctx,
+						zip->buf, zip->len_buf);
+				}
+				ret = __archive_write_output(a, zip->buf,
+					zip->len_buf);
+				if (ret != ARCHIVE_OK)
+					return (ret);
+				zip->entry_compressed_written += zip->len_buf;
+				zip->written_bytes += zip->len_buf;
+				zip->stream.zstd.out.dst = zip->buf;
+				zip->stream.zstd.out.size = zip->len_buf;
+				zip->stream.zstd.out.pos = 0;
+			}
+		} while (zip->stream.zstd.in.pos != zip->stream.zstd.in.size);
 		break;
 #endif
 #ifdef HAVE_BZLIB_H
@@ -1763,6 +1906,48 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		BZ2_bzCompressEnd(&zip->stream.bzip2);
 		break;
 #endif
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+	case COMPRESSION_ZSTD:
+		finishing = 1;
+		do {
+			size_t remainder;
+
+			ret = ZSTD_endStream(zip->stream.zstd.context, &zip->stream.zstd.out);
+			if (ret == 0)
+				finishing = 0;
+			else if (ZSTD_isError(ret))
+				return (ARCHIVE_FATAL);
+			remainder = zip->len_buf - (zip->stream.zstd.out.size - zip->stream.zstd.out.pos);
+			if (zip->tctx_valid) {
+				trad_enc_encrypt_update(&zip->tctx,
+				    zip->buf, remainder, zip->buf, remainder);
+			} else if (zip->cctx_valid) {
+				size_t outl = remainder;
+				ret = archive_encrypto_aes_ctr_update(
+				    &zip->cctx, zip->buf, remainder,
+				    zip->buf, &outl);
+				if (ret < 0) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Failed to encrypt file");
+					return (ARCHIVE_FAILED);
+				}
+				archive_hmac_sha1_update(&zip->hctx,
+				    zip->buf, remainder);
+			}
+			ret = __archive_write_output(a, zip->buf, remainder);
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			zip->entry_compressed_written += remainder;
+			zip->written_bytes += remainder;
+			zip->stream.zstd.out.dst = zip->buf;
+			if (zip->stream.zstd.out.pos != zip->stream.zstd.out.size)
+				finishing = 0;
+			zip->stream.zstd.out.size = zip->len_buf;
+		} while (finishing);
+		ZSTD_freeCStream(zip->stream.zstd.context);
+		break;
+#endif
 #ifdef HAVE_LZMA_H
 	/* XZ and LZMA share clean-up code */
 	case COMPRESSION_LZMA:
@@ -1772,10 +1957,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			size_t remainder;
 
 			ret = lzma_code(&zip->stream.lzma.context, LZMA_FINISH);
-			if (ret == LZMA_MEM_ERROR)
-				return (ARCHIVE_FATAL);
 			if (ret == LZMA_STREAM_END)
 				finishing = 0;
+			else if (ret == LZMA_MEM_ERROR)
+				return (ARCHIVE_FATAL);
 			remainder = zip->len_buf - zip->stream.lzma.context.avail_out;
 			if (zip->tctx_valid) {
 				trad_enc_encrypt_update(&zip->tctx,
