@@ -6,7 +6,6 @@
 #include "test.h"
 #ifdef HAVE_LZMA_H
 #include <lzma.h>
-#endif
 
 /* File data */
 static const char file_name[] = "file";
@@ -27,7 +26,6 @@ static const short folder_gid = 40;
 
 static time_t now;
 
-#ifdef HAVE_LZMA_H
 static void verify_write_lzma(struct archive *a)
 {
 	struct archive_entry *entry;
@@ -76,7 +74,8 @@ i4(const void *p_)
 	return (i2(p) | (i2(p + 2) << 16));
 }
 
-static void verify_lzma_contents(const char *buff, size_t used)
+static void verify_xz_lzma(const char *buff, size_t used, uint16_t id,
+	uint16_t flags)
 {
 	const char *buffend;
 	struct archive* zip_archive;
@@ -103,7 +102,7 @@ static void verify_lzma_contents(const char *buff, size_t used)
 	/* Open archive from memory, we'll need it for checking the file
 	 * value */
 	assert((zip_archive = archive_read_new()) != NULL);
-	assertEqualIntA(zip_archive, ARCHIVE_OK, archive_read_support_format_zip(zip_archive));
+	assertEqualIntA(zip_archive, ARCHIVE_OK, archive_read_support_format_all(zip_archive));
 	assertEqualIntA(zip_archive, ARCHIVE_OK, archive_read_support_filter_all(zip_archive));
 	assertEqualIntA(zip_archive, ARCHIVE_OK, archive_read_open_memory(zip_archive, buff, used));
 
@@ -137,8 +136,8 @@ static void verify_lzma_contents(const char *buff, size_t used)
 	assertEqualMem(p, "PK\001\002", 4); /* Signature */
 	assertEqualInt(i2(p + 4), 3 * 256 + 63); /* Version made by */
 	assertEqualInt(i2(p + 6), 63); /* Version needed to extract */
-	assertEqualInt(i2(p + 8), 10); /* Flags */
-	assertEqualInt(i2(p + 10), 14); /* Compression method */
+	assertEqualInt(i2(p + 8), flags); /* Flags */
+	assertEqualInt(i2(p + 10), id); /* Compression method */
 	assertEqualInt(i2(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
 	assertEqualInt(i2(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
 	crc = lzma_crc32(file_data1, sizeof(file_data1), 0);
@@ -170,8 +169,8 @@ static void verify_lzma_contents(const char *buff, size_t used)
 	local_header = q = buff;
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
 	assertEqualInt(i2(q + 4), 63); /* Version needed to extract */
-	assertEqualInt(i2(q + 6), 10); /* Flags: bit 3 = length-at-end (required because CRC32 is unknown) and bit 1 = EOPM (because we always write it) */
-	assertEqualInt(i2(q + 8), 14); /* Compression method */
+	assertEqualInt(i2(q + 6), flags); /* Flags: bit 3 = length-at-end (required because CRC32 is unknown) and bit 1 = EOPM (because we always write it) */
+	assertEqualInt(i2(q + 8), id); /* Compression method */
 	assertEqualInt(i2(q + 10), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
 	assertEqualInt(i2(q + 12), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
 	assertEqualInt(i4(q + 14), 0); /* CRC-32 */
@@ -319,7 +318,17 @@ static void verify_lzma_contents(const char *buff, size_t used)
 	archive_read_free(zip_archive);
 }
 
-DEFINE_TEST(test_write_format_zip_compression_lzma)
+static void verify_xz_contents(const char *buff, size_t used)
+{
+	verify_xz_lzma(buff, used, 95, 0x8);
+}
+
+static void verify_lzma_contents(const char *buff, size_t used)
+{
+	verify_xz_lzma(buff, used, 14, 0xA);
+}
+
+DEFINE_TEST(test_write_format_zip_compression_lzmaxz)
 {
 	/* Buffer data */
 	struct archive *a;
@@ -374,5 +383,56 @@ DEFINE_TEST(test_write_format_zip_compression_lzma)
 	dumpfile("constructed.zip", buff, used);
 
 	verify_lzma_contents(buff, used);
+
+	/* Same song and dance, but for XZ */
+
+	/* Create new ZIP archive in memory without padding. */
+	/* Use the setter function to use XZ compression. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_zip_set_compression_xz(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:experimental"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_in_last_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	verify_write_lzma(a);
+
+	/* Close the archive . */
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+	dumpfile("constructed.zip", buff, used);
+
+	verify_xz_contents(buff, used);
+
+	/* Create new ZIP archive in memory without padding. */
+	/* Use compression-level=9 to check that compression levels are
+	 * somewhat supported as well as threads=2 to check the multi-threaded
+	 * encoder, if available. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:compression=xz"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:compression-level=9"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:threads=2"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:experimental"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_in_last_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	verify_write_lzma(a);
+
+	/* Close the archive. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+	dumpfile("constructed.zip", buff, used);
+
+	verify_xz_contents(buff, used);
 }
 #endif

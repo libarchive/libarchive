@@ -80,7 +80,8 @@ enum compression {
 	COMPRESSION_UNSPECIFIED = -1,
 	COMPRESSION_STORE = 0,
 	COMPRESSION_DEFLATE = 8,
-	COMPRESSION_LZMA = 14
+	COMPRESSION_LZMA = 14,
+	COMPRESSION_XZ = 95
 };
 
 #ifdef HAVE_ZLIB_H
@@ -164,7 +165,8 @@ struct zip {
 	enum compression requested_compression;
 	short compression_level;
 	int init_default_conversion;
-	enum encryption  encryption_type;
+	enum encryption encryption_type;
+	short threads;
 
 #define ZIP_FLAG_AVOID_ZIP64 1
 #define ZIP_FLAG_FORCE_ZIP64 2
@@ -228,6 +230,32 @@ lzma_lzma_props_encode(const lzma_options_lzma* options, uint8_t* out)
 {
 	out[0] = (options->pb * 5 + options->lp) * 9 + options->lc;
 	archive_le32enc(out + 1, options->dict_size);
+}
+#endif
+
+#if defined(HAVE_LZMA_H) && !defined(HAVE_LZMA_STREAM_ENCODER_MT)
+/* Dummy mt declarations, to avoid spaghetti includes below. Defined with
+ * macros being renamed afterwards to shadow liblzma's types in order to
+ * avoid some compiler errors. */
+#define lzma_stream_encoder_mt(str, opt) dummy_mt(str, opt)
+#define lzma_mt dummy_options
+
+typedef struct {
+	void* filters;
+	uint32_t preset;
+	lzma_check check;
+	short threads;
+	char flags;
+	char block_size;
+	char timeout;
+} dummy_options;
+
+static inline lzma_ret
+dummy_mt(lzma_stream* stream, const lzma_mt* options)
+{
+	(void)stream; /* UNUSED */
+	(void)options; /* UNUSED */
+	return LZMA_PROG_ERROR;
 }
 #endif
 
@@ -316,6 +344,14 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "lzma compression not supported");
 #endif
+		} else if (strcmp(val, "xz") == 0) {
+#ifdef HAVE_LZMA_H
+			zip->requested_compression = COMPRESSION_XZ;
+			ret = ARCHIVE_OK;
+#else
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "xz compression not supported");
+#endif
 		}
 		return (ret);
 	} else if (strcmp(key, "compression-level") == 0) {
@@ -344,6 +380,27 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			    "compression not supported");
 #endif
 		}
+	} else if (strcmp(key, "threads") == 0) {
+		char *endptr;
+
+		if (val == NULL)
+			return (ARCHIVE_FAILED);
+		errno = 0;
+		zip->threads = (short)strtoul(val, &endptr, 10);
+		if (errno != 0 || *endptr != '\0') {
+			zip->threads = 1;
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+			    "Illegal value `%s'", val);
+			return (ARCHIVE_FAILED);
+		}
+		if (zip->threads == 0) {
+#ifdef HAVE_LZMA_STREAM_ENCODER_MT
+			zip->threads = lzma_cputhreads();
+#else
+			zip->threads = 1;
+#endif
+		}
+		return (ARCHIVE_OK);
 	} else if (strcmp(key, "encryption") == 0) {
 		if (val == NULL) {
 			zip->encryption_type = ENCRYPTION_NONE;
@@ -355,8 +412,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 				zip->encryption_type = ENCRYPTION_TRADITIONAL;
 				ret = ARCHIVE_OK;
 			} else {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_MISC,
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 				    "encryption not supported");
 			}
 		} else if (strcmp(val, "aes128") == 0) {
@@ -365,8 +421,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 				zip->encryption_type = ENCRYPTION_WINZIP_AES128;
 				ret = ARCHIVE_OK;
 			} else {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_MISC,
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 				    "encryption not supported");
 			}
 		} else if (strcmp(val, "aes256") == 0) {
@@ -375,14 +430,12 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 				zip->encryption_type = ENCRYPTION_WINZIP_AES256;
 				ret = ARCHIVE_OK;
 			} else {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_MISC,
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 				    "encryption not supported");
 			}
 		} else {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "%s: unknown encryption '%s'",
-			    a->format_name, val);
+			    "%s: unknown encryption '%s'", a->format_name, val);
 		}
 		return (ret);
 	} else if (strcmp(key, "experimental") == 0) {
@@ -500,6 +553,34 @@ archive_write_zip_set_compression_lzma(struct archive *_a)
 }
 
 int
+archive_write_zip_set_compression_xz(struct archive *_a)
+{
+	struct archive_write *a = (struct archive_write *)_a;
+	int ret = ARCHIVE_FAILED;
+
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+		ARCHIVE_STATE_NEW | ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+		"archive_write_zip_set_compression_xz");
+	if (a->archive.archive_format != ARCHIVE_FORMAT_ZIP) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		"Can only use archive_write_zip_set_compression_xz"
+		" with zip format");
+		ret = ARCHIVE_FATAL;
+	} else {
+#ifdef HAVE_LZMA_H
+		struct zip *zip = a->format_data;
+		zip->requested_compression = COMPRESSION_XZ;
+		ret = ARCHIVE_OK;
+#else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"xz compression not supported");
+		ret = ARCHIVE_FAILED;
+#endif
+	}
+	return (ret);
+}
+
+int
 archive_write_zip_set_compression_store(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -546,6 +627,11 @@ archive_write_set_format_zip(struct archive *_a)
 	/* Following the 7-zip write support's lead, setting the default
 	 * compression level explicitely to 6 no matter what. */
 	zip->compression_level = 6;
+	/* Following the xar write support's lead, the default number of
+	 * threads is 1 (i.e. the xz compression, the only one caring about
+	 * that, not being multi-threaded even if the multi-threaded encoder
+	 * were available) */
+	zip->threads = 1;
 	zip->crc32func = real_crc32;
 
 	/* A buffer used for both compression and encryption. */
@@ -772,6 +858,10 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			zip->entry_flags |= ZIP_ENTRY_FLAG_LZMA_EOPM;
 			MIN_VERSION_NEEDED(63);
 			break;
+		case COMPRESSION_XZ:
+			zip->entry_uncompressed_size = size;
+			MIN_VERSION_NEEDED(63);
+			break;
 		default: // i.e. deflate compression
 			zip->entry_uncompressed_size = size;
 			switch (zip->compression_level) {
@@ -841,9 +931,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		/* We don't know the size. Use the default
 		 * compression unless specified otherwise.
 		 */
-
 		zip->entry_compression = zip->requested_compression;
-		if(zip->entry_compression == COMPRESSION_UNSPECIFIED){
+		if (zip->entry_compression == COMPRESSION_UNSPECIFIED) {
 			zip->entry_compression = COMPRESSION_DEFAULT;
 		}
 
@@ -858,6 +947,9 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			break;
 		case COMPRESSION_LZMA:
 			zip->entry_flags |= ZIP_ENTRY_FLAG_LZMA_EOPM;
+			MIN_VERSION_NEEDED(63);
+			break;
+		case COMPRESSION_XZ:
 			MIN_VERSION_NEEDED(63);
 			break;
 		default: // i.e. deflate compression
@@ -1153,6 +1245,61 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->stream.lzma.context.next_out = zip->buf;
 		zip->stream.lzma.context.avail_out = (unsigned int)zip->len_buf;
 		break;}
+	case COMPRESSION_XZ:
+		{/* Set compression level 9 as the no-holds barred one */
+		uint32_t lzma_compression_level = zip->compression_level == 9
+			? LZMA_PRESET_EXTREME | zip->compression_level
+			: (uint32_t)zip->compression_level;
+		lzma_ret retval;
+#ifndef HAVE_LZMA_STREAM_ENCODER_MT
+		/* Force the number of threads to one, and thus to a mono-threaded
+		 * encoder in case we don't have the multi-threaded one */
+		zip->threads = 1;
+#endif
+		memset(&zip->stream.lzma.context, 0, sizeof(lzma_stream));
+		/* The XZ check will be arbitrarily set to none: ZIP already has
+		 * a CRC-32 check of its own */
+		if (zip->threads == 1) {
+			/* XZ uses LZMA2. */
+			lzma_filter filters[2] = {
+				{
+					.id = LZMA_FILTER_LZMA2,
+					.options = &zip->stream.lzma.options
+				},
+				{
+					.id = LZMA_VLI_UNKNOWN
+				}
+			};
+			/* Might as well use the lzma_options we already allocated,
+			 * even if we'll never use it after the initialisation */
+			lzma_lzma_preset(&zip->stream.lzma.options, lzma_compression_level);
+			/* 1 thread requested, so non multi-threaded encoder */
+			retval = lzma_stream_encoder(&zip->stream.lzma.context,
+				filters, LZMA_CHECK_NONE);
+		}
+		else {
+			lzma_mt options = {
+				.flags = 0,
+				.block_size = 0,
+				.timeout = 0,
+				.filters = NULL,
+				.check = LZMA_CHECK_NONE,
+				.preset = lzma_compression_level,
+				.threads = zip->threads
+			};
+			/* More than 1 thread requested, so multi-threaded encoder
+			 * which always outputs XZ */
+			retval = lzma_stream_encoder_mt(&zip->stream.lzma.context,
+				&options);
+		}
+		if (retval != LZMA_OK) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't init xz compressor");
+			return (ARCHIVE_FATAL);
+		}
+		zip->stream.lzma.context.next_out = zip->buf;
+		zip->stream.lzma.context.avail_out = (unsigned int)zip->len_buf;
+		break;}
 #endif
 	default:
 		break;
@@ -1369,6 +1516,8 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 			}
 			zip->stream.lzma.headers_to_write = 0;
 		}
+		/* FALLTHROUGH */
+	case COMPRESSION_XZ:
 		zip->stream.lzma.context.next_in = (unsigned char*)(uintptr_t)buff;
 		zip->stream.lzma.context.avail_in = (unsigned int)s;
 		do {
@@ -1469,7 +1618,9 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		break;
 #endif
 #ifdef HAVE_LZMA_H
+	/* XZ and LZMA share clean-up code */
 	case COMPRESSION_LZMA:
+	case COMPRESSION_XZ:
 		finishing = 1;
 		do {
 			size_t remainder;
