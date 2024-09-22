@@ -57,6 +57,7 @@
 #endif
 
 #define _7ZIP_SIGNATURE	"7z\xBC\xAF\x27\x1C"
+#define	_MSI_SIGNATURE	"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
 #define SFX_MIN_ADDR	0x27000
 #define SFX_MAX_ADDR	0x60000
 
@@ -516,6 +517,9 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 	/* If first six bytes are the 7-Zip signature,
 	 * return the bid right now. */
 	if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0)
+		return (48);
+
+	if (memcmp(p, _MSI_SIGNATURE, 8) == 0)
 		return (48);
 
 	/*
