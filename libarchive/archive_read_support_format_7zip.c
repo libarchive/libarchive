@@ -3090,7 +3090,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 		free_StreamsInfo(&(zip->si));
 		memset(&(zip->si), 0, sizeof(zip->si));
 		if (r < 0)
-			return (ARCHIVE_FATAL);
+			return (r);
 		zip->header_is_encoded = 1;
 		zip->header_crc32 = 0;
 		/* FALL THROUGH */
@@ -3543,7 +3543,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 					ARCHIVE_ERRNO_MISC,
 					"The %s is encrypted, "
 					"but currently not supported", cname);
-				return (ARCHIVE_FATAL);
+				return (ARCHIVE_ENCRYPTED);
 			}
 			case _7Z_X86_BCJ2: {
 				found_bcj2++;

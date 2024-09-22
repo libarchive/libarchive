@@ -196,6 +196,7 @@ struct archive_entry;
 #define	ARCHIVE_FAILED	(-25)	/* Current operation cannot complete. */
 /* But if write_header is "fatal," then this archive is dead and useless. */
 #define	ARCHIVE_FATAL	(-30)	/* No more operations are possible. */
+#define	ARCHIVE_ENCRYPTED	(-50)	/* Archive header is encrypted. */
 
 /*
  * As far as possible, archive_errno returns standard platform errno codes.
