@@ -162,7 +162,11 @@ handler(int s)
 	signo[s] = 1;
 }
 
+#ifdef __HAIKU__
+char *
+#else
 static char *
+#endif
 readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 {
 	ssize_t nr;
