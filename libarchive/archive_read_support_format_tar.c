@@ -727,6 +727,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	archive_string_empty(&(tar->entry_pathname));
 	archive_string_empty(&(tar->entry_pathname_override));
 	archive_string_empty(&(tar->entry_uname));
+	archive_string_empty(&tar->entry_linkpath);
 
 	/* Ensure format is set. */
 	if (a->archive.archive_format_name == NULL) {
