@@ -1267,6 +1267,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_basic.c \
 	cpio/test/test_cmdline.c \
 	cpio/test/test_extract_cpio_Z.c \
+	cpio/test/test_extract_cpio_absolute_paths.c \
 	cpio/test/test_extract_cpio_bz2.c \
 	cpio/test/test_extract_cpio_grz.c \
 	cpio/test/test_extract_cpio_gz.c \
