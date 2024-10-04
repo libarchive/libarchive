@@ -538,7 +538,7 @@ archive_read_disk_new(void)
 {
 	struct archive_read_disk *a;
 
-	a = (struct archive_read_disk *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
@@ -2473,7 +2473,7 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 	range.FileOffset.QuadPart = 0;
 	range.Length.QuadPart = entry_size;
 	outranges_size = 2048;
-	outranges = (FILE_ALLOCATED_RANGE_BUFFER *)malloc(outranges_size);
+	outranges = malloc(outranges_size);
 	if (outranges == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 			"Couldn't allocate memory");

@@ -535,8 +535,7 @@ static void write_filter_data(struct rar5* rar, uint32_t offset,
 
 /* Allocates a new filter descriptor and adds it to the filter array. */
 static struct filter_info* add_new_filter(struct rar5* rar) {
-	struct filter_info* f =
-		(struct filter_info*) calloc(1, sizeof(struct filter_info));
+	struct filter_info* f = calloc(1, sizeof(*f));
 
 	if(!f) {
 		return NULL;
@@ -1846,27 +1845,25 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
 		if (file_attr & (ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM)) {
 			char *fflags_text, *ptr;
-			/* allocate for "rdonly,hidden,system," */
-			fflags_text = malloc(22 * sizeof(char));
+			/* allocate for ",rdonly,hidden,system" */
+			fflags_text = malloc(22 * sizeof(*fflags_text));
 			if (fflags_text != NULL) {
 				ptr = fflags_text;
 				if (file_attr & ATTR_READONLY) {
-					strcpy(ptr, "rdonly,");
+					strcpy(ptr, ",rdonly");
 					ptr = ptr + 7;
 				}
 				if (file_attr & ATTR_HIDDEN) {
-					strcpy(ptr, "hidden,");
+					strcpy(ptr, ",hidden");
 					ptr = ptr + 7;
 				}
 				if (file_attr & ATTR_SYSTEM) {
-					strcpy(ptr, "system,");
+					strcpy(ptr, ",system");
 					ptr = ptr + 7;
 				}
 				if (ptr > fflags_text) {
-					/* Delete trailing comma */
-					*(ptr - 1) = '\0';
 					archive_entry_copy_fflags_text(entry,
-					    fflags_text);
+					    fflags_text + 1);
 				}
 				free(fflags_text);
 			}
