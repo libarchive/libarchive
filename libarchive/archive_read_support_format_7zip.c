@@ -767,29 +767,27 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 
 	if (zip_entry->attr & supported_attrs) {
 		char *fflags_text, *ptr;
-		/* allocate for "rdonly,hidden,system," */
-		fflags_text = malloc(22 * sizeof(char));
+		/* allocate for ",rdonly,hidden,system" */
+		fflags_text = malloc(22 * sizeof(*fflags_text));
 		if (fflags_text != NULL) {
 			ptr = fflags_text; 
-			if (zip_entry->attr & FILE_ATTRIBUTE_READONLY) { 
- 			strcpy(ptr, "rdonly,"); 
- 			ptr = ptr + 7; 
- 		} 
- 		if (zip_entry->attr & FILE_ATTRIBUTE_HIDDEN) { 
- 			strcpy(ptr, "hidden,"); 
- 			ptr = ptr + 7; 
- 		} 
- 		if (zip_entry->attr & FILE_ATTRIBUTE_SYSTEM) { 
- 			strcpy(ptr, "system,"); 
- 			ptr = ptr + 7; 
- 		} 
- 		if (ptr > fflags_text) { 
- 			/* Delete trailing comma */ 
- 			*(ptr - 1) = '\0'; 
- 			archive_entry_copy_fflags_text(entry, 
-				fflags_text); 
- 		} 
- 		free(fflags_text); 
+			if (zip_entry->attr & FILE_ATTRIBUTE_READONLY) {
+				strcpy(ptr, ",rdonly");
+				ptr = ptr + 7;
+			}
+			if (zip_entry->attr & FILE_ATTRIBUTE_HIDDEN) {
+				strcpy(ptr, ",hidden");
+				ptr = ptr + 7;
+			}
+			if (zip_entry->attr & FILE_ATTRIBUTE_SYSTEM) {
+				strcpy(ptr, ",system");
+				ptr = ptr + 7;
+			}
+			if (ptr > fflags_text) {
+				archive_entry_copy_fflags_text(entry,
+				    fflags_text + 1);
+			}
+			free(fflags_text);
 		}
 	}
 
