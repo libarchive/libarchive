@@ -631,8 +631,6 @@ archive_read_format_tar_read_data(struct archive_read *a,
 		}
 
 		*buff = __archive_read_ahead(a, 1, &bytes_read);
-		if (bytes_read < 0)
-			return (ARCHIVE_FATAL);
 		if (*buff == NULL) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Truncated tar archive"
@@ -749,8 +747,6 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 
 			/* Read 512-byte header record */
 			h = __archive_read_ahead(a, 512, &bytes);
-			if (bytes < 0)
-				return ((int)bytes);
 			if (bytes == 0) { /* EOF at a block boundary. */
 				if (eof_fatal) {
 					/* We've read a special header already;
@@ -763,7 +759,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 					return (ARCHIVE_EOF);
 				}
 			}
-			if (bytes < 512) {  /* Short block at EOF; this is bad. */
+			if (h == NULL) {  /* Short block at EOF; this is bad. */
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Truncated tar archive"
@@ -1630,6 +1626,9 @@ read_mac_metadata_blob(struct archive_read *a,
 	tar_flush_unconsumed(a, unconsumed);
 	data = __archive_read_ahead(a, msize, NULL);
 	if (data == NULL) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Truncated archive"
+		    " detected while reading macOS metadata");
 		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
 	}
@@ -1817,10 +1816,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			to_read = ext_size;
 		}
 		p = __archive_read_ahead(a, to_read, &did_read);
-		if (did_read < 0) {
-			return ((int)did_read);
-		}
-		if (did_read == 0) { /* EOF */
+		if (p == NULL) { /* EOF */
 			archive_set_error(&a->archive, EINVAL,
 					  "Truncated tar archive"
 					  " detected while reading pax attribute name");
@@ -1917,10 +1913,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		/* Consume the `\n` that follows the pax attribute value. */
 		tar_flush_unconsumed(a, unconsumed);
 		p = __archive_read_ahead(a, 1, &did_read);
-		if (did_read < 0) {
-			return ((int)did_read);
-		}
-		if (did_read == 0) {
+		if (p == NULL) {
 			archive_set_error(&a->archive, EINVAL,
 					  "Truncated tar archive"
 					  " detected while completing pax attribute");
@@ -2302,12 +2295,14 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 						err = ARCHIVE_FAILED;
 					} else {
 						p = __archive_read_ahead(a, value_length, &bytes_read);
-						if (p != NULL) {
-							if (gnu_sparse_01_parse(a, tar, p, value_length) != ARCHIVE_OK) {
-								err = ARCHIVE_WARN;
-							}
-						} else {
+						if (p == NULL) {
+							archive_set_error(&a->archive, EINVAL,
+									  "Truncated archive"
+									  " detected while reading GNU sparse data");
 							return (ARCHIVE_FATAL);
+						}
+						if (gnu_sparse_01_parse(a, tar, p, value_length) != ARCHIVE_OK) {
+							err = ARCHIVE_WARN;
 						}
 					}
 					__archive_read_consume(a, value_length);
@@ -2384,23 +2379,22 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				/* LIBARCHIVE.symlinktype */
 				if (value_length < 16) {
 					p = __archive_read_ahead(a, value_length, &bytes_read);
-					if (p != NULL) {
-						if (value_length == 4 && memcmp(p, "file", 4) == 0) {
-							archive_entry_set_symlink_type(entry,
-								       AE_SYMLINK_TYPE_FILE);
-						} else if (value_length == 3 && memcmp(p, "dir", 3) == 0) {
-							archive_entry_set_symlink_type(entry,
-								       AE_SYMLINK_TYPE_DIRECTORY);
-						} else {
-							archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-									  "Unrecognized symlink type");
-							err = ARCHIVE_WARN;
-						}
-					} else {
+					if (p == NULL) {
 						archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 								  "Truncated tar archive "
 								  "detected while reading `symlinktype` attribute");
 						return (ARCHIVE_FATAL);
+					}
+					if (value_length == 4 && memcmp(p, "file", 4) == 0) {
+						archive_entry_set_symlink_type(entry,
+									       AE_SYMLINK_TYPE_FILE);
+					} else if (value_length == 3 && memcmp(p, "dir", 3) == 0) {
+							archive_entry_set_symlink_type(entry,
+										       AE_SYMLINK_TYPE_DIRECTORY);
+					} else {
+						archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+								  "Unrecognized symlink type");
+						err = ARCHIVE_WARN;
 					}
 				} else {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -2419,8 +2413,13 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					err = ARCHIVE_WARN;
 				} else {
 					p = __archive_read_ahead(a, value_length, &bytes_read);
-					if (p == NULL
-					    || pax_attribute_LIBARCHIVE_xattr(entry, key, key_length, p, value_length)) {
+					if (p == NULL) {
+						archive_set_error(&a->archive, EINVAL,
+								  "Truncated archive"
+								  " detected while reading xattr information");
+						return (ARCHIVE_FATAL);
+					}
+					if (pax_attribute_LIBARCHIVE_xattr(entry, key, key_length, p, value_length)) {
 						/* TODO: Unable to parse xattr */
 						err = ARCHIVE_WARN;
 					}
@@ -2443,8 +2442,13 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				err = ARCHIVE_WARN;
 			} else {
 				p = __archive_read_ahead(a, value_length, &bytes_read);
-				if (p == NULL
-				    || pax_attribute_RHT_security_selinux(entry, p, value_length)) {
+				if (p == NULL) {
+					archive_set_error(&a->archive, EINVAL,
+							  "Truncated archive"
+							  " detected while reading selinux data");
+					return (ARCHIVE_FATAL);
+				}
+				if (pax_attribute_RHT_security_selinux(entry, p, value_length)) {
 					/* TODO: Unable to parse xattr */
 					err = ARCHIVE_WARN;
 				}
@@ -2491,13 +2495,15 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			else if (key_length == 6 && memcmp(key, "fflags", 6) == 0) {
 				if (value_length < fflags_limit) {
 					p = __archive_read_ahead(a, value_length, &bytes_read);
-					if (p != NULL) {
-						archive_entry_copy_fflags_text_len(entry, p, value_length);
-						err = ARCHIVE_OK;
-					} else {
+					if (p == NULL) {
 						/* Truncated archive */
-						err = ARCHIVE_FATAL;
+						archive_set_error(&a->archive, EINVAL,
+								  "Truncated archive"
+								  " detected while reading SCHILY.fflags");
+						return (ARCHIVE_FATAL);
 					}
+					archive_entry_copy_fflags_text_len(entry, p, value_length);
+					err = ARCHIVE_OK;
 				} else {
 					/* Overlong fflags field */
 					err = ARCHIVE_WARN;
@@ -2536,8 +2542,13 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				key += 6;
 				if (value_length < xattr_limit) {
 					p = __archive_read_ahead(a, value_length, &bytes_read);
-					if (p == NULL
-					    || pax_attribute_SCHILY_xattr(entry, key, key_length, p, value_length)) {
+					if (p == NULL) {
+						archive_set_error(&a->archive, EINVAL,
+								  "Truncated archive"
+								  " detected while reading SCHILY.xattr");
+						return (ARCHIVE_FATAL);
+					}
+					if (pax_attribute_SCHILY_xattr(entry, key, key_length, p, value_length)) {
 						/* TODO: Unable to parse xattr */
 						err = ARCHIVE_WARN;
 					}
@@ -2560,15 +2571,17 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				/* SUN.holesdata */
 				if (value_length < sparse_map_limit) {
 					p = __archive_read_ahead(a, value_length, &bytes_read);
-					if (p != NULL) {
-						err = pax_attribute_SUN_holesdata(a, tar, entry, p, value_length);
-						if (err < ARCHIVE_OK) {
-							archive_set_error(&a->archive,
-									  ARCHIVE_ERRNO_MISC,
-									  "Parse error: SUN.holesdata");
-						}
-					} else {
+					if (p == NULL) {
+						archive_set_error(&a->archive, EINVAL,
+								  "Truncated archive"
+								  " detected while reading SUN.holesdata");
 						return (ARCHIVE_FATAL);
+					}
+					err = pax_attribute_SUN_holesdata(a, tar, entry, p, value_length);
+					if (err < ARCHIVE_OK) {
+						archive_set_error(&a->archive,
+								  ARCHIVE_ERRNO_MISC,
+								  "Parse error: SUN.holesdata");
 					}
 				} else {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -2621,25 +2634,24 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		if (key_length == 10 && memcmp(key, "hdrcharset", 10) == 0) {
 			if (value_length < 64) {
 				p = __archive_read_ahead(a, value_length, &bytes_read);
-				if (p != NULL) {
-					if (value_length == 6
-					    && memcmp(p, "BINARY", 6) == 0) {
-						/* Binary  mode. */
-						tar->pax_hdrcharset_utf8 = 0;
-						err = ARCHIVE_OK;
-					} else if (value_length == 23
-						   && memcmp(p, "ISO-IR 10646 2000 UTF-8", 23) == 0) {
-						tar->pax_hdrcharset_utf8 = 1;
-						err = ARCHIVE_OK;
-					} else {
-						/* TODO: Unrecognized character set */
-						err  = ARCHIVE_WARN;
-					}
-				} else {
+				if (p == NULL) {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 							  "Truncated tar archive "
 							  "detected while reading hdrcharset attribute");
 					return (ARCHIVE_FATAL);
+				}
+				if (value_length == 6
+				    && memcmp(p, "BINARY", 6) == 0) {
+					/* Binary  mode. */
+					tar->pax_hdrcharset_utf8 = 0;
+					err = ARCHIVE_OK;
+				} else if (value_length == 23
+					   && memcmp(p, "ISO-IR 10646 2000 UTF-8", 23) == 0) {
+					tar->pax_hdrcharset_utf8 = 1;
+					err = ARCHIVE_OK;
+				} else {
+					/* TODO: Unrecognized character set */
+					err  = ARCHIVE_WARN;
 				}
 			} else {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -2973,9 +2985,7 @@ gnu_sparse_old_read(struct archive_read *a, struct tar *tar,
 	do {
 		tar_flush_unconsumed(a, unconsumed);
 		data = __archive_read_ahead(a, 512, &bytes_read);
-		if (bytes_read < 0)
-			return (ARCHIVE_FATAL);
-		if (bytes_read < 512) {
+		if (data == NULL) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated tar archive "
 			    "detected while reading sparse file data");
@@ -3395,7 +3405,7 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 	tar_flush_unconsumed(a, unconsumed);
 
 	t = __archive_read_ahead(a, 1, &bytes_read);
-	if (bytes_read <= 0)
+	if (bytes_read <= 0 || t == NULL)
 		return (ARCHIVE_FATAL);
 	s = t;  /* Start of line? */
 	p = memchr(t, '\n', bytes_read);
@@ -3436,7 +3446,7 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 		}
 		/* Read some more. */
 		t = __archive_read_ahead(a, 1, &bytes_read);
-		if (bytes_read <= 0)
+		if (bytes_read <= 0 || t == NULL)
 			return (ARCHIVE_FATAL);
 		s = t;  /* Start of line? */
 		p = memchr(t, '\n', bytes_read);
