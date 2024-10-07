@@ -7,47 +7,34 @@
 #include "test.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-
-#include <fileapi.h>
-
 #define UNLINK _unlink
-
 #else
-
 #define UNLINK unlink
-
 #endif
 
 DEFINE_TEST(test_extract_cpio_absolute_paths)
 {
 	int r;
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	char temp_dir[MAX_PATH + 1];
-	assert(GetTempPathA(MAX_PATH + 1, temp_dir) != 0);
+	// Create an absolute path for a test file inside testworkdir.
+	char *entry_suffix = "/cpio-noabs";
+	size_t entry_suffix_length = strlen(entry_suffix);
+	size_t testworkdir_length = strlen(testworkdir);
+	size_t temp_absolute_file_name_length = testworkdir_length + entry_suffix_length;
+	char *temp_absolute_file_name = calloc(1, temp_absolute_file_name_length + 1); // +1 for null character.
+	assertEqualInt(snprintf(temp_absolute_file_name, temp_absolute_file_name_length + 1, "%s%s", testworkdir, entry_suffix),
+		temp_absolute_file_name_length);
 
-	char temp_file_name[MAX_PATH + 1];
-	char temp_absolute_file_name[MAX_PATH + 1];
-	assert(GetTempFileNameA(temp_dir, "abs", 0, temp_file_name) != 0);
-
-	assert(_fullpath(temp_absolute_file_name, temp_file_name, MAX_PATH) != NULL);
-#else
-	char temp_absolute_file_name[] = "/tmp/cpio-noabs.testXXXXXX";
-	mkstemp(temp_absolute_file_name);
-#endif
-
-	UNLINK(temp_absolute_file_name);
-
+	// Create the file.
 	const char *sample_data = "test file from test_extract_cpio_absolute_paths";
-
-	assertMakeFile("filelist", 0644, temp_absolute_file_name);
 	assertMakeFile(temp_absolute_file_name, 0644, sample_data);
 
-	// Create an archive with the absolute path.
+	// Create an archive with the test file, using an absolute path.
+	assertMakeFile("filelist", 0644, temp_absolute_file_name);
 	r = systemf("%s -o < filelist > archive.cpio 2> stderr1.txt", testprog);
-	UNLINK("filelist");
 	assertEqualInt(r, 0);
 
 	// Ensure that the temp file does not exist.
@@ -63,5 +50,4 @@ DEFINE_TEST(test_extract_cpio_absolute_paths)
 	r = systemf("%s -i --insecure < archive.cpio 2> stderr3.txt", testprog);
 	assert(r == 0);
 	assertFileExists(temp_absolute_file_name);
-	UNLINK(temp_absolute_file_name);
 }
