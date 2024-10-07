@@ -42,7 +42,7 @@ DEFINE_TEST(test_extract_cpio_absolute_paths)
 
 	// We should refuse to create the absolute path without --insecure.
 	r = systemf("%s -i < archive.cpio 2> stderr2.txt", testprog);
-	//assert(r != 0); // Should this command fail?
+	assert(r != 0);
 	assertFileNotExists(temp_absolute_file_name);
 	UNLINK(temp_absolute_file_name); // Cleanup just in case.
 

@@ -44,7 +44,7 @@ DEFINE_TEST(test_option_d)
 	assertMakeDir("without-d", 0755);
 	assertChdir("without-d");
 	r = systemf("%s -i < ../archive.cpio >out 2>err", testprog);
-	assertEqualInt(r, 0);
+	assert(r != 0);
 	assertEmptyFile("out");
 	/* And the file should not be restored. */
 	assertFileNotExists("dir/file");
