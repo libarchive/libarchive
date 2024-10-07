@@ -6,19 +6,13 @@
 
 #include "test.h"
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-
-#include <fileapi.h>
-
-#define UNLINK _unlink
-
-#else
-
 #include <stdlib.h>
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define UNLINK _unlink
+#else
 #include <unistd.h>
-
 #define UNLINK unlink
-
 #endif
 
 /*
@@ -40,27 +34,19 @@ DEFINE_TEST(test_write_disk_secure_noabsolutepaths)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	char temp_dir[MAX_PATH + 1];
-	assert(GetTempPathA(MAX_PATH + 1, temp_dir) != 0);
+	// Create an absolute path for a test file inside testworkdir.
+	char *entry_suffix = "/badfile";
+	size_t entry_suffix_length = strlen(entry_suffix);
+	size_t testworkdir_length = strlen(testworkdir);
+	size_t temp_absolute_file_name_length = testworkdir_length + entry_suffix_length;
+	char *temp_absolute_file_name = calloc(1, temp_absolute_file_name_length + 1); // +1 for null character.
+	assertEqualInt(snprintf(temp_absolute_file_name, temp_absolute_file_name_length + 1, "%s%s", testworkdir, entry_suffix),
+		temp_absolute_file_name_length);
 
-	char temp_file_name[MAX_PATH + 1];
-	char temp_absolute_file_name[MAX_PATH + 1];
-	assert(GetTempFileNameA(temp_dir, "abs", 0, temp_file_name) != 0);
-
-	assert(_fullpath(temp_absolute_file_name, temp_file_name, MAX_PATH) != NULL);
-
-	// Convert to a unix-style path.
+	// Convert to a unix-style path, so we can compare it to the entry
+	// path when reading back the archive.
 	for (char *p = temp_absolute_file_name; *p != '\0'; p++)
 		if (*p == '\\') *p = '/';
-
-#else
-	char temp_absolute_file_name[] = "/tmp/noabs.testXXXXXX";
-	mkstemp(temp_absolute_file_name);
-#endif
-
-	// Ensure that the target file does not exist.
-	UNLINK(temp_absolute_file_name);
 
 	// Add a regular file entry with an absolute path.
 	assert((ae = archive_entry_new()) != NULL);
