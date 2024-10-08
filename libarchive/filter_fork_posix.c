@@ -65,7 +65,7 @@
 #  include <unistd.h>
 #endif
 
-#if defined(HAVE_POSIX_SPAWNP)
+#if defined(HAVE_POSIX_SPAWNP) && defined(__FreeBSD__)
 extern char *const environ[];
 #endif
 
