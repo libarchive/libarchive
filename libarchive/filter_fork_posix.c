@@ -65,6 +65,10 @@
 #  include <unistd.h>
 #endif
 
+#if defined(HAVE_POSIX_SPAWNP)
+extern char *const environ[];
+#endif
+
 #include "archive.h"
 #include "archive_cmdline_private.h"
 
@@ -137,7 +141,7 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 			goto actions_inited;
 	}
 	r = posix_spawnp(&child, cmdline->path, &actions, NULL,
-		cmdline->argv, NULL);
+		cmdline->argv, environ);
 	if (r != 0)
 		goto actions_inited;
 	posix_spawn_file_actions_destroy(&actions);
