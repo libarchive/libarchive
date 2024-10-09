@@ -833,9 +833,20 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 			zip_entry->mode |= AE_IFREG;
 			archive_entry_set_mode(entry, zip_entry->mode);
 		} else {
+			struct archive_string_conv* utf8_conv;
+
 			symname[symsize] = '\0';
-			archive_entry_copy_symlink(entry,
-			    (const char *)symname);
+
+			/* Symbolic links are embedded as UTF-8 strings */
+			utf8_conv = archive_string_conversion_from_charset(&a->archive,
+			    "UTF-8", 1);
+			if (utf8_conv == NULL) {
+				free(symname);
+				return ARCHIVE_FATAL;
+			}
+
+			archive_entry_copy_symlink_l(entry, (const char*)symname, symsize,
+			    utf8_conv);
 		}
 		free(symname);
 		archive_entry_set_size(entry, 0);
