@@ -1371,7 +1371,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   char unp_size[8];
   int ttime;
   struct archive_string_conv *sconv, *fn_sconv;
-  unsigned long crc32_val;
+  uint32_t crc32_computed, crc32_read;
   int ret = (ARCHIVE_OK), ret2;
   char *newptr;
   size_t newsize;
@@ -1402,7 +1402,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       "Invalid header size");
     return (ARCHIVE_FATAL);
   }
-  crc32_val = crc32(0, (const unsigned char *)p + 2, 7 - 2);
+  crc32_computed = crc32(0, (const unsigned char *)p + 2, 7 - 2);
   __archive_read_consume(a, 7);
 
   if (!(rar->file_flags & FHD_SOLID))
@@ -1436,8 +1436,9 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     return (ARCHIVE_FATAL);
 
   /* File Header CRC check. */
-  crc32_val = crc32(crc32_val, h, (unsigned)(header_size - 7));
-  if ((crc32_val & 0xffff) != archive_le16dec(rar_header.crc)) {
+  crc32_computed = crc32(crc32_computed, h, (unsigned)(header_size - 7));
+  crc32_read = archive_le16dec(rar_header.crc);
+  if ((crc32_computed & 0xffff) != crc32_read) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
       "Header CRC error");
