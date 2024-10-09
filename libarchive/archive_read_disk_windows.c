@@ -49,6 +49,8 @@
 /* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
+/* To deal with absolute symlink isuues */
+#define START_ABSOLUTE_SYMLINK_REPARSE L"\\??\\"
 
 /*-
  * This is a new directory-walking system that addresses a number
@@ -375,7 +377,7 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname, int *linktype)
 		return (-1);
 	}
 
-	tbuf = malloc(len + 1 * sizeof(wchar_t));
+	tbuf = malloc(len + sizeof(wchar_t));
 	if (tbuf == NULL) {
 		free(indata);
 		return (-1);
@@ -386,17 +388,20 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname, int *linktype)
 	free(indata);
 
 	tbuf[len / sizeof(wchar_t)] = L'\0';
+	if (wcsncmp(tbuf, START_ABSOLUTE_SYMLINK_REPARSE, 4) == 0) {
+		/* Absolute symlink, so we'll change the NT path into a verbatim one */
+		tbuf[1] = L'\\';
+	} else {
+		/* Relative symlink, so we can translate backslashes to slashes */
+		wchar_t *temp = tbuf;
+		do {
+			if (*temp == L'\\')
+				*temp = L'/';
+			temp++;
+		} while(*temp != L'\0');
+	}
 
 	*linkname = tbuf;
-
-	/*
-	 * Translate backslashes to slashes for libarchive internal use
-	 */
-	while(*tbuf != L'\0') {
-		if (*tbuf == L'\\')
-			*tbuf = L'/';
-		tbuf++;
-	}
 
 	if ((st.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
 		*linktype = AE_SYMLINK_TYPE_FILE;
