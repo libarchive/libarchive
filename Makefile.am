@@ -365,6 +365,7 @@ libarchive_test_SOURCES= \
 	$(test_utils_SOURCES) \
 	libarchive/test/read_open_memory.c \
 	libarchive/test/test.h \
+	libarchive/test/test_7zip_filename_encoding.c \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_pax.c \
 	libarchive/test/test_acl_platform_nfs4.c \
