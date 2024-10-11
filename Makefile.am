@@ -510,6 +510,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_mtree_crash747.c \
 	libarchive/test/test_read_format_pax_bz2.c \
 	libarchive/test/test_read_format_rar.c \
+	libarchive/test/test_read_format_rar_encryption.c \
 	libarchive/test/test_read_format_rar_encryption_data.c \
 	libarchive/test/test_read_format_rar_encryption_partially.c \
 	libarchive/test/test_read_format_rar_encryption_header.c \
@@ -888,6 +889,14 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_subblock.rar.uu \
 	libarchive/test/test_read_format_rar_unicode.rar.uu \
 	libarchive/test/test_read_format_rar_windows.rar.uu \
+	libarchive/test/test_read_format_rar4_encrypted.rar.uu \
+	libarchive/test/test_read_format_rar4_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar4_solid_encrypted.rar.uu \
+	libarchive/test/test_read_format_rar4_solid_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar5_encrypted.rar.uu \
+	libarchive/test/test_read_format_rar5_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar5_solid_encrypted.rar.uu \
+	libarchive/test/test_read_format_rar5_solid_encrypted_filenames.rar.uu \
 	libarchive/test/test_read_format_rar5_arm.rar.uu \
 	libarchive/test/test_read_format_rar5_blake2.rar.uu \
 	libarchive/test/test_read_format_rar5_compressed.rar.uu \
