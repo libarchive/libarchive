@@ -984,12 +984,11 @@ write_entry(struct bsdtar *bsdtar, struct archive *a,
 			safe_fprintf(stderr, "a ");
 			list_item_verbose(bsdtar, stderr, entry);
 			lafe_warnc(0, ": %s", archive_error_string(a));
-		} else if (bsdtar->verbose > 0) {
+		} else {
 			lafe_warnc(0, "%s: %s",
 			    archive_entry_pathname(entry),
 			    archive_error_string(a));
-		} else
-			fprintf(stderr, ": %s", archive_error_string(a));
+		}
 	}
 
 	if (e == ARCHIVE_FATAL)
