@@ -154,6 +154,7 @@ IF(ENABLE_TEST)
     test_read_format_mtree_crash747.c
     test_read_format_pax_bz2.c
     test_read_format_rar.c
+    test_read_format_rar_encryption.c
     test_read_format_rar_encryption_data.c
     test_read_format_rar_encryption_header.c
     test_read_format_rar_encryption_partially.c
