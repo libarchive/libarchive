@@ -1036,16 +1036,14 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	int64_t type;
 	char *acl, *p;
 
-	/*
-	 * read_body_to_string adds a NUL terminator, but we need a little
-	 * more to make sure that we don't overrun acl_text later.
-	 */
 	header = (const struct archive_entry_header_ustar *)h;
 	size = (size_t)tar_atol(header->size, sizeof(header->size));
 	archive_string_init(&acl_text);
 	err = read_body_to_string(a, tar, &acl_text, h, unconsumed);
-	if (err != ARCHIVE_OK)
+	if (err != ARCHIVE_OK) {
+		archive_string_free(&acl_text);
 		return (err);
+	}
 
 	/* TODO: Examine the first characters to see if this
 	 * is an AIX ACL descriptor.  We'll likely never support
@@ -1899,6 +1897,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		name_length = p - name_start;
 		p++; // Skip '='
 
+		// Save the name before we consume it
 		archive_strncpy(&attr_name, name_start, name_length);
 
 		ext_size -= p - attr_start;
@@ -1911,6 +1910,9 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		/* pax_attribute will consume value_length - 1 */
 		r = pax_attribute(a, tar, entry, attr_name.s, archive_strlen(&attr_name), value_length - 1, unconsumed);
 		ext_size -= value_length - 1;
+
+		// Release the allocated attr_name (either here or before every return in this function)
+		archive_string_free(&attr_name);
 
 		if (r < ARCHIVE_WARN) {
 			*unconsumed += ext_size + ext_padding;
@@ -1937,7 +1939,6 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		*unconsumed += 1;
 		tar_flush_unconsumed(a, unconsumed);
 	}
-	archive_string_free(&attr_name);
 	*unconsumed += ext_size + ext_padding;
 
 	/*
