@@ -1005,7 +1005,12 @@ checksum(struct archive_read *a, const void *h)
 	if (sum == check)
 		return (1);
 
+#if DONT_FAIL_ON_CRC_ERROR
+	/* Speed up fuzzing by pretending the checksum is always right. */
+	return (1);
+#else
 	return (0);
+#endif
 }
 
 /*
