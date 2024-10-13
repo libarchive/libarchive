@@ -108,6 +108,11 @@ case "$host_os" in
 esac
 AC_SUBST(PLATFORMCPPFLAGS)
 
+dnl Linking on Haiku needs libbsd because of readpassphrase
+case "$host_os" in
+  haiku*) LIBS="-lbsd $LIBS" ;;
+esac
+
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O
