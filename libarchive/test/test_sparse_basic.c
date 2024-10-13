@@ -71,8 +71,11 @@ static void create_sparse_file(const char *, const struct sparse *);
  * does support sparse files is certain to store a gap this big
  * as a hole. */
 /* A few data points:
- * ZFS on FreeBSD needs this to be at least 200kB */
-/* macOS APFS needs this to be at 4096x4097 bytes */
+ * = ZFS on FreeBSD needs this to be at least 200kB
+ * = macOS APFS needs this to be at least 4096x4097 bytes
+ *
+ * 32MiB here is bigger than either of the above.
+ */
 #define MIN_HOLE (32 * 1024UL * 1024UL)
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
