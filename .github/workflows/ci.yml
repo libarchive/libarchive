@@ -7,7 +7,7 @@ permissions:
 
 jobs:
   MacOS:
-    runs-on: macos-13
+    runs-on: macos-15
     strategy:
       matrix:
         bs: [autotools, cmake]
