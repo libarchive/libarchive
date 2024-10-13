@@ -35,7 +35,7 @@ DEFINE_TEST(test_write_disk_secure_noabsolutepaths)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	// Create an absolute path for a test file inside testworkdir.
-	char *entry_suffix = "/badfile";
+	const char *entry_suffix = "/badfile";
 	size_t entry_suffix_length = strlen(entry_suffix);
 	size_t testworkdir_length = strlen(testworkdir);
 	size_t temp_absolute_file_name_length = testworkdir_length + entry_suffix_length;
