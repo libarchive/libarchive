@@ -123,7 +123,7 @@ The library can create archives in any of the following formats:
   * GNU and BSD 'ar' archives
   * 'mtree' format
   * ISO9660 format
-  * 7-Zip archives
+  * 7-Zip archives (including archives that use zstandard compression)
   * XAR archives
 
 When creating archives, the result can be filtered with any of the following:
