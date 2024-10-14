@@ -3605,7 +3605,7 @@ set_time_tru64(int fd, int mode, const char *name,
 	tstamp.atime.tv_sec = atime;
 	tstamp.mtime.tv_sec = mtime;
 	tstamp.ctime.tv_sec = ctime;
-#if defined (__hpux) && defined (__ia64)
+#if defined (__hpux) && ( defined (__ia64) || defined (__hppa) )
 	tstamp.atime.tv_nsec = atime_nsec;
 	tstamp.mtime.tv_nsec = mtime_nsec;
 	tstamp.ctime.tv_nsec = ctime_nsec;
