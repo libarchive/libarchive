@@ -644,6 +644,9 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_zip.c \
 	libarchive/test/test_write_format_zip64_stream.c \
 	libarchive/test/test_write_format_zip_compression_store.c \
+	libarchive/test/test_write_format_zip_compression_zstd.c \
+	libarchive/test/test_write_format_zip_compression_bzip2.c \
+	libarchive/test/test_write_format_zip_compression_lzmaxz.c \
 	libarchive/test/test_write_format_zip_empty.c \
 	libarchive/test/test_write_format_zip_empty_zip64.c \
 	libarchive/test/test_write_format_zip_entry_size_unset.c \
