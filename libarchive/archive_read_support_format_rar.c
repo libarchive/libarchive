@@ -2803,7 +2803,7 @@ make_table(struct archive_read *a, struct huffman_code *code)
   else
     code->tablesize = code->maxlength;
 
-  code->table = calloc(1U << code->tablesize, sizeof(*code->table));
+  code->table = calloc(((size_t)1U) << code->tablesize, sizeof(*code->table));
 
   return make_table_recurse(a, code, 0, code->table, 0, code->tablesize);
 }
