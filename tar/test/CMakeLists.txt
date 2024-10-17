@@ -29,6 +29,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_format_newc.c
     test_help.c
     test_leading_slash.c
+    test_mac_metadata_zip.c
     test_missing_file.c
     test_option_C_upper.c
     test_option_C_mtree.c
