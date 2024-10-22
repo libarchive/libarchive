@@ -274,9 +274,10 @@ The value is one of
 .Dq deflate ,
 .Dq bzip2 ,
 .Dq lzma1 ,
-.Dq lzma2
+.Dq lzma2 ,
+.Dq ppmd ,
 or
-.Dq ppmd
+.Dq zstd
 to indicate how the following entries should be compressed.
 The values
 .Dq store
@@ -289,7 +290,9 @@ and other special entries.
 The value is interpreted as a decimal integer specifying the
 compression level.
 Values between 0 and 9 are supported, with the exception of bzip2
-which only supports values between 1 and 9.
+which only supports values between 1 and 9, and zstd which may
+support negative values depending on the library version and
+commonly used values 1 through 22.
 The interpretation of the compression level depends on the chosen
 compression method.
 .El
