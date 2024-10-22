@@ -82,7 +82,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 	int length, n;
 	va_list ap;
 	const char *p;
-	unsigned i;
+	size_t i;
 	wchar_t wc;
 	char try_wc;
 
@@ -153,13 +153,13 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 			} else {
 				/* Not printable, format the bytes. */
 				while (n-- > 0)
-					i += (unsigned)bsdtar_expand_char(
+					i += bsdtar_expand_char(
 					    outbuff, sizeof(outbuff), i, *p++);
 			}
 		} else {
 			/* After any conversion failure, don't bother
 			 * trying to convert the rest. */
-			i += (unsigned)bsdtar_expand_char(outbuff, sizeof(outbuff), i, *p++);
+			i += bsdtar_expand_char(outbuff, sizeof(outbuff), i, *p++);
 			try_wc = 0;
 		}
 
