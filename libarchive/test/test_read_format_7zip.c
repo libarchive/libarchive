@@ -30,7 +30,6 @@
 #endif
 
 #define __LIBARCHIVE_BUILD
-#include <archive_crc32.h>
 
 /*
  * Extract a non-encoded file.
@@ -402,7 +401,7 @@ test_extract_file_zstd_bcj_nobjc(const char *refname)
 		la_ssize_t bytes_read = archive_read_data(a, buff, sizeof(buff));
 		assert(bytes_read >= 0);
 		if (bytes_read == 0) break;
-		computed_crc = crc32(computed_crc, buff, bytes_read);
+		computed_crc = bitcrc32(computed_crc, buff, bytes_read);
 	}
 	assertEqualInt(computed_crc, expected_crc);
 
@@ -1063,7 +1062,7 @@ test_arm_filter(const char *refname)
 	assertEqualString("hw-gnueabihf", archive_entry_pathname(ae));
 	assertEqualInt(sizeof(buff), archive_entry_size(ae));
 	assertEqualInt(sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
-	computed_crc = crc32(computed_crc, buff, sizeof(buff));
+	computed_crc = bitcrc32(computed_crc, buff, sizeof(buff));
 	assertEqualInt(computed_crc, expected_crc);
 
 	assertEqualInt(1, archive_file_count(a));
@@ -1137,7 +1136,7 @@ test_arm64_filter(const char *refname)
 	assertEqualString("hw-arm64", archive_entry_pathname(ae));
 	assertEqualInt(sizeof(buff), archive_entry_size(ae));
 	assertEqualInt(sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
-	computed_crc = crc32(computed_crc, buff, sizeof(buff));
+	computed_crc = bitcrc32(computed_crc, buff, sizeof(buff));
 	assertEqualInt(computed_crc, expected_crc);
 
 	assertEqualInt(1, archive_file_count(a));

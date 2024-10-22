@@ -46,38 +46,6 @@ static const short folder_gid = 40;
 static unsigned i2(const char *p) { return ((p[0] & 0xff) | ((p[1] & 0xff) << 8)); }
 static unsigned i4(const char *p) { return (i2(p) | (i2(p + 2) << 16)); }
 
-static unsigned long
-bitcrc32(unsigned long c, const void *_p, size_t s)
-{
-	/* This is a drop-in replacement for crc32() from zlib.
-	 * Libarchive should be able to correctly generate
-	 * uncompressed zip archives (including correct CRCs) even
-	 * when zlib is unavailable, and this function helps us verify
-	 * that.  Yes, this is very, very slow and unsuitable for
-	 * production use, but it's correct, compact, and works well
-	 * enough for this particular usage.  Libarchive internally
-	 * uses a much more efficient implementation.  */
-	const unsigned char *p = _p;
-	int bitctr;
-
-	if (p == NULL)
-		return (0);
-
-	for (; s > 0; --s)
-	{
-		c ^= *p++;
-		for (bitctr = 8; bitctr > 0; --bitctr)
-		{
-			if (c & 1)
-				c = (c >> 1);
-			else
-				c = (c >> 1) ^ 0xedb88320;
-			c ^= 0x80000000;
-		}
-	}
-	return (c);
-}
-
 static void write_archive(struct archive *a)
 {
 	struct archive_entry *entry = archive_entry_new();
