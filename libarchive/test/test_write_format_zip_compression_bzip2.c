@@ -343,8 +343,12 @@ static void verify_bzip2_contents(const char *buff, size_t used)
 	archive_read_free(zip_archive);
 }
 
+#endif /* HAVE_BZLIB_H */
 DEFINE_TEST(test_write_format_zip_compression_bzip2)
 {
+#ifndef HAVE_BZLIB_H
+	skipping("bzip2 is not fully supported on this platform");
+#else /* HAVE_BZLIB_H */
 	/* Buffer data */
 	struct archive *a;
 	char buff[100000];
@@ -398,5 +402,5 @@ DEFINE_TEST(test_write_format_zip_compression_bzip2)
 	dumpfile("constructed.zip", buff, used);
 
 	verify_bzip2_contents(buff, used);
+#endif /* HAVE_BZLIB_H */
 }
-#endif
