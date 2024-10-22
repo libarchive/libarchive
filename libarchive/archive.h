@@ -828,6 +828,10 @@ __LA_DECL int archive_write_set_format_filter_by_ext(struct archive *a, const ch
 __LA_DECL int archive_write_set_format_filter_by_ext_def(struct archive *a, const char *filename, const char * def_ext);
 __LA_DECL int archive_write_zip_set_compression_deflate(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_store(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_lzma(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_xz(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_bzip2(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_zstd(struct archive *);
 /* Deprecated; use archive_write_open2 instead */
 __LA_DECL int archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,
