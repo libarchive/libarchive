@@ -328,8 +328,12 @@ static void verify_lzma_contents(const char *buff, size_t used)
 	verify_xz_lzma(buff, used, 14, 0xA);
 }
 
+#endif /* HAVE_LZMA_H */
 DEFINE_TEST(test_write_format_zip_compression_lzmaxz)
 {
+#ifndef HAVE_LZMA_H
+	skipping("lzma is not fully supported on this platform");
+#else /* HAVE_LZMA_H */
 	/* Buffer data */
 	struct archive *a;
 	char buff[100000];
@@ -434,5 +438,6 @@ DEFINE_TEST(test_write_format_zip_compression_lzmaxz)
 	dumpfile("constructed.zip", buff, used);
 
 	verify_xz_contents(buff, used);
+#endif /* HAVE_LZMA_H */
 }
-#endif
+
