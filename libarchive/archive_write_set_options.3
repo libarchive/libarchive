@@ -295,6 +295,11 @@ support negative values depending on the library version and
 commonly used values 1 through 22.
 The interpretation of the compression level depends on the chosen
 compression method.
+.It Cm threads
+The value is interpreted as a decimal integer specifying the
+number of threads for multi-threaded compression (for compressors
+like zstd that support it). If set to 0, an attempt will be made
+to discover the number of CPU cores.
 .El
 .It Format bin
 .Bl -tag -compact -width indent
