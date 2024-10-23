@@ -238,6 +238,7 @@ OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
 OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
 OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
+OPTION(ENABLE_WIN32_XMLLITE "Enable the use of the Windows XmlLite library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
 OPTION(ENABLE_PCRE2POSIX "Enable the use of the system PCRE2POSIX library if found" ON)
 OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
@@ -1263,6 +1264,25 @@ ELSE(LIBXML2_FOUND)
     SET(HAVE_LIBEXPAT 1)
     LA_CHECK_INCLUDE_FILE("expat.h" HAVE_EXPAT_H)
     CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
+  ELSE(EXPAT_FOUND)
+    IF(WIN32 AND ENABLE_WIN32_XMLLITE)
+      # Check linkage as well; versions of mingw-w64 before 5ac1a2c
+      # do not contain an import library for xmllite.
+      cmake_push_check_state()
+      SET(CMAKE_REQUIRED_LIBRARIES "xmllite")
+      check_c_source_compiles("
+      #include <initguid.h>
+      #include <xmllite.h>
+      int main() {
+        return CreateXmlReader(&IID_IXmlReader, NULL, NULL);
+      }
+      " HAVE_XMLLITE_H)
+      cmake_pop_check_state()
+      IF(HAVE_XMLLITE_H)
+        SET(XMLLITE_FOUND TRUE)
+        LIST(APPEND ADDITIONAL_LIBS "xmllite")
+      ENDIF()
+    ENDIF()
   ENDIF(EXPAT_FOUND)
 ENDIF(LIBXML2_FOUND)
 MARK_AS_ADVANCED(CLEAR LIBXML2_INCLUDE_DIR)

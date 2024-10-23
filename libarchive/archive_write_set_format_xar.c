@@ -37,6 +37,11 @@
 #if defined(LIBXML_VERSION) && LIBXML_VERSION >= 20703
 #define XAR_WRITER_HAS_XML
 #endif /* LIBXML_VERSION */
+#elif HAVE_XMLLITE_H
+#include <objidl.h>
+#include <initguid.h>
+#include <xmllite.h>
+#define XAR_WRITER_HAS_XML
 #endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
@@ -78,7 +83,7 @@
 	!defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
 /*
  * xar needs several external libraries.
- *   o libxml2
+ *   o libxml2 or xmllite (on Windows)
  *   o openssl or MD5/SHA1 hash function
  *   o zlib
  *   o bzlib2 (option)
@@ -3417,6 +3422,267 @@ xml_writer_get_final_content_and_length(struct xml_writer *ctx,
 	*size = (size_t)ctx->bp->use;
 	return (0);
 }
+
+#elif HAVE_XMLLITE_H
+
+struct xml_writer {
+	IXmlWriter *writer;
+	IStream *stream;
+	HGLOBAL global;
+};
+
+static int
+xml_writer_create(struct xml_writer **pctx) {
+	struct xml_writer *ctx;
+	HRESULT hr;
+
+	ctx = calloc(1, sizeof(struct xml_writer));
+	if (ctx == NULL) {
+		return (E_OUTOFMEMORY);
+	}
+
+	hr = CreateStreamOnHGlobal(NULL, TRUE, &ctx->stream);
+	if (FAILED(hr)) {
+		free(ctx);
+		return (hr);
+	}
+
+	hr = CreateXmlWriter(&IID_IXmlWriter, (void **)&ctx->writer, NULL);
+	if (FAILED(hr)) {
+		ctx->stream->lpVtbl->Release(ctx->stream);
+		free(ctx);
+		return (hr);
+	}
+
+	hr = ctx->writer->lpVtbl->SetOutput(ctx->writer,
+	    (IUnknown *)ctx->stream);
+	if (FAILED(hr)) {
+		ctx->stream->lpVtbl->Release(ctx->stream);
+		ctx->writer->lpVtbl->Release(ctx->writer);
+		free(ctx);
+		return (hr);
+	}
+
+	*pctx = ctx;
+	return (S_OK);
+}
+
+static int
+xml_writer_destroy(struct xml_writer *ctx) {
+	if (ctx->global)
+		GlobalUnlock(ctx->global);
+	ctx->writer->lpVtbl->Release(ctx->writer); /* Destroys only writer */
+	ctx->stream->lpVtbl->Release(ctx->stream); /* Destroys stream, global */
+	free(ctx);
+	return (S_OK);
+}
+
+static int
+xml_writer_start_document(struct xml_writer *ctx) {
+	return ctx->writer->lpVtbl->WriteStartDocument(ctx->writer,
+	    XmlStandalone_Omit);
+}
+
+static int
+xml_writer_end_document(struct xml_writer *ctx) {
+	return ctx->writer->lpVtbl->WriteEndDocument(ctx->writer);
+}
+
+static int
+xml_writer_set_indent(struct xml_writer *ctx, unsigned int indent) {
+	/* Windows' xmllite does not support indent sizes; will always be 2 */
+	(void)indent;
+	return ctx->writer->lpVtbl->SetProperty(ctx->writer,
+	    XmlWriterProperty_Indent, (LONG_PTR)TRUE);
+}
+
+static int
+xml_writer_start_element(struct xml_writer *ctx, const char *localName) {
+	struct archive_wstring as;
+	HRESULT hr;
+	archive_string_init(&as);
+	if (archive_wstring_append_from_mbs(&as, localName,
+	    strlen(localName))) {
+		hr = E_OUTOFMEMORY;
+		goto exit_hr;
+	}
+	hr = ctx->writer->lpVtbl->WriteStartElement(ctx->writer, NULL,
+	    as.s, NULL);
+
+exit_hr:
+	archive_wstring_free(&as);
+	return hr;
+}
+
+static int
+xml_writer_write_attribute(struct xml_writer *ctx,
+    const char *key, const char *value) {
+	struct archive_wstring ask, asv;
+	HRESULT hr;
+	archive_string_init(&ask);
+	archive_string_init(&asv);
+	if (archive_wstring_append_from_mbs(&ask, key, strlen(key))) {
+		hr = E_OUTOFMEMORY;
+		goto exit_hr;
+	}
+	if (archive_wstring_append_from_mbs(&asv, value, strlen(value))) {
+		hr = E_OUTOFMEMORY;
+		goto exit_hr;
+	}
+	hr = ctx->writer->lpVtbl->WriteAttributeString(ctx->writer, NULL,
+	    ask.s, NULL, asv.s);
+
+exit_hr:
+	archive_wstring_free(&ask);
+	archive_wstring_free(&asv);
+	return hr;
+}
+
+static int
+xml_writer_write_attributef(struct xml_writer *ctx,
+    const char *key, const char *format, ...) {
+	struct archive_wstring ask, asv;
+	struct archive_string asf;
+	HRESULT hr;
+	va_list ap;
+
+	va_start(ap, format);
+	archive_string_init(&ask);
+	archive_string_init(&asv);
+	archive_string_init(&asf);
+
+	if (archive_wstring_append_from_mbs(&ask, key, strlen(key))) {
+		hr = E_OUTOFMEMORY;
+		goto exit_hr;
+	}
+
+	archive_string_vsprintf(&asf, format, ap);
+	if (archive_wstring_append_from_mbs(&asv, asf.s, asf.length)) {
+		hr = E_OUTOFMEMORY;
+		goto exit_hr;
+	}
+
+	hr = ctx->writer->lpVtbl->WriteAttributeString(ctx->writer, NULL,
+	    ask.s, NULL, asv.s);
+
+exit_hr:
+	archive_wstring_free(&ask);
+	archive_wstring_free(&asv);
+	archive_string_free(&asf);
+	va_end(ap);
+
+	return hr;
+}
+
+static int
+xml_writer_write_string(struct xml_writer *ctx, const char *string) {
+	struct archive_wstring as;
+	HRESULT hr;
+	archive_string_init(&as);
+	if (archive_wstring_append_from_mbs(&as, string, strlen(string))) {
+		hr = E_OUTOFMEMORY;
+		goto exit_hr;
+	}
+	hr = ctx->writer->lpVtbl->WriteString(ctx->writer, as.s);
+
+exit_hr:
+	archive_wstring_free(&as);
+	return hr;
+}
+
+static const wchar_t base64[] = {
+	L'A', L'B', L'C', L'D', L'E', L'F', L'G', L'H',
+	L'I', L'J', L'K', L'L', L'M', L'N', L'O', L'P',
+	L'Q', L'R', L'S', L'T', L'U', L'V', L'W', L'X',
+	L'Y', L'Z', L'a', L'b', L'c', L'd', L'e', L'f',
+	L'g', L'h', L'i', L'j', L'k', L'l', L'm', L'n',
+	L'o', L'p', L'q', L'r', L's', L't', L'u', L'v',
+	L'w', L'x', L'y', L'z', L'0', L'1', L'2', L'3',
+	L'4', L'5', L'6', L'7', L'8', L'9', L'+', L'/'
+};
+
+static void
+la_b64_wencode(struct archive_wstring *as, const unsigned char *p, size_t len)
+{
+	int c;
+
+	for (; len >= 3; p += 3, len -= 3) {
+		c = p[0] >> 2;
+		archive_wstrappend_wchar(as, base64[c]);
+		c = ((p[0] & 0x03) << 4) | ((p[1] & 0xf0) >> 4);
+		archive_wstrappend_wchar(as, base64[c]);
+		c = ((p[1] & 0x0f) << 2) | ((p[2] & 0xc0) >> 6);
+		archive_wstrappend_wchar(as, base64[c]);
+		c = p[2] & 0x3f;
+		archive_wstrappend_wchar(as, base64[c]);
+	}
+	if (len > 0) {
+		c = p[0] >> 2;
+		archive_wstrappend_wchar(as, base64[c]);
+		c = (p[0] & 0x03) << 4;
+		if (len == 1) {
+			archive_wstrappend_wchar(as, base64[c]);
+			archive_wstrappend_wchar(as, '=');
+			archive_wstrappend_wchar(as, '=');
+		} else {
+			c |= (p[1] & 0xf0) >> 4;
+			archive_wstrappend_wchar(as, base64[c]);
+			c = (p[1] & 0x0f) << 2;
+			archive_wstrappend_wchar(as, base64[c]);
+			archive_wstrappend_wchar(as, '=');
+		}
+	}
+}
+
+static int
+xml_writer_write_base64(struct xml_writer* ctx,
+    const char *data, size_t start, size_t len) {
+	struct archive_wstring as;
+	HRESULT hr;
+	archive_string_init(&as);
+	la_b64_wencode(&as, (const unsigned char *)data + start, len - start);
+	hr = ctx->writer->lpVtbl->WriteString(ctx->writer, as.s);
+	archive_wstring_free(&as);
+	return hr;
+}
+
+static int
+xml_writer_end_element(struct xml_writer *ctx) {
+	HRESULT hr;
+	hr = ctx->writer->lpVtbl->WriteEndElement(ctx->writer);
+	return hr;
+}
+
+static int
+xml_writer_get_final_content_and_length(struct xml_writer *ctx,
+    const char **out, size_t *size) {
+	HGLOBAL gbl;
+	HRESULT hr;
+
+	hr = ctx->writer->lpVtbl->Flush(ctx->writer);
+	if (FAILED(hr)) {
+		return (hr);
+	}
+
+	hr = GetHGlobalFromStream(ctx->stream, &gbl);
+	if (FAILED(hr)) {
+		return (hr);
+	}
+
+	*out = (const char *)GlobalLock(gbl);
+	if (*out == NULL) {
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		return (hr);
+	}
+
+	/* GlobalUnlock is called in
+	 * xml_writer_destroy.
+	 */
+	*size = (size_t)GlobalSize(gbl);
+	ctx->global = gbl;
+	return (hr);
+}
+
 #endif /* HAVE_LIBXML_XMLWRITER_H */
 
 #endif /* Support xar format */
