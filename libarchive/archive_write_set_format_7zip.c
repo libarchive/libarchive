@@ -31,6 +31,9 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif
@@ -223,6 +226,8 @@ struct _7zip {
 	int			 opt_compression_level;
 	int			 opt_zstd_compression_level; // This requires a different default value.
 
+	int			 opt_threads;
+
 	struct la_zstream	 stream;
 	struct coder		 coder;
 
@@ -304,7 +309,7 @@ static int	compression_end_ppmd(struct archive *, struct la_zstream *);
 static int	_7z_compression_init_encoder(struct archive_write *, unsigned,
 		    int);
 static int	compression_init_encoder_zstd(struct archive *,
-		    struct la_zstream *, int);
+		    struct la_zstream *, int, int);
 #if defined(HAVE_ZSTD_H)
 static int	compression_code_zstd(struct archive *,
 		    struct la_zstream *, enum la_zaction);
@@ -319,6 +324,7 @@ static int	make_header(struct archive_write *, uint64_t, uint64_t,
 		    uint64_t, int, struct coder *);
 static int	make_streamsInfo(struct archive_write *, uint64_t, uint64_t,
 		    	uint64_t, int, struct coder *, int, uint32_t);
+static int string_to_number(const char *, intmax_t *);
 
 int
 archive_write_set_format_7zip(struct archive *_a)
@@ -354,6 +360,8 @@ archive_write_set_format_7zip(struct archive *_a)
 	zip->opt_compression = _7Z_BZIP2;
 #elif defined(HAVE_ZLIB_H)
 	zip->opt_compression = _7Z_DEFLATE;
+#elif HAVE_ZSTD_H
+	zip->opt_compression = _7Z_ZSTD;
 #else
 	zip->opt_compression = _7Z_COPY;
 #endif
@@ -367,6 +375,8 @@ archive_write_set_format_7zip(struct archive *_a)
 #else
 	zip->opt_zstd_compression_level = 3;
 #endif
+
+	zip->opt_threads = 1;
 
 	a->format_data = zip;
 
@@ -493,6 +503,30 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 		zip->opt_compression_level = (int)lvl;
 
 		zip->opt_zstd_compression_level = (int)lvl;
+		return (ARCHIVE_OK);
+	}
+	if (strcmp(key, "threads") == 0) {
+		intmax_t threads;
+		if (string_to_number(value, &threads) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
+		if (threads < 0) {
+			return (ARCHIVE_WARN);
+		}
+		if (threads == 0) {
+#if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
+			threads = sysconf(_SC_NPROCESSORS_ONLN);
+#elif !defined(__CYGWIN__) && defined(_WIN32_WINNT) && \
+	_WIN32_WINNT >= 0x0601 /* _WIN32_WINNT_WIN7 */
+			DWORD winCores = GetActiveProcessorCount(
+				ALL_PROCESSOR_GROUPS);
+			threads = (intmax_t)winCores;
+#else
+			threads = 1;
+#endif
+		}
+
+		zip->opt_threads = (int)threads;
 		return (ARCHIVE_OK);
 	}
 
@@ -2360,7 +2394,7 @@ compression_end_ppmd(struct archive *a, struct la_zstream *lastrm)
 
 #if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 static int
-compression_init_encoder_zstd(struct archive *a, struct la_zstream *lastrm, int level)
+compression_init_encoder_zstd(struct archive *a, struct la_zstream *lastrm, int level, int threads)
 {
 	if (lastrm->valid)
 		compression_end(a, lastrm);
@@ -2379,8 +2413,7 @@ compression_init_encoder_zstd(struct archive *a, struct la_zstream *lastrm, int 
 		return (ARCHIVE_FATAL);
 	}
 
-	// TODO: enable multiple threads?
-	// ZSTD_CCtx_setParameter(strm, ZSTD_c_nbWorkers, NUM_THREADS_GOES_HERE);
+	ZSTD_CCtx_setParameter(strm, ZSTD_c_nbWorkers, threads);
 
 	// p7zip-zstd fails to unpack archives that don't have prop_size 5.
 	// 7-Zip-zstd fails to unpack archives that don't have prop_size 3 or 5.
@@ -2460,9 +2493,10 @@ compression_end_zstd(struct archive *a, struct la_zstream *lastrm)
 #else
 
 static int
-compression_init_encoder_zstd(struct archive *a, struct la_zstream *lastrm, int level)
+compression_init_encoder_zstd(struct archive *a, struct la_zstream *lastrm, int level, int threads)
 {
 	(void) level; /* UNUSED */
+	(void) threads; /* UNUSED */
 	if (lastrm->valid)
 		compression_end(a, lastrm);
 	return (compression_unsupported_encoder(a, lastrm, "zstd"));
@@ -2509,7 +2543,7 @@ _7z_compression_init_encoder(struct archive_write *a, unsigned compression,
 	case _7Z_ZSTD:
 		r = compression_init_encoder_zstd(
 		    &(a->archive), &(zip->stream),
-		    compression_level);
+		    compression_level, zip->opt_threads);
 		break;
 	case _7Z_COPY:
 	default:
@@ -2548,4 +2582,17 @@ compression_end(struct archive *a, struct la_zstream *lastrm)
 	return (ARCHIVE_OK);
 }
 
+static int
+string_to_number(const char *string, intmax_t *numberp)
+{
+	char *end;
 
+	if (string == NULL || *string == '\0')
+		return (ARCHIVE_WARN);
+	*numberp = strtoimax(string, &end, 10);
+	if (end == string || *end != '\0' || errno == EOVERFLOW) {
+		*numberp = 0;
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
