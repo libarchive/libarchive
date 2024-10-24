@@ -77,6 +77,9 @@
 #include "archive_crc32.h"
 #endif
 
+#define OS_POSIX	(0)
+#define OS_WINDOWS	(1)
+
 #define ZIP_ENTRY_FLAG_ENCRYPTED	(1 << 0)
 #define ZIP_ENTRY_FLAG_LZMA_EOPM	(1 << 1)
 #define ZIP_ENTRY_FLAG_DEFLATE_MAX	(1 << 1) /* i.e. compression levels 8 & 9 */
@@ -219,6 +222,7 @@ struct zip {
 #endif
 	size_t len_buf;
 	unsigned char *buf;
+	int os;
 };
 
 /* Don't call this min or MIN, since those are already defined
@@ -453,7 +457,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->threads = sysconf(_SC_NPROCESSORS_ONLN);
 #elif !defined(__CYGWIN__) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0601
 			/* Windows 7 and up */
-			zip->threads = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+			zip->threads = (short) GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
 #else
 			zip->threads = 1;
 #endif
@@ -544,6 +548,15 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 		} else {
 			zip->flags &= ~ZIP_FLAG_FORCE_ZIP64;
 			zip->flags |= ZIP_FLAG_AVOID_ZIP64;
+		}
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "os") == 0) {
+		if (val == NULL || val[0] == 0) {
+			zip->os = OS_POSIX;
+		} else if (strcmp(val, "windows") == 0) {
+			zip->os = OS_WINDOWS;
+		} else {
+			return (ARCHIVE_WARN);
 		}
 		return (ARCHIVE_OK);
 	}
@@ -798,23 +811,29 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	struct archive_string_conv *sconv = get_sconv(a, zip);
 	int ret, ret2 = ARCHIVE_OK;
 	mode_t type;
-#if defined(_WIN32)
-	/* On Windows use MS-DOS value as internal Windows zip archiver does
-	 * Fixes charset problems like https://sourceforge.net/p/sevenzip/bugs/2463/
-	 * Full set of possible create os values:
-	 * https://pkwaredownloads.blob.core.windows.net/pem/APPNOTE-6.3.10.txt
-	 * See "4.4.2 version made by (2 bytes)" */
-	int create_os = 0;
-#else
-	// Use UNIX value in all other cases
-	int create_os = 3;
-#endif
+	int create_os;
+	uint32_t external_attrs;
+	if (zip->os == OS_WINDOWS) {
+		/* On Windows use MS-DOS value as internal Windows zip archiver does
+		 * Fixes charset problems like https://sourceforge.net/p/sevenzip/bugs/2463/
+		 * Full set of possible create os values:
+		 * https://pkwaredownloads.blob.core.windows.net/pem/APPNOTE-6.3.10.txt
+		 * See "4.4.2 version made by (2 bytes)" */
+		create_os = 0;
+		unsigned long set, clear;
+		archive_entry_fflags(entry, &set, &clear);
+		external_attrs = set;
+	} else {
+		/* Following Info-Zip, store mode in the "external attributes" field. */
+		create_os = 3;
+		external_attrs = archive_entry_mode(entry) << 16;
+	}
 	int version_needed = 10;
 #define MIN_VERSION_NEEDED(x) do { if (version_needed < x) { version_needed = x; } } while (0)
 
 	/* Ignore types of entries that we don't support. */
 	type = archive_entry_filetype(entry);
-	if (type != AE_IFREG && type != AE_IFDIR && type != AE_IFLNK) {
+	if (type != AE_IFREG && type != AE_IFDIR && (create_os != 3 || type != AE_IFLNK)) {
 		__archive_write_entry_filetype_unsupported(
 		    &a->archive, entry, "zip");
 		return ARCHIVE_FAILED;
@@ -1170,9 +1189,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le32enc(zip->file_header + 12,
 		dos_time(archive_entry_mtime(zip->entry)));
 	archive_le16enc(zip->file_header + 28, (uint16_t)filename_length);
-	/* Following Info-Zip, store mode in the "external attributes" field. */
-	archive_le32enc(zip->file_header + 38,
-	    ((uint32_t)archive_entry_mode(zip->entry)) << 16);
+	archive_le32enc(zip->file_header + 38, external_attrs);
 	e = cd_alloc(zip, filename_length);
 	/* If (e == NULL) XXXX */
 	copy_path(zip->entry, e);
@@ -1300,8 +1317,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			e += 2;
 		}
 		if (included & 4) {
-			archive_le32enc(e,  /* external file attributes */
-			    ((uint32_t)archive_entry_mode(zip->entry)) << 16);
+			archive_le32enc(e, external_attrs);
 			e += 4;
 		}
 		if (included & 8) {
@@ -1833,7 +1849,8 @@ archive_write_zip_finish_entry(struct archive_write *a)
 {
 	struct zip *zip = a->format_data;
 	int ret;
-	char finishing;
+	char finishing = 1;
+	(void) finishing;  // avoid unused warning when none of the compressions are available
 
 	switch (zip->entry_compression) {
 #ifdef HAVE_ZLIB_H

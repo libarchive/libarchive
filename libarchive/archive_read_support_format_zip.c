@@ -77,6 +77,31 @@
 #include "archive_crc32.h"
 #endif
 
+#if !defined(FILE_ATTRIBUTE_READONLY)
+#define FILE_ATTRIBUTE_READONLY             0x00000001
+#define FILE_ATTRIBUTE_HIDDEN               0x00000002
+#define FILE_ATTRIBUTE_SYSTEM               0x00000004
+#define FILE_ATTRIBUTE_DIRECTORY            0x00000010
+#define FILE_ATTRIBUTE_ARCHIVE              0x00000020
+#define FILE_ATTRIBUTE_DEVICE               0x00000040
+#define FILE_ATTRIBUTE_NORMAL               0x00000080
+#define FILE_ATTRIBUTE_TEMPORARY            0x00000100
+#define FILE_ATTRIBUTE_SPARSE_FILE          0x00000200
+#define FILE_ATTRIBUTE_REPARSE_POINT        0x00000400
+#define FILE_ATTRIBUTE_COMPRESSED           0x00000800
+#define FILE_ATTRIBUTE_OFFLINE              0x00001000
+#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED  0x00002000
+#define FILE_ATTRIBUTE_ENCRYPTED            0x00004000
+#define FILE_ATTRIBUTE_INTEGRITY_STREAM     0x00008000
+#define FILE_ATTRIBUTE_VIRTUAL              0x00010000
+#define FILE_ATTRIBUTE_NO_SCRUB_DATA        0x00020000
+#define FILE_ATTRIBUTE_EA                   0x00040000
+#define FILE_ATTRIBUTE_PINNED               0x00080000
+#define FILE_ATTRIBUTE_UNPINNED             0x00100000
+#define FILE_ATTRIBUTE_RECALL_ON_OPEN       0x00040000
+#define FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS 0x00400000
+#endif
+
 struct zip_entry {
 	struct archive_rb_node	node;
 	struct zip_entry	*next;
@@ -90,6 +115,7 @@ struct zip_entry {
 	time_t			atime;
 	time_t			ctime;
 	uint32_t		crc32;
+	uint32_t		external_attributes;
 	uint16_t		mode;
 	uint16_t		zip_flags; /* From GP Flags Field */
 	unsigned char		compression;
@@ -115,6 +141,10 @@ struct zip_entry {
 struct trad_enc_ctx {
 	uint32_t	keys[3];
 };
+
+#define OS_POSIX	(0)
+#define OS_WINDOWS	(1)
+#define SYSTEM_NOT_SET	(255)
 
 /* Bits used in zip_flags. */
 #define ZIP_ENCRYPTED	(1 << 0)
@@ -249,6 +279,8 @@ struct zip {
 	uint8_t			*iv;
 	uint8_t			*erd;
 	uint8_t			*v_data;
+
+	int				os;
 };
 
 /* Many systems define min or MIN, but not all. */
@@ -484,6 +516,34 @@ zip_time(const char *p)
 	ts.tm_sec = (msTime << 1) & 0x3e;
 	ts.tm_isdst = -1;
 	return mktime(&ts);
+}
+
+static void
+parse_attrs(struct zip_entry *zip_entry, uint32_t external_attributes)
+{
+	if (zip_entry->system == 3) {
+		zip_entry->mode = external_attributes >> 16;
+	} else if (zip_entry->system == 0) {
+		if (external_attributes & FILE_ATTRIBUTE_DIRECTORY)
+			zip_entry->mode = AE_IFDIR | 0775;
+		else
+			zip_entry->mode = AE_IFREG | 0664;
+		if (external_attributes & FILE_ATTRIBUTE_READONLY)
+			zip_entry->mode &= ~0222;
+		/* Filter attributes like what `archive_write_disk_windows` */
+		external_attributes &=
+			FILE_ATTRIBUTE_ARCHIVE |
+			FILE_ATTRIBUTE_HIDDEN |
+			FILE_ATTRIBUTE_NORMAL |
+			FILE_ATTRIBUTE_NOT_CONTENT_INDEXED |
+			FILE_ATTRIBUTE_OFFLINE |
+			FILE_ATTRIBUTE_READONLY |
+			FILE_ATTRIBUTE_SYSTEM |
+			FILE_ATTRIBUTE_TEMPORARY;
+	} else {
+		zip_entry->mode = 0;
+	}
+	zip_entry->external_attributes = external_attributes;
 }
 
 /*
@@ -747,28 +807,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					break;
 				external_attributes
 				    = archive_le32dec(p + offset);
-				if (zip_entry->system == 3) {
-					zip_entry->mode
-					    = external_attributes >> 16;
-				} else if (zip_entry->system == 0) {
-					// Interpret MSDOS directory bit
-					if (0x10 == (external_attributes &
-					    0x10)) {
-						zip_entry->mode =
-						    AE_IFDIR | 0775;
-					} else {
-						zip_entry->mode =
-						    AE_IFREG | 0664;
-					}
-					if (0x01 == (external_attributes &
-					    0x01)) {
-						/* Read-only bit;
-						 * strip write permissions */
-						zip_entry->mode &= 0555;
-					}
-				} else {
-					zip_entry->mode = 0;
-				}
+				parse_attrs(zip_entry, external_attributes);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -964,7 +1003,6 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		return ARCHIVE_FATAL;
 	}
 	version = p[4];
-	zip_entry->system = p[5];
 	zip_entry->zip_flags = archive_le16dec(p + 6);
 	if (zip_entry->zip_flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED)) {
 		zip->has_encrypted_entries = 1;
@@ -1054,8 +1092,10 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 
 	/* Windows archivers sometimes use backslash as the directory
-	 * separator. Normalize to slash. */
-	if (zip_entry->system == 0 &&
+	 * separator. Normalize to slash.
+	 * If the archive is opened in stream mode, `system` would be unknown,
+	 * We normalize it too for backward compatibility. */
+	if ((zip_entry->system == 0 || zip_entry->system == SYSTEM_NOT_SET) &&
 	    (wp = archive_entry_pathname_w(entry)) != NULL) {
 		if (wcschr(wp, L'/') == NULL && wcschr(wp, L'\\') != NULL) {
 			size_t i;
@@ -1122,6 +1162,12 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			}
 		}
 	}
+	if (zip_entry->system == 0) {
+		if ((zip_entry->mode & AE_IFMT) == AE_IFDIR)
+			zip_entry->external_attributes |= FILE_ATTRIBUTE_DIRECTORY;
+		else
+			zip_entry->external_attributes &= ~FILE_ATTRIBUTE_DIRECTORY;
+	}
 
 	if (zip_entry->flags & LA_FROM_CENTRAL_DIRECTORY) {
 		/* If this came from the central dir, its size info
@@ -1176,6 +1222,9 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_mtime(entry, zip_entry->mtime, 0);
 	archive_entry_set_ctime(entry, zip_entry->ctime, 0);
 	archive_entry_set_atime(entry, zip_entry->atime, 0);
+	if (zip->os == OS_WINDOWS && zip_entry->system == 0) {
+		archive_entry_set_fflags(entry, zip_entry->external_attributes, 0);
+	}
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
@@ -3330,6 +3379,15 @@ archive_read_format_zip_options(struct archive_read *a,
 	} else if (strcmp(key, "mac-ext") == 0) {
 		zip->process_mac_extensions = (val != NULL && val[0] != 0);
 		return (ARCHIVE_OK);
+	} else if (strcmp(key, "os") == 0) {
+		if (val == NULL || val[0] == 0) {
+			zip->os = OS_POSIX;
+		} else if (strcmp(val, "windows") == 0) {
+			zip->os = OS_WINDOWS;
+		} else {
+			return (ARCHIVE_WARN);
+		}
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -3433,6 +3491,8 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 	}
 	zip->entry = zip->zip_entries;
 	memset(zip->entry, 0, sizeof(struct zip_entry));
+	/* We cannot let `system` default to 0 because it means `MS-DOS` */
+	zip->entry->system = SYSTEM_NOT_SET;
 
 	if (zip->cctx_valid)
 		archive_decrypto_aes_ctr_release(&zip->cctx);
@@ -3658,7 +3718,7 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 {
 	uint16_t disk_num;
 	uint32_t cd_size, cd_offset;
-	
+
 	disk_num = archive_le16dec(p + 4);
 	cd_size = archive_le32dec(p + 12);
 	cd_offset = archive_le32dec(p + 16);
@@ -4006,26 +4066,7 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 		zip_entry->local_header_offset =
 		    archive_le32dec(p + 42) + correction;
 
-		/* If we can't guess the mode, leave it zero here;
-		   when we read the local file header we might get
-		   more information. */
-		if (zip_entry->system == 3) {
-			zip_entry->mode = external_attributes >> 16;
-		} else if (zip_entry->system == 0) {
-			// Interpret MSDOS directory bit
-			if (0x10 == (external_attributes & 0x10)) {
-				zip_entry->mode = AE_IFDIR | 0775;
-			} else {
-				zip_entry->mode = AE_IFREG | 0664;
-			}
-			if (0x01 == (external_attributes & 0x01)) {
-				// Read-only bit; strip write permissions
-				zip_entry->mode &= 0555;
-			}
-		} else {
-			zip_entry->mode = 0;
-		}
-
+		parse_attrs(zip_entry, external_attributes);
 		/* We're done with the regular data; get the filename and
 		 * extra data. */
 		__archive_read_consume(a, 46);
