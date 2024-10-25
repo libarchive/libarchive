@@ -324,7 +324,21 @@ static int	make_header(struct archive_write *, uint64_t, uint64_t,
 		    uint64_t, int, struct coder *);
 static int	make_streamsInfo(struct archive_write *, uint64_t, uint64_t,
 		    	uint64_t, int, struct coder *, int, uint32_t);
-static int string_to_number(const char *, intmax_t *);
+
+static int
+string_to_number(const char *string, intmax_t *numberp)
+{
+	char *end;
+
+	if (string == NULL || *string == '\0')
+		return (ARCHIVE_WARN);
+	*numberp = strtoimax(string, &end, 10);
+	if (end == string || *end != '\0' || errno == EOVERFLOW) {
+		*numberp = 0;
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
 
 int
 archive_write_set_format_7zip(struct archive *_a)
@@ -2578,21 +2592,6 @@ compression_end(struct archive *a, struct la_zstream *lastrm)
 		free(lastrm->props);
 		lastrm->props = NULL;
 		return (lastrm->end(a, lastrm));
-	}
-	return (ARCHIVE_OK);
-}
-
-static int
-string_to_number(const char *string, intmax_t *numberp)
-{
-	char *end;
-
-	if (string == NULL || *string == '\0')
-		return (ARCHIVE_WARN);
-	*numberp = strtoimax(string, &end, 10);
-	if (end == string || *end != '\0' || errno == EOVERFLOW) {
-		*numberp = 0;
-		return (ARCHIVE_WARN);
 	}
 	return (ARCHIVE_OK);
 }
