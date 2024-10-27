@@ -105,6 +105,14 @@ typedef ssize_t la_ssize_t;
 #define __LA_TIME_T la_int64_t
 #endif
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Use the platform types for dev_t */
+#define __LA_DEV_T dev_t
+#else
+/* Use 64-bytes integer types for dev_t */
+#define __LA_DEV_T la_int64_t
+#endif
+
 /* Large file support for Android */
 #if defined(__LIBARCHIVE_BUILD) && defined(__ANDROID__)
 #include "android_lf.h"
