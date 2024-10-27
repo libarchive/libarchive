@@ -378,10 +378,12 @@ ENDMACRO (GENERATE_LIST_H)
 # Generate installation rules for man pages.
 #
 MACRO (INSTALL_MAN __mans)
-  FOREACH (_man ${ARGV})
-    STRING(REGEX REPLACE "^.+[.]([1-9])" "\\1" _mansect ${_man})
-    INSTALL(FILES ${_man} DESTINATION "share/man/man${_mansect}")
-  ENDFOREACH (_man)
+  IF(ENABLE_INSTALL)
+    FOREACH (_man ${ARGV})
+      STRING(REGEX REPLACE "^.+[.]([1-9])" "\\1" _mansect ${_man})
+      INSTALL(FILES ${_man} DESTINATION "share/man/man${_mansect}")
+    ENDFOREACH (_man)
+  ENDIF(ENABLE_INSTALL)
 ENDMACRO (INSTALL_MAN __mans)
 #
 # Find out what macro is needed to use libraries on Windows.
@@ -2174,7 +2176,7 @@ INCLUDE(CreatePkgConfigFile)
 #
 # Register installation of PDF documents.
 #
-IF(WIN32 AND NOT CYGWIN)
+IF(WIN32 AND NOT CYGWIN AND ENABLE_INSTALL)
   #
   # On Windows platform, It's better that we install PDF documents
   # on one's computer.
@@ -2186,7 +2188,7 @@ IF(WIN32 AND NOT CYGWIN)
             FILES_MATCHING PATTERN "*.pdf"
     )
   ENDIF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/pdf)
-ENDIF(WIN32 AND NOT CYGWIN)
+ENDIF(WIN32 AND NOT CYGWIN AND ENABLE_INSTALL)
 #
 #
 #
