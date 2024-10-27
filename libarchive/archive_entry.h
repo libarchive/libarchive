@@ -41,7 +41,10 @@
 #include <sys/types.h>
 #include <stddef.h>  /* for wchar_t */
 #include <stdint.h>
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* time_t is slated to be removed from public includes in 4.0 */
 #include <time.h>
+#endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
@@ -94,6 +97,14 @@ typedef ssize_t la_ssize_t;
 # define	__LA_MODE_T	unsigned short
 #else
 # define	__LA_MODE_T	mode_t
+#endif
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Use the platform types for time_t */
+#define __LA_TIME_T time_t
+#else
+/* Use 64-bytes integer types for time_t */
+#define __LA_TIME_T la_int64_t
 #endif
 
 /* Large file support for Android */
@@ -235,13 +246,13 @@ __LA_DECL struct archive_entry	*archive_entry_new2(struct archive *);
  * also return NULL when implicit character set conversions fail.
  * This is usually what you want.
  */
-__LA_DECL time_t	 archive_entry_atime(struct archive_entry *);
+__LA_DECL __LA_TIME_T	 archive_entry_atime(struct archive_entry *);
 __LA_DECL long		 archive_entry_atime_nsec(struct archive_entry *);
 __LA_DECL int		 archive_entry_atime_is_set(struct archive_entry *);
-__LA_DECL time_t	 archive_entry_birthtime(struct archive_entry *);
+__LA_DECL __LA_TIME_T	 archive_entry_birthtime(struct archive_entry *);
 __LA_DECL long		 archive_entry_birthtime_nsec(struct archive_entry *);
 __LA_DECL int		 archive_entry_birthtime_is_set(struct archive_entry *);
-__LA_DECL time_t	 archive_entry_ctime(struct archive_entry *);
+__LA_DECL __LA_TIME_T	 archive_entry_ctime(struct archive_entry *);
 __LA_DECL long		 archive_entry_ctime_nsec(struct archive_entry *);
 __LA_DECL int		 archive_entry_ctime_is_set(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_dev(struct archive_entry *);
@@ -309,14 +320,14 @@ __LA_DECL int archive_entry_is_encrypted(struct archive_entry *);
  * always copied.
  */
 
-__LA_DECL void	archive_entry_set_atime(struct archive_entry *, time_t, long);
+__LA_DECL void	archive_entry_set_atime(struct archive_entry *, __LA_TIME_T, long);
 __LA_DECL void  archive_entry_unset_atime(struct archive_entry *);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 __LA_DECL void archive_entry_copy_bhfi(struct archive_entry *, BY_HANDLE_FILE_INFORMATION *);
 #endif
-__LA_DECL void	archive_entry_set_birthtime(struct archive_entry *, time_t, long);
+__LA_DECL void	archive_entry_set_birthtime(struct archive_entry *, __LA_TIME_T, long);
 __LA_DECL void  archive_entry_unset_birthtime(struct archive_entry *);
-__LA_DECL void	archive_entry_set_ctime(struct archive_entry *, time_t, long);
+__LA_DECL void	archive_entry_set_ctime(struct archive_entry *, __LA_TIME_T, long);
 __LA_DECL void  archive_entry_unset_ctime(struct archive_entry *);
 __LA_DECL void	archive_entry_set_dev(struct archive_entry *, dev_t);
 __LA_DECL void	archive_entry_set_devmajor(struct archive_entry *, dev_t);
@@ -351,7 +362,7 @@ __LA_DECL void	archive_entry_copy_link(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_link_w(struct archive_entry *, const wchar_t *);
 __LA_DECL int	archive_entry_update_link_utf8(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_set_mode(struct archive_entry *, __LA_MODE_T);
-__LA_DECL void	archive_entry_set_mtime(struct archive_entry *, time_t, long);
+__LA_DECL void	archive_entry_set_mtime(struct archive_entry *, __LA_TIME_T, long);
 __LA_DECL void  archive_entry_unset_mtime(struct archive_entry *);
 __LA_DECL void	archive_entry_set_nlink(struct archive_entry *, unsigned int);
 __LA_DECL void	archive_entry_set_pathname(struct archive_entry *, const char *);
