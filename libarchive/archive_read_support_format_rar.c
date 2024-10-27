@@ -154,7 +154,7 @@
 #define UNP_BUFFER_SIZE   (128 * 1024)
 
 /* Define this here for non-Windows platforms */
-#if !((defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__))
+#if !defined(FILE_ATTRIBUTE_DIRECTORY)
 #define FILE_ATTRIBUTE_DIRECTORY 0x10
 #endif
 
