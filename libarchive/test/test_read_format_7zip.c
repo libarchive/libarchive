@@ -1301,3 +1301,76 @@ DEFINE_TEST(test_read_format_7zip_extract_second)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+static void
+test_sparc_filter(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	size_t expected_entry_size = 1053016;
+	char *buff = malloc(expected_entry_size);
+	uint32_t computed_crc = 0;
+	uint32_t expected_crc = 0x6b5b364d;
+
+	assert((a = archive_read_new()) != NULL);
+
+	extract_reference_file(refname);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt((AE_IFREG | 0775), archive_entry_mode(ae));
+	assertEqualString("hw-sparc64", archive_entry_pathname(ae));
+	assertEqualInt(expected_entry_size, archive_entry_size(ae));
+	assertEqualInt(expected_entry_size, archive_read_data(a, buff, expected_entry_size));
+
+	computed_crc = crc32(computed_crc, buff, expected_entry_size);
+	assertEqualInt(computed_crc, expected_crc);
+
+	assertEqualInt(1, archive_file_count(a));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	free(buff);
+}
+
+DEFINE_TEST(test_read_format_7zip_lzma2_sparc)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_sparc_filter("test_read_format_7zip_lzma2_sparc.7z");
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_zstd_sparc)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_zstd(a)) {
+		skipping(
+		    "7zip:zstd decoding is not supported on this platform");
+	} else {
+		test_sparc_filter("test_read_format_7zip_zstd_sparc.7z");
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
