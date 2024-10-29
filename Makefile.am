@@ -803,6 +803,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2_arm64.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2_arm.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma2_sparc.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
@@ -813,6 +814,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_zstd_arm.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd_bcj.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd_nobcj.7z.uu \
+	libarchive/test/test_read_format_7zip_zstd_sparc.7z.uu \
 	libarchive/test/test_read_format_7zip_zstd.7z.uu \
 	libarchive/test/test_read_format_ar.ar.uu \
 	libarchive/test/test_read_format_cab_1.cab.uu \
