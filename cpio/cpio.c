@@ -1080,7 +1080,11 @@ extract_data(struct archive *ar, struct archive *aw)
 			exit(1);
 		}
 		r = (int)archive_write_data_block(aw, block, size, offset);
+#if ARCHIVE_VERSION_NUMBER < 4000000
 		if (r != ARCHIVE_OK) {
+#else
+		if (r != size) {
+#endif
 			lafe_warnc(archive_errno(aw),
 			    "%s", archive_error_string(aw));
 			return (r);

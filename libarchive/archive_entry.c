@@ -1235,7 +1235,7 @@ _archive_entry_copy_link_l(struct archive_entry *entry,
 }
 
 void
-archive_entry_set_mode(struct archive_entry *entry, mode_t m)
+archive_entry_set_mode(struct archive_entry *entry, __LA_MODE_T m)
 {
 	entry->stat_valid = 0;
 	entry->acl.mode = m;
@@ -1310,7 +1310,7 @@ _archive_entry_copy_pathname_l(struct archive_entry *entry,
 }
 
 void
-archive_entry_set_perm(struct archive_entry *entry, mode_t p)
+archive_entry_set_perm(struct archive_entry *entry, __LA_MODE_T p)
 {
 	entry->stat_valid = 0;
 	entry->acl.mode &= AE_IFMT;

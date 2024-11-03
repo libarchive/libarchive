@@ -123,8 +123,13 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 	archive_entry_set_size(ae, datasize);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	for (i = 0; i < datasize - 999; i += 1000) {
+#if ARCHIVE_VERSION_NUMBER < 4000000
 		assertEqualIntA(ad, ARCHIVE_OK,
 		    archive_write_data_block(ad, data + i, 1000, i));
+#else
+		assertEqualIntA(ad, 1000,
+		    archive_write_data_block(ad, data + i, 1000, i));
+#endif
 	}
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	assertEqualInt(0, archive_write_free(ad));
@@ -173,8 +178,13 @@ static void create_reg_file4(struct archive_entry *ae, const char *msg)
 	assert((ad = archive_write_disk_new()) != NULL);
 	/* Leave the size unset.  The data should not be truncated. */
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_data_block(ad, data, sizeof(data), 0));
+#else
+	assertEqualInt(sizeof(data),
+	    archive_write_data_block(ad, data, sizeof(data), 0));
+#endif
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	assertEqualInt(0, archive_write_free(ad));
 
