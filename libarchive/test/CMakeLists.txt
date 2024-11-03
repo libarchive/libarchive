@@ -55,6 +55,7 @@ IF(ENABLE_TEST)
     test_compat_bzip2.c
     test_compat_cpio.c
     test_compat_gtar.c
+    test_compat_gtar_large.c
     test_compat_gzip.c
     test_compat_lz4.c
     test_compat_lzip.c
@@ -129,6 +130,7 @@ IF(ENABLE_TEST)
     test_read_format_cpio_svr4_gzip_rpm.c
     test_read_format_cpio_svr4c_Z.c
     test_read_format_empty.c
+    test_read_format_gnutar_old_sparse.c
     test_read_format_gtar_filename.c
     test_read_format_gtar_gz.c
     test_read_format_gtar_lzma.c
