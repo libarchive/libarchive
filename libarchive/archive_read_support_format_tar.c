@@ -1308,33 +1308,40 @@ header_common(struct archive_read *a, struct tar *tar,
 		archive_entry_set_perm(entry,
 			(mode_t)tar_atol(header->mode, sizeof(header->mode)));
 	}
+
+	/* Set uid, gid, mtime if not already set */
 	if (!archive_entry_uid_is_set(entry)) {
 		archive_entry_set_uid(entry, tar_atol(header->uid, sizeof(header->uid)));
 	}
 	if (!archive_entry_gid_is_set(entry)) {
 		archive_entry_set_gid(entry, tar_atol(header->gid, sizeof(header->gid)));
 	}
-
-	tar->entry_bytes_remaining = tar_atol(header->size, sizeof(header->size));
-	if (tar->entry_bytes_remaining < 0) {
-		tar->entry_bytes_remaining = 0;
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Tar entry has negative size");
-		return (ARCHIVE_FATAL);
-	}
-	if (tar->entry_bytes_remaining > entry_limit) {
-		tar->entry_bytes_remaining = 0;
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Tar entry size overflow");
-		return (ARCHIVE_FATAL);
-	}
-	if (!tar->realsize_override) {
-		tar->realsize = tar->entry_bytes_remaining;
-	}
-	archive_entry_set_size(entry, tar->realsize);
-
 	if (!archive_entry_mtime_is_set(entry)) {
 		archive_entry_set_mtime(entry, tar_atol(header->mtime, sizeof(header->mtime)), 0);
+	}
+
+	/* Update size information as appropriate */
+	if (!archive_entry_size_is_set(entry)) {
+		tar->entry_bytes_remaining = tar_atol(header->size, sizeof(header->size));
+		if (tar->entry_bytes_remaining < 0) {
+			tar->entry_bytes_remaining = 0;
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+					  "Tar entry has negative size");
+			return (ARCHIVE_FATAL);
+		}
+		if (tar->entry_bytes_remaining > entry_limit) {
+			tar->entry_bytes_remaining = 0;
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+					  "Tar entry size overflow");
+			return (ARCHIVE_FATAL);
+		}
+		if (!tar->realsize_override) {
+			tar->realsize = tar->entry_bytes_remaining;
+		}
+		archive_entry_set_size(entry, tar->realsize);
+	} else if (tar->realsize_override) {
+		tar->entry_bytes_remaining = tar->realsize;
+		archive_entry_set_size(entry, tar->realsize);
 	}
 
 	/* Handle the tar type flag appropriately. */
