@@ -750,7 +750,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 					 * if there's no regular header, then this is
 					 * a premature EOF. */
 					archive_set_error(&a->archive, EINVAL,
-							  "Damaged tar archive");
+							  "Damaged tar archive (end-of-archive within a sequence of headers)");
 					return (ARCHIVE_FATAL);
 				} else {
 					return (ARCHIVE_EOF);
@@ -787,7 +787,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			/* This is NOT a null block, so it must be a valid header. */
 			if (!checksum(a, h)) {
 				tar_flush_unconsumed(a, unconsumed);
-				archive_set_error(&a->archive, EINVAL, "Damaged tar archive");
+				archive_set_error(&a->archive, EINVAL,
+						  "Damaged tar archive (bad header checksum)");
 				/* If we've read some critical information (pax headers, etc)
 				 * and _then_ see a bad header, we can't really recover. */
 				if (eof_fatal) {
