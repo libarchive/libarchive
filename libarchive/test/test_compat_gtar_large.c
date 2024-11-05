@@ -139,10 +139,10 @@ static const unsigned char test_compat_gtar_large_data[] = {
  */
 
 struct my_reader {
-	const unsigned char *prefix;
+	const void *prefix;
 	int prefix_length;
 	int zero_blocks_remaining;
-	char *zero_block;
+	void *zero_block;
 };
 
 /*
@@ -184,7 +184,7 @@ DEFINE_TEST(test_compat_gtar_large)
 	};
 	int r;
 
-	reader.zero_block = malloc(512);
+	reader.zero_block = calloc(1, 512);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
