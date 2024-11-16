@@ -28,7 +28,6 @@
  * help. */
 #define __LIBARCHIVE_BUILD
 #include <archive_crc32.h>
-#include <archive_endian.h>
 
 #define PROLOGUE(reffile) \
 	struct archive_entry *ae; \
@@ -82,7 +81,7 @@ int verify_data(const uint8_t* data_ptr, int magic, int size) {
 		/* *lptr is a value inside unpacked test file, val is the
 		 * value that should be in the unpacked test file. */
 
-		if(archive_le32dec(lptr) != (uint32_t) val)
+		if(i4le(lptr) != (uint32_t) val)
 			return 0;
 	}
 
