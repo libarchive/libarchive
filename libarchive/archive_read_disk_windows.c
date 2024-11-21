@@ -49,7 +49,7 @@
 /* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
-/* To deal with absolute symlink isuues */
+/* To deal with absolute symlink issues */
 #define START_ABSOLUTE_SYMLINK_REPARSE L"\\??\\"
 
 /*-

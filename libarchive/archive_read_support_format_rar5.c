@@ -3093,7 +3093,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 		 *   can be stored in the output buffer directly.
 		 *
 		 * - Code 256 defines a new filter, which is later used to
-		 *   ransform the data block accordingly to the filter type.
+		 *   transform the data block accordingly to the filter type.
 		 *   The data block needs to be fully uncompressed first.
 		 *
 		 * - Code bigger than 257 and smaller than 262 define

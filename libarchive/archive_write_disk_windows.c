@@ -637,7 +637,7 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 }
 
 /*
- * Create file or directory symolic link
+ * Create file or directory symbolic link
  *
  * If linktype is AE_SYMLINK_TYPE_UNDEFINED (or unknown), guess linktype from
  * the link target

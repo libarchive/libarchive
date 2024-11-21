@@ -739,7 +739,7 @@ archive_write_set_format_zip(struct archive *_a)
 	/* "Unspecified" lets us choose the appropriate compression. */
 	zip->requested_compression = COMPRESSION_UNSPECIFIED;
 	/* Following the 7-zip write support's lead, setting the default
-	 * compression level explicitely to 6 no matter what. */
+	 * compression level explicitly to 6 no matter what. */
 	zip->compression_level = 6;
 	/* Following the xar write support's lead, the default number of
 	 * threads is 1 (i.e. the xz compression, the only one caring about
@@ -1372,7 +1372,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			return (ARCHIVE_FATAL);
 		}
 		/* Asking for the multi-threaded compressor is a no-op in zstd if
-		 * it's not supported, so no need to explicitely check for it */
+		 * it's not supported, so no need to explicitly check for it */
 		ZSTD_CCtx_setParameter(zip->stream.zstd.context, ZSTD_c_nbWorkers, zip->threads);
 		zip->stream.zstd.out.dst = zip->buf;
 		zip->stream.zstd.out.size = zip->len_buf;
@@ -1709,7 +1709,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 			 * that ZIP's format is missing the uncompressed_size field.
 			 *
 			 * So we need to write a raw LZMA stream, set up for LZMA1
-			 * (i.e. the algoritm variant LZMA Alone uses), which was
+			 * (i.e. the algorithm variant LZMA Alone uses), which was
 			 * done above in the initialisation but first we need to
 			 * write ZIP's LZMA header, as if it were Stored data. Then
 			 * we can use the raw stream as if it were any other. magic1
