@@ -929,6 +929,10 @@ DEFINE_TEST(test_read_format_7zip_zstd)
 	if (ARCHIVE_OK != archive_read_support_filter_zstd(a)) {
 		skipping(
 		    "7zip:zstd decoding is not supported on this platform");
+	} else if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
+		// The directory header entries in the test file uses lzma.
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
 	} else {
 		test_extract_all_files_zstd("test_read_format_7zip_zstd.7z");
 	}
@@ -946,6 +950,10 @@ DEFINE_TEST(test_read_format_7zip_zstd_solid)
 	if (ARCHIVE_OK != archive_read_support_filter_zstd(a)) {
 		skipping(
 		    "7zip:zstd decoding is not supported on this platform");
+	} else if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
+		// The directory header entries in the test file uses lzma.
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
 	} else {
 		test_extract_all_files_zstd("test_read_format_7zip_solid_zstd.7z");
 	}
