@@ -760,7 +760,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Truncated tar archive"
-				    " detected while reading next heaader");
+				    " detected while reading next header");
 				return (ARCHIVE_FATAL);
 			}
 			*unconsumed += 512;
