@@ -489,8 +489,16 @@ AC_ARG_WITH([lzma],
   AS_HELP_STRING([--without-lzma], [Don't build support for xz through lzma]))
 
 if test "x$with_lzma" != "xno"; then
+  PKG_PROG_PKG_CONFIG
+  PKG_CHECK_MODULES(LZMA_PC, [liblzma], [
+    CPPFLAGS="${CPPFLAGS} ${LZMA_PC_CFLAGS}"
+    LIBS="${LIBS} ${LZMA_PC_LIBS}"
+    AC_DEFINE(HAVE_LIBLZMA, [1], [Define to 1 if you have the `lzma' library.])
+  ], [
+    AC_CHECK_LIB(lzma,lzma_stream_decoder)
+  ])
   AC_CHECK_HEADERS([lzma.h])
-  AC_CHECK_LIB(lzma,lzma_stream_decoder)
+
   # Some pre-release (but widely distributed) versions of liblzma
   # included a disabled version of lzma_stream_encoder_mt that
   # fools a naive AC_CHECK_LIB or AC_CHECK_FUNC, so we need
