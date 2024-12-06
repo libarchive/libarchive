@@ -1499,6 +1499,7 @@ bsdunzip_SOURCES= \
 		unzip/bsdunzip_platform.h \
 		unzip/cmdline.c \
 		unzip/la_getline.c \
+		unzip/la_getline.h \
 		unzip/la_queue.h
 
 if INC_WINDOWS_FILES
