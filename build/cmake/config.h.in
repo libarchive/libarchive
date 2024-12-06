@@ -1172,6 +1172,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <sys/xattr.h> header file. */
 #cmakedefine HAVE_SYS_XATTR_H 1
 
+/* Define to 1 if you have the `tcgetattr' function. */
+#cmakedefine HAVE_TCGETATTR 1
+
+/* Define to 1 if you have the `tcsetattr' function. */
+#cmakedefine HAVE_TCSETATTR 1
+
 /* Define to 1 if you have the `timegm' function. */
 #cmakedefine HAVE_TIMEGM 1
 
