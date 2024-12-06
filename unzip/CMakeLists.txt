@@ -14,6 +14,7 @@ IF(ENABLE_UNZIP)
     bsdunzip_platform.h
     cmdline.c
     la_getline.c
+    la_getline.h
     la_queue.h
     ../libarchive_fe/err.c
     ../libarchive_fe/err.h
