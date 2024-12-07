@@ -91,6 +91,12 @@ if [ -z "${MAKE_ARGS}" ]; then
 		MAKE_ARGS="VERBOSE=1"
 	fi
 fi
+if [ -d /opt/homebrew/include ]; then
+	export CFLAGS="${CFLAGS} -I/opt/homebrew/include"
+fi
+if [ -d /opt/homebrew/lib ]; then
+	export LDFLAGS="${LDFLAGS} -L/opt/homebrew/lib"
+fi
 if [ -n "${DEBUG}" ]; then
 	if [ -n "${CFLAGS}" ]; then
 		export CFLAGS="${CFLAGS} -g -fsanitize=address"
