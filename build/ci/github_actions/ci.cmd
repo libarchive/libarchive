@@ -150,6 +150,7 @@ IF "%1"=="deplibs" (
     CD build_ci\cmake
     cmake --build . --target INSTALL --config Release || EXIT /b 1
   )
+  "C:\Program Files (x86)\libarchive\bin\bsdtar.exe" --version
 ) ELSE IF "%1"=="artifact" (
     C:\windows\system32\tar.exe -c -C "C:\Program Files (x86)" --format=zip -f libarchive.zip libarchive
 ) ELSE (
