@@ -147,6 +147,7 @@ for action in ${ACTIONS}; do
 			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
 			RET="$?"
 			cd "${BUILDDIR}/destdir" && ls -lR .
+			./usr/local/bin/bsdtar --version
 		;;
 		distcheck)
 			${MAKE} ${MAKE_ARGS} distcheck || (
