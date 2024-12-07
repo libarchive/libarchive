@@ -1146,7 +1146,9 @@ header_gnu_longlink(struct archive_read *a, struct tar *tar,
 	struct archive_string linkpath;
 	archive_string_init(&linkpath);
 	err = read_body_to_string(a, tar, &linkpath, h, unconsumed);
-	archive_entry_set_link(entry, linkpath.s);
+	if (err == ARCHIVE_OK) {
+		archive_entry_set_link(entry, linkpath.s);
+	}
 	archive_string_free(&linkpath);
 	return (err);
 }
