@@ -120,7 +120,7 @@ IF "%1"=="deplibs" (
   ) ELSE IF "%BE%"=="msvc" (
     MKDIR build_ci\cmake
     CD build_ci\cmake
-    cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" -D ZLIB_LIBRARY="C:/Program Files (x86)/zlib/lib/zlibstatic.lib" -D ZLIB_INCLUDE_DIR="C:/Program Files (x86)/zlib/include" -D BZIP2_LIBRARIES="C:/Program Files (x86)/bzip2/lib/bz2_static.lib" -D BZIP2_INCLUDE_DIR="C:/Program Files (x86)/bzip2/include" -D LIBLZMA_LIBRARY="C:/Program Files (x86)/xz/lib/liblzma.lib" -D LIBLZMA_INCLUDE_DIR="C:/Program Files (x86)/xz/include" -D ZSTD_LIBRARY="C:/Program Files (x86)/zstd/lib/zstd_static.lib" -D ZSTD_INCLUDE_DIR="C:/Program Files (x86)/zstd/include" ..\.. || EXIT /b 1
+    cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" -D ZLIB_LIBRARY="C:/Program Files (x86)/zlib/lib/zlibstatic.lib" -D ZLIB_INCLUDE_DIR="C:/Program Files (x86)/zlib/include" -D BZIP2_LIBRARIES="C:/Program Files (x86)/bzip2/lib/bz2_static.lib" -D BZIP2_INCLUDE_DIR="C:/Program Files (x86)/bzip2/include" -D LIBLZMA_LIBRARY="C:/Program Files (x86)/xz/lib/lzma.lib" -D LIBLZMA_INCLUDE_DIR="C:/Program Files (x86)/xz/include" -D ZSTD_LIBRARY="C:/Program Files (x86)/zstd/lib/zstd_static.lib" -D ZSTD_INCLUDE_DIR="C:/Program Files (x86)/zstd/include" ..\.. || EXIT /b 1
   )
 ) ELSE IF "%1%"=="build" (
   IF "%BE%"=="mingw-gcc" (
