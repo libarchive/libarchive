@@ -531,6 +531,19 @@ if test "x$with_lzma" != "xno"; then
   if test "x$ac_cv_lzma_has_arm64" != xno; then
 	  AC_DEFINE([HAVE_LZMA_FILTER_ARM64], [1], [Define to 1 if you have the `LZMA_FILTER_ARM64' macro.])
   fi
+
+  AC_CACHE_CHECK(
+    [whether we have RISCV filter support in lzma],
+    ac_cv_lzma_has_riscv,
+    [AC_LINK_IFELSE([
+      AC_LANG_PROGRAM([[#include <lzma.h>]
+                       [#ifndef LZMA_FILTER_RISCV]
+                       [#error unsupported]
+                       [#endif]])],
+      [ac_cv_lzma_has_riscv=yes], [ac_cv_lzma_has_riscv=no])])
+  if test "x$ac_cv_lzma_has_riscv" != xno; then
+	  AC_DEFINE([HAVE_LZMA_FILTER_RISCV], [1], [Define to 1 if you have the `LZMA_FILTER_RISCV' macro.])
+  fi
 fi
 
 AC_ARG_WITH([lzo2],

@@ -83,6 +83,7 @@
 #define _7Z_ARM		0x03030501
 #define _7Z_ARMTHUMB	0x03030701
 #define _7Z_ARM64	0xa
+#define _7Z_RISCV	0xb
 #define _7Z_SPARC	0x03030805
 
 #define _7Z_ZSTD	0x4F71101 /* Copied from https://github.com/mcmilk/7-Zip-zstd.git */
@@ -1226,6 +1227,12 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				fi++;
 				break;
 #endif
+#ifdef LZMA_FILTER_RISCV
+			case _7Z_RISCV:
+				filters[fi].id = LZMA_FILTER_RISCV;
+				fi++;
+				break;
+#endif
 			case _7Z_SPARC:
 				filters[fi].id = LZMA_FILTER_SPARC;
 				fi++;
@@ -1398,6 +1405,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 	case _7Z_ARM:
 	case _7Z_ARMTHUMB:
 	case _7Z_ARM64:
+	case _7Z_RISCV:
 	case _7Z_SPARC:
 	case _7Z_DELTA:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
