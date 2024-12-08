@@ -64,7 +64,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
-    mingw32-make || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% || EXIT /b 1
     mingw32-make test || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
@@ -78,7 +78,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" -D ENABLE_LIB_ONLY=ON -D ENABLE_SHARED_LIB=OFF -D ENABLE_STATIC_LIB=ON . || EXIT /b 1
-    mingw32-make || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% || EXIT /b 1
     REM mingw32-make test || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
@@ -92,7 +92,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
-    mingw32-make || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
@@ -104,7 +104,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
-    mingw32-make || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
@@ -126,7 +126,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     CD build_ci\cmake
-    mingw32-make VERBOSE=1 || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% VERBOSE=1 || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     CD build_ci\cmake
     cmake --build . --target ALL_BUILD --config Release || EXIT /b 1
