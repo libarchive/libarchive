@@ -3528,7 +3528,7 @@ test_summarize(int failed, int skips_num)
 		fflush(stdout);
 		break;
 	case VERBOSITY_PASSFAIL:
-		printf(failed ? "FAIL\n" : skips_num ? "ok (S)\n" : "ok\n");
+		printf(failed ? "FAIL\n" : skips_num ? "skipped\n" : "ok\n");
 		break;
 	}
 
