@@ -370,6 +370,8 @@ invalid_parameter_handler(const wchar_t * expression,
 static int dump_on_failure = 0;
 /* Default is to remove temp dirs and log data for successful tests. */
 static int keep_temp_files = 0;
+/* Default is to only return a failure code (1) if there were test failures. If enabled, exit with code 2 if there were no failures, but some tests were skipped. */
+static int fail_if_tests_skipped = 0;
 /* Default is to run the specified tests once and report errors. */
 static int until_failure = 0;
 /* Default is to just report pass/fail for each test. */
@@ -3672,7 +3674,8 @@ usage(const char *program)
 	printf("  -q  Quiet.\n");
 	printf("  -r <dir>   Path to dir containing reference files.\n");
 	printf("      Default: Current directory.\n");
-	printf("  -u  Keep running specifies tests until one fails.\n");
+	printf("  -s  Exit with code 2 if any tests were skipped.\n");
+	printf("  -u  Keep running specified tests until one fails.\n");
 	printf("  -v  Verbose.\n");
 	printf("Available tests:\n");
 	for (i = 0; i < limit; i++)
@@ -4065,6 +4068,9 @@ main(int argc, char **argv)
 			case 'r':
 				refdir = option_arg;
 				break;
+			case 's':
+				fail_if_tests_skipped = 1;
+				break;
 			case 'u':
 				until_failure++;
 				break;
@@ -4263,5 +4269,9 @@ finish:
 	assertChdir("..");
 	rmdir(tmpdir);
 
-	return (tests_failed ? 1 : 0);
+	if (tests_failed) return 1;
+
+	if (fail_if_tests_skipped == 1 && skips > 0) return 2;
+
+	return 0;
 }

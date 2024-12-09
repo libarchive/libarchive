@@ -331,7 +331,9 @@ IF(ENABLE_TEST)
       NAME libarchive_${_testname}
       COMMAND libarchive_test -vv
                               -r ${CMAKE_CURRENT_SOURCE_DIR}
+                              -s
                               ${_testname})
+    SET_TESTS_PROPERTIES(libarchive_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
