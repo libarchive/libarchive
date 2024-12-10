@@ -157,22 +157,37 @@ verify_write_data_block(struct archive *a, int sparse)
 	memset(buff, 0, buff_size);
 	memcpy(buff, data, sizeof(data));
 	failure("%s", msg);
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_data_block(a, buff, buff_size, 100));
+#else
+	assertEqualInt(buff_size,
+	    archive_write_data_block(a, buff, buff_size, 100));
+#endif
 
 	/* Second has non-null data in the middle. */
 	memset(buff, 0, buff_size);
 	memcpy(buff + buff_size / 2 - 3, data, sizeof(data));
 	failure("%s", msg);
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_data_block(a, buff, buff_size, buff_size + 200));
+#else
+	assertEqualInt(buff_size,
+	    archive_write_data_block(a, buff, buff_size, buff_size + 200));
+#endif
 
 	/* Third has non-null data at the end. */
 	memset(buff, 0, buff_size);
 	memcpy(buff + buff_size - sizeof(data), data, sizeof(data));
 	failure("%s", msg);
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_data_block(a, buff, buff_size, buff_size * 2 + 300));
+#else
+	assertEqualInt(buff_size,
+	    archive_write_data_block(a, buff, buff_size, buff_size * 2 + 300));
+#endif
 
 	failure("%s", msg);
 	assertEqualIntA(a, 0, archive_write_finish_entry(a));
