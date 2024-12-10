@@ -552,6 +552,9 @@ IF(LIBLZMA_FOUND)
   CHECK_C_SOURCE_COMPILES(
     "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){int ignored __attribute__((unused)); ignored = lzma_stream_encoder_mt(0, 0); return 0;}"
     HAVE_LZMA_STREAM_ENCODER_MT)
+  CHECK_C_SOURCE_COMPILES(
+    "#include <lzma.h>\n#ifndef LZMA_FILTER_ARM64\n#error unsupported\n#endif\nint main(void){return 0;}\n"
+    HAVE_LZMA_FILTER_ARM64)
   IF(NOT WITHOUT_LZMA_API_STATIC AND LZMA_API_STATIC)
     ADD_DEFINITIONS(-DLZMA_API_STATIC)
   ENDIF(NOT WITHOUT_LZMA_API_STATIC AND LZMA_API_STATIC)
@@ -559,6 +562,7 @@ IF(LIBLZMA_FOUND)
 ELSE(LIBLZMA_FOUND)
 # LZMA not found and will not be used.
   SET(HAVE_LZMA_STREAM_ENCODER_MT 0)
+  SET(HAVE_LZMA_FILTER_ARM64 0)
 ENDIF(LIBLZMA_FOUND)
 MARK_AS_ADVANCED(CLEAR LIBLZMA_INCLUDE_DIR)
 MARK_AS_ADVANCED(CLEAR LIBLZMA_LIBRARY)

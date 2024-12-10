@@ -738,6 +738,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `lzmadec' library (-llzmadec). */
 #cmakedefine HAVE_LIBLZMADEC 1
 
+/* Define to 1 if you have the `LZMA_FILTER_ARM64' macro. */
+#cmakedefine HAVE_LZMA_FILTER_ARM64 1
+
 /* Define to 1 if you have the `lzo2' library (-llzo2). */
 #cmakedefine HAVE_LIBLZO2 1
 
