@@ -24,6 +24,10 @@
  */
 #include "test.h"
 
+#if HAVE_LZMA_H
+#include <lzma.h>
+#endif
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	close		_close
 #define	open		_open
@@ -1158,7 +1162,7 @@ test_arm64_filter(const char *refname)
 
 DEFINE_TEST(test_read_format_7zip_lzma2_arm64)
 {
-#ifdef HAVE_LZMA_FILTER_ARM64
+#ifdef LZMA_FILTER_ARM64
 	struct archive *a;
 
 	assert((a = archive_read_new()) != NULL);
