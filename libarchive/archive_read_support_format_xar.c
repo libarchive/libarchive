@@ -1745,15 +1745,6 @@ decompression_cleanup(struct archive_read *a)
 #if defined(HAVE_LZMA_H) && defined(HAVE_LIBLZMA)
 	if (xar->lzstream_valid)
 		lzma_end(&(xar->lzstream));
-#elif defined(HAVE_LZMA_H) && defined(HAVE_LIBLZMA)
-	if (xar->lzstream_valid) {
-		if (lzmadec_end(&(xar->lzstream)) != LZMADEC_OK) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Failed to clean up lzmadec decompressor");
-			r = ARCHIVE_FATAL;
-		}
-	}
 #endif
 	return (r);
 }
