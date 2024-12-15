@@ -23,6 +23,8 @@ jobs:
       run: ./build/ci/build.sh -a configure
       env:
         BS: ${{ matrix.bs }}
+        # Avoid using liblzma from the Xcode 16 / MacOSX15.0.sdk, which fails RISCV filter tests.
+        CMAKE_ARGS: -D LIBLZMA_LIBRARY=/opt/homebrew/lib/liblzma.dylib -D LIBLZMA_INCLUDE_DIR=/opt/homebrew/include/lzma.h
     - name: Build
       run: ./build/ci/build.sh -a build
       env:
