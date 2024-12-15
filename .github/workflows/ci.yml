@@ -29,20 +29,20 @@ jobs:
       run: ./build/ci/build.sh -a build
       env:
         BS: ${{ matrix.bs }}
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j3
     - name: Test
       run: ./build/ci/build.sh -a test
       env:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
         IGNORE_TRAVERSALS_TEST4: 1
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j3
         CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
         BS: ${{ matrix.bs }}
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j3
     - name: Artifact
       run: ./build/ci/build.sh -a artifact
       env:
@@ -77,13 +77,13 @@ jobs:
       run: ./build/ci/build.sh -a build
       env:
         BS: ${{ matrix.bs }}
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j4
     - name: Test
       run: ./build/ci/build.sh -a test
       env:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j4
         CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
