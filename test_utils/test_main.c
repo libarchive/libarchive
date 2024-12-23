@@ -4124,6 +4124,19 @@ main(int argc, char **argv)
 		strncat(testprg, "\"", testprg_len);
 		testprog = testprg;
 	}
+
+	/* Sanity check: reject a relative path for refdir. */
+	if (refdir != NULL) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* TODO: probably use PathIsRelative() from <shlwapi.h>. */
+#else
+		if (refdir[0] != '/') {
+			fprintf(stderr,
+			    "ERROR: Cannot use relative path for refdir\n");
+			exit(1);
+		}
+#endif
+	}
 #endif
 
 #if !defined(_WIN32) && defined(SIGPIPE)
