@@ -130,7 +130,7 @@ static void verify_bzip2_contents(const char *buff, size_t used)
 	assertEqualInt(i2le(p + 6), 0);
 	failure("All central dir entries are on this disk");
 	assertEqualInt(i2le(p + 8), i2le(p + 10));
-	failure("CD start (%d) + CD length (%d) should == archive size - 22",
+	failure("CD start (%u) + CD length (%u) should == archive size - 22",
 	    i4le(p + 12), i4le(p + 16));
 	assertEqualInt(i4le(p + 12) + i4le(p + 16), used - 22);
 	failure("no zip comment");
@@ -138,7 +138,7 @@ static void verify_bzip2_contents(const char *buff, size_t used)
 
 	/* Get address of first entry in central directory. */
 	p = buff + i4le(buffend - 6);
-	failure("Central file record at offset %d should begin with"
+	failure("Central file record at offset %u should begin with"
 	    " PK\\001\\002 signature",
 	    i4le(buffend - 10));
 

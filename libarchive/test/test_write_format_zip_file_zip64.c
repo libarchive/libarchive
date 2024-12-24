@@ -139,7 +139,7 @@ DEFINE_TEST(test_write_format_zip_file_zip64)
 
 	/* Get address of first entry in central directory. */
 	central_header = p = buff + i4le(buffend - 6);
-	failure("Central file record at offset %d should begin with"
+	failure("Central file record at offset %u should begin with"
 	    " PK\\001\\002 signature",
 	    i4le(buffend - 10));
 
