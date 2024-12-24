@@ -22,6 +22,12 @@ static const char *xvf_err =
 "x f\n"
 "x l\n";
 
+/*
+ * This string should appear in the verbose listing regardless of platform,
+ * locale, username, or groupname.
+ */
+const char * tvf_contains = "l link to f";
+
 DEFINE_TEST(test_stdio)
 {
 	FILE *filelist;
@@ -69,9 +75,13 @@ DEFINE_TEST(test_stdio)
 	r = systemf("%s cvf - f l >cvf-.out 2>cvf-.err", testprog);
 	assertEqualInt(r, 0);
 	failure("cvf - should write archive to stdout");
-	/* TODO: Verify cvf-.out has archive. */
 	failure("cvf - should write file list to stderr (SUSv2)");
 	assertEqualFile("cvf.err", "cvf-.err");
+	/* Check that stdout from 'cvf -' was a valid archive. */
+	r = systemf("%s tf cvf-.out >cvf-tf.out 2>cvf-tf.err", testprog);
+	assertEqualInt(r, 0);
+	assertEmptyFile("cvf-tf.err");
+	assertTextFileContents(tf_out, "cvf-tf.out");
 
 	/* 'tf' should generate file list on stdout, empty stderr. */
 	r = systemf("%s tf archive >tf.out 2>tf.err", testprog);
@@ -85,7 +95,10 @@ DEFINE_TEST(test_stdio)
 	assertEqualInt(r, 0);
 	assertEmptyFile("tvf.err");
 	failure("'tv' mode should write results to stdout");
-	/* TODO: Verify tvf.out has file list. */
+	/* Check that it contains a string only found in the verbose listing. */
+	p = slurpfile(&s, "%s", "tvf.out");
+	assert(strstr(p, tvf_contains) != NULL);
+	free(p);
 
 	/* 'tvf -' uses stdin, file list on stdout, empty stderr. */
 	r = systemf("%s tvf - < archive >tvf-.out 2>tvf-.err", testprog);
