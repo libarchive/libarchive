@@ -198,7 +198,7 @@ is_sparse_supported_fiemap(const char *path)
 		return (0);
 	fm = (struct fiemap *)buff;
 	fm->fm_start = 0;
-	fm->fm_length = ~0ULL;;
+	fm->fm_length = ~0ULL;
 	fm->fm_flags = FIEMAP_FLAG_SYNC;
 	fm->fm_extent_count = (sizeof(buff) - sizeof(*fm))/
 		sizeof(struct fiemap_extent);

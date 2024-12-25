@@ -2061,7 +2061,7 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 					if (xar->file->link > 0)
 						if (add_link(a, xar, xar->file) != ARCHIVE_OK) {
 							return (ARCHIVE_FATAL);
-						};
+						}
 				}
 			}
 		}
