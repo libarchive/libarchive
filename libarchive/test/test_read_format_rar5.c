@@ -1150,7 +1150,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualString("system", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
-	flag = UF_SYSTEM;;
+	flag = UF_SYSTEM;
 #elif defined(_WIN32) && !defined(CYGWIN)
 	flag = FILE_ATTRIBUTE_SYSTEM;
 #endif

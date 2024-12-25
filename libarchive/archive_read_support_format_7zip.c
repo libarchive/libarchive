@@ -4091,8 +4091,17 @@ sparc_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 
 #define RC_READ_BYTE (*buffer++)
 #define RC_TEST { if (buffer == bufferLim) return SZ_ERROR_DATA; }
-#define RC_INIT2 zip->bcj2_code = 0; zip->bcj2_range = 0xFFFFFFFF; \
-  { int ii; for (ii = 0; ii < 5; ii++) { RC_TEST; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }}
+#define RC_INIT2 do {							\
+	zip->bcj2_code = 0;						\
+	zip->bcj2_range = 0xFFFFFFFF;					\
+	{								\
+		int ii;							\
+		for (ii = 0; ii < 5; ii++) {				\
+			RC_TEST;					\
+			zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; \
+		}							\
+	}								\
+} while (0)
 
 #define NORMALIZE if (zip->bcj2_range < kTopValue) { RC_TEST; zip->bcj2_range <<= 8; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }
 
