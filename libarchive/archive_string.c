@@ -504,7 +504,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 			count = (int)mbsnbytes(s, length);
 		}
 		u16.s = (char *)dest->s;
-		u16.length = dest->length << 1;;
+		u16.length = dest->length << 1;
 		u16.buffer_length = dest->buffer_length;
 		if (sc->flag & SCONV_NORMALIZATION_C)
 			ret = archive_string_normalize_C(&u16, s, count, sc);
