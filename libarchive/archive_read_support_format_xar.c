@@ -2842,7 +2842,6 @@ xml_data(void *userData, const char *s, size_t len)
 		xar->file->has |= HAS_XATTR;
 		archive_strncpy(&(xar->xattr->fstype), s, len);
 		break;
-		break;
 	case FILE_ACL_DEFAULT:
 	case FILE_ACL_ACCESS:
 	case FILE_ACL_APPLEEXTENDED:
