@@ -3168,7 +3168,6 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		/* We can't decompress this entry, but we will
 		 * be able to skip() it and try the next entry. */
 		return (ARCHIVE_FAILED);
-		break;
 	}
 	if (r != ARCHIVE_OK)
 		return (r);
