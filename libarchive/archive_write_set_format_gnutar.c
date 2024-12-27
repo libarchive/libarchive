@@ -504,7 +504,7 @@ archive_write_gnutar_header(struct archive_write *a,
 		archive_entry_set_uname(temp, "root");
 		archive_entry_set_gname(temp, "wheel");
 
-		archive_entry_set_pathname(temp, "././@LongLink");
+		archive_entry_set_pathname(temp, "././@LongName");
 		archive_entry_set_size(temp, length);
 		ret = archive_format_gnutar_header(a, buff, temp, 'L');
 		archive_entry_free(temp);
@@ -640,7 +640,7 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 	if (format_number(archive_entry_uid(entry), h + GNUTAR_uid_offset,
 		GNUTAR_uid_size, GNUTAR_uid_max_size)) {
 		archive_set_error(&a->archive, ERANGE,
-		    "Numeric user ID %jd too large",
+		    "Numeric user ID %jd too large for gnutar format",
 		    (intmax_t)archive_entry_uid(entry));
 		ret = ARCHIVE_FAILED;
 	}
@@ -649,7 +649,7 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 	if (format_number(archive_entry_gid(entry), h + GNUTAR_gid_offset,
 		GNUTAR_gid_size, GNUTAR_gid_max_size)) {
 		archive_set_error(&a->archive, ERANGE,
-		    "Numeric group ID %jd too large",
+		    "Numeric group ID %jd too large for gnutar format",
 		    (intmax_t)archive_entry_gid(entry));
 		ret = ARCHIVE_FAILED;
 	}
@@ -672,7 +672,7 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 		    h + GNUTAR_rdevmajor_offset,
 			GNUTAR_rdevmajor_size)) {
 			archive_set_error(&a->archive, ERANGE,
-			    "Major device number too large");
+			    "Major device number too large for gnutar format");
 			ret = ARCHIVE_FAILED;
 		}
 
@@ -680,7 +680,7 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 		    h + GNUTAR_rdevminor_offset,
 			GNUTAR_rdevminor_size)) {
 			archive_set_error(&a->archive, ERANGE,
-			    "Minor device number too large");
+			    "Minor device number too large for gnutar format");
 			ret = ARCHIVE_FAILED;
 		}
 	}
