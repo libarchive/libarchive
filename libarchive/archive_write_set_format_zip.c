@@ -1822,7 +1822,9 @@ archive_write_zip_finish_entry(struct archive_write *a)
 {
 	struct zip *zip = a->format_data;
 	int ret;
+#if defined(HAVE_BZLIB_H) || (defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream) || HAVE_LZMA_H
 	char finishing;
+#endif
 
 	switch (zip->entry_compression) {
 #ifdef HAVE_ZLIB_H
