@@ -3319,7 +3319,8 @@ assertion_entry_set_acls(const char *file, int line, struct archive_entry *ae,
 			ret = 1;
 			failure_start(file, line, "type=%#010x, "
 			    "permset=%#010x, tag=%d, qual=%d name=%s",
-			    acls[i].type, acls[i].permset, acls[i].tag,
+			    (unsigned int)acls[i].type,
+			    (unsigned int)acls[i].permset, acls[i].tag,
 			    acls[i].qual, acls[i].name);
 			failure_finish(NULL);
 		}
@@ -3451,7 +3452,8 @@ assertion_entry_compare_acls(const char *file, int line,
 		} else if (matched != 1) {
 			failure_start(file, line, "Could not find match for "
 			    "ACL (type=%#010x,permset=%#010x,tag=%d,qual=%d,"
-			    "name=``%s'')", type, permset, tag, qual, name);
+			    "name=``%s'')", (unsigned int)type,
+			    (unsigned int)permset, tag, qual, name);
 			failure_finish(NULL);
 			ret = 1;
 		}
@@ -3471,7 +3473,8 @@ assertion_entry_compare_acls(const char *file, int line,
 	if (n != 0) {
 		failure_start(file, line, "Could not find match for ACL "
 		    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s'')",
-		    acls[marker[0]].type, acls[marker[0]].permset,
+		    (unsigned int)acls[marker[0]].type,
+		    (unsigned int)acls[marker[0]].permset,
 		    acls[marker[0]].tag, acls[marker[0]].qual,
 		    acls[marker[0]].name);
 		failure_finish(NULL);
