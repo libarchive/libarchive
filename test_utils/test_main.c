@@ -3536,7 +3536,7 @@ test_summarize(int failed, int skips_num)
 
 	for (i = 0; i < sizeof(failed_lines)/sizeof(failed_lines[0]); i++) {
 		if (failed_lines[i].count > 1 && !failed_lines[i].skip)
-			logprintf("%s:%d: Summary: Failed %d times\n",
+			logprintf("%s:%u: Summary: Failed %d times\n",
 			    failed_filename, i, failed_lines[i].count);
 	}
 	/* Clear the failure history for the next file. */
