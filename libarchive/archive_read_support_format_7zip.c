@@ -28,6 +28,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -436,6 +439,7 @@ static size_t	arm_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	arm64_Convert(struct _7zip *, uint8_t *, size_t);
 static ssize_t		Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 static size_t	sparc_Convert(struct _7zip *, uint8_t *, size_t);
+static size_t	powerpc_Convert(struct _7zip *, uint8_t *, size_t);
 
 
 int
@@ -1111,6 +1115,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			    coder2->codec != _7Z_X86_BCJ2 &&
 			    coder2->codec != _7Z_ARM &&
 			    coder2->codec != _7Z_ARM64 &&
+			    coder2->codec != _7Z_POWERPC &&
 			    coder2->codec != _7Z_SPARC) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
@@ -1712,6 +1717,8 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			*outbytes = arm64_Convert(zip, buff, *outbytes);
 		} else if (zip->codec2 == _7Z_SPARC) {
 			*outbytes = sparc_Convert(zip, buff, *outbytes);
+		} else if (zip->codec2 == _7Z_POWERPC) {
+			*outbytes = powerpc_Convert(zip, buff, *outbytes);
 		}
 	}
 
@@ -4061,6 +4068,63 @@ sparc_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 			buf[i+1] = (uint8_t)(instr >> 16);
 			buf[i+2] = (uint8_t)(instr >> 8);
 			buf[i+3] = (uint8_t)instr;
+		}
+	}
+
+	zip->bcj_ip += (uint32_t)i;
+
+	return i;
+}
+
+static size_t
+powerpc_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
+{
+	// This function was adapted from
+	// static size_t powerpc_code(void *simple, uint32_t now_pos, bool is_encoder, uint8_t *buffer, size_t size)
+	// in https://git.tukaani.org/xz.git
+
+	/*
+	 * Filter for PowerPC (big endian) binaries
+	 *
+	 * Authors: Igor Pavlov
+	 *          Lasse Collin
+	 *
+	 * Copyright (C) The XZ Utils authors and contributors
+	 *
+	 * Permission to use, copy, modify, and/or distribute this
+	 * software for any purpose with or without fee is hereby granted.
+	 *
+	 * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+	 * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+	 * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+	 * THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+	 * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+	 * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+	 * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+	 * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+	 */
+
+	size &= ~(size_t)3;
+
+	size_t i;
+	for (i = 0; i < size; i += 4) {
+		// PowerPC branch 6(48) 24(Offset) 1(Abs) 1(Link)
+		if ((buf[i] >> 2) == 0x12
+			&& ((buf[i + 3] & 3) == 1)) {
+
+			const uint32_t src
+				= (((uint32_t)(buf[i + 0]) & 3) << 24)
+				| ((uint32_t)(buf[i + 1]) << 16)
+				| ((uint32_t)(buf[i + 2]) << 8)
+				| ((uint32_t)(buf[i + 3]) & ~UINT32_C(3));
+
+			uint32_t dest = src - (zip->bcj_ip + (uint32_t)(i));
+
+			buf[i + 0] = 0x48 | ((dest >> 24) &  0x03);
+			buf[i + 1] = (dest >> 16);
+			buf[i + 2] = (dest >> 8);
+			buf[i + 3] &= 0x03;
+			buf[i + 3] |= dest;
 		}
 	}
 
