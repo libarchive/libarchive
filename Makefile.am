@@ -1126,6 +1126,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_format_newc.c \
 	tar/test/test_help.c \
 	tar/test/test_leading_slash.c \
+	tar/test/test_list_item.c \
 	tar/test/test_missing_file.c \
 	tar/test/test_option_C_mtree.c \
 	tar/test/test_option_C_upper.c \
@@ -1211,6 +1212,7 @@ bsdtar_test_EXTRA_DIST= \
 	tar/test/test_extract.tar.lzo.uu \
 	tar/test/test_extract.tar.xz.uu \
 	tar/test/test_leading_slash.tar.uu \
+	tar/test/test_list_item.tar.uu \
 	tar/test/test_option_keep_newer_files.tar.Z.uu \
 	tar/test/test_option_passphrase.zip.uu \
 	tar/test/test_option_s.tar.Z.uu \
