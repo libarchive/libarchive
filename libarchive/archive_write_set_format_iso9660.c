@@ -4037,7 +4037,7 @@ set_option_info(struct archive_string *info, int *opt, const char *key,
 	case KEY_HEX:
 		d = va_arg(ap, int);
 		archive_string_sprintf(info, "%c%s=%x",
-		    prefix, key, d);
+		    prefix, key, (unsigned int)d);
 		break;
 	}
 	va_end(ap);

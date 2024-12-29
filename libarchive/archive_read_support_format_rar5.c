@@ -691,7 +691,8 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 		default:
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Unsupported filter type: 0x%x", flt->type);
+			    "Unsupported filter type: 0x%x",
+			    (unsigned int)flt->type);
 			return ARCHIVE_FATAL;
 	}
 
@@ -3983,7 +3984,7 @@ static int do_unpack(struct archive_read* a, struct rar5* rar,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Compression method not supported: 0x%x",
-				    rar->cstate.method);
+				    (unsigned int)rar->cstate.method);
 
 				return ARCHIVE_FATAL;
 		}
