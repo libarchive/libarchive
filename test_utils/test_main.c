@@ -613,7 +613,8 @@ assertion_chmod(const char *file, int line, const char *pathname, int mode)
 	assertion_count(file, line);
 	if (chmod(pathname, mode) == 0)
 		return (1);
-	failure_start(file, line, "chmod(\"%s\", %4.o)", pathname, mode);
+	failure_start(file, line, "chmod(\"%s\", %4.o)", pathname,
+	    (unsigned int)mode);
 	failure_finish(NULL);
 	return (0);
 
@@ -1602,7 +1603,7 @@ assertion_file_mode(const char *file, int line, const char *pathname, int expect
 	if (r == 0 && mode == expected_mode)
 			return (1);
 	failure_start(file, line, "File %s has mode %o, expected %o",
-	    pathname, mode, expected_mode);
+	    pathname, (unsigned int)mode, (unsigned int)expected_mode);
 #endif
 	failure_finish(NULL);
 	return (0);
@@ -1712,8 +1713,8 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 	/* TODO: Can we do better here? */
 	if (mode >= 0 && (mode_t)mode != (st.st_mode & 07777)) {
 		failure_start(file, line, "Dir %s has wrong mode", pathname);
-		logprintf("  Expected: 0%3o\n", mode);
-		logprintf("  Found: 0%3o\n", st.st_mode & 07777);
+		logprintf("  Expected: 0%3o\n", (unsigned int)mode);
+		logprintf("  Found: 0%3o\n", (unsigned int)st.st_mode & 07777);
 		failure_finish(NULL);
 		return (0);
 	}
@@ -1745,8 +1746,8 @@ assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 	/* TODO: Can we do better here? */
 	if (mode >= 0 && (mode_t)mode != (st.st_mode & 07777)) {
 		failure_start(file, line, "File %s has wrong mode", pathname);
-		logprintf("  Expected: 0%3o\n", mode);
-		logprintf("  Found: 0%3o\n", st.st_mode & 07777);
+		logprintf("  Expected: 0%3o\n", (unsigned int)mode);
+		logprintf("  Found: 0%3o\n", (unsigned int)st.st_mode & 07777);
 		failure_finish(NULL);
 		return (0);
 	}
@@ -3466,7 +3467,8 @@ assertion_entry_compare_acls(const char *file, int line,
 	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0 &&
 	    (mode_t)(mode & 0777) != (archive_entry_mode(ae) & 0777)) {
 		failure_start(file, line, "Mode (%02o) and entry mode (%02o) "
-		    "mismatch", mode, archive_entry_mode(ae));
+		    "mismatch", (unsigned int)mode,
+		    (unsigned int)archive_entry_mode(ae));
 		failure_finish(NULL);
 		ret = 1;
 	}
