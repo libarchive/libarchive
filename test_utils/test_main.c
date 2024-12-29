@@ -758,7 +758,7 @@ static void strdump(const char *e, const char *p, int ewidth, int utf8)
 		case '\r': logprintf("\\r"); break;
 		default:
 			if (c >= 32 && c < 127)
-				logprintf("%c", c);
+				logprintf("%c", (int)c);
 			else
 				logprintf("\\x%02X", c);
 		}
@@ -832,7 +832,7 @@ wcsdump(const char *e, const wchar_t *w)
 	while (*w != L'\0') {
 		unsigned int c = *w++;
 		if (c >= 32 && c < 127)
-			logprintf("%c", c);
+			logprintf("%c", (int)c);
 		else if (c < 256)
 			logprintf("\\x%02X", c);
 		else if (c < 0x10000)
@@ -3415,8 +3415,9 @@ assertion_entry_compare_acls(const char *file, int line,
 			}
 			if ((permset << 6) != (mode & 0700)) {
 				failure_start(file, line, "USER_OBJ permset "
-				    "(%02o) != user mode (%02o)", permset,
-				    07 & (mode >> 6));
+				    "(%02o) != user mode (%02o)",
+				    (unsigned int)permset,
+				    (unsigned int)(07 & (mode >> 6)));
 				failure_finish(NULL);
 				ret = 1;
 			}
@@ -3430,8 +3431,9 @@ assertion_entry_compare_acls(const char *file, int line,
 			}
 			if ((permset << 3) != (mode & 0070)) {
 				failure_start(file, line, "GROUP_OBJ permset "
-				    "(%02o) != group mode (%02o)", permset,
-				    07 & (mode >> 3));
+				    "(%02o) != group mode (%02o)",
+				    (unsigned int)permset,
+				    (unsigned int)(07 & (mode >> 3)));
 				failure_finish(NULL);
 				ret = 1;
 			}
@@ -3445,8 +3447,9 @@ assertion_entry_compare_acls(const char *file, int line,
 			}
 			if ((permset << 0) != (mode & 0007)) {
 				failure_start(file, line, "OTHER permset "
-				    "(%02o) != other mode (%02o)", permset,
-				    mode & 07);
+				    "(%02o) != other mode (%02o)",
+				    (unsigned int)permset,
+				    (unsigned int)mode & 07);
 				failure_finish(NULL);
 				ret = 1;
 			}
