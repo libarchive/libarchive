@@ -3803,7 +3803,8 @@ set_mode(struct archive_write_disk *a, int mode)
 				break;
 			default:
 				archive_set_error(&a->archive, errno,
-				    "Can't set permissions to 0%o", (int)mode);
+				    "Can't set permissions to 0%o",
+				    (unsigned int)mode);
 				r = ARCHIVE_WARN;
 			}
 		}
@@ -3826,7 +3827,7 @@ set_mode(struct archive_write_disk *a, int mode)
 
 		if (r2 != 0) {
 			archive_set_error(&a->archive, errno,
-			    "Can't set permissions to 0%o", (int)mode);
+			    "Can't set permissions to 0%o", (unsigned int)mode);
 			r = ARCHIVE_WARN;
 		}
 	}
