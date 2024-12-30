@@ -199,13 +199,13 @@ static int archive_string_append_unicode(struct archive_string *,
     const void *, size_t, struct archive_string_conv *);
 
 #if defined __LITTLE_ENDIAN__
-  #define is_big_endian 0
+  #define IS_BIG_ENDIAN 0
 #elif defined __BIG_ENDIAN__
-  #define is_big_endian 1
+  #define IS_BIG_ENDIAN 1
 #elif defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-  #define is_big_endian 0
+  #define IS_BIG_ENDIAN 0
 #elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-  #define is_big_endian 1
+  #define IS_BIG_ENDIAN 1
 #else
 // Detect endianness at runtime.
 static int
@@ -215,6 +215,8 @@ is_big_endian(void)
 
 	return (archive_be16dec(&d) == 1);
 }
+
+#define IS_BIG_ENDIAN is_big_endian()
 #endif
 
 static struct archive_string *
@@ -503,7 +505,7 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		struct archive_string u16;
 		int saved_flag = sc->flag;/* save current flag. */
 
-		if (is_big_endian())
+		if (IS_BIG_ENDIAN)
 			sc->flag |= SCONV_TO_UTF16BE;
 		else
 			sc->flag |= SCONV_TO_UTF16LE;
@@ -541,14 +543,14 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 		    dest->length + count + 1))
 			return (-1);
 		wmemcpy(dest->s + dest->length, (const wchar_t *)s, count);
-		if ((sc->flag & SCONV_FROM_UTF16BE) && !is_big_endian()) {
+		if ((sc->flag & SCONV_FROM_UTF16BE) && !IS_BIG_ENDIAN) {
 			uint16_t *u16 = (uint16_t *)(dest->s + dest->length);
 			int b;
 			for (b = 0; b < count; b++) {
 				uint16_t val = archive_le16dec(u16+b);
 				archive_be16enc(u16+b, val);
 			}
-		} else if ((sc->flag & SCONV_FROM_UTF16LE) && is_big_endian()) {
+		} else if ((sc->flag & SCONV_FROM_UTF16LE) && IS_BIG_ENDIAN) {
 			uint16_t *u16 = (uint16_t *)(dest->s + dest->length);
 			int b;
 			for (b = 0; b < count; b++) {
@@ -3556,7 +3558,7 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 
 	archive_string_init(&tmp);
 	if (be) {
-		if (is_big_endian()) {
+		if (IS_BIG_ENDIAN) {
 			u16 = _p;
 		} else {
 			if (archive_string_ensure(&tmp, bytes+2) == NULL)
@@ -3569,7 +3571,7 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 			u16 = tmp.s;
 		}
 	} else {
-		if (!is_big_endian()) {
+		if (!IS_BIG_ENDIAN) {
 			u16 = _p;
 		} else {
 			if (archive_string_ensure(&tmp, bytes+2) == NULL)
@@ -3683,7 +3685,7 @@ win_strncat_to_utf16(struct archive_string *as16, const void *_p,
 	if (count == 0)
 		return (-1);
 
-	if (is_big_endian()) {
+	if (IS_BIG_ENDIAN) {
 		if (!bigendian) {
 			while (count > 0) {
 				uint16_t v = archive_be16dec(u16);
