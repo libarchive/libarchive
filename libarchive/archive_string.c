@@ -154,7 +154,6 @@ static int archive_wstring_append_from_mbs_in_codepage(
     struct archive_string_conv *);
 static int archive_string_append_from_wcs_in_codepage(struct archive_string *,
     const wchar_t *, size_t, struct archive_string_conv *);
-static int is_big_endian(void);
 static int strncat_in_codepage(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 static int win_strncat_from_utf16be(struct archive_string *, const void *,
@@ -198,6 +197,25 @@ static int archive_string_normalize_D(struct archive_string *, const void *,
     size_t, struct archive_string_conv *);
 static int archive_string_append_unicode(struct archive_string *,
     const void *, size_t, struct archive_string_conv *);
+
+#if defined __LITTLE_ENDIAN__
+  #define is_big_endian 0
+#elif defined __BIG_ENDIAN__
+  #define is_big_endian 1
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  #define is_big_endian 0
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+  #define is_big_endian 1
+#else
+// Detect endianness at runtime.
+static int
+is_big_endian(void)
+{
+	uint16_t d = 1;
+
+	return (archive_be16dec(&d) == 1);
+}
+#endif
 
 static struct archive_string *
 archive_string_append(struct archive_string *as, const char *p, size_t s)
@@ -3603,14 +3621,6 @@ win_strncat_from_utf16le(struct archive_string *as, const void *_p,
     size_t bytes, struct archive_string_conv *sc)
 {
 	return (win_strncat_from_utf16(as, _p, bytes, sc, 0));
-}
-
-static int
-is_big_endian(void)
-{
-	uint16_t d = 1;
-
-	return (archive_be16dec(&d) == 1);
 }
 
 /*
