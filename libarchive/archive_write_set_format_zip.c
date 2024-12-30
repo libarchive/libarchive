@@ -1365,8 +1365,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			? ZSTD_minCLevel() // ZSTD_minCLevel is negative !
 			: (zip->compression_level - 1) * ZSTD_maxCLevel() / 8;
 		zip->stream.zstd.context = ZSTD_createCStream();
-		ret = ZSTD_initCStream(zip->stream.zstd.context, zstd_compression_level);
-		if (ZSTD_isError(ret)) {
+		size_t zret = ZSTD_initCStream(zip->stream.zstd.context, zstd_compression_level);
+		if (ZSTD_isError(zret)) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't init zstd compressor");
 			return (ARCHIVE_FATAL);
@@ -1598,9 +1598,9 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		zip->stream.zstd.in.size = s;
 		zip->stream.zstd.in.pos = 0;
 		do {
-			ret = ZSTD_compressStream(zip->stream.zstd.context,
+			size_t zret = ZSTD_compressStream(zip->stream.zstd.context,
 				&zip->stream.zstd.out, &zip->stream.zstd.in);
-			if (ZSTD_isError(ret))
+			if (ZSTD_isError(zret))
 				return (ARCHIVE_FATAL);
 			if (zip->stream.zstd.out.pos == zip->stream.zstd.out.size) {
 				if (zip->tctx_valid) {
@@ -1914,10 +1914,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		do {
 			size_t remainder;
 
-			ret = ZSTD_endStream(zip->stream.zstd.context, &zip->stream.zstd.out);
-			if (ret == 0)
+			size_t zret = ZSTD_endStream(zip->stream.zstd.context, &zip->stream.zstd.out);
+			if (zret == 0)
 				finishing = 0;
-			else if (ZSTD_isError(ret))
+			else if (ZSTD_isError(zret))
 				return (ARCHIVE_FATAL);
 			remainder = zip->len_buf - (zip->stream.zstd.out.size - zip->stream.zstd.out.pos);
 			if (zip->tctx_valid) {
