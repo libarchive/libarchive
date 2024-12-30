@@ -1039,7 +1039,7 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	struct archive_string	 acl_text;
 	size_t size;
 	int err, acl_type;
-	int64_t type;
+	uint64_t type;
 	char *acl, *p;
 
 	header = (const struct archive_entry_header_ustar *)h;
@@ -1076,7 +1076,7 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		}
 		p++;
 	}
-	switch ((int)type & ~0777777) {
+	switch (type & ~0777777) {
 	case 01000000:
 		/* POSIX.1e ACL */
 		acl_type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
@@ -1087,8 +1087,8 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		break;
 	default:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Malformed Solaris ACL attribute (unsupported type %o)",
-		    (int)type);
+		    "Malformed Solaris ACL attribute (unsupported type %"
+		    PRIo64 ")", type);
 		archive_string_free(&acl_text);
 		return (ARCHIVE_WARN);
 	}
