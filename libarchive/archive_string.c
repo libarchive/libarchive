@@ -206,6 +206,8 @@ static int archive_string_append_unicode(struct archive_string *,
   #define IS_BIG_ENDIAN 0
 #elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
   #define IS_BIG_ENDIAN 1
+#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64) || defined(_M_ARM64))
+  #define IS_BIG_ENDIAN 0
 #else
 // Detect endianness at runtime.
 static int
