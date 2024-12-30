@@ -629,8 +629,10 @@ assertion_equal_int(const char *file, int line,
 	if (v1 == v2)
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
-	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e1, v1, v1, v1);
-	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e2, v2, v2, v2);
+	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e1, v1,
+	    (unsigned long long)v1, (unsigned long long)v1);
+	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e2, v2,
+	    (unsigned long long)v2, (unsigned long long)v2);
 	failure_finish(extra);
 	return (0);
 }
@@ -899,7 +901,7 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 		for (j = 0; j < 16 && i + j < l; j++) {
 			if (ref != NULL && p[i + j] != ref[i + j])
 				sep = '_';
-			logprintf("%c%02x", sep, 0xff & (int)p[i+j]);
+			logprintf("%c%02x", sep, 0xff & (unsigned int)p[i+j]);
 			if (ref != NULL && p[i + j] == ref[i + j])
 				sep = ' ';
 		}

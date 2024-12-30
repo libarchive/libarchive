@@ -26,7 +26,7 @@ static const char *xvf_err =
  * This string should appear in the verbose listing regardless of platform,
  * locale, username, or groupname.
  */
-const char * tvf_contains = "l link to f";
+static const char * tvf_contains = "l link to f";
 
 DEFINE_TEST(test_stdio)
 {

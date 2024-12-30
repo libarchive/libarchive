@@ -1294,7 +1294,7 @@ static int parse_file_extra_hash(struct archive_read* a, struct rar5* rar,
 		*extra_data_size -= hash_size;
 	} else {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Unsupported hash type (0x%x)", (int) hash_type);
+		    "Unsupported hash type (0x%jx)", (uintmax_t)hash_type);
 		return ARCHIVE_FATAL;
 	}
 
@@ -1897,7 +1897,8 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	} else {
 		/* Unknown host OS */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-				"Unsupported Host OS: 0x%x", (int) host_os);
+				"Unsupported Host OS: 0x%jx",
+				(uintmax_t)host_os);
 
 		return ARCHIVE_FATAL;
 	}
@@ -2105,8 +2106,8 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
 		default:
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Unsupported extra type (0x%x)",
-			    (int) extra_field_id);
+			    "Unsupported extra type (0x%jx)",
+			    (uintmax_t)extra_field_id);
 			return ARCHIVE_FATAL;
 	}
 
