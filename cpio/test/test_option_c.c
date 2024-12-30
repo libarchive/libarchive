@@ -117,7 +117,7 @@ DEFINE_TEST(test_option_c)
 	gid = (int)from_octal(e + 30, 6);
 	assertEqualMem(e + 36, "000001", 6); /* nlink */
 	failure("file entries should not have rdev set (dev field was 0%o)",
-	    dev);
+	    (unsigned int)dev);
 	assertEqualMem(e + 42, "000000", 6); /* rdev */
 	t = from_octal(e + 48, 11); /* mtime */
 	assert(t <= now); /* File wasn't created in future. */
