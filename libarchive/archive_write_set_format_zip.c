@@ -453,7 +453,8 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->threads = sysconf(_SC_NPROCESSORS_ONLN);
 #elif !defined(__CYGWIN__) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0601
 			/* Windows 7 and up */
-			zip->threads = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+			DWORD activeProcs = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+			zip->threads = activeProcs <= SHRT_MAX ? (short)activeProcs : SHRT_MAX;
 #else
 			zip->threads = 1;
 #endif
