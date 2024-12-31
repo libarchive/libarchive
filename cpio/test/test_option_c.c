@@ -18,7 +18,7 @@ is_octal(const char *p, size_t l)
 	return (1);
 }
 
-static long long int
+static unsigned long long int
 from_octal(const char *p, size_t l)
 {
 	long long int r = 0;
@@ -133,7 +133,7 @@ DEFINE_TEST(test_option_c)
 		assert(is_octal(e, 76)); /* Entire header is octal digits. */
 		assertEqualMem(e + 0, "070707", 6); /* Magic */
 		assertEqualInt(dev, from_octal(e + 6, 6)); /* dev */
-		assert(ino != from_octal(e + 12, 6)); /* ino */
+		assert(ino != (int)from_octal(e + 12, 6)); /* ino */
 #if !defined(_WIN32) || defined(__CYGWIN__)
 		/* On Windows, symbolic link and group members bits and
 		 * others bits do not work. */
@@ -163,7 +163,7 @@ DEFINE_TEST(test_option_c)
 	assertEqualInt(dev, from_octal(e + 6, 6));
 	/* Ino must be different from first entry. */
 	assert(is_octal(e + 12, 6)); /* ino */
-	assert(ino != from_octal(e + 12, 6));
+	assert(ino != (int)from_octal(e + 12, 6));
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Group members bits and others bits do not work. */
 	assertEqualMem(e + 18, "040777", 6); /* Mode */
