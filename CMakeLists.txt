@@ -2197,11 +2197,6 @@ IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
 ENDIF(MSVC)
 
-IF(APPLE)
-  # CC_MD5_Init() functions are deprecated on macOS 10.15, but we want to use them
-  ADD_DEFINITIONS(-Wno-deprecated-declarations)
-ENDIF(APPLE)
-
 OPTION(DONT_FAIL_ON_CRC_ERROR "Ignore CRC errors during parsing (For fuzzing)" OFF)
 IF(DONT_FAIL_ON_CRC_ERROR)
   ADD_DEFINITIONS(-DDONT_FAIL_ON_CRC_ERROR=1)
