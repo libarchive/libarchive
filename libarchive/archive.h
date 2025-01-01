@@ -132,7 +132,7 @@ typedef ssize_t la_ssize_t;
 #define	__LA_PRINTF(fmtarg, firstvararg)	/* nothing */
 #endif
 
-#if defined(__GNUC__) && __GNUC__ >= 3 && __GNUC_MINOR__ >= 1
+#if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
 # define __LA_DEPRECATED __attribute__((deprecated))
 #else
 # define __LA_DEPRECATED
