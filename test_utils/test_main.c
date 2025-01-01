@@ -2108,7 +2108,7 @@ assertion_utimes(const char *file, int line, const char *pathname,
 	int r;
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
+#define WINTIME(sec, nsec) (((sec * 10000000LL) + EPOC_TIME)\
 	 + (((nsec)/1000)*10))
 	HANDLE h;
 	ULARGE_INTEGER wintm;
