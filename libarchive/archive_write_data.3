@@ -49,7 +49,8 @@ except that it performs a seek on the file being
 written to the specified offset before writing the data.
 This is useful when restoring sparse files from archive
 formats that support sparse files.
-Returns number of bytes written or -1 on error.
+Returns number of bytes written or a negative error
+code on error.
 (Note: This is currently not supported for
 .Tn archive_write
 handles, only for
