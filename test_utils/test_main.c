@@ -611,7 +611,7 @@ int
 assertion_chmod(const char *file, int line, const char *pathname, int mode)
 {
 	assertion_count(file, line);
-	if (chmod(pathname, mode) == 0)
+	if (chmod(pathname, (mode_t)mode) == 0)
 		return (1);
 	failure_start(file, line, "chmod(\"%s\", %4.o)", pathname,
 	    (unsigned int)mode);
@@ -1950,8 +1950,8 @@ assertion_make_dir(const char *file, int line, const char *dirname, int mode)
 	if (0 == _mkdir(dirname))
 		return (1);
 #else
-	if (0 == mkdir(dirname, mode)) {
-		if (0 == chmod(dirname, mode)) {
+	if (0 == mkdir(dirname, (mode_t)mode)) {
+		if (0 == chmod(dirname, (mode_t)mode)) {
 			assertion_file_mode(file, line, dirname, mode);
 			return (1);
 		}
@@ -2005,9 +2005,9 @@ assertion_make_file(const char *file, int line,
 		return (0);
 	}
 #ifdef HAVE_FCHMOD
-	if (0 != fchmod(fd, mode))
+	if (0 != fchmod(fd, (mode_t)mode))
 #else
-	if (0 != chmod(path, mode))
+	if (0 != chmod(path, (mode_t)mode))
 #endif
 	{
 		failure_start(file, line, "Could not chmod %s", path);
@@ -2096,7 +2096,7 @@ assertion_umask(const char *file, int line, int mask)
 	assertion_count(file, line);
 	(void)file; /* UNUSED */
 	(void)line; /* UNUSED */
-	umask(mask);
+	umask((mode_t)mask);
 	return (1);
 }
 
@@ -3568,7 +3568,7 @@ test_run(int i, const char *tmpdir)
 	char logfilename[64];
 	int failures_before = failures;
 	int skips_before = skips;
-	int oldumask;
+	mode_t oldumask;
 
 	switch (verbosity) {
 	case VERBOSITY_SUMMARY_ONLY: /* No per-test reports at all */
