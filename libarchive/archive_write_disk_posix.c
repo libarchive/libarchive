@@ -2202,7 +2202,7 @@ restore_entry(struct archive_write_disk *a)
 				(void)clear_nochange_fflags(a);
 
 			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
-			    S_ISREG(a->st.st_mode)) {
+			    S_ISREG(a->mode)) {
 				/* Use a temporary file to extract */
 				if ((a->fd = la_mktemp(a)) == -1) {
 					archive_set_error(&a->archive, errno,
