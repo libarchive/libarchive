@@ -356,7 +356,7 @@ make_dir(const char *path, int mode)
 		 */
 		(void)unlink(path);
 	}
-	if (mkdir(path, mode) != 0 && errno != EEXIST)
+	if (mkdir(path, (mode_t)mode) != 0 && errno != EEXIST)
 		error("mkdir('%s')", path);
 }
 
@@ -700,7 +700,7 @@ recheck:
 			error("symlink('%s')", *path);
 		info(" extracting: %s -> %s\n", *path, linkname);
 #ifdef HAVE_LCHMOD
-		if (lchmod(*path, mode) != 0)
+		if (lchmod(*path, (mode_t)mode) != 0)
 			warning("Cannot set mode for '%s'", *path);
 #endif
 		/* set access and modification time */
