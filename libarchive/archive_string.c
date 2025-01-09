@@ -2634,7 +2634,7 @@ unicode_to_utf16be(char *p, size_t remaining, uint32_t uc)
 	} else {
 		if (remaining < 2)
 			return (0);
-		archive_be16enc(utf16, uc);
+		archive_be16enc(utf16, (uint16_t)uc);
 		return (2);
 	}
 }
@@ -2656,7 +2656,7 @@ unicode_to_utf16le(char *p, size_t remaining, uint32_t uc)
 	} else {
 		if (remaining < 2)
 			return (0);
-		archive_le16enc(utf16, uc);
+		archive_le16enc(utf16, (uint16_t)uc);
 		return (2);
 	}
 }
@@ -3825,9 +3825,9 @@ best_effort_strncat_to_utf16(struct archive_string *as16, const void *_p,
 			ret = -1;
 		}
 		if (bigendian)
-			archive_be16enc(utf16, c);
+			archive_be16enc(utf16, (uint16_t)c);
 		else
-			archive_le16enc(utf16, c);
+			archive_le16enc(utf16, (uint16_t)c);
 		utf16 += 2;
 	}
 	as16->length = utf16 - as16->s;
