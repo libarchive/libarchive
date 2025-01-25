@@ -39,7 +39,10 @@
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
 #include <stdio.h> /* For FILE * */
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* time_t is slated to be removed from public includes in 4.0 */
 #include <time.h> /* For time_t */
+#endif
 
 /*
  * Note: archive.h is for use outside of libarchive; the configuration
@@ -92,6 +95,22 @@ typedef long la_ssize_t;
 # include <unistd.h>  /* ssize_t */
 typedef ssize_t la_ssize_t;
 # endif
+#endif
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Use the platform types for time_t */
+#define __LA_TIME_T time_t
+#else
+/* Use 64-bytes integer types for time_t */
+#define __LA_TIME_T la_int64_t
+#endif
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Use the platform types for dev_t */
+#define __LA_DEV_T dev_t
+#else
+/* Use 64-bytes integer types for dev_t */
+#define __LA_DEV_T la_int64_t
 #endif
 
 /* Large file support for Android */
