@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.7.5dev])
-m4_define([LIBARCHIVE_VERSION_N],[3007005])
+m4_define([LIBARCHIVE_VERSION_S],[3.8.0dev])
+m4_define([LIBARCHIVE_VERSION_N],[3008000])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -107,6 +107,11 @@ case "$host_os" in
   *mingw* ) PLATFORMCPPFLAGS=-D__USE_MINGW_ANSI_STDIO -D__MINGW_USE_VC2005_COMPAT ;;
 esac
 AC_SUBST(PLATFORMCPPFLAGS)
+
+dnl Linking on Haiku needs libbsd because of readpassphrase
+case "$host_os" in
+  haiku*) LIBS="-lbsd $LIBS" ;;
+esac
 
 # Checks for programs.
 AC_PROG_CC
@@ -367,6 +372,7 @@ AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/richacl.h])
 AC_CHECK_HEADERS([sys/select.h sys/statfs.h sys/statvfs.h sys/sysmacros.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h sys/xattr.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
+AC_CHECK_TYPE([suseconds_t])
 AC_CHECK_HEADERS([windows.h])
 # check windows.h first; the other headers require it.
 AC_CHECK_HEADERS([wincrypt.h winioctl.h],[],[],
@@ -380,8 +386,23 @@ AC_ARG_WITH([zlib],
   AS_HELP_STRING([--without-zlib], [Don't build support for gzip through zlib]))
 
 if test "x$with_zlib" != "xno"; then
-  AC_CHECK_HEADERS([zlib.h])
-  AC_CHECK_LIB(z,inflate)
+  old_LIBS="$LIBS"
+  LIBS="$LIBS -lz"
+  AC_LINK_IFELSE([AC_LANG_SOURCE([[
+      #include <zlib.h>
+      #if !defined(ZLIB_VERNUM)
+      // zlib 1.2.0 should work too, but it's difficult to test for.
+      // zlib 1.2.1 onwards have ZLIB_VERNUM, which is easy to check.
+      #error zlib >= 1.2.1 is required.
+      #endif
+      // Check that there's an inflate function.
+      int main(int argc, char **argv) { inflate(NULL, 0); return 0; }
+    ]])],
+    [AC_DEFINE([HAVE_ZLIB_H], [1], [Define to 1 if you have zlib >= 1.2.1])
+      AC_MSG_RESULT([found a suitable version of zlib (>= 1.2.1)])
+    ],
+    [AC_MSG_RESULT([could not find a suitable version of zlib (>= 1.2.1)])
+      LIBS="$old_LIBS"])
 fi
 
 AC_ARG_WITH([bz2lib],
@@ -462,14 +483,24 @@ if test "x$with_zstd" != "xno"; then
   AC_CHECK_LIB(zstd,ZSTD_decompressStream)
   AC_CHECK_LIB(zstd,ZSTD_compressStream,
     AC_DEFINE([HAVE_ZSTD_compressStream], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
+  AC_CHECK_LIB(zstd,ZSTD_minCLevel,
+    AC_DEFINE([HAVE_ZSTD_minCLevel], [1], [Define to 1 if you have a `zstd' library version with ZSTD_minCLevel().]))
 fi
 
 AC_ARG_WITH([lzma],
   AS_HELP_STRING([--without-lzma], [Don't build support for xz through lzma]))
 
 if test "x$with_lzma" != "xno"; then
+  PKG_PROG_PKG_CONFIG
+  PKG_CHECK_MODULES(LZMA_PC, [liblzma], [
+    CPPFLAGS="${CPPFLAGS} ${LZMA_PC_CFLAGS}"
+    LIBS="${LIBS} ${LZMA_PC_LIBS}"
+    AC_DEFINE(HAVE_LIBLZMA, [1], [Define to 1 if you have the `lzma' library.])
+  ], [
+    AC_CHECK_LIB(lzma,lzma_stream_decoder)
+  ])
   AC_CHECK_HEADERS([lzma.h])
-  AC_CHECK_LIB(lzma,lzma_stream_decoder)
+
   # Some pre-release (but widely distributed) versions of liblzma
   # included a disabled version of lzma_stream_encoder_mt that
   # fools a naive AC_CHECK_LIB or AC_CHECK_FUNC, so we need
@@ -486,19 +517,6 @@ if test "x$with_lzma" != "xno"; then
       [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
   if test "x$ac_cv_lzma_has_mt" != xno; then
 	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the `lzma_stream_encoder_mt' function.])
-  fi
-
-  AC_CACHE_CHECK(
-    [whether we have ARM64 filter support in lzma],
-    ac_cv_lzma_has_arm64,
-    [AC_LINK_IFELSE([
-      AC_LANG_PROGRAM([[#include <lzma.h>]
-                       [#ifndef LZMA_FILTER_ARM64]
-                       [#error unsupported]
-                       [#endif]])],
-      [ac_cv_lzma_has_arm64=yes], [ac_cv_lzma_has_arm64=no])])
-  if test "x$ac_cv_lzma_has_arm64" != xno; then
-	  AC_DEFINE([HAVE_LZMA_FILTER_ARM64], [1], [Define to 1 if you have the `LZMA_FILTER_ARM64' macro.])
   fi
 fi
 
@@ -804,6 +822,7 @@ AC_CHECK_FUNCS([readpassphrase])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strnlen strrchr symlink])
 AC_CHECK_FUNCS([sysconf])
+AC_CHECK_FUNCS([tcgetattr tcsetattr])
 AC_CHECK_FUNCS([timegm tzset unlinkat unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove])
 AC_CHECK_FUNCS([_fseeki64 _get_timezone])
@@ -908,9 +927,7 @@ if test "x$enable_xattr" != "xno"; then
 			  listxattr \
 			  setxattr,
 	  [ac_cv_archive_xattr_darwin=yes],
-	  [ac_cv_archive_xattr_darwin=no],
-	  [#include <sys/xattr.h>
-])
+	  [ac_cv_archive_xattr_darwin=no])
 	]
       )
     elif test "x$ac_cv_header_sys_extattr_h" = "xyes" \
@@ -926,10 +943,7 @@ if test "x$enable_xattr" != "xno"; then
 			  extattr_set_fd \
 			  extattr_set_link,
 	  [ac_cv_archive_xattr_freebsd=yes],
-	  [ac_cv_archive_xattr_freebsd=no],
-	  [#include <sys/types.h>
-#include <sys/extattr.h>
-])
+	  [ac_cv_archive_xattr_freebsd=no])
 	  ]
 	)
     elif test "x$ac_cv_header_sys_xattr_h" = "xyes" \
@@ -945,17 +959,7 @@ if test "x$enable_xattr" != "xno"; then
 			  llistxattr \
 			  lsetxattr,
 	  [ac_cv_archive_xattr_linux=yes],
-	  [ac_cv_archive_xattr_linux=no],
-	  [#if HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#if HAVE_SYS_XATTR_H
-#include <sys/xattr.h>
-#endif
-#if HAVE_ATTR_XATTR_H
-#include <attr/xatr.h>
-#endif
-])
+	  [ac_cv_archive_xattr_linux=no])
 	]
       )
     elif test "x$ac_cv_header_sys_ea_h" = "xyes"; then
@@ -970,9 +974,7 @@ if test "x$enable_xattr" != "xno"; then
 			  llistea \
 			  lsetea,
 	  [ac_cv_archive_xattr_aix=yes],
-	  [ac_cv_archive_xattr_aix=no],
-	  [#include <sys/ea.h>
-])
+	  [ac_cv_archive_xattr_aix=no])
 	  ]
 	)
     fi
@@ -1041,7 +1043,7 @@ if test "x$enable_acl" != "xno"; then
 			  richacl_get_file \
 			  richacl_set_fd \
 			  richacl_set_file,
-	  [ac_cv_archive_acl_librichacl=yes], [ac_cv_archive_acl_librichacl=no],	  [#include <sys/richacl.h>])])
+	  [ac_cv_archive_acl_librichacl=yes], [ac_cv_archive_acl_librichacl=no])])
     fi
 
     if test "x$ac_cv_func_acl" = "xyes" \
@@ -1083,14 +1085,7 @@ if test "x$enable_acl" != "xno"; then
 			  acl_set_file \
 			  acl_set_qualifier \
 			  acl_set_tag_type,
-	  [ac_cv_posix_acl_funcs=yes], [ac_cv_posix_acl_funcs=no],
-	  [#if HAVE_SYS_TYPES_H
-	   #include <sys/types.h>
-	   #endif
-	   #if HAVE_SYS_ACL_H
-	   #include <sys/acl.h>
-	   #endif
-	  ])
+	  [ac_cv_posix_acl_funcs=yes], [ac_cv_posix_acl_funcs=no])
 	])
 
 	AC_CHECK_FUNCS(acl_get_perm)
@@ -1117,14 +1112,11 @@ if test "x$enable_acl" != "xno"; then
 			    acl_is_trivial_np \
 			    acl_set_entry_type_np \
 			    acl_set_fd_np \
-			    acl_set_link_np,,,
-	      [#include <sys/types.h>
-	       #include <sys/acl.h>])
+			    acl_set_link_np)
 
 	    AC_CHECK_FUNCS(mbr_uid_to_uuid \
 			   mbr_uuid_to_id \
-			   mbr_gid_to_uuid,,,
-	      [#include <membership.h>])
+			   mbr_gid_to_uuid)
 
 	    AC_CHECK_DECLS([ACL_TYPE_EXTENDED, ACL_TYPE_NFS4, ACL_USER,
 	      ACL_SYNCHRONIZE], [], [],

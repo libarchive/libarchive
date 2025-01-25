@@ -28,7 +28,12 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif
@@ -37,6 +42,9 @@
 #endif
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
+#endif
+#ifdef HAVE_ZSTD_H
+#include <zstd.h>
 #endif
 
 #include "archive.h"
@@ -62,6 +70,8 @@
 #define _7Z_DEFLATE	0x040108
 #define _7Z_BZIP2	0x040202
 #define _7Z_PPMD	0x030401
+
+#define _7Z_ZSTD	0x4F71101 /* Copied from https://github.com/mcmilk/7-Zip-zstd.git */
 
 /*
  * 7-Zip header property IDs.
@@ -109,6 +119,9 @@
 // 7z archives created on unix have this bit set in the high 16 bits of
 // the attr field along with the unix permissions.
 #define FILE_ATTRIBUTE_UNIX_EXTENSION 0x8000
+
+// Many systems define min or MIN, but not all.
+#define sevenzipmin(a,b) ((a) < (b) ? (a) : (b))
 
 enum la_zaction {
 	ARCHIVE_Z_FINISH,
@@ -209,7 +222,11 @@ struct _7zip {
 #define	ENCODED_CRC32	2
 
 	unsigned		 opt_compression;
+
 	int			 opt_compression_level;
+	int			 opt_zstd_compression_level; // This requires a different default value.
+
+	int			 opt_threads;
 
 	struct la_zstream	 stream;
 	struct coder		 coder;
@@ -291,6 +308,13 @@ static int	compression_code_ppmd(struct archive *,
 static int	compression_end_ppmd(struct archive *, struct la_zstream *);
 static int	_7z_compression_init_encoder(struct archive_write *, unsigned,
 		    int);
+static int	compression_init_encoder_zstd(struct archive *,
+		    struct la_zstream *, int, int);
+#if defined(HAVE_ZSTD_H)
+static int	compression_code_zstd(struct archive *,
+		    struct la_zstream *, enum la_zaction);
+static int	compression_end_zstd(struct archive *, struct la_zstream *);
+#endif
 static int	compression_code(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end(struct archive *,
@@ -300,6 +324,21 @@ static int	make_header(struct archive_write *, uint64_t, uint64_t,
 		    uint64_t, int, struct coder *);
 static int	make_streamsInfo(struct archive_write *, uint64_t, uint64_t,
 		    	uint64_t, int, struct coder *, int, uint32_t);
+
+static int
+string_to_number(const char *string, intmax_t *numberp)
+{
+	char *end;
+
+	if (string == NULL || *string == '\0')
+		return (ARCHIVE_WARN);
+	*numberp = strtoimax(string, &end, 10);
+	if (end == string || *end != '\0' || errno == EOVERFLOW) {
+		*numberp = 0;
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
+}
 
 int
 archive_write_set_format_7zip(struct archive *_a)
@@ -335,10 +374,23 @@ archive_write_set_format_7zip(struct archive *_a)
 	zip->opt_compression = _7Z_BZIP2;
 #elif defined(HAVE_ZLIB_H)
 	zip->opt_compression = _7Z_DEFLATE;
+#elif HAVE_ZSTD_H
+	zip->opt_compression = _7Z_ZSTD;
 #else
 	zip->opt_compression = _7Z_COPY;
 #endif
+
 	zip->opt_compression_level = 6;
+
+#ifdef ZSTD_CLEVEL_DEFAULT
+	// Zstandard compression needs a different default
+	// value than other encoders.
+	zip->opt_zstd_compression_level = ZSTD_CLEVEL_DEFAULT;
+#else
+	zip->opt_zstd_compression_level = 3;
+#endif
+
+	zip->opt_threads = 1;
 
 	a->format_data = zip;
 
@@ -398,6 +450,13 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 #else
 			name = "lzma2";
 #endif
+		else if (strcmp(value, "zstd") == 0 ||
+		    strcmp(value, "ZSTD") == 0)
+#if HAVE_ZSTD_H
+			zip->opt_compression = _7Z_ZSTD;
+#else
+			name = "zstd";
+#endif
 		else if (strcmp(value, "ppmd") == 0 ||
 		    strcmp(value, "PPMD") == 0 ||
 		    strcmp(value, "PPMd") == 0)
@@ -420,16 +479,68 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 		return (ARCHIVE_OK);
 	}
 	if (strcmp(key, "compression-level") == 0) {
-		if (value == NULL ||
-		    !(value[0] >= '0' && value[0] <= '9') ||
-		    value[1] != '\0') {
-			archive_set_error(&(a->archive),
-			    ARCHIVE_ERRNO_MISC,
-			    "Illegal value `%s'",
-			    value);
+		if (value == NULL || *value == '\0') {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+				"Invalid compression-level option value `%s'", value);
 			return (ARCHIVE_FAILED);
 		}
-		zip->opt_compression_level = value[0] - '0';
+
+		char *end = NULL;
+		long lvl = strtol(value, &end, 10);
+		if (end == NULL || *end != '\0') {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+				"parsing compression-level option value failed `%s'", value);
+			return (ARCHIVE_FAILED);
+		}
+
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream && HAVE_ZSTD_minCLevel
+		int min_level = sevenzipmin(0, ZSTD_minCLevel());
+#else
+		const int min_level = 0;
+#endif
+
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+		int max_level = ZSTD_maxCLevel();
+#else
+		const int max_level = 9;
+#endif
+
+		if (lvl < min_level || lvl > max_level) {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+				"compression-level option value `%ld' out of range", lvl);
+			return (ARCHIVE_FAILED);
+		}
+
+		// Note: we don't know here if this value is for zstd (negative to ~22),
+		// or zlib-style 0-9. If zstd is enabled but not in use, we will need to
+		// validate opt_compression_level before use.
+		zip->opt_compression_level = (int)lvl;
+
+		zip->opt_zstd_compression_level = (int)lvl;
+		return (ARCHIVE_OK);
+	}
+	if (strcmp(key, "threads") == 0) {
+		intmax_t threads;
+		if (string_to_number(value, &threads) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
+		if (threads < 0) {
+			return (ARCHIVE_WARN);
+		}
+		if (threads == 0) {
+#if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
+			threads = sysconf(_SC_NPROCESSORS_ONLN);
+#elif !defined(__CYGWIN__) && defined(_WIN32_WINNT) && \
+	_WIN32_WINNT >= 0x0601 /* _WIN32_WINNT_WIN7 */
+			DWORD winCores = GetActiveProcessorCount(
+				ALL_PROCESSOR_GROUPS);
+			threads = (intmax_t)winCores;
+#else
+			threads = 1;
+#endif
+		}
+
+		zip->opt_threads = (int)threads;
 		return (ARCHIVE_OK);
 	}
 
@@ -495,8 +606,19 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 	 * Init compression.
 	 */
 	if ((zip->total_number_entry - zip->total_number_empty_entry) == 1) {
-		r = _7z_compression_init_encoder(a, zip->opt_compression,
-			zip->opt_compression_level);
+
+		int level = zip->opt_compression_level;
+#if HAVE_ZSTD_H
+		if (zip->opt_compression == _7Z_ZSTD) {
+			level = zip->opt_zstd_compression_level;
+		} else if (level < 0 || level > 9) {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+				"compression-level option value `%d' out of range 0-9", level);
+			return (ARCHIVE_FATAL);
+		}
+#endif
+
+		r = _7z_compression_init_encoder(a, zip->opt_compression, level);
 		if (r < 0) {
 			file_free(file);
 			return (ARCHIVE_FATAL);
@@ -521,7 +643,7 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 	 */
 	if (archive_entry_filetype(entry) == AE_IFLNK) {
 		ssize_t bytes;
-		const void *p = (const void *)archive_entry_symlink(entry);
+		const void *p = (const void *)archive_entry_symlink_utf8(entry);
 		bytes = compress_out(a, p, (size_t)file->size, ARCHIVE_Z_RUN);
 		if (bytes < 0)
 			return ((int)bytes);
@@ -785,8 +907,12 @@ _7z_close(struct archive_write *a)
 #else
 		header_compression = _7Z_COPY;
 #endif
-		r = _7z_compression_init_encoder(a, header_compression,
-		                                 zip->opt_compression_level);
+
+		int level = zip->opt_compression_level;
+		if (level < 0) level = 0;
+		else if (level > 9) level = 9;
+
+		r = _7z_compression_init_encoder(a, header_compression, level);
 		if (r < 0)
 			return (r);
 		zip->crc32flg = PRECODE_CRC32;
@@ -844,7 +970,7 @@ _7z_close(struct archive_write *a)
 		header_offset = header_size = 0;
 		header_crc32 = 0;
 	}
-	
+
 	length = zip->temp_offset;
 
 	/*
@@ -1504,7 +1630,7 @@ file_cmp_node(const struct archive_rb_node *n1,
 		return (memcmp(f1->utf16name, f2->utf16name, f1->name_len));
 	return (f1->name_len > f2->name_len)?1:-1;
 }
-        
+
 static int
 file_cmp_key(const struct archive_rb_node *n, const void *key)
 {
@@ -1563,8 +1689,18 @@ file_new(struct archive_write *a, struct archive_entry *entry,
 		archive_entry_set_size(entry, 0);
 	if (archive_entry_filetype(entry) == AE_IFDIR)
 		file->dir = 1;
-	else if (archive_entry_filetype(entry) == AE_IFLNK)
-		file->size = strlen(archive_entry_symlink(entry));
+	else if (archive_entry_filetype(entry) == AE_IFLNK) {
+		const char* linkpath;
+		linkpath = archive_entry_symlink_utf8(entry);
+		if (linkpath == NULL) {
+			free(file);
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "symlink path could not be converted to UTF-8");
+			return (ARCHIVE_FAILED);
+		}
+		else
+			file->size = strlen(linkpath);
+	}
 	if (archive_entry_mtime_is_set(entry)) {
 		file->flg |= MTIME_IS_SET;
 		file->times[MTIME].time = archive_entry_mtime(entry);
@@ -1636,7 +1772,8 @@ file_init_register_empty(struct _7zip *zip)
 }
 
 #if !defined(HAVE_ZLIB_H) || !defined(HAVE_BZLIB_H) ||\
-	 !defined(BZ_CONFIG_ERROR) || !defined(HAVE_LZMA_H)
+	 !defined(BZ_CONFIG_ERROR) || !defined(HAVE_LZMA_H) ||\
+	 !(HAVE_ZSTD_H && HAVE_ZSTD_compressStream)
 static int
 compression_unsupported_encoder(struct archive *a,
     struct la_zstream *lastrm, const char *name)
@@ -2269,6 +2406,117 @@ compression_end_ppmd(struct archive *a, struct la_zstream *lastrm)
 	return (ARCHIVE_OK);
 }
 
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+static int
+compression_init_encoder_zstd(struct archive *a, struct la_zstream *lastrm, int level, int threads)
+{
+	if (lastrm->valid)
+		compression_end(a, lastrm);
+
+	ZSTD_CStream *strm = ZSTD_createCStream();
+	if (strm == NULL) {
+		archive_set_error(a, ENOMEM,
+			"Can't allocate memory for zstd stream");
+		return (ARCHIVE_FATAL);
+	}
+
+	if (ZSTD_isError(ZSTD_initCStream(strm, level))) {
+		ZSTD_freeCStream(strm);
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			"Internal error initializing zstd compressor object");
+		return (ARCHIVE_FATAL);
+	}
+
+	ZSTD_CCtx_setParameter(strm, ZSTD_c_nbWorkers, threads);
+
+	// p7zip-zstd fails to unpack archives that don't have prop_size 5.
+	// 7-Zip-zstd fails to unpack archives that don't have prop_size 3 or 5.
+	// So let's use 5...
+	lastrm->prop_size = 5;
+	lastrm->props = calloc(5, 1);
+	if (lastrm->props == NULL) {
+		ZSTD_freeCStream(strm);
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			"Internal error initializing zstd compressor properties");
+		return (ARCHIVE_FATAL);
+	}
+
+	// Refer to the DProps struct in 7-Zip-zstd's ZstdDecoder.h:
+	// https://github.com/mcmilk/7-Zip-zstd/blob/79b2c78e9e7735ddf90147129b75cf2797ff6522/CPP/7zip/Compress/ZstdDecoder.h#L34S
+	lastrm->props[0] = ZSTD_VERSION_MAJOR;
+	lastrm->props[1] = ZSTD_VERSION_MINOR;
+	lastrm->props[2] = level;
+	// lastrm->props[3] and lastrm->props[4] are reserved. Leave them as 0.
+
+	lastrm->real_stream = strm;
+	lastrm->valid = 1;
+	lastrm->code = compression_code_zstd;
+	lastrm->end = compression_end_zstd;
+
+	return (ARCHIVE_OK);
+}
+
+static int
+compression_code_zstd(struct archive *a,
+    struct la_zstream *lastrm, enum la_zaction action)
+{
+	ZSTD_CStream *strm = (ZSTD_CStream *)lastrm->real_stream;
+
+	ZSTD_outBuffer out = { .dst = lastrm->next_out, .size = lastrm->avail_out, .pos = 0 };
+	ZSTD_inBuffer  in  = { .src = lastrm->next_in,  .size = lastrm->avail_in,  .pos = 0 };
+
+	size_t zret;
+
+	ZSTD_EndDirective mode = (action == ARCHIVE_Z_RUN) ? ZSTD_e_continue : ZSTD_e_end;
+
+	zret = ZSTD_compressStream2(strm, &out, &in, mode);
+	if (ZSTD_isError(zret)) {
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			"zstd compression failed, ZSTD_compressStream2 returned: %s",
+			ZSTD_getErrorName(zret));
+		return (ARCHIVE_FATAL);
+	}
+
+	lastrm->next_in += in.pos;
+	lastrm->avail_in -= in.pos;
+	lastrm->total_in += in.pos;
+
+	lastrm->next_out += out.pos;
+	lastrm->avail_out -= out.pos;
+	lastrm->total_out += out.pos;
+
+	if (action == ARCHIVE_Z_FINISH && zret == 0)
+		return (ARCHIVE_EOF); // All done.
+
+	return (ARCHIVE_OK); // More work to do.
+}
+
+static int
+compression_end_zstd(struct archive *a, struct la_zstream *lastrm)
+{
+	ZSTD_CStream *strm;
+
+	(void)a; /* UNUSED */
+	strm = (ZSTD_CStream *)lastrm->real_stream;
+	ZSTD_freeCStream(strm);
+	lastrm->valid = 0;
+	lastrm->real_stream = NULL;
+	return (ARCHIVE_OK);
+}
+
+#else
+
+static int
+compression_init_encoder_zstd(struct archive *a, struct la_zstream *lastrm, int level, int threads)
+{
+	(void) level; /* UNUSED */
+	(void) threads; /* UNUSED */
+	if (lastrm->valid)
+		compression_end(a, lastrm);
+	return (compression_unsupported_encoder(a, lastrm, "zstd"));
+}
+#endif
+
 /*
  * Universal compressor initializer.
  */
@@ -2306,6 +2554,11 @@ _7z_compression_init_encoder(struct archive_write *a, unsigned compression,
 		    &(a->archive), &(zip->stream),
 		    PPMD7_DEFAULT_ORDER, PPMD7_DEFAULT_MEM_SIZE);
 		break;
+	case _7Z_ZSTD:
+		r = compression_init_encoder_zstd(
+		    &(a->archive), &(zip->stream),
+		    compression_level, zip->opt_threads);
+		break;
 	case _7Z_COPY:
 	default:
 		r = compression_init_encoder_copy(
@@ -2342,5 +2595,3 @@ compression_end(struct archive *a, struct la_zstream *lastrm)
 	}
 	return (ARCHIVE_OK);
 }
-
-

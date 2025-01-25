@@ -34,7 +34,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3007005
+#define	ARCHIVE_VERSION_NUMBER 3008000
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -151,7 +151,7 @@ typedef ssize_t la_ssize_t;
 #define	__LA_PRINTF(fmtarg, firstvararg)	/* nothing */
 #endif
 
-#if defined(__GNUC__) && __GNUC__ >= 3 && __GNUC_MINOR__ >= 1
+#if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
 # define __LA_DEPRECATED __attribute__((deprecated))
 #else
 # define __LA_DEPRECATED
@@ -174,7 +174,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.7.5dev"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.8.0dev"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -847,6 +847,10 @@ __LA_DECL int archive_write_set_format_filter_by_ext(struct archive *a, const ch
 __LA_DECL int archive_write_set_format_filter_by_ext_def(struct archive *a, const char *filename, const char * def_ext);
 __LA_DECL int archive_write_zip_set_compression_deflate(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_store(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_lzma(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_xz(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_bzip2(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_zstd(struct archive *);
 /* Deprecated; use archive_write_open2 instead */
 __LA_DECL int archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,

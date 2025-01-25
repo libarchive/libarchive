@@ -120,10 +120,11 @@ The library can create archives in any of the following formats:
   * PWB binary cpio
   * shar archives
   * ZIP archives (with uncompressed or "deflate" compressed entries)
+  * ZIPX archives (with bzip2, zstd, lzma or xz compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
   * ISO9660 format
-  * 7-Zip archives
+  * 7-Zip archives (including archives that use zstandard compression)
   * XAR archives
 
 When creating archives, the result can be filtered with any of the following:
@@ -241,4 +242,3 @@ questions we are asked about libarchive:
   appropriate.  It has many advantages over other tar formats
   (including the legacy GNU tar format) and is widely supported by
   current tar implementations.
-
