@@ -233,7 +233,7 @@ pathdup(const char *path)
 	}
 	if (L_opt) {
 		for (i = 0; i < len; ++i)
-			str[i] = tolower((unsigned char)path[i]);
+			str[i] = (char)tolower((unsigned char)path[i]);
 	} else {
 		memcpy(str, path, len);
 	}
