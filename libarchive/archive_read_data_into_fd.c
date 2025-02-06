@@ -116,7 +116,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 			bytes_to_write = size;
 			if (bytes_to_write > MAX_WRITE)
 				bytes_to_write = MAX_WRITE;
-			bytes_written = fwrite(p, 1, bytes_to_write, f);
+			bytes_written = write(f, p, bytes_to_write);
 			if (bytes_written < bytes_to_write) {
 				archive_set_error(a, errno, "Write error");
 				r = ARCHIVE_FATAL;
@@ -205,7 +205,7 @@ archive_read_data_into_FILE(struct archive *a, FILE* f)
 			bytes_to_write = size;
 			if (bytes_to_write > MAX_WRITE)
 				bytes_to_write = MAX_WRITE;
-			bytes_written = write(fd, p, bytes_to_write);
+			bytes_written = fwrite(p, 1, bytes_to_write, f);
 			if (bytes_written < 0) {
 				archive_set_error(a, errno, "Write error");
 				r = ARCHIVE_FATAL;
