@@ -148,7 +148,7 @@ pad_to_FILE(struct archive *a, FILE* f,
     int64_t target_offset, int64_t actual_offset)
 {
 	size_t to_write;
-	ssize_t bytes_written;
+	size_t bytes_written;
 
 	int seek_result = fseek(f,
 	    (long)(target_offset - actual_offset), SEEK_CUR);
@@ -175,7 +175,7 @@ archive_read_data_into_FILE(struct archive *a, FILE* f)
 	int r, r2;
 	const void *buff;
 	size_t size, bytes_to_write;
-	ssize_t bytes_written;
+	size_t bytes_written;
 	int64_t target_offset;
 	int64_t actual_offset = 0;
 	int can_fseek;
