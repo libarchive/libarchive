@@ -168,7 +168,7 @@ pad_to_FILE(struct archive *a, FILE* f,
 	return (ARCHIVE_OK);
 }
 
-static int
+int
 archive_read_data_into_FILE(struct archive *a, FILE* f)
 {
 	int r, r2;
