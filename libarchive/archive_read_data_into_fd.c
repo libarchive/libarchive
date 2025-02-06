@@ -168,17 +168,15 @@ pad_to_FILE(struct archive *a, FILE* f,
 	return (ARCHIVE_OK);
 }
 
-int
+static int
 archive_read_data_into_FILE(struct archive *a, FILE* f)
 {
-	struct stat st;
 	int r, r2;
 	const void *buff;
 	size_t size, bytes_to_write;
 	size_t bytes_written;
 	int64_t target_offset;
 	int64_t actual_offset = 0;
-	int can_fseek;
 	char *nulls = NULL;
 	size_t nulls_size = 16384;
 
