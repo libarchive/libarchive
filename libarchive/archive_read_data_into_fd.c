@@ -93,7 +93,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_into_fd");
 
-	can_lseek = 0; //(fstat(fd, &st) == 0) && S_ISREG(st.st_mode);
+	can_lseek = (fstat(fd, &st) == 0) && S_ISREG(st.st_mode);
 	if (!can_lseek) {
 		nulls = calloc(1, nulls_size);
 		if (!nulls) {
@@ -116,7 +116,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 			bytes_to_write = size;
 			if (bytes_to_write > MAX_WRITE)
 				bytes_to_write = MAX_WRITE;
-			bytes_written = write(f, p, bytes_to_write);
+			bytes_written = write(fd, p, bytes_to_write);
 			if (bytes_written < 0) {
 				archive_set_error(a, errno, "Write error");
 				r = ARCHIVE_FATAL;
