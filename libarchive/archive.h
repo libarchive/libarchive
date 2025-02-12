@@ -197,6 +197,23 @@ __LA_DECL const char *  archive_liblzma_version(void);
 __LA_DECL const char *  archive_bzlib_version(void);
 __LA_DECL const char *  archive_liblz4_version(void);
 __LA_DECL const char *  archive_libzstd_version(void);
+__LA_DECL const char *  archive_liblzo2_version(void);
+__LA_DECL const char *  archive_libexpat_version(void);
+__LA_DECL const char *  archive_libbsdxml_version(void);
+__LA_DECL const char *  archive_libxml2_version(void);
+__LA_DECL const char *  archive_mbedtls_version(void);
+__LA_DECL const char *  archive_nettle_version(void);
+__LA_DECL const char *  archive_openssl_version(void);
+__LA_DECL const char *  archive_libmd_version(void);
+__LA_DECL const char *  archive_commoncrypto_version(void);
+__LA_DECL const char *  archive_cng_version(void);
+__LA_DECL const char *  archive_wincrypt_version(void);
+__LA_DECL const char *  archive_librichacl_version(void);
+__LA_DECL const char *  archive_libacl_version(void);
+__LA_DECL const char *  archive_libattr_version(void);
+__LA_DECL const char *  archive_libiconv_version(void);
+__LA_DECL const char *  archive_libpcre_version(void);
+__LA_DECL const char *  archive_libpcre2_version(void);
 
 /* Declare our basic types. */
 struct archive;
