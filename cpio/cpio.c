@@ -142,7 +142,6 @@ main(int argc, char *argv[])
 	cpio->buff = buff;
 	cpio->buff_size = sizeof(buff);
 
-
 #if defined(HAVE_SIGACTION) && defined(SIGPIPE)
 	{ /* Ignore SIGPIPE signals. */
 		struct sigaction sa;
@@ -1079,12 +1078,8 @@ extract_data(struct archive *ar, struct archive *aw)
 			    "%s", archive_error_string(ar));
 			exit(1);
 		}
-		r = (int)archive_write_data_block(aw, block, size, offset);
-#if ARCHIVE_VERSION_NUMBER < 4000000
+		r = archive_write_data_block(aw, block, size, offset);
 		if (r != ARCHIVE_OK) {
-#else
-		if (r != size) {
-#endif
 			lafe_warnc(archive_errno(aw),
 			    "%s", archive_error_string(aw));
 			return (r);

@@ -139,14 +139,10 @@ copy_data(struct archive *ar, struct archive *aw)
 			return (ARCHIVE_OK);
 		if (r != ARCHIVE_OK)
 			return (r);
-		r = (int)archive_write_data_block(aw, buff, size, offset);
+		r = archive_write_data_block(aw, buff, size, offset);
 		if (r < ARCHIVE_WARN)
 			r = ARCHIVE_WARN;
-#if ARCHIVE_VERSION_NUMBER < 4000000
 		if (r < ARCHIVE_OK) {
-#else
-		if (r != size) {
-#endif
 			archive_set_error(ar, archive_errno(aw),
 			    "%s", archive_error_string(aw));
 			return (r);

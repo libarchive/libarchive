@@ -77,7 +77,7 @@ struct archive_vtable {
 	int	(*archive_write_finish_entry)(struct archive *);
 	ssize_t	(*archive_write_data)(struct archive *,
 	    const void *, size_t);
-	ssize_t	(*archive_write_data_block)(struct archive *,
+	int	(*archive_write_data_block)(struct archive *,
 	    const void *, size_t, int64_t);
 
 	int	(*archive_read_next_header)(struct archive *,

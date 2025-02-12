@@ -215,11 +215,7 @@ copy_data(struct archive *ar, struct archive *aw)
 		if (r != ARCHIVE_OK)
 			return (r);
 		r = archive_write_data_block(aw, buff, size, offset);
-#if ARCHIVE_VERSION_NUMBER < 4000000
 		if (r != ARCHIVE_OK) {
-#else
-		if (r != size) {
-#endif
 			warn("archive_write_data_block()",
 			    archive_error_string(aw));
 			return (r);
