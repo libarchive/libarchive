@@ -1,3 +1,6 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
 ############################################
 #
 # How to build bsdcpio_test
@@ -14,6 +17,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_basic.c
     test_cmdline.c
     test_extract_cpio_Z.c
+    test_extract_cpio_absolute_paths.c
     test_extract_cpio_bz2.c
     test_extract_cpio_grz.c
     test_extract_cpio_gz.c
@@ -93,7 +97,9 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
       COMMAND bsdcpio_test -vv
                            -p $<TARGET_FILE:bsdcpio>
                            -r ${CMAKE_CURRENT_SOURCE_DIR}
+                           -s
                            ${_testname})
+    SET_TESTS_PROPERTIES(bsdcpio_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)

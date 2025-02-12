@@ -109,3 +109,23 @@ fill_with_pseudorandom_data(void *buffer, size_t size)
 	}
 	fill_with_pseudorandom_data_seed(seed, buffer, size);
 }
+
+/* Read little-endian integers */
+unsigned short
+i2le(const void* p_)
+{
+	const unsigned char *p = p_;
+	return (p[0] | (p[1] << 8));
+}
+unsigned int
+i4le(const void* p_)
+{
+	const char *p = p_;
+	return (i2le(p) | (i2le(p + 2) << 16));
+}
+unsigned long long
+i8le(const void* p_)
+{
+	const char *p = p_;
+	return (i4le(p) | ((unsigned long long)i4le(p + 4) << 32));
+}

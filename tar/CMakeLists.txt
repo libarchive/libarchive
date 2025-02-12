@@ -1,3 +1,6 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
 ############################################
 #
 # How to build bsdtar
@@ -43,8 +46,10 @@ IF(ENABLE_TAR)
   ENDIF(ENABLE_TAR_SHARED)
 
   # Installation rules
-  INSTALL(TARGETS bsdtar RUNTIME DESTINATION bin)
-  INSTALL_MAN(${bsdtar_MANS})
+  IF(ENABLE_INSTALL)
+    INSTALL(TARGETS bsdtar RUNTIME DESTINATION bin)
+    INSTALL_MAN(${bsdtar_MANS})
+  ENDIF(ENABLE_INSTALL)
 ENDIF(ENABLE_TAR)
 
 add_subdirectory(test)
