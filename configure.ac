@@ -420,6 +420,10 @@ AC_ARG_WITH([libb2],
 if test "x$with_libb2" != "xno"; then
   AC_CHECK_HEADERS([blake2.h])
   AC_CHECK_LIB(b2,blake2sp_init)
+  BLAKE2_PC_VER=`pkg-config --modversion libb2`
+  if test "x$BLAKE2_PC_VER" != "x"; then
+    AC_DEFINE_UNQUOTED([LIBB2_PKGCONFIG_VERSION], ["$BLAKE2_PC_VER"], [Libb2 version coming from pkg-config.])
+  fi
 fi
 
 AM_CONDITIONAL([INC_BLAKE2], [test "x$ac_cv_lib_b2_blake2sp_init" != "xyes"])
@@ -898,6 +902,10 @@ if test "x$enable_xattr" != "xno"; then
 ])
     AC_CHECK_DECLS([XATTR_NOFOLLOW], [], [], [#include <sys/xattr.h>
 ])
+    ATTR_PC_VER=`pkg-config --modversion libattr`
+    if test "x$ATTR_PC_VER" != "x"; then
+      AC_DEFINE_UNQUOTED([LIBATTR_PKGCONFIG_VERSION], ["$ATTR_PC_VER"], [Libattr version coming from pkg-config.])
+    fi
     if test "x$ac_cv_header_sys_xattr_h" = "xyes" \
 	 -a "x$ac_cv_have_decl_XATTR_NOFOLLOW" = "xyes"; then
 	# Darwin extended attributes support
@@ -1010,7 +1018,10 @@ AC_ARG_ENABLE([acl],
 if test "x$enable_acl" != "xno"; then
     # Libacl
     AC_CHECK_LIB([acl], [acl_get_file])
-
+    ACL_PC_VER=`pkg-config --modversion libacl`
+    if test "x$ACL_PC_VER" != "x"; then
+      AC_DEFINE_UNQUOTED([LIBACL_PKGCONFIG_VERSION], ["$ACL_PC_VER"], [Libacl version coming from pkg-config.])
+    fi
     AC_CHECK_TYPES([acl_t, acl_entry_t, acl_permset_t, acl_tag_t], [], [], [
       #if HAVE_SYS_TYPES_H
       #include <sys/types.h>
@@ -1021,7 +1032,10 @@ if test "x$enable_acl" != "xno"; then
     ])
 
     AC_CHECK_LIB([richacl], [richacl_get_file])
-
+    RICHACL_PC_VER=`pkg-config --modversion librichacl`
+    if test "x$RICHACL_PC_VER" != "x"; then
+      AC_DEFINE_UNQUOTED([LIBRICHACL_PKGCONFIG_VERSION], ["$RICHACL_PC_VER"], [Librichacl version coming from pkg-config.])
+    fi
     AC_CHECK_TYPES([[struct richace], [struct richacl]], [], [], [
       #if HAVE_SYS_RICHACL_H
       #include <sys/richacl.h>

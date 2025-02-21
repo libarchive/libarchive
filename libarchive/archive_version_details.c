@@ -119,7 +119,11 @@ archive_libb2_version(struct archive_string* str)
 {
 	archive_strcat(str, " libb2/");
 #if HAVE_BLAKE2_H && HAVE_LIBB2
+#if defined(LIBB2_PKGCONFIG_VERSION)
+	archive_strcat(str, LIBB2_PKGCONFIG_VERSION);
+#else
 	archive_strcat(str, "system");
+#endif
 #else
 	archive_strcat(str, "bundled");
 #endif
@@ -454,7 +458,11 @@ const char *
 archive_librichacl_version(void)
 {
 #if HAVE_LIBRICHACL
+#if defined(LIBRICHACL_PKGCONFIG_VERSION)
+	return LIBRICHACL_PKGCONFIG_VERSION;
+#else
 	return "system";
+#endif
 #else
 	return NULL;
 #endif
@@ -464,7 +472,11 @@ const char *
 archive_libacl_version(void)
 {
 #if HAVE_LIBACL
+#if defined(LIBACL_PKGCONFIG_VERSION)
+	return LIBACL_PKGCONFIG_VERSION;
+#else
 	return "system";
+#endif
 #else
 	return NULL;
 #endif
@@ -474,7 +486,11 @@ const char *
 archive_libattr_version(void)
 {
 #if HAVE_LIBATTR
+#if defined(LIBATTR_PKGCONFIG_VERSION)
+	return LIBATTR_PKGCONFIG_VERSION;
+#else
 	return "system";
+#endif
 #else
 	return NULL;
 #endif
