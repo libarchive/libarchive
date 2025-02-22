@@ -103,7 +103,7 @@ typedef ssize_t la_ssize_t;
 /* Use the platform types for time_t */
 #define __LA_TIME_T time_t
 #else
-/* Use 64-bytes integer types for time_t */
+/* Use 64-bits integer types for time_t */
 #define __LA_TIME_T la_int64_t
 #endif
 
@@ -111,7 +111,7 @@ typedef ssize_t la_ssize_t;
 /* Use the platform types for dev_t */
 #define __LA_DEV_T dev_t
 #else
-/* Use 64-bytes integer types for dev_t */
+/* Use 64-bits integer types for dev_t */
 #define __LA_DEV_T la_int64_t
 #endif
 

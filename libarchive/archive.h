@@ -101,7 +101,7 @@ typedef ssize_t la_ssize_t;
 /* Use the platform types for time_t */
 #define __LA_TIME_T time_t
 #else
-/* Use 64-bytes integer types for time_t */
+/* Use 64-bits integer types for time_t */
 #define __LA_TIME_T la_int64_t
 #endif
 
@@ -109,7 +109,7 @@ typedef ssize_t la_ssize_t;
 /* Use the platform types for dev_t */
 #define __LA_DEV_T dev_t
 #else
-/* Use 64-bytes integer types for dev_t */
+/* Use 64-bits integer types for dev_t */
 #define __LA_DEV_T la_int64_t
 #endif
 
@@ -468,6 +468,8 @@ __LA_DECL int archive_read_support_format_by_code(struct archive *, int);
 __LA_DECL int archive_read_support_format_cab(struct archive *);
 __LA_DECL int archive_read_support_format_cpio(struct archive *);
 __LA_DECL int archive_read_support_format_empty(struct archive *);
+/* archive_read_support_format_gnutar() is an alias for historical reasons
+ * of archive_read_support_format_tar(). */
 __LA_DECL int archive_read_support_format_gnutar(struct archive *);
 __LA_DECL int archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int archive_read_support_format_lha(struct archive *);
