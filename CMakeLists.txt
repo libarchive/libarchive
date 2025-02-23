@@ -1,8 +1,5 @@
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
-if(APPLE AND CMAKE_VERSION VERSION_LESS "3.17.0")
-  message(WARNING "CMake>=3.17.0 required to make the generated shared library have the same Mach-O headers as autotools")
-endif()
+CMAKE_MINIMUM_REQUIRED(VERSION 3.17 FATAL_ERROR)
 
 if(POLICY CMP0065)
   cmake_policy(SET CMP0065 NEW) #3.4 don't use `-rdynamic` with executables
