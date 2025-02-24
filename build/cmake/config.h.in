@@ -1162,7 +1162,6 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #cmakedefine HAVE_SYS_STAT_H 1
 
-
 /* Define to 1 if you have the <sys/sysmacros.h> header file. */
 #cmakedefine HAVE_SYS_SYSMACROS_H 1
 
@@ -1336,6 +1335,15 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #cmakedefine TIME_WITH_SYS_TIME 1
+
+/* Version number of package */
+#cmakedefine LIBATTR_PKGCONFIG_VERSION "@LIBATTR_PKGCONFIG_VERSION@"
+
+/* Version number of package */
+#cmakedefine LIBACL_PKGCONFIG_VERSION "@LIBACL_PKGCONFIG_VERSION@"
+
+/* Version number of package */
+#cmakedefine LIBRICHACL_PKGCONFIG_VERSION "@LIBRICHACL_PKGCONFIG_VERSION@"
 
 /*
  * Some platform requires a macro to use extension functions.
