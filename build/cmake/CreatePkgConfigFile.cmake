@@ -8,7 +8,7 @@ SET(libdir \${exec_prefix}/lib)
 SET(includedir \${prefix}/include)
 # Now, this is not particularly pretty, nor is it terribly accurate...
 # Loop over all our additional libs
-FOREACH(mylib ${ADDITIONAL_LIBS})
+FOREACH(mylib ${LIBARCHIVE_LIBS_PRIVATE})
 	# Extract the filename from the absolute path
 	GET_FILENAME_COMPONENT(mylib_name ${mylib} NAME_WE)
 	# Strip the lib prefix
@@ -16,9 +16,8 @@ FOREACH(mylib ${ADDITIONAL_LIBS})
 	# Append it to our LIBS string
 	SET(LIBS "${LIBS} -l${mylib_name}")
 ENDFOREACH()
-# libxml2 is easier, since it's already using pkg-config
-FOREACH(mylib ${PC_LIBXML_STATIC_LDFLAGS})
-	SET(LIBS "${LIBS} ${mylib}")
+FOREACH(required LIBARCHIVE_REQUIRES_PRIVATE)
+	SET(LIBSREQUIRED "${LIBSREQUIRED} ${required}")
 ENDFOREACH()
 # FIXME: The order of the libraries doesn't take dependencies into account,
 #	 thus there's a good chance it'll make some binutils versions unhappy...
