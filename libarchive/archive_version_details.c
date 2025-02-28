@@ -46,6 +46,7 @@
 #endif
 #ifdef HAVE_ZSTD_H
 #include <zstd.h>
+#include <stdio.h>
 #endif
 #ifdef HAVE_LZO_LZOCONF_H
 #include <lzo/lzoconf.h>
@@ -66,6 +67,7 @@
 #endif
 #if HAVE_OPENSSL_OPENSSLV_H
 #include <openssl/opensslv.h>
+#include <stdio.h>
 #endif
 #if HAVE_ICONV_H
 #include <iconv.h>
@@ -240,7 +242,7 @@ const char *
 archive_zlib_version(void)
 {
 #if HAVE_ZLIB_H && HAVE_LIBZ
-	return ZLIB_VERSION;
+	return zlibVersion();
 #else
 	return NULL;
 #endif
@@ -379,15 +381,13 @@ archive_openssl_version(void)
 #ifdef OPENSSL_VERSION_STR
 	return OPENSSL_VERSION_STR;
 #else
-#define str(s) #s
-#define NUMBER(x) str(x)
 #define OPENSSL_MAJOR (OPENSSL_VERSION_NUMBER >> 28)
 #define OPENSSL_MINOR ((OPENSSL_VERSION_NUMBER >> 20) & 0xFF)
-	return NUMBER(OPENSSL_MAJOR) "." NUMBER(OPENSSL_MINOR);
+	static char openssl_version[6];
+	snprintf(openssl_version, 6, "%ld.%ld", OPENSSL_MAJOR, OPENSSL_MINOR);
+	return openssl_version;
 #undef OPENSSL_MAJOR
 #undef OPENSSL_MINOR
-#undef NUMBER
-#undef str
 #endif
 #else
 	return NULL;
