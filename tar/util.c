@@ -202,7 +202,8 @@ bsdtar_expand_char(char *buff, size_t buffsize, size_t offset, char c)
 		case '\v': buff[i++] = 'v'; break;
 		case '\\': buff[i++] = '\\'; break;
 		default:
-			snprintf(buff + i, buffsize - i, "%03o", 0xFF & (int)c);
+			snprintf(buff + i, buffsize - i, "%03o",
+			    0xFF & (unsigned int)c);
 			i += 3;
 		}
 	}
@@ -684,7 +685,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	}
 	if (!now)
 		time(&now);
-	fprintf(out, "%s %d ",
+	fprintf(out, "%s %u ",
 	    archive_entry_strmode(entry),
 	    archive_entry_nlink(entry));
 

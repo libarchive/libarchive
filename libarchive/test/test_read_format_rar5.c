@@ -81,7 +81,7 @@ int verify_data(const uint8_t* data_ptr, int magic, int size) {
 		/* *lptr is a value inside unpacked test file, val is the
 		 * value that should be in the unpacked test file. */
 
-		if(archive_le32dec(lptr) != (uint32_t) val)
+		if(i4le(lptr) != (uint32_t) val)
 			return 0;
 	}
 
@@ -1149,7 +1149,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualString("system", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
-	flag = UF_SYSTEM;;
+	flag = UF_SYSTEM;
 #elif defined(_WIN32) && !defined(CYGWIN)
 	flag = FILE_ATTRIBUTE_SYSTEM;
 #endif
