@@ -9,11 +9,8 @@
 
 /* File data */
 static const char file_name[] = "file";
-/* We have liblzma's lzma_crc32() so no need to rely on a handmade
- * CRC-32...but it requires a uint8_t* for its data, hence the change
- * compared to the usual */
-static const uint8_t file_data1[] = {'.', ';', ':', '!', '?', ',', '"', '\'', ')', '(', '*'};
-static const uint8_t file_data2[] = {'-', '/', '>', '$', '\\', '#', '@', '+', '=', '{', ']', '[', '}', '&', '<', '%'};
+static const char file_data1[] = {'.', ';', ':', '!', '?', ',', '"', '\'', ')', '(', '*'};
+static const char file_data2[] = {'-', '/', '>', '$', '\\', '#', '@', '+', '=', '{', ']', '[', '}', '&', '<', '%'};
 static const int file_perm = 00644;
 static const short file_uid = 10;
 static const short file_gid = 20;
@@ -125,8 +122,8 @@ static void verify_xz_lzma(const char *buff, size_t used, uint16_t id,
 	assertEqualInt(i2le(p + 10), id); /* Compression method */
 	assertEqualInt(i2le(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
 	assertEqualInt(i2le(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
-	crc = lzma_crc32(file_data1, sizeof(file_data1), 0);
-	crc = lzma_crc32(file_data2, sizeof(file_data2), crc);
+	crc = bitcrc32(0, file_data1, sizeof(file_data1));
+	crc = bitcrc32(crc, file_data2, sizeof(file_data2));
 	assertEqualInt(i4le(p + 16), crc); /* CRC-32 */
 	assertEqualInt(i4le(p + 24), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
 	assertEqualInt(i2le(p + 28), strlen(file_name)); /* Pathname length */

@@ -110,6 +110,34 @@ fill_with_pseudorandom_data(void *buffer, size_t size)
 	fill_with_pseudorandom_data_seed(seed, buffer, size);
 }
 
+unsigned long
+bitcrc32(unsigned long c, const void *_p, size_t s)
+{
+	/* This is a drop-in replacement for crc32() from zlib.
+	 * Libarchive should be able to correctly read archives (including
+	 * correct CRCs) even when zlib is unavailable, and this function
+	 * helps us verify that. Yes, this is very, very slow and unsuitable
+	 * for production use, but it's obviously correct, compact, and
+	 * works well enough for this particular usage. Libarchive
+	 * internally uses a much more efficient implementation if zlib is
+	 * unavailable. */
+	const unsigned char *p = _p;
+	char bitctr;
+
+	if (p == NULL)
+		return (0);
+
+	for (; s > 0; --s) {
+		c ^= *p++;
+		for (bitctr = 8; bitctr > 0; --bitctr) {
+			if (c & 1) c = (c >> 1);
+			else	   c = (c >> 1) ^ 0xedb88320;
+			c ^= 0x80000000;
+		}
+	}
+	return (c);
+}
+
 /* Read little-endian integers */
 unsigned short
 i2le(const void* p_)

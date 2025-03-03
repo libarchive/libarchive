@@ -7,35 +7,6 @@
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 
-static unsigned long
-bitcrc32(unsigned long c, const void *_p, size_t s)
-{
-	/* This is a drop-in replacement for crc32() from zlib, given that
-	 * libbzip2 doesn't expose its CRC32 function, as far as I'm aware.
-	 * Libarchive should be able to correctly generate BZIP2-compressed
-	 * zip archives (including correct CRCs) even when zlib is
-	 * unavailable, and this function helps us verify that. Yes, this is
-	 * very, very slow and unsuitable for production use, but it's very,
-	 * very obviously correct, compact, and works well for this
-	 * particular usage. Libarchive internally uses a much more
-	 * efficient implementation when zlib is unavailable */
-	const unsigned char *p = _p;
-	int bitctr;
-
-	if (p == NULL)
-		return (0);
-
-	for (; s > 0; --s) {
-		c ^= *p++;
-		for (bitctr = 8; bitctr > 0; --bitctr) {
-			if (c & 1) c = (c >> 1);
-			else	   c = (c >> 1) ^ 0xedb88320;
-			c ^= 0x80000000;
-		}
-	}
-	return (c);
-}
-
 /* File data */
 static const char file_name[] = "file";
 static const char file_data1[] = {'1', '2', '3', '4', '5', '6', '7', '8'};
