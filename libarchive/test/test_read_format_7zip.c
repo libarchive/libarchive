@@ -1341,7 +1341,7 @@ test_riscv_filter(const char *refname)
 	assertEqualInt(sizeof(buff), archive_entry_size(ae));
 	assertEqualInt(sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
 
-	computed_crc = crc32(computed_crc, buff, sizeof(buff));
+	computed_crc = bitcrc32(computed_crc, buff, sizeof(buff));
 	assertEqualInt(computed_crc, expected_crc);
 
 	assertEqualInt(1, archive_file_count(a));
@@ -1398,7 +1398,7 @@ test_sparc_filter(const char *refname)
 	assertEqualInt(expected_entry_size, archive_entry_size(ae));
 	assertEqualInt(expected_entry_size, archive_read_data(a, buff, expected_entry_size));
 
-	computed_crc = crc32(computed_crc, buff, expected_entry_size);
+	computed_crc = bitcrc32(computed_crc, buff, expected_entry_size);
 	assertEqualInt(computed_crc, expected_crc);
 
 	assertEqualInt(1, archive_file_count(a));
@@ -1471,7 +1471,7 @@ test_powerpc_filter(const char *refname)
 	assertEqualInt(expected_entry_size, archive_entry_size(ae));
 	assertEqualInt(expected_entry_size, archive_read_data(a, buff, expected_entry_size));
 
-	computed_crc = crc32(computed_crc, buff, expected_entry_size);
+	computed_crc = bitcrc32(computed_crc, buff, expected_entry_size);
 	assertEqualInt(computed_crc, expected_crc);
 
 	assertEqualInt(1, archive_file_count(a));
