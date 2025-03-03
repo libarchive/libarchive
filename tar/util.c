@@ -749,7 +749,10 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 #else
 	ltime = localtime(&tim);
 #endif
-	strftime(tmp, sizeof(tmp), fmt, ltime);
+	if (strftime(tmp, sizeof(tmp), fmt, ltime) == 0) {
+		fprintf(stderr, "strftime failed to format time\n");
+		exit(1);
+	}
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
 
