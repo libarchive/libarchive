@@ -749,7 +749,10 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 #else
 	ltime = localtime(&tim);
 #endif
-	strftime(tmp, sizeof(tmp), fmt, ltime);
+	if (ltime)
+		strftime(tmp, sizeof(tmp), fmt, ltime);
+	else
+		sprintf(tmp, "INVALID DATE");
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
 
