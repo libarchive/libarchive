@@ -876,6 +876,7 @@ list(struct archive *a, struct archive_entry *e)
 	char buf[20];
 	time_t mtime;
 	struct tm *tm;
+	const char *pathname;
 
 	mtime = archive_entry_mtime(e);
 	tm = localtime(&mtime);
@@ -884,22 +885,25 @@ list(struct archive *a, struct archive_entry *e)
 	else
 		strftime(buf, sizeof(buf), "%m-%d-%g %R", tm);
 
+	pathname = archive_entry_pathname(e);
+	if (!pathname)
+		pathname = "";
 	if (!zipinfo_mode) {
 		if (v_opt == 1) {
 			printf(" %8ju  %s   %s\n",
 			    (uintmax_t)archive_entry_size(e),
-			    buf, archive_entry_pathname(e));
+			    buf, pathname);
 		} else if (v_opt == 2) {
 			printf("%8ju  Stored  %7ju   0%%  %s  %08x  %s\n",
 			    (uintmax_t)archive_entry_size(e),
 			    (uintmax_t)archive_entry_size(e),
 			    buf,
 			    0U,
-			    archive_entry_pathname(e));
+			    pathname);
 		}
 	} else {
 		if (Z1_opt)
-			printf("%s\n",archive_entry_pathname(e));
+			printf("%s\n", pathname);
 	}
 	ac(archive_read_data_skip(a));
 }
