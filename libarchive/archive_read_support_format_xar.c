@@ -473,6 +473,7 @@ archive_read_support_format_xar(struct archive *_a)
 	    NULL,
 	    xar_cleanup,
 	    NULL,
+	    NULL,
 	    NULL);
 	if (r != ARCHIVE_OK)
 		free(xar);

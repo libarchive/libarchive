@@ -4326,7 +4326,8 @@ int archive_read_support_format_rar5(struct archive *_a) {
 	    rar5_seek_data,
 	    rar5_cleanup,
 	    rar5_capabilities,
-	    rar5_has_encrypted_entries);
+	    rar5_has_encrypted_entries,
+	    NULL);
 
 	if(ret != ARCHIVE_OK) {
 		(void) rar5_cleanup(ar);

@@ -249,6 +249,10 @@ struct zip {
 	uint8_t			*iv;
 	uint8_t			*erd;
 	uint8_t			*v_data;
+	
+	/* ZIP comment */
+	uint16_t comment_length;
+	char* comment;
 };
 
 /* Many systems define min or MIN, but not all. */
@@ -1472,7 +1476,6 @@ consume_end_of_file_marker(struct archive_read *a, struct zip *zip)
 	/* Values computed from the actual data in the archive. */
 	compressed_actual = (uint64_t)zip->entry_compressed_bytes_read;
 	uncompressed_actual = (uint64_t)zip->entry_uncompressed_bytes_read;
-
 
 	/* Longest: PK78 marker, all 64-bit fields (24 bytes total) */
 	if (archive_le32dec(p) == PK78
@@ -3270,6 +3273,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	free(zip->iv);
 	free(zip->erd);
 	free(zip->v_data);
+	free(zip->comment);
 	archive_string_free(&zip->format_name);
 	free(zip);
 	(a->format->data) = NULL;
@@ -3353,13 +3357,21 @@ archive_read_support_format_zip(struct archive *a)
  * Streaming-mode support
  */
 
-
 static int
 archive_read_support_format_zip_capabilities_streamable(struct archive_read * a)
 {
 	(void)a; /* UNUSED */
 	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA |
 		ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+}
+
+static int
+archive_read_support_format_zip_comments_streamable(struct archive_read *a, char ** comment, size_t* comment_length)
+{
+	struct zip *zip = (struct zip *)(a->format->data);
+	*comment = zip->comment;
+	*comment_length = zip->comment_length;
+	return ARCHIVE_OK;
 }
 
 static int
@@ -3622,7 +3634,8 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	    NULL,
 	    archive_read_format_zip_cleanup,
 	    archive_read_support_format_zip_capabilities_streamable,
-	    archive_read_format_zip_has_encrypted_entries);
+	    archive_read_format_zip_has_encrypted_entries,
+	    archive_read_support_format_zip_comments_streamable);
 
 	if (r != ARCHIVE_OK)
 		free(zip);
@@ -3640,7 +3653,9 @@ archive_read_support_format_zip_capabilities_seekable(struct archive_read * a)
 {
 	(void)a; /* UNUSED */
 	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA |
-		ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+		ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA |
+		ARCHIVE_READ_FORMAT_CAPS_ARCHIVE_COMMENT |
+		ARCHIVE_READ_FORMAT_CAPS_ENTRY_COMMENT);
 }
 
 /*
@@ -3681,6 +3696,12 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 	zip->central_directory_offset = cd_offset;
 	zip->central_directory_offset_adjusted = current_offset - cd_size;
 
+	/* ZIP comment */
+	zip->comment_length = archive_le16dec(p + 20);
+	if (zip->comment_length != 0) {
+		zip->comment = malloc(zip->comment_length);
+		memcpy(zip->comment, p + 22, zip->comment_length);
+	}
 	/* This is just a tiny bit higher than the maximum
 	   returned by the streaming Zip bidder.  This ensures
 	   that the more accurate seeking Zip parser wins
@@ -4416,7 +4437,8 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	    NULL,
 	    archive_read_format_zip_cleanup,
 	    archive_read_support_format_zip_capabilities_seekable,
-	    archive_read_format_zip_has_encrypted_entries);
+	    archive_read_format_zip_has_encrypted_entries,
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(zip);

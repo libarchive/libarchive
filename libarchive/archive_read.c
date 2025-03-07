@@ -987,6 +987,32 @@ _archive_read_data_block(struct archive *_a,
 }
 
 static int
+default_read_comment(struct archive_read *a, char **buff, size_t *size)
+{
+	(void)a; /* UNUSED */
+	(void)buff; /* UNUSED */
+	(void)size; /* UNUSED */
+	return ARCHIVE_WARN;
+}
+
+int
+archive_get_comment(struct archive *_a, char **buff, size_t *size)
+{
+	struct archive_read *a = (struct archive_read *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
+	    "archive_read_comment");
+
+	if (a->format->read_comment == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+		    "Internal error: "
+		    "No format->read_comment function registered");
+		return (ARCHIVE_FATAL);
+	}
+
+	return (a->format->read_comment)(a, buff, size);
+}
+
+static int
 close_filters(struct archive_read *a)
 {
 	struct archive_read_filter *f = a->filter;
@@ -1189,7 +1215,8 @@ __archive_read_register_format(struct archive_read *a,
     int64_t (*seek_data)(struct archive_read *, int64_t, int),
     int (*cleanup)(struct archive_read *),
     int (*format_capabilities)(struct archive_read *),
-    int (*has_encrypted_entries)(struct archive_read *))
+    int (*has_encrypted_entries)(struct archive_read *),
+    int (*read_comment)(struct archive_read *, char **, size_t *))
 {
 	int i, number_slots;
 
@@ -1214,6 +1241,9 @@ __archive_read_register_format(struct archive_read *a,
 			a->formats[i].name = name;
 			a->formats[i].format_capabilties = format_capabilities;
 			a->formats[i].has_encrypted_entries = has_encrypted_entries;
+			a->formats[i].read_comment = read_comment == NULL
+			  ? default_read_comment
+			  : read_comment;
 			return (ARCHIVE_OK);
 		}
 	}
