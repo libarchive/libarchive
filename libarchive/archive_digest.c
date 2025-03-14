@@ -218,6 +218,31 @@ __archive_md5final(archive_md5_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_MD5_WIN)
+
+static int
+__archive_md5init(archive_md5_ctx *ctx)
+{
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_MD5_ALGORITHM));
+#else
+  return (win_crypto_init(ctx, PROV_RSA_FULL, CALG_MD5));
+#endif
+}
+
+static int
+__archive_md5update(archive_md5_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (win_crypto_Update(ctx, indata, insize));
+}
+
+static int
+__archive_md5final(archive_md5_ctx *ctx, void *md)
+{
+  return (win_crypto_Final(md, 16, ctx));
+}
+
 #elif defined(ARCHIVE_CRYPTO_MD5_MBEDTLS)
 
 static int
@@ -309,31 +334,6 @@ __archive_md5final(archive_md5_ctx *ctx, void *md)
     *ctx = NULL;
   }
   return (ARCHIVE_OK);
-}
-
-#elif defined(ARCHIVE_CRYPTO_MD5_WIN)
-
-static int
-__archive_md5init(archive_md5_ctx *ctx)
-{
-#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
-  return (win_crypto_init(ctx, BCRYPT_MD5_ALGORITHM));
-#else
-  return (win_crypto_init(ctx, PROV_RSA_FULL, CALG_MD5));
-#endif
-}
-
-static int
-__archive_md5update(archive_md5_ctx *ctx, const void *indata,
-    size_t insize)
-{
-  return (win_crypto_Update(ctx, indata, insize));
-}
-
-static int
-__archive_md5final(archive_md5_ctx *ctx, void *md)
-{
-  return (win_crypto_Final(md, 16, ctx));
 }
 
 #else
@@ -605,6 +605,31 @@ __archive_sha1final(archive_sha1_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA1_WIN)
+
+static int
+__archive_sha1init(archive_sha1_ctx *ctx)
+{
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_SHA1_ALGORITHM));
+#else
+  return (win_crypto_init(ctx, PROV_RSA_FULL, CALG_SHA1));
+#endif
+}
+
+static int
+__archive_sha1update(archive_sha1_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (win_crypto_Update(ctx, indata, insize));
+}
+
+static int
+__archive_sha1final(archive_sha1_ctx *ctx, void *md)
+{
+  return (win_crypto_Final(md, 20, ctx));
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA1_MBEDTLS)
 
 static int
@@ -696,31 +721,6 @@ __archive_sha1final(archive_sha1_ctx *ctx, void *md)
     *ctx = NULL;
   }
   return (ARCHIVE_OK);
-}
-
-#elif defined(ARCHIVE_CRYPTO_SHA1_WIN)
-
-static int
-__archive_sha1init(archive_sha1_ctx *ctx)
-{
-#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
-  return (win_crypto_init(ctx, BCRYPT_SHA1_ALGORITHM));
-#else
-  return (win_crypto_init(ctx, PROV_RSA_FULL, CALG_SHA1));
-#endif
-}
-
-static int
-__archive_sha1update(archive_sha1_ctx *ctx, const void *indata,
-    size_t insize)
-{
-  return (win_crypto_Update(ctx, indata, insize));
-}
-
-static int
-__archive_sha1final(archive_sha1_ctx *ctx, void *md)
-{
-  return (win_crypto_Final(md, 20, ctx));
 }
 
 #else
@@ -873,6 +873,31 @@ __archive_sha256final(archive_sha256_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA256_WIN)
+
+static int
+__archive_sha256init(archive_sha256_ctx *ctx)
+{
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_SHA256_ALGORITHM));
+#else
+  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_256));
+#endif
+}
+
+static int
+__archive_sha256update(archive_sha256_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (win_crypto_Update(ctx, indata, insize));
+}
+
+static int
+__archive_sha256final(archive_sha256_ctx *ctx, void *md)
+{
+  return (win_crypto_Final(md, 32, ctx));
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA256_MBEDTLS)
 
 static int
@@ -960,31 +985,6 @@ __archive_sha256final(archive_sha256_ctx *ctx, void *md)
     *ctx = NULL;
   }
   return (ARCHIVE_OK);
-}
-
-#elif defined(ARCHIVE_CRYPTO_SHA256_WIN)
-
-static int
-__archive_sha256init(archive_sha256_ctx *ctx)
-{
-#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
-  return (win_crypto_init(ctx, BCRYPT_SHA256_ALGORITHM));
-#else
-  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_256));
-#endif
-}
-
-static int
-__archive_sha256update(archive_sha256_ctx *ctx, const void *indata,
-    size_t insize)
-{
-  return (win_crypto_Update(ctx, indata, insize));
-}
-
-static int
-__archive_sha256final(archive_sha256_ctx *ctx, void *md)
-{
-  return (win_crypto_Final(md, 32, ctx));
 }
 
 #else
@@ -1113,6 +1113,31 @@ __archive_sha384final(archive_sha384_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA384_WIN)
+
+static int
+__archive_sha384init(archive_sha384_ctx *ctx)
+{
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_SHA384_ALGORITHM));
+#else
+  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_384));
+#endif
+}
+
+static int
+__archive_sha384update(archive_sha384_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (win_crypto_Update(ctx, indata, insize));
+}
+
+static int
+__archive_sha384final(archive_sha384_ctx *ctx, void *md)
+{
+  return (win_crypto_Final(md, 48, ctx));
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA384_MBEDTLS)
 
 static int
@@ -1200,31 +1225,6 @@ __archive_sha384final(archive_sha384_ctx *ctx, void *md)
     *ctx = NULL;
   }
   return (ARCHIVE_OK);
-}
-
-#elif defined(ARCHIVE_CRYPTO_SHA384_WIN)
-
-static int
-__archive_sha384init(archive_sha384_ctx *ctx)
-{
-#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
-  return (win_crypto_init(ctx, BCRYPT_SHA384_ALGORITHM));
-#else
-  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_384));
-#endif
-}
-
-static int
-__archive_sha384update(archive_sha384_ctx *ctx, const void *indata,
-    size_t insize)
-{
-  return (win_crypto_Update(ctx, indata, insize));
-}
-
-static int
-__archive_sha384final(archive_sha384_ctx *ctx, void *md)
-{
-  return (win_crypto_Final(md, 48, ctx));
 }
 
 #else
@@ -1377,6 +1377,31 @@ __archive_sha512final(archive_sha512_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA512_WIN)
+
+static int
+__archive_sha512init(archive_sha512_ctx *ctx)
+{
+#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+  return (win_crypto_init(ctx, BCRYPT_SHA512_ALGORITHM));
+#else
+  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_512));
+#endif
+}
+
+static int
+__archive_sha512update(archive_sha512_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (win_crypto_Update(ctx, indata, insize));
+}
+
+static int
+__archive_sha512final(archive_sha512_ctx *ctx, void *md)
+{
+  return (win_crypto_Final(md, 64, ctx));
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA512_MBEDTLS)
 
 static int
@@ -1466,31 +1491,6 @@ __archive_sha512final(archive_sha512_ctx *ctx, void *md)
   return (ARCHIVE_OK);
 }
 
-#elif defined(ARCHIVE_CRYPTO_SHA512_WIN)
-
-static int
-__archive_sha512init(archive_sha512_ctx *ctx)
-{
-#if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
-  return (win_crypto_init(ctx, BCRYPT_SHA512_ALGORITHM));
-#else
-  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_512));
-#endif
-}
-
-static int
-__archive_sha512update(archive_sha512_ctx *ctx, const void *indata,
-    size_t insize)
-{
-  return (win_crypto_Update(ctx, indata, insize));
-}
-
-static int
-__archive_sha512final(archive_sha512_ctx *ctx, void *md)
-{
-  return (win_crypto_Final(md, 64, ctx));
-}
-
 #else
 
 static int
@@ -1525,11 +1525,12 @@ __archive_sha512final(archive_sha512_ctx *ctx, void *md)
  * 1. libc
  * 2. libc2
  * 3. libc3
- * 4. libSystem
- * 5. Nettle
- * 6. OpenSSL
- * 7. libmd
- * 8. Windows API
+ * 4. libmd
+ * 5. libSystem
+ * 6. Windows API
+ * 7. mbedTLS
+ * 8. Nettle
+ * 9. OpenSSL
  */
 const struct archive_digest __archive_digest =
 {
