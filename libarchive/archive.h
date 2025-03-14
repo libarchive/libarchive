@@ -39,7 +39,10 @@
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
 #include <stdio.h> /* For FILE * */
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* time_t is slated to be removed from public includes in 4.0 */
 #include <time.h> /* For time_t */
+#endif
 
 /*
  * Note: archive.h is for use outside of libarchive; the configuration
@@ -94,6 +97,22 @@ typedef ssize_t la_ssize_t;
 # endif
 #endif
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Use the platform types for time_t */
+#define __LA_TIME_T time_t
+#else
+/* Use 64-bits integer types for time_t */
+#define __LA_TIME_T la_int64_t
+#endif
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Use the platform types for dev_t */
+#define __LA_DEV_T dev_t
+#else
+/* Use 64-bits integer types for dev_t */
+#define __LA_DEV_T la_int64_t
+#endif
+
 /* Large file support for Android */
 #if defined(__LIBARCHIVE_BUILD) && defined(__ANDROID__)
 #include "android_lf.h"
@@ -132,7 +151,7 @@ typedef ssize_t la_ssize_t;
 #define	__LA_PRINTF(fmtarg, firstvararg)	/* nothing */
 #endif
 
-#if defined(__GNUC__) && __GNUC__ >= 3 && __GNUC_MINOR__ >= 1
+#if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
 # define __LA_DEPRECATED __attribute__((deprecated))
 #else
 # define __LA_DEPRECATED
@@ -178,6 +197,23 @@ __LA_DECL const char *  archive_liblzma_version(void);
 __LA_DECL const char *  archive_bzlib_version(void);
 __LA_DECL const char *  archive_liblz4_version(void);
 __LA_DECL const char *  archive_libzstd_version(void);
+__LA_DECL const char *  archive_liblzo2_version(void);
+__LA_DECL const char *  archive_libexpat_version(void);
+__LA_DECL const char *  archive_libbsdxml_version(void);
+__LA_DECL const char *  archive_libxml2_version(void);
+__LA_DECL const char *  archive_mbedtls_version(void);
+__LA_DECL const char *  archive_nettle_version(void);
+__LA_DECL const char *  archive_openssl_version(void);
+__LA_DECL const char *  archive_libmd_version(void);
+__LA_DECL const char *  archive_commoncrypto_version(void);
+__LA_DECL const char *  archive_cng_version(void);
+__LA_DECL const char *  archive_wincrypt_version(void);
+__LA_DECL const char *  archive_librichacl_version(void);
+__LA_DECL const char *  archive_libacl_version(void);
+__LA_DECL const char *  archive_libattr_version(void);
+__LA_DECL const char *  archive_libiconv_version(void);
+__LA_DECL const char *  archive_libpcre_version(void);
+__LA_DECL const char *  archive_libpcre2_version(void);
 
 /* Declare our basic types. */
 struct archive;
@@ -449,6 +485,8 @@ __LA_DECL int archive_read_support_format_by_code(struct archive *, int);
 __LA_DECL int archive_read_support_format_cab(struct archive *);
 __LA_DECL int archive_read_support_format_cpio(struct archive *);
 __LA_DECL int archive_read_support_format_empty(struct archive *);
+/* archive_read_support_format_gnutar() is an alias for historical reasons
+ * of archive_read_support_format_tar(). */
 __LA_DECL int archive_read_support_format_gnutar(struct archive *);
 __LA_DECL int archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int archive_read_support_format_lha(struct archive *);
@@ -828,6 +866,10 @@ __LA_DECL int archive_write_set_format_filter_by_ext(struct archive *a, const ch
 __LA_DECL int archive_write_set_format_filter_by_ext_def(struct archive *a, const char *filename, const char * def_ext);
 __LA_DECL int archive_write_zip_set_compression_deflate(struct archive *);
 __LA_DECL int archive_write_zip_set_compression_store(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_lzma(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_xz(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_bzip2(struct archive *);
+__LA_DECL int archive_write_zip_set_compression_zstd(struct archive *);
 /* Deprecated; use archive_write_open2 instead */
 __LA_DECL int archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,

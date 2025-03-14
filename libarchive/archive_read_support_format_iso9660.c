@@ -463,7 +463,7 @@ archive_read_support_format_iso9660(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_iso9660");
 
-	iso9660 = (struct iso9660 *)calloc(1, sizeof(*iso9660));
+	iso9660 = calloc(1, sizeof(*iso9660));
 	if (iso9660 == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate iso9660 data");
@@ -1429,7 +1429,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			 * information first, then store all file bodies. */
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Ignoring out-of-order file @%jx (%s) %jd < %jd",
-			    (intmax_t)file->number,
+			    (uintmax_t)file->number,
 			    iso9660->pathname.s,
 			    (intmax_t)file->offset,
 			    (intmax_t)iso9660->current_position);
@@ -1905,7 +1905,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	}
 
 	/* Create a new file entry and copy data from the ISO dir record. */
-	file = (struct file_info *)calloc(1, sizeof(*file));
+	file = calloc(1, sizeof(*file));
 	if (file == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for file entry");
