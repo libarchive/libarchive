@@ -438,6 +438,7 @@ __LA_DECL void archive_entry_copy_mac_metadata(struct archive_entry *, const voi
 #define ARCHIVE_ENTRY_DIGEST_SHA512           0x00000006
 
 __LA_DECL const unsigned char * archive_entry_digest(struct archive_entry *, int /* type */);
+__LA_DECL int archive_entry_set_digest(struct archive_entry *, int, const unsigned char *);
 
 /*
  * ACL routines.  This used to simply store and return text-format ACL
