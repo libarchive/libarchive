@@ -334,7 +334,7 @@ main(int argc, char **argv)
 			if (archive_match_exclude_pattern(
 			    bsdtar->matching, bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
-				    "Couldn't exclude %s\n", bsdtar->argument);
+				    "Couldn't exclude %s", bsdtar->argument);
 			break;
 		case OPTION_EXCLUDE_VCS: /* GNU tar */
 			for(t=0; vcs_files[t]; t++) {
@@ -342,7 +342,7 @@ main(int argc, char **argv)
 				    bsdtar->matching,
 				    vcs_files[t]) != ARCHIVE_OK)
 					lafe_errc(1, 0, "Couldn't "
-					    "exclude %s\n", vcs_files[t]);
+					    "exclude %s", vcs_files[t]);
 			}
 			break;
 		case OPTION_FFLAGS:
