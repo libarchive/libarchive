@@ -653,6 +653,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_zip_entry_size_unset.c \
 	libarchive/test/test_write_format_zip_file.c \
 	libarchive/test/test_write_format_zip_file_zip64.c \
+	libarchive/test/test_write_format_zip_high_resolution_time.c \
 	libarchive/test/test_write_format_zip_large.c \
 	libarchive/test/test_write_format_zip_stream.c \
 	libarchive/test/test_write_format_zip_windows_path.c \
