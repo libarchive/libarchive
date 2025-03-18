@@ -297,6 +297,7 @@ IF(ENABLE_TEST)
     test_write_format_zip_entry_size_unset.c
     test_write_format_zip_file.c
     test_write_format_zip_file_zip64.c
+    test_write_format_zip_high_resolution_time.c
     test_write_format_zip_large.c
     test_write_format_zip_stream.c
     test_write_format_zip_windows_path.c
