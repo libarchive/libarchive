@@ -58,7 +58,7 @@ archive_write_set_compression_gzip(struct archive *a)
 struct private_data {
 	int		 compression_level;
 	int		 timestamp;
-	const char *original_filename;
+	const char	*original_filename;
 #ifdef HAVE_ZLIB_H
 	z_stream	 stream;
 	int64_t		 total_in;
