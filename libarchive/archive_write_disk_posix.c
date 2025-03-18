@@ -478,9 +478,11 @@ la_verify_filetype(mode_t mode, __LA_MODE_T filetype) {
 	case AE_IFLNK:
 		ret = (S_ISLNK(mode));
 		break;
+#ifdef S_ISSOCK
 	case AE_IFSOCK:
 		ret = (S_ISSOCK(mode));
 		break;
+#endif
 	case AE_IFCHR:
 		ret = (S_ISCHR(mode));
 		break;
