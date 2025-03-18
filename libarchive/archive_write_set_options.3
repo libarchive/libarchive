@@ -698,6 +698,12 @@ It should not be used except for testing purposes.
 .It Cm hdrcharset
 The value is used as a character set name that will be
 used when translating file names.
+.It Cm high-resolution-time
+This boolean option enables or disables writing high-resolution
+timestamps that may not be compatible with other Zip implementations.
+.Pp
+To note is that high-resolution timestamps are necessary to support
+dates beyond 2038 so in that case they're always written.
 .It Cm zip64
 Zip64 extensions provide additional file size information
 for entries larger than 4 GiB.
