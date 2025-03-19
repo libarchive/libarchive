@@ -177,7 +177,7 @@ archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
 		data->original_filename = NULL;
 		if (value)
 			data->original_filename = strdup(value);
-		return ARCHIVE_OK;
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
