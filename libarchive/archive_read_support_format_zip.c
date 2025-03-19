@@ -71,6 +71,7 @@
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_read_private.h"
+#include "archive_time_private.h"
 #include "archive_ppmd8_private.h"
 
 #ifndef HAVE_ZLIB_H
@@ -142,10 +143,6 @@ struct trad_enc_ctx {
 #define AUTH_CODE_SIZE	10
 /**/
 #define MAX_DERIVED_KEY_BUF_SIZE	(AES_MAX_KEY_SIZE * 2 + 2)
-
-#define NTFS_EPOC_TIME ARCHIVE_LITERAL_ULL(11644473600)
-#define NTFS_TICKS ARCHIVE_LITERAL_ULL(10000000)
-#define NTFS_EPOC_TICKS (NTFS_EPOC_TIME * NTFS_TICKS)
 
 struct zip {
 	/* Structural information about the archive. */
@@ -472,37 +469,6 @@ compression_name(const int compression)
 	return "??";
 }
 
-/* Convert an MSDOS-style date/time into Unix-style time. */
-static time_t
-zip_time(const char *p)
-{
-	int msTime, msDate;
-	struct tm ts;
-
-	msTime = (0xff & (unsigned)p[0]) + 256 * (0xff & (unsigned)p[1]);
-	msDate = (0xff & (unsigned)p[2]) + 256 * (0xff & (unsigned)p[3]);
-
-	memset(&ts, 0, sizeof(ts));
-	ts.tm_year = ((msDate >> 9) & 0x7f) + 80; /* Years since 1900. */
-	ts.tm_mon = ((msDate >> 5) & 0x0f) - 1; /* Month number. */
-	ts.tm_mday = msDate & 0x1f; /* Day of month. */
-	ts.tm_hour = (msTime >> 11) & 0x1f;
-	ts.tm_min = (msTime >> 5) & 0x3f;
-	ts.tm_sec = (msTime << 1) & 0x3e;
-	ts.tm_isdst = -1;
-	return mktime(&ts);
-}
-
-/* Convert NTFS time to Unix sec/ncse */
-static void
-ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs)
-{
-	ntfs -= NTFS_EPOC_TICKS;
-	lldiv_t tdiv = lldiv(ntfs, NTFS_TICKS);
-	*secs = tdiv.quot;
-	*nsecs = tdiv.rem * 100;
-}
-
 /*
  * The extra data is stored as a list of
  *	id1+size1+data1 + id2+size2+data2 ...
@@ -515,18 +481,17 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 	unsigned offset = 0;
 	struct zip *zip = (struct zip *)(a->format->data);
 
-	if (extra_length == 0) {
-		return ARCHIVE_OK;
-	}
-
 	// Increasing time priority so that we don't overwrite a time by one lower in priority
-	enum time_priority {
+	enum {
 		LOCAL_HEADER,
 		UX_TIME,
 		UT,
 		NTFS,
-	};
-	enum time_priority time_read = LOCAL_HEADER;
+	} time_read = LOCAL_HEADER;
+
+	if (extra_length == 0) {
+		return ARCHIVE_OK;
+	}
 
 	if (extra_length < 4) {
 		size_t i = 0;
@@ -671,7 +636,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 						"Malformed NTFS extra field");
 					return ARCHIVE_FAILED;
 				}
-				datasize = ntfs_datasize;
+				datasize = 0;
 			}
 			time_read = NTFS;
 			break;
@@ -1061,7 +1026,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	zip->init_decryption = (zip_entry->zip_flags & ZIP_ENCRYPTED);
 	zip_entry->compression = (char)archive_le16dec(p + 8);
-	zip_entry->mtime = zip_time(p + 10);
+	zip_entry->mtime = dos_to_unix(archive_le32dec(p + 10));
 	zip_entry->crc32 = archive_le32dec(p + 14);
 	if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 		zip_entry->decdat = p[11];
@@ -4069,7 +4034,7 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 			zip->has_encrypted_entries = 1;
 		}
 		zip_entry->compression = (char)archive_le16dec(p + 10);
-		zip_entry->mtime = zip_time(p + 12);
+		zip_entry->mtime = dos_to_unix(archive_le32dec(p + 12));
 		zip_entry->crc32 = archive_le32dec(p + 16);
 		if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 			zip_entry->decdat = p[13];

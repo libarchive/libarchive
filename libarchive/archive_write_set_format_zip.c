@@ -70,6 +70,7 @@
 #include "archive_hmac_private.h"
 #include "archive_private.h"
 #include "archive_random_private.h"
+#include "archive_time_private.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
@@ -129,15 +130,6 @@ enum encryption {
 #define AUTH_CODE_SIZE		10
 /**/
 #define MAX_DERIVED_KEY_BUF_SIZE (AES_MAX_KEY_SIZE * 2 + 2)
-#define NTFS_EPOC_TIME ARCHIVE_LITERAL_ULL(11644473600)
-#define NTFS_TICKS ARCHIVE_LITERAL_ULL(10000000)
-#define DOS_MIN_TIME 0x00210000U
-#define DOS_MAX_TIME 0xff9fbf7dU
-/* The min/max DOS Unix time are locale-dependant, so they're static variables,
- * initialised on first use. */
-static char dos_initialised = 0;
-static int64_t dos_max_unix;
-static int64_t dos_min_unix;
 
 struct cd_segment {
 	struct cd_segment *next;
@@ -243,7 +235,6 @@ static int archive_write_zip_header(struct archive_write *,
 	      struct archive_entry *);
 static int archive_write_zip_options(struct archive_write *,
 	      const char *, const char *);
-static unsigned int dos_time(const time_t);
 static size_t path_length(struct archive_entry *);
 static int write_path(struct archive_entry *, struct archive_write *);
 static void copy_path(struct archive_entry *, unsigned char *);
@@ -802,53 +793,6 @@ is_all_ascii(const char *p)
 	return (1);
 }
 
-/* Convert Unix sec/nsec to NTFS time */
-static uint64_t
-unix_to_ntfs(int64_t secs, uint32_t nsecs)
-{
-	uint64_t ntfs = secs + NTFS_EPOC_TIME;
-	ntfs *= NTFS_TICKS;
-	return ntfs + nsecs/100;
-}
-
-/* Convert an MSDOS-style date/time into Unix-style time. */
-static time_t
-zip_time(uint32_t p)
-{
-	int msTime, msDate;
-	struct tm ts;
-
-	msTime = (p & 0xffff);
-	msDate = (p >> 16);
-
-	memset(&ts, 0, sizeof(ts));
-	ts.tm_year = ((msDate >> 9) & 0x7f) + 80; /* Years since 1900. */
-	ts.tm_mon = ((msDate >> 5) & 0x0f) - 1; /* Month number. */
-	ts.tm_mday = msDate & 0x1f; /* Day of month. */
-	ts.tm_hour = (msTime >> 11) & 0x1f;
-	ts.tm_min = (msTime >> 5) & 0x3f;
-	ts.tm_sec = (msTime << 1) & 0x3e;
-	ts.tm_isdst = -1;
-	return mktime(&ts);
-}
-
-/* Check if time fits in 32-bits Unix time */
-static char
-fits_in_unix(int64_t secs) {
-	return secs >= INT32_MIN && secs <= INT32_MAX;
-}
-
-/* Check if time fits in DOS time */
-static char
-fits_in_dos(int64_t secs) {
-	if (!dos_initialised) {
-		dos_max_unix = zip_time(DOS_MAX_TIME);
-		dos_min_unix = zip_time(DOS_MIN_TIME);
-		dos_initialised = 1;
-	}
-	return secs >= dos_min_unix && secs <= dos_max_unix;
-}
-
 static int
 archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 {
@@ -1192,7 +1136,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		archive_le16enc(local_header + 8, zip->entry_compression);
 	archive_le32enc(local_header + 10,
-		dos_time(archive_entry_mtime(zip->entry)));
+		unix_to_dos(archive_entry_mtime(zip->entry)));
 	if ((zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END) == 0) {
 		archive_le32enc(local_header + 14, zip->entry_crc32);
 		archive_le32enc(local_header + 18, (uint32_t)zip->entry_compressed_size);
@@ -1223,7 +1167,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		archive_le16enc(zip->file_header + 10, zip->entry_compression);
 	archive_le32enc(zip->file_header + 12,
-		dos_time(archive_entry_mtime(zip->entry)));
+		unix_to_dos(archive_entry_mtime(zip->entry)));
 	archive_le16enc(zip->file_header + 28, (uint16_t)filename_length);
 	/* Following Info-Zip, store mode in the "external attributes" field. */
 	archive_le32enc(zip->file_header + 38,
@@ -1306,8 +1250,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		&& (!fits_in_unix(archive_entry_atime(entry))
 			|| (zip->high_precision_time && archive_entry_atime_nsec(entry) != 0))))
 	{
-		memcpy(e, "\xA\0\x20\0", 4);
-		memcpy(e + 8, "\1\0\x18\0", 4); // In the middle is a reserved field, which we skip
+		archive_le32enc(e, 0x0020000A); // The identifier and the size
+		archive_le32enc(e + 8, 0x00180001); // In the middle is a reserved field, which we leave alone. Then the tag and the tag size
 		e += 12;
 		archive_le64enc(e, unix_to_ntfs(archive_entry_mtime(entry), archive_entry_mtime_nsec(entry)));
 		e += 8;
@@ -1329,7 +1273,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	        || archive_entry_atime_is_set(entry)
 	        || archive_entry_ctime_is_set(entry))) {
 		unsigned char *et = e;
-		memcpy(e, "UT\000\000", 4);
+		archive_le16enc(e, 0x5455); // The "UT" identifier
 		e += 4;
 		*e++ = (archive_entry_mtime_is_set(entry) ? 1 : 0)
 			| (archive_entry_atime_is_set(entry) ? 2 : 0)
@@ -1354,7 +1298,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		 */
 		unsigned char ut[9]; // 9 is the max size, the real one is tbd
 		unsigned char *u = ut, *ud;
-		memcpy(u, "UT", 2);
+		archive_le16enc(u, 0x5455); // The "UT" identifier
 		u += 4;
 		*u++ = archive_entry_mtime_is_set(entry) ? 1 : 0;
 		if (archive_entry_mtime_is_set(entry)) {
@@ -2332,44 +2276,6 @@ archive_write_zip_free(struct archive_write *a)
 	free(zip);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
-}
-
-/* Convert into MSDOS-style date/time. */
-static unsigned int
-dos_time(const time_t unix_time)
-{
-	struct tm *t;
-	unsigned int dt;
-#if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
-	struct tm tmbuf;
-#endif
-
-#if defined(HAVE_LOCALTIME_S)
-	t = localtime_s(&tmbuf, &unix_time) ? NULL : &tmbuf;
-#elif defined(HAVE_LOCALTIME_R)
-	t = localtime_r(&unix_time, &tmbuf);
-#else
-	t = localtime(&unix_time);
-#endif
-
-	/* MSDOS-style date/time is only between 1980-01-01 and 2107-12-31 */
-	if (t->tm_year < 1980 - 1900)
-		/* Set minimum date/time '1980-01-01 00:00:00'. */
-		dt = 0x00210000U;
-	else if (t->tm_year > 2107 - 1900)
-		/* Set maximum date/time '2107-12-31 23:59:58'. */
-		dt = 0xff9fbf7dU;
-	else {
-		dt = 0;
-		dt += ((t->tm_year - 80) & 0x7f) << 9;
-		dt += ((t->tm_mon + 1) & 0x0f) << 5;
-		dt += (t->tm_mday & 0x1f);
-		dt <<= 16;
-		dt += (t->tm_hour & 0x1f) << 11;
-		dt += (t->tm_min & 0x3f) << 5;
-		dt += (t->tm_sec & 0x3e) >> 1; /* Only counting every 2 seconds. */
-	}
-	return dt;
 }
 
 static size_t

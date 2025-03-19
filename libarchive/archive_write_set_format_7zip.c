@@ -58,6 +58,7 @@
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_string.h"
+#include "archive_time_private.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
@@ -1290,20 +1291,6 @@ make_streamsInfo(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 	return (ARCHIVE_OK);
 }
 
-
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-static uint64_t
-utcToFiletime(time_t t, long ns)
-{
-	uint64_t fileTime;
-
-	fileTime = t;
-	fileTime *= 10000000;
-	fileTime += ns / 100;
-	fileTime += EPOC_TIME;
-	return (fileTime);
-}
-
 static int
 make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 {
@@ -1375,7 +1362,6 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 	if (r < 0)
 		return (r);
 
-
 	/*
 	 * Make Times.
 	 */
@@ -1383,7 +1369,7 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 	for (;file != NULL; file = file->next) {
 		if ((file->flg & flg) == 0)
 			continue;
-		archive_le64enc(filetime, utcToFiletime(file->times[ti].time,
+		archive_le64enc(filetime, unix_to_ntfs(file->times[ti].time,
 			file->times[ti].time_ns));
 		r = (int)compress_out(a, filetime, 8, ARCHIVE_Z_RUN);
 		if (r < 0)
