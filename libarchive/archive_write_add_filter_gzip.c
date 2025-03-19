@@ -58,7 +58,7 @@ archive_write_set_compression_gzip(struct archive *a)
 struct private_data {
 	int		 compression_level;
 	int		 timestamp;
-	const char	*original_filename;
+	char	*original_filename;
 #ifdef HAVE_ZLIB_H
 	z_stream	 stream;
 	int64_t		 total_in;
@@ -144,7 +144,7 @@ archive_compressor_gzip_free(struct archive_write_filter *f)
 	__archive_write_program_free(data->pdata);
 #endif
 	if (data->original_filename != NULL)
-		free(data->original_filename);
+		free((void*)data->original_filename);
 
 	free(data);
 	f->data = NULL;
@@ -173,7 +173,7 @@ archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
 	}
 	if (strcmp(key, "original-filename") == 0) {
 		if (data->original_filename)
-			free(data->original_filename);
+			free((void*)data->original_filename);
 		data->original_filename = NULL;
 		if (value)
 			data->original_filename = strdup(value);
@@ -244,7 +244,7 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	data->stream.avail_out -= 10;
 
 	if (data->original_filename != NULL) {
-		strcpy(data->compressed + 10, data->original_filename);
+		strcpy((char*)data->compressed + 10, data->original_filename);
 		data->stream.next_out += strlen(data->original_filename) + 1;
 		data->stream.avail_out -= strlen(data->original_filename) + 1;
 	}
