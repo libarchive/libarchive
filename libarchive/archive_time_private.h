@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright © 2025 ARJANEN Loïc Jean David
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,34 +22,26 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef ARCHIVE_TIME_PRIVATE_H_INCLUDED
+#define ARCHIVE_TIME_PRIVATE_H_INCLUDED
 
-#include "archive_platform.h"
-#include "archive_time_private.h"
-#include "archive_private.h"
-#include "archive_entry.h"
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-
-void
-archive_entry_copy_bhfi(struct archive_entry *entry,
-			BY_HANDLE_FILE_INFORMATION *bhfi)
-{
-	int64_t secs;
-	uint32_t nsecs;
-
-	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastAccessTime), &secs, &nsecs);
-	archive_entry_set_atime(entry, secs, nsecs);
-	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastWriteTime), &secs, &nsecs);
-	archive_entry_set_mtime(entry, secs, nsecs);
-	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftCreationTime), &secs, &nsecs);
-	archive_entry_set_birthtime(entry, secs, nsecs);
-	archive_entry_set_ctime(entry, secs, nsecs);
-	archive_entry_set_dev(entry, bhfi->dwVolumeSerialNumber);
-	archive_entry_set_ino64(entry, (((int64_t)bhfi->nFileIndexHigh) << 32)
-		+ bhfi->nFileIndexLow);
-	archive_entry_set_nlink(entry, bhfi->nNumberOfLinks);
-	archive_entry_set_size(entry, (((int64_t)bhfi->nFileSizeHigh) << 32)
-		+ bhfi->nFileSizeLow);
-	/* archive_entry_set_mode(entry, st->st_mode); */
-}
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
 #endif
+#include <stdint.h>
+
+/* NTFS time to Unix sec/nsec. */
+void ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs);
+/* DOS time to Unix sec. */
+int64_t dos_to_unix(uint32_t dos);
+/* Unix sec/nsec to NTFS time. */
+uint64_t unix_to_ntfs(int64_t secs, uint32_t nsecs);
+/* Unix sec to DOS time. */
+uint32_t unix_to_dos(int64_t secs);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include <windef.h>
+#include <winbase.h>
+/* Windows FILETIME to NTFS time. */
+uint64_t FILETIME_to_ntfs(const FILETIME* filetime);
+#endif
+#endif /* ARCHIVE_TIME_PRIVATE_H_INCLUDED */
