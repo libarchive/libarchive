@@ -71,6 +71,7 @@
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_read_private.h"
+#include "archive_time_private.h"
 #include "archive_ppmd8_private.h"
 
 #ifndef HAVE_ZLIB_H
@@ -86,9 +87,12 @@ struct zip_entry {
 	int64_t			gid;
 	int64_t			uid;
 	struct archive_string	rsrcname;
-	time_t			mtime;
-	time_t			atime;
-	time_t			ctime;
+	int64_t			mtime;
+	int64_t			atime;
+	int64_t			ctime;
+	uint32_t		mtime_nsec;
+	uint32_t		atime_nsec;
+	uint32_t		ctime_nsec;
 	uint32_t		crc32;
 	uint16_t		mode;
 	uint16_t		zip_flags; /* From GP Flags Field */
@@ -465,27 +469,6 @@ compression_name(const int compression)
 	return "??";
 }
 
-/* Convert an MSDOS-style date/time into Unix-style time. */
-static time_t
-zip_time(const char *p)
-{
-	int msTime, msDate;
-	struct tm ts;
-
-	msTime = (0xff & (unsigned)p[0]) + 256 * (0xff & (unsigned)p[1]);
-	msDate = (0xff & (unsigned)p[2]) + 256 * (0xff & (unsigned)p[3]);
-
-	memset(&ts, 0, sizeof(ts));
-	ts.tm_year = ((msDate >> 9) & 0x7f) + 80; /* Years since 1900. */
-	ts.tm_mon = ((msDate >> 5) & 0x0f) - 1; /* Month number. */
-	ts.tm_mday = msDate & 0x1f; /* Day of month. */
-	ts.tm_hour = (msTime >> 11) & 0x1f;
-	ts.tm_min = (msTime >> 5) & 0x3f;
-	ts.tm_sec = (msTime << 1) & 0x3e;
-	ts.tm_isdst = -1;
-	return mktime(&ts);
-}
-
 /*
  * The extra data is stored as a list of
  *	id1+size1+data1 + id2+size2+data2 ...
@@ -497,6 +480,14 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 {
 	unsigned offset = 0;
 	struct zip *zip = (struct zip *)(a->format->data);
+
+	// Increasing time priority so that we don't overwrite a time by one lower in priority
+	enum {
+		LOCAL_HEADER,
+		UX_TIME,
+		UT,
+		NTFS,
+	} time_read = LOCAL_HEADER;
 
 	if (extra_length == 0) {
 		return ARCHIVE_OK;
@@ -595,6 +586,60 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			 * on which file starts, but we don't handle
 			 * multi-volume Zip files. */
 			break;
+			case 0x000a:
+			{
+				/* NTFS extra field, we support only tag #1 : the time tag. */
+				la_ssize_t ntfs_datasize = datasize;
+				if (ntfs_datasize < 8) { // 8 is the absolute minimal size
+					archive_set_error(&a->archive,
+						ARCHIVE_ERRNO_FILE_FORMAT,
+						"Incomplete NTFS extra field");
+					return ARCHIVE_FAILED;
+				}
+				/* Skipping the reserved field */
+				offset += 4;
+				ntfs_datasize -= 4;
+				do
+				{
+					uint16_t tag = archive_le16dec(p + offset);
+					uint16_t tagsize = archive_le16dec(p + offset + 2);
+					offset += 4;
+					ntfs_datasize -= 4;
+#ifdef DEBUG
+					fprintf(stderr, "NTFS tag #%hd, size = %hd bytes\n",
+						tag, tagsize);
+#endif
+					switch (tag) {
+					case 0x1:
+						/* It's a NTFS time tag */
+						if (tagsize != 24) { // Tag #1 is always 24 bytes long
+							archive_set_error(&a->archive,
+								ARCHIVE_ERRNO_FILE_FORMAT,
+								"Malformed NTFS time tag");
+							return ARCHIVE_FAILED;
+						}
+						ntfs_to_unix(archive_le64dec(p + offset), &zip_entry->mtime, &zip_entry->mtime_nsec);
+						ntfs_to_unix(archive_le64dec(p + offset + 8), &zip_entry->atime, &zip_entry->atime_nsec);
+						ntfs_to_unix(archive_le64dec(p + offset + 16), &zip_entry->ctime, &zip_entry->ctime_nsec);
+						// Right now we finish by what we do for unsupported tags so...
+						/* FALLTHROUGH */
+					default:
+						/* It's not time, the only tag we support, so we skip it */
+						offset += tagsize;
+						ntfs_datasize -= tagsize;
+						break;
+					}
+				} while (ntfs_datasize > 0);
+				if (ntfs_datasize < 0) { // If we end up negative, the field was malformed
+					archive_set_error(&a->archive,
+						ARCHIVE_ERRNO_FILE_FORMAT,
+						"Malformed NTFS extra field");
+					return ARCHIVE_FAILED;
+				}
+				datasize = 0;
+			}
+			time_read = NTFS;
+			break;
 #ifdef DEBUG
 		case 0x0017:
 		{
@@ -615,55 +660,58 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 		case 0x5455:
 		{
 			/* Extended time field "UT". */
-			int flags;
-			if (datasize == 0) {
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Incomplete extended time field");
-				return ARCHIVE_FAILED;
-			}
-			flags = p[offset];
-			offset++;
-			datasize--;
-			/* Flag bits indicate which dates are present. */
-			if (flags & 0x01)
-			{
+			if (time_read < UT) {
+				int flags;
+				if (datasize == 0) {
+					archive_set_error(&a->archive,
+						ARCHIVE_ERRNO_FILE_FORMAT,
+						"Incomplete extended time field");
+					return ARCHIVE_FAILED;
+				}
+				flags = p[offset];
+				offset++;
+				datasize--;
+				/* Flag bits indicate which dates are present. */
+				if (flags & 0x01)
+				{
 #ifdef DEBUG
-				fprintf(stderr, "mtime: %lld -> %d\n",
-				    (long long)zip_entry->mtime,
-				    archive_le32dec(p + offset));
+					fprintf(stderr, "mtime: %lld -> %d\n",
+						(long long)zip_entry->mtime,
+						archive_le32dec(p + offset));
 #endif
-				if (datasize < 4)
-					break;
-				zip_entry->mtime = archive_le32dec(p + offset);
-				offset += 4;
-				datasize -= 4;
-			}
-			if (flags & 0x02)
-			{
-				if (datasize < 4)
-					break;
-				zip_entry->atime = archive_le32dec(p + offset);
-				offset += 4;
-				datasize -= 4;
-			}
-			if (flags & 0x04)
-			{
-				if (datasize < 4)
-					break;
-				zip_entry->ctime = archive_le32dec(p + offset);
-				offset += 4;
-				datasize -= 4;
+					if (datasize < 4)
+						break;
+					zip_entry->mtime = (int32_t)archive_le32dec(p + offset);
+					offset += 4;
+					datasize -= 4;
+				}
+				if (flags & 0x02)
+				{
+					if (datasize < 4)
+						break;
+					zip_entry->atime = (int32_t)archive_le32dec(p + offset);
+					offset += 4;
+					datasize -= 4;
+				}
+				if (flags & 0x04)
+				{
+					if (datasize < 4)
+						break;
+					zip_entry->ctime = (int32_t)archive_le32dec(p + offset);
+					offset += 4;
+					datasize -= 4;
+				}
+				time_read = UT;
 			}
 			break;
 		}
 		case 0x5855:
 		{
 			/* Info-ZIP Unix Extra Field (old version) "UX". */
-			if (datasize >= 8) {
-				zip_entry->atime = archive_le32dec(p + offset);
-				zip_entry->mtime =
-				    archive_le32dec(p + offset + 4);
+			if (datasize >= 8 && time_read < UX_TIME) {
+				zip_entry->atime = (int32_t)archive_le32dec(p + offset);
+				zip_entry->mtime = (int32_t)archive_le32dec(p + offset + 4);
+				time_read = UX_TIME;
 			}
 			if (datasize >= 12) {
 				zip_entry->uid =
@@ -978,7 +1026,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	zip->init_decryption = (zip_entry->zip_flags & ZIP_ENCRYPTED);
 	zip_entry->compression = (char)archive_le16dec(p + 8);
-	zip_entry->mtime = zip_time(p + 10);
+	zip_entry->mtime = dos_to_unix(archive_le32dec(p + 10));
 	zip_entry->crc32 = archive_le32dec(p + 14);
 	if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 		zip_entry->decdat = p[11];
@@ -1173,9 +1221,9 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_mode(entry, zip_entry->mode);
 	archive_entry_set_uid(entry, zip_entry->uid);
 	archive_entry_set_gid(entry, zip_entry->gid);
-	archive_entry_set_mtime(entry, zip_entry->mtime, 0);
-	archive_entry_set_ctime(entry, zip_entry->ctime, 0);
-	archive_entry_set_atime(entry, zip_entry->atime, 0);
+	archive_entry_set_mtime(entry, zip_entry->mtime, zip_entry->mtime_nsec);
+	archive_entry_set_ctime(entry, zip_entry->ctime, zip_entry->ctime_nsec);
+	archive_entry_set_atime(entry, zip_entry->atime, zip_entry->atime_nsec);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
@@ -3986,7 +4034,7 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 			zip->has_encrypted_entries = 1;
 		}
 		zip_entry->compression = (char)archive_le16dec(p + 10);
-		zip_entry->mtime = zip_time(p + 12);
+		zip_entry->mtime = dos_to_unix(archive_le32dec(p + 12));
 		zip_entry->crc32 = archive_le32dec(p + 16);
 		if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 			zip_entry->decdat = p[13];

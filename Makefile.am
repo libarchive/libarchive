@@ -197,6 +197,8 @@ libarchive_la_SOURCES= \
 	libarchive/archive_string.h \
 	libarchive/archive_string_composition.h \
 	libarchive/archive_string_sprintf.c \
+	libarchive/archive_time.c \
+	libarchive/archive_time_private.h \
 	libarchive/archive_util.c \
 	libarchive/archive_version_details.c \
 	libarchive/archive_virtual.c \
@@ -653,6 +655,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_zip_entry_size_unset.c \
 	libarchive/test/test_write_format_zip_file.c \
 	libarchive/test/test_write_format_zip_file_zip64.c \
+	libarchive/test/test_write_format_zip_high_resolution_time.c \
 	libarchive/test/test_write_format_zip_large.c \
 	libarchive/test/test_write_format_zip_stream.c \
 	libarchive/test/test_write_format_zip_windows_path.c \
