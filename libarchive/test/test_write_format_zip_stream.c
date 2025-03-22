@@ -38,7 +38,7 @@ DEFINE_TEST(test_write_format_zip_stream)
 	size_t used, buffsize = 1000000;
 	unsigned long crc;
 	unsigned long compressed_size = 0;
-	int file_perm = 00644;
+	__LA_MODE_T file_perm = 00644;
 #ifdef HAVE_ZLIB_H
 	int zip_version = 20;
 #else

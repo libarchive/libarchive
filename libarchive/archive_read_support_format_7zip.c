@@ -234,7 +234,7 @@ struct _7zip_entry {
 	long			 mtime_ns;
 	long			 atime_ns;
 	long			 ctime_ns;
-	uint32_t		 mode;
+	__LA_MODE_T		 mode;
 	uint32_t		 attr;
 };
 

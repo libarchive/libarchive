@@ -46,7 +46,7 @@ DEFINE_TEST(test_write_format_zip_file)
 #endif
 	size_t used, buffsize = 1000000;
 	unsigned long crc;
-	int file_perm = 00644;
+	__LA_MODE_T file_perm = 00644;
 	int zip_version = 20;
 	int zip_compression = 8;
 	short file_uid = 10, file_gid = 20;
