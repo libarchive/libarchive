@@ -1,16 +1,6 @@
 #
-cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
-if(APPLE AND CMAKE_VERSION VERSION_LESS "3.17.0")
-  message(WARNING "CMake>=3.17.0 required to make the generated shared library have the same Mach-O headers as autotools")
-endif()
+cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
 
-if(POLICY CMP0074)
-  cmake_policy(SET CMP0074 NEW) #3.12.0 `find_package()`` uses ``<PackageName>_ROOT`` variables.
-endif()
-if(POLICY CMP0075)
-  cmake_policy(SET CMP0075 NEW) #3.12.0 `check_include_file()`` and friends use ``CMAKE_REQUIRED_LIBRARIES``.
-endif()
-#
 PROJECT(libarchive C)
 #
 SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
@@ -293,18 +283,6 @@ IF(WIN32)
     SET(NTDDI_VERSION 0x06000100)
     SET(_WIN32_WINNT 0x0600)
     SET(WINVER 0x0600)
-  ELSEIF(WINDOWS_VERSION STREQUAL "VISTA")
-    SET(NTDDI_VERSION 0x06000000)
-    SET(_WIN32_WINNT 0x0600)
-    SET(WINVER 0x0600)
-  ELSEIF(WINDOWS_VERSION STREQUAL "WS03")
-    SET(NTDDI_VERSION 0x05020000)
-    SET(_WIN32_WINNT 0x0502)
-    SET(WINVER 0x0502)
-  ELSEIF(WINDOWS_VERSION STREQUAL "WINXP")
-    SET(NTDDI_VERSION 0x05010000)
-    SET(_WIN32_WINNT 0x0501)
-    SET(WINVER 0x0501)
   ELSE(WINDOWS_VERSION STREQUAL "WIN10")
     # Default to Windows Server 2003 API if we don't recognize the specifier
     SET(NTDDI_VERSION 0x05020000)
