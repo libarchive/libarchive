@@ -2933,7 +2933,7 @@ expand(struct archive_read *a, int64_t *end)
 
     if (symbol < 256)
     {
-      lzss_emit_literal(rar, symbol);
+      lzss_emit_literal(rar, (uint8_t)symbol);
       continue;
     }
     else if (symbol == 256)
