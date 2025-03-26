@@ -81,8 +81,8 @@ static const acl_perm_map_t acl_nfs4_perm_map[] = {
 	{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACE_SYNCHRONIZE}
 };
 
-static const int acl_nfs4_perm_map_size =
-    (int)(sizeof(acl_nfs4_perm_map)/sizeof(acl_nfs4_perm_map[0]));
+static const size_t acl_nfs4_perm_map_size =
+    (sizeof(acl_nfs4_perm_map)/sizeof(acl_nfs4_perm_map[0]));
 
 static const acl_perm_map_t acl_nfs4_flag_map[] = {
 	{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACE_FILE_INHERIT_ACE},
@@ -96,8 +96,8 @@ static const acl_perm_map_t acl_nfs4_flag_map[] = {
 #endif
 };
 
-const int acl_nfs4_flag_map_size =
-    (int)(sizeof(acl_nfs4_flag_map)/sizeof(acl_nfs4_flag_map[0]));
+const size_t acl_nfs4_flag_map_size =
+	(sizeof(acl_nfs4_flag_map) / sizeof(acl_nfs4_flag_map[0]));
 
 #endif /* ARCHIVE_ACL_SUNOS_NFS4 */
 
@@ -164,7 +164,7 @@ sun_acl_is_trivial(void *aclp, int aclcnt, mode_t mode, int is_nfs4,
     int is_dir, int *trivialp)
 {
 #if ARCHIVE_ACL_SUNOS_NFS4
-	int i, p;
+	size_t i, p;
 	const uint32_t rperm = ACE_READ_DATA;
 	const uint32_t wperm = ACE_WRITE_DATA | ACE_APPEND_DATA;
 	const uint32_t eperm = ACE_EXECUTE;
@@ -316,10 +316,11 @@ translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, void *aclp, int aclcnt,
     int default_entry_acl_type)
 {
-	int e, i;
+	int e;
 	int ae_id, ae_tag, ae_perm;
 	int entry_acl_type;
 	const char *ae_name;
+	size_t i;
 	aclent_t *aclent;
 #if ARCHIVE_ACL_SUNOS_NFS4
 	ace_t *ace;
@@ -454,13 +455,12 @@ set_acl(struct archive *a, int fd, const char *name,
 	void		 *aclp;
 	int		 ret;
 	int		 ae_type, ae_permset, ae_tag, ae_id;
-	int		 perm_map_size;
+	size_t		 i, perm_map_size;
 	const acl_perm_map_t	*perm_map;
 	uid_t		 ae_uid;
 	gid_t		 ae_gid;
 	const char	*ae_name;
 	int		 entries;
-	int		 i;
 
 	ret = ARCHIVE_OK;
 	entries = archive_acl_reset(abstract_acl, ae_requested_type);
