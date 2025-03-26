@@ -1,12 +1,9 @@
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 if(APPLE AND CMAKE_VERSION VERSION_LESS "3.17.0")
   message(WARNING "CMake>=3.17.0 required to make the generated shared library have the same Mach-O headers as autotools")
 endif()
 
-if(POLICY CMP0065)
-  cmake_policy(SET CMP0065 NEW) #3.4 don't use `-rdynamic` with executables
-endif()
 if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW) #3.12.0 `find_package()`` uses ``<PackageName>_ROOT`` variables.
 endif()
