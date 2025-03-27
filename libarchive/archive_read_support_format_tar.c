@@ -2301,7 +2301,6 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					/* GNU.sparse.size */
 					if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
 						tar->realsize = t;
-						archive_entry_set_size(entry, tar->realsize);
 						tar->realsize_override = 1;
 					}
 					return (err);
@@ -2373,7 +2372,6 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					/* GNU.sparse.realsize */
 					if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
 						tar->realsize = t;
-						archive_entry_set_size(entry, tar->realsize);
 						tar->realsize_override = 1;
 					}
 					return (err);
