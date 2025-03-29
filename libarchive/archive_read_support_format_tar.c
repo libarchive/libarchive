@@ -2345,7 +2345,11 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					return (err);
 				}
 				else if (key_length == 4 && memcmp(key, "size", 4) == 0) {
-					/* GNU.sparse.size = size of stored entry */
+					/* GNU.sparse.size */
+					/* This is either the size of stored entry OR the size of data on disk,
+					 * depending on which GNU sparse format version is in use.
+					 * Since pax attributes can be in any order, we may not actually
+					 * know at this point how to interpret this. */
 					if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
 						tar->GNU_sparse_size = t;
 						tar->size_fields |= TAR_SIZE_GNU_SPARSE_SIZE;
