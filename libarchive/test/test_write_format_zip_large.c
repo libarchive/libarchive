@@ -56,6 +56,25 @@ struct fileblocks {
 	struct fileblock *last;
 };
 
+static unsigned short
+i2le(const void* p_)
+{
+	const unsigned char *p = p_;
+	return (p[0] | (p[1] << 8));
+}
+static unsigned int
+i4le(const void* p_)
+{
+	const char *p = p_;
+	return (i2le(p) | (i2le(p + 2) << 16));
+}
+static unsigned long long
+i8le(const void* p_)
+{
+	const char *p = p_;
+	return (i4le(p) | ((unsigned long long)i4le(p + 4) << 32));
+}
+
 /* The following size definitions simplify things below. */
 #define KB ((int64_t)1024)
 #define MB ((int64_t)1024 * KB)
