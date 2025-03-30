@@ -53,6 +53,7 @@
 #include "archive_ppmd7_private.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
+#include "archive_time_private.h"
 #include "archive_endian.h"
 
 #ifndef HAVE_ZLIB_H
@@ -62,7 +63,6 @@
 #define _7ZIP_SIGNATURE	"7z\xBC\xAF\x27\x1C"
 #define SFX_MIN_ADDR	0x27000
 #define SFX_MAX_ADDR	0x60000
-
 
 /*
  * Codec ID
@@ -148,7 +148,6 @@ struct _7z_digests {
 	uint32_t	*digests;
 };
 
-
 struct _7z_folder {
 	uint64_t		 numCoders;
 	struct _7z_coder {
@@ -228,12 +227,12 @@ struct _7zip_entry {
 #define CRC32_IS_SET	(1<<3)
 #define HAS_STREAM	(1<<4)
 
-	time_t			 mtime;
-	time_t			 atime;
-	time_t			 ctime;
-	long			 mtime_ns;
-	long			 atime_ns;
-	long			 ctime_ns;
+	int64_t			 mtime;
+	int64_t			 atime;
+	int64_t			 ctime;
+	uint32_t		 mtime_ns;
+	uint32_t		 atime_ns;
+	uint32_t		 ctime_ns;
 	uint32_t		 mode;
 	uint32_t		 attr;
 };
@@ -392,7 +391,6 @@ static int	decode_encoded_header_info(struct archive_read *,
 static int	decompress(struct archive_read *, struct _7zip *,
 		    void *, size_t *, const void *, size_t *);
 static ssize_t	extract_pack_stream(struct archive_read *, size_t);
-static void	fileTimeToUtc(uint64_t, time_t *, long *);
 static uint64_t folder_uncompressed_size(struct _7z_folder *);
 static void	free_CodersInfo(struct _7z_coders_info *);
 static void	free_Digest(struct _7z_digests *);
@@ -2860,23 +2858,6 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 	return (0);
 }
 
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-static void
-fileTimeToUtc(uint64_t fileTime, time_t *timep, long *ns)
-{
-
-	if (fileTime >= EPOC_TIME) {
-		fileTime -= EPOC_TIME;
-		/* milli seconds base */
-		*timep = (time_t)(fileTime / 10000000);
-		/* nano seconds base */
-		*ns = (long)(fileTime % 10000000) * 100;
-	} else {
-		*timep = 0;
-		*ns = 0;
-	}
-}
-
 static int
 read_Times(struct archive_read *a, struct _7z_header_info *h, int type)
 {
@@ -2919,19 +2900,19 @@ read_Times(struct archive_read *a, struct _7z_header_info *h, int type)
 			goto failed;
 		switch (type) {
 		case kCTime:
-			fileTimeToUtc(archive_le64dec(p),
+			ntfs_to_unix(archive_le64dec(p),
 			    &(entries[i].ctime),
 			    &(entries[i].ctime_ns));
 			entries[i].flg |= CTIME_IS_SET;
 			break;
 		case kATime:
-			fileTimeToUtc(archive_le64dec(p),
+			ntfs_to_unix(archive_le64dec(p),
 			    &(entries[i].atime),
 			    &(entries[i].atime_ns));
 			entries[i].flg |= ATIME_IS_SET;
 			break;
 		case kMTime:
-			fileTimeToUtc(archive_le64dec(p),
+			ntfs_to_unix(archive_le64dec(p),
 			    &(entries[i].mtime),
 			    &(entries[i].mtime_ns));
 			entries[i].flg |= MTIME_IS_SET;
@@ -4320,4 +4301,3 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 
 	return ((ssize_t)outPos);
 }
-
