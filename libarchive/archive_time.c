@@ -33,11 +33,6 @@
 #define NTFS_EPOC_TICKS (NTFS_EPOC_TIME * NTFS_TICKS)
 #define DOS_MIN_TIME 0x00210000U
 #define DOS_MAX_TIME 0xff9fbf7dU
-/* The min/max DOS Unix time are locale-dependant, so they're static variables,
- * initialised on first use. */
-static char dos_initialised = 0;
-static int64_t dos_max_unix;
-static int64_t dos_min_unix;
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <winnt.h>
@@ -82,35 +77,28 @@ unix_to_dos(int64_t unix_time)
 	struct tm tmbuf;
 #endif
 
-	if (!dos_initialised) {
-		dos_max_unix = dos_to_unix(DOS_MAX_TIME);
-		dos_min_unix = dos_to_unix(DOS_MIN_TIME);
-		dos_initialised = 1;
-	}
-	if (unix_time >= dos_max_unix) {
-		return DOS_MAX_TIME;
-	}
-	else if(unix_time <= dos_min_unix) {
-		return DOS_MIN_TIME;
-	}
-	else {
 #if defined(HAVE_LOCALTIME_S)
-		t = localtime_s(&tmbuf, &ut) ? NULL : &tmbuf;
+	t = localtime_s(&tmbuf, &ut) ? NULL : &tmbuf;
 #elif defined(HAVE_LOCALTIME_R)
-		t = localtime_r(&ut, &tmbuf);
+	t = localtime_r(&ut, &tmbuf);
 #else
-		t = localtime(&ut);
+	t = localtime(&ut);
 #endif
-		dt = 0;
-		dt += ((t->tm_year - 80) & 0x7f) << 9;
-		dt += ((t->tm_mon + 1) & 0x0f) << 5;
-		dt += (t->tm_mday & 0x1f);
-		dt <<= 16;
-		dt += (t->tm_hour & 0x1f) << 11;
-		dt += (t->tm_min & 0x3f) << 5;
-		dt += (t->tm_sec & 0x3e) >> 1; /* Only counting every 2 seconds. */
-		return dt;
+	dt = 0;
+	dt += ((t->tm_year - 80) & 0x7f) << 9;
+	dt += ((t->tm_mon + 1) & 0x0f) << 5;
+	dt += (t->tm_mday & 0x1f);
+	dt <<= 16;
+	dt += (t->tm_hour & 0x1f) << 11;
+	dt += (t->tm_min & 0x3f) << 5;
+	dt += (t->tm_sec & 0x3e) >> 1; /* Only counting every 2 seconds. */
+	if (dt > DOS_MAX_TIME) {
+		dt = DOS_MAX_TIME;
 	}
+	else if (dt < DOS_MIN_TIME) {
+		dt = DOS_MIN_TIME;
+	}
+	return dt;
 }
 
 /* Convert NTFS time to Unix sec/nsec */
