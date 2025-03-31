@@ -130,15 +130,6 @@ enum encryption {
 #define AUTH_CODE_SIZE		10
 /**/
 #define MAX_DERIVED_KEY_BUF_SIZE (AES_MAX_KEY_SIZE * 2 + 2)
-#define NTFS_EPOC_TIME ARCHIVE_LITERAL_ULL(11644473600)
-#define NTFS_TICKS ARCHIVE_LITERAL_ULL(10000000)
-#define DOS_MIN_TIME 0x00210000U
-#define DOS_MAX_TIME 0xff9fbf7dU
-/* The min/max DOS Unix time are locale-dependant, so they're static variables,
- * initialised on first use. */
-static char dos_initialised = 0;
-static int64_t dos_max_unix;
-static int64_t dos_min_unix;
 
 struct cd_segment {
 	struct cd_segment *next;
@@ -255,6 +246,12 @@ static int init_traditional_pkware_encryption(struct archive_write *);
 static int is_traditional_pkware_encryption_supported(void);
 static int init_winzip_aes_encryption(struct archive_write *);
 static int is_winzip_aes_encryption_supported(int encryption);
+
+/* Check if time fits in 32-bits Unix time */
+static char
+fits_in_UT(int64_t secs) {
+	return secs >= INT32_MIN && secs <= INT32_MAX;
+}
 
 #ifdef HAVE_LZMA_H
 /* ZIP's LZMA format requires the use of a alas not exposed in LibLZMA
@@ -802,53 +799,6 @@ is_all_ascii(const char *p)
 	return (1);
 }
 
-/* Convert Unix sec/nsec to NTFS time */
-static uint64_t
-unix_to_ntfs(int64_t secs, uint32_t nsecs)
-{
-	uint64_t ntfs = secs + NTFS_EPOC_TIME;
-	ntfs *= NTFS_TICKS;
-	return ntfs + nsecs/100;
-}
-
-/* Convert an MSDOS-style date/time into Unix-style time. */
-static time_t
-zip_time(uint32_t p)
-{
-	int msTime, msDate;
-	struct tm ts;
-
-	msTime = (p & 0xffff);
-	msDate = (p >> 16);
-
-	memset(&ts, 0, sizeof(ts));
-	ts.tm_year = ((msDate >> 9) & 0x7f) + 80; /* Years since 1900. */
-	ts.tm_mon = ((msDate >> 5) & 0x0f) - 1; /* Month number. */
-	ts.tm_mday = msDate & 0x1f; /* Day of month. */
-	ts.tm_hour = (msTime >> 11) & 0x1f;
-	ts.tm_min = (msTime >> 5) & 0x3f;
-	ts.tm_sec = (msTime << 1) & 0x3e;
-	ts.tm_isdst = -1;
-	return mktime(&ts);
-}
-
-/* Check if time fits in 32-bits Unix time */
-static char
-fits_in_unix(int64_t secs) {
-	return secs >= INT32_MIN && secs <= INT32_MAX;
-}
-
-/* Check if time fits in DOS time */
-static char
-fits_in_dos(int64_t secs) {
-	if (!dos_initialised) {
-		dos_max_unix = zip_time(DOS_MAX_TIME);
-		dos_min_unix = zip_time(DOS_MIN_TIME);
-		dos_initialised = 1;
-	}
-	return secs >= dos_min_unix && secs <= dos_max_unix;
-}
-
 static int
 archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 {
@@ -864,7 +814,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	int ret, ret2 = ARCHIVE_OK;
 	mode_t type;
 	int version_needed = 10;
-	char times_written = 0;
 #define MIN_VERSION_NEEDED(x) do { if (version_needed < x) { version_needed = x; } } while (0)
 
 	/* Ignore types of entries that we don't support. */
@@ -1294,16 +1243,16 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* NTFS time, ID=0x000A. Fixed length without a local
 	 * header form, written only if high-precision timestamps
 	 * are requested and exist or if the times won't fit in
-	 * the other extra fields (NTFS time is a big extra data).
+	 * the UT field (NTFS time is a big extra data).
 	 */
 	if ((archive_entry_mtime_is_set(entry)
-		&& ((!fits_in_dos(archive_entry_mtime(entry)) && !fits_in_unix(archive_entry_mtime(entry)))
+		&& (!fits_in_UT(archive_entry_mtime(entry))
 			|| (zip->high_precision_time && archive_entry_mtime_nsec(entry) != 0)))
 	|| (archive_entry_ctime_is_set(entry)
-		&& (!fits_in_unix(archive_entry_ctime(entry))
+		&& (!fits_in_UT(archive_entry_ctime(entry))
 			|| (zip->high_precision_time && archive_entry_ctime_nsec(entry) != 0)))
 	|| (archive_entry_atime_is_set(entry)
-		&& (!fits_in_unix(archive_entry_atime(entry))
+		&& (!fits_in_UT(archive_entry_atime(entry))
 			|| (zip->high_precision_time && archive_entry_atime_nsec(entry) != 0))))
 	{
 		memcpy(e, "\xA\0\x20\0", 4);
@@ -1315,19 +1264,17 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		e += 8;
 		archive_le64enc(e, unix_to_ntfs(archive_entry_ctime(entry), archive_entry_ctime_nsec(entry)));
 		e += 8;
-		times_written = 1;
 	}
 
 	/* UT timestamp: length depends on what timestamps are set.
 	 * This header appears in the Central Directory also, but
 	 * according to Info-Zip specification, the CD form only
 	 * holds mtime, so we format it separately. Also, we write
-	 * it only if we didn't write NTFS times.
+	 * it only if the times fit.
 	 */
-	if (!times_written
-		&& (archive_entry_mtime_is_set(entry)
-	        || archive_entry_atime_is_set(entry)
-	        || archive_entry_ctime_is_set(entry))) {
+	if ((archive_entry_mtime_is_set(entry) && fits_in_UT(archive_entry_mtime(entry)))
+	    || (archive_entry_atime_is_set(entry) && fits_in_UT(archive_entry_atime(entry)))
+	    || (archive_entry_ctime_is_set(entry) && fits_in_UT(archive_entry_ctime(entry)))) {
 		unsigned char *et = e;
 		memcpy(e, "UT\000\000", 4);
 		e += 4;
@@ -1357,7 +1304,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		memcpy(u, "UT", 2);
 		u += 4;
 		*u++ = archive_entry_mtime_is_set(entry) ? 1 : 0;
-		if (archive_entry_mtime_is_set(entry)) {
+		if (archive_entry_mtime_is_set(entry) && fits_in_UT(archive_entry_mtime(entry))) {
 			archive_le32enc(u, (uint32_t)archive_entry_mtime(zip->entry));
 			u += 4;
 		}
