@@ -113,7 +113,7 @@ unix_to_dos(int64_t unix_time)
 	}
 }
 
-/* Convert NTFS time to Unix sec/ncse */
+/* Convert NTFS time to Unix sec/nsec */
 void
 ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs)
 {
