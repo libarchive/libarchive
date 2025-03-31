@@ -131,3 +131,20 @@ unix_to_ntfs(int64_t secs, uint32_t nsecs)
 	ntfs *= NTFS_TICKS;
 	return ntfs + nsecs/100;
 }
+
+/* Check if time fits in 32-bits Unix time */
+char
+fits_in_unix(int64_t secs) {
+	return secs >= INT32_MIN && secs <= INT32_MAX;
+}
+
+/* Check if time fits in DOS time */
+char
+fits_in_dos(int64_t secs) {
+	if (!dos_initialised) {
+		dos_max_unix = dos_to_unix(DOS_MAX_TIME);
+		dos_min_unix = dos_to_unix(DOS_MIN_TIME);
+		dos_initialised = 1;
+	}
+	return secs >= dos_min_unix && secs <= dos_max_unix;
+}

@@ -38,6 +38,10 @@ int64_t dos_to_unix(uint32_t dos);
 uint64_t unix_to_ntfs(int64_t secs, uint32_t nsecs);
 /* Unix sec to DOS time. */
 uint32_t unix_to_dos(int64_t secs);
+/* Check if time fits in DOS time */
+char fits_in_dos(int64_t secs);
+/* Check if time fits in 32-bits Unix time */
+char fits_in_unix(int64_t secs);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windef.h>
 #include <winbase.h>
