@@ -146,9 +146,9 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 			skip = (off_t)max_skip;
 	}
 
-	/* Reduce request to the next smallest multiple of block_size */
-	request = (request / mine->block_size) * mine->block_size;
-	if (request == 0)
+	/* Reduce 'skip' to the next smallest multiple of block_size */
+	skip = (off_t)(((int64_t)skip / mine->block_size) * mine->block_size);
+	if (skip == 0)
 		return (0);
 
 	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0) &&
