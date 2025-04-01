@@ -145,7 +145,7 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 
 	/* If request is too big for a long or an off_t, reduce it. */
 	if (sizeof(request) > sizeof(skip)) {
-		int64_t max_skip =
+		const int64_t max_skip =
 		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 		if (request > max_skip)
 			skip = max_skip;
@@ -176,39 +176,42 @@ FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
 #if HAVE__FSEEKI64
-	int64_t skip = request;
+	int64_t seek = request;
 #elif HAVE_FSEEKO
-	off_t skip = (off_t)request;
+	off_t seek = (off_t)request;
 #else
-	long skip = (long)request;
+	long seek = (long)request;
 #endif
-	int skip_bits = sizeof(skip) * 8 - 1;
+	int seek_bits = sizeof(seek) * 8 - 1;
 	(void)a; /* UNUSED */
 
-	/* If request is too big for a long or an off_t, reduce it. */
-	if (sizeof(request) > sizeof(skip)) {
-		int64_t max_skip =
-		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
-		if (request > max_skip)
-			skip = max_skip;
+	/* Reduce a request that would overflow the 'seek' variable. */
+	if (sizeof(request) > sizeof(seek)) {
+		const int64_t max_seek =
+		    (((int64_t)1 << (seek_bits - 1)) - 1) * 2 + 1;
+		const int64_t min_seek = ~max_seek;
+		if (request > max_seek)
+			seek = max_seek;
+		else if (request < min_seek)
+			seek = min_seek;
 	}
 
 #ifdef __ANDROID__
 	/* Newer Android versions have fseeko...to meditate. */
-	int64_t ret = lseek(fileno(mine->f), skip, whence);
+	int64_t ret = lseek(fileno(mine->f), seek, whence);
 	if (ret >= 0) {
 		return ret;
 	}
 #elif HAVE__FSEEKI64
-	if (_fseeki64(mine->f, skip, whence) == 0) {
+	if (_fseeki64(mine->f, seek, whence) == 0) {
 		return _ftelli64(mine->f);
 	}
 #elif HAVE_FSEEKO
-	if (fseeko(mine->f, skip, whence) == 0) {
+	if (fseeko(mine->f, seek, whence) == 0) {
 		return ftello(mine->f);
 	}
 #else
-	if (fseek(mine->f, skip, whence) == 0) {
+	if (fseek(mine->f, seek, whence) == 0) {
 		return ftell(mine->f);
 	}
 #endif
