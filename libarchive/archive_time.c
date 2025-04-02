@@ -53,6 +53,7 @@ dos_to_unix(uint32_t dos_time)
 {
 	uint16_t msTime, msDate;
 	struct tm ts;
+	time_t t;
 
 	msTime = (0xFFFF & dos_time);
 	msDate = (dos_time >> 16);
@@ -63,7 +64,8 @@ dos_to_unix(uint32_t dos_time)
 	ts.tm_min = (msTime >> 5) & 0x3f;
 	ts.tm_sec = (msTime << 1) & 0x3e;
 	ts.tm_isdst = -1;
-	return mktime(&ts);
+	t = mktime(&ts);
+	return (int64_t)(t == (time_t)-1 ? INT32_MAX : t);
 }
 
 /* Convert into MSDOS-style date/time. */
@@ -76,6 +78,10 @@ unix_to_dos(int64_t unix_time)
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm tmbuf;
 #endif
+
+	if (sizeof(time_t) < sizeof(int64_t) && (int64_t)ut != unix_time) {
+		ut = (time_t)(unix_time > 0 ? INT32_MAX : INT32_MIN);
+	}
 
 #if defined(HAVE_LOCALTIME_S)
 	t = localtime_s(&tmbuf, &ut) ? NULL : &tmbuf;
