@@ -26,7 +26,9 @@
 #include "archive_platform.h"
 #include "archive_private.h"
 #include "archive_time_private.h"
+#include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define NTFS_EPOC_TIME ARCHIVE_LITERAL_ULL(11644473600)
 #define NTFS_TICKS ARCHIVE_LITERAL_ULL(10000000)
@@ -57,6 +59,8 @@ dos_to_unix(uint32_t dos_time)
 
 	msTime = (0xFFFF & dos_time);
 	msDate = (dos_time >> 16);
+
+	memset(&ts, 0, sizeof(ts));
 	ts.tm_year = ((msDate >> 9) & 0x7f) + 80; /* Years since 1900. */
 	ts.tm_mon = ((msDate >> 5) & 0x0f) - 1; /* Month number. */
 	ts.tm_mday = msDate & 0x1f; /* Day of month. */
@@ -91,13 +95,23 @@ unix_to_dos(int64_t unix_time)
 	t = localtime(&ut);
 #endif
 	dt = 0;
-	dt += ((t->tm_year - 80) & 0x7f) << 9;
-	dt += ((t->tm_mon + 1) & 0x0f) << 5;
-	dt += (t->tm_mday & 0x1f);
-	dt <<= 16;
-	dt += (t->tm_hour & 0x1f) << 11;
-	dt += (t->tm_min & 0x3f) << 5;
-	dt += (t->tm_sec & 0x3e) >> 1; /* Only counting every 2 seconds. */
+	if (t != NULL && t->tm_year >= INT_MIN + 80) {
+		const int year = t->tm_year - 80;
+
+		if (year & ~0x7f) {
+			dt = year > 0 ? DOS_MAX_TIME : DOS_MIN_TIME;
+		}
+		else {
+			dt += (year & 0x7f) << 9;
+			dt += ((t->tm_mon + 1) & 0x0f) << 5;
+			dt += (t->tm_mday & 0x1f);
+			dt <<= 16;
+			dt += (t->tm_hour & 0x1f) << 11;
+			dt += (t->tm_min & 0x3f) << 5;
+			/* Only counting every 2 seconds. */
+			dt += (t->tm_sec & 0x3e) >> 1;
+		}
+	}
 	if (dt > DOS_MAX_TIME) {
 		dt = DOS_MAX_TIME;
 	}
@@ -111,17 +125,39 @@ unix_to_dos(int64_t unix_time)
 void
 ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs)
 {
-	ntfs -= NTFS_EPOC_TICKS;
-	lldiv_t tdiv = lldiv(ntfs, NTFS_TICKS);
-	*secs = tdiv.quot;
-	*nsecs = tdiv.rem * 100;
+	if (ntfs > INT64_MAX) {
+		ntfs -= NTFS_EPOC_TICKS;
+		*secs = ntfs / NTFS_TICKS;
+		*nsecs = 100 * (ntfs % NTFS_TICKS);
+	}
+	else {
+		lldiv_t tdiv;
+		int64_t value = (int64_t)ntfs - (int64_t)NTFS_EPOC_TICKS;
+
+		tdiv = lldiv(value, NTFS_TICKS);
+		*secs = tdiv.quot;
+		*nsecs = (uint32_t)(tdiv.rem * 100);
+	}
 }
 
 /* Convert Unix sec/nsec to NTFS time */
 uint64_t
 unix_to_ntfs(int64_t secs, uint32_t nsecs)
 {
-	uint64_t ntfs = secs + NTFS_EPOC_TIME;
+	uint64_t ntfs;
+
+	if (secs < -(int64_t)NTFS_EPOC_TIME)
+		return 0;
+
+	ntfs = secs + NTFS_EPOC_TIME;
+
+	if (ntfs > UINT64_MAX / NTFS_TICKS)
+		return UINT64_MAX;
+
 	ntfs *= NTFS_TICKS;
+
+	if (ntfs > UINT64_MAX - nsecs/100)
+		return UINT64_MAX;
+
 	return ntfs + nsecs/100;
 }
