@@ -561,7 +561,6 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 	if (perms != myacl->permset)
 		return (0);
 
-	r = 0;
 	switch (tag_type) {
 	case ACL_EXTENDED_ALLOW:
 		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
