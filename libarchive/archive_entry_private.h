@@ -195,4 +195,4 @@ struct archive_entry {
 	int ae_symlink_type;
 };
 
-#endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */
+#endif /* !ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */
