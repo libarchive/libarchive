@@ -131,7 +131,7 @@ static int64_t
 file_skip(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
-	int64_t skip = request;
+	off_t skip = (off_t)request;
 	int64_t old_offset, new_offset;
 	int skip_bits = sizeof(skip) * 8 - 1;  /* off_t is a signed type. */
 
@@ -140,15 +140,15 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 
 	/* Reduce a request that would overflow the 'skip' variable. */
 	if (sizeof(request) > sizeof(skip)) {
-		int64_t max_skip =
+		const int64_t max_skip =
 		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 		if (request > max_skip)
-			skip = max_skip;
+			skip = (off_t)max_skip;
 	}
 
-	/* Reduce request to the next smallest multiple of block_size */
-	request = (request / mine->block_size) * mine->block_size;
-	if (request == 0)
+	/* Reduce 'skip' to the next smallest multiple of block_size */
+	skip = (off_t)(((int64_t)skip / mine->block_size) * mine->block_size);
+	if (skip == 0)
 		return (0);
 
 	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0) &&
@@ -178,11 +178,24 @@ static int64_t
 file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
+	off_t seek = (off_t)request;
 	int64_t r;
+	int seek_bits = sizeof(seek) * 8 - 1;  /* off_t is a signed type. */
 
 	/* We use off_t here because lseek() is declared that way. */
-	/* See above for notes about when off_t is less than 64 bits. */
-	r = lseek(mine->fd, request, whence);
+
+	/* Reduce a request that would overflow the 'seek' variable. */
+	if (sizeof(request) > sizeof(seek)) {
+		const int64_t max_seek =
+		    (((int64_t)1 << (seek_bits - 1)) - 1) * 2 + 1;
+		const int64_t min_seek = ~max_seek;
+		if (request > max_seek)
+			seek = (off_t)max_seek;
+		else if (request < min_seek)
+			seek = (off_t)min_seek;
+	}
+
+	r = lseek(mine->fd, seek, whence);
 	if (r >= 0)
 		return r;
 
