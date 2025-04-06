@@ -1110,17 +1110,17 @@ atohex(unsigned char *b, size_t bsize, const char *p, size_t psize)
 	while (bsize && psize > 1) {
 		unsigned char x;
 
-		if (p[0] >= 'a' && p[0] <= 'z')
+		if (p[0] >= 'a' && p[0] <= 'f')
 			x = (p[0] - 'a' + 0x0a) << 4;
-		else if (p[0] >= 'A' && p[0] <= 'Z')
+		else if (p[0] >= 'A' && p[0] <= 'F')
 			x = (p[0] - 'A' + 0x0a) << 4;
 		else if (p[0] >= '0' && p[0] <= '9')
 			x = (p[0] - '0') << 4;
 		else
 			return (-1);
-		if (p[1] >= 'a' && p[1] <= 'z')
+		if (p[1] >= 'a' && p[1] <= 'f')
 			x |= p[1] - 'a' + 0x0a;
-		else if (p[1] >= 'A' && p[1] <= 'Z')
+		else if (p[1] >= 'A' && p[1] <= 'F')
 			x |= p[1] - 'A' + 0x0a;
 		else if (p[1] >= '0' && p[1] <= '9')
 			x |= p[1] - '0';
