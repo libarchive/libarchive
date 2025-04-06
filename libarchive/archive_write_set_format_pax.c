@@ -1414,7 +1414,7 @@ archive_write_pax_header(struct archive_write *a,
 		struct archive_entry *pax_attr_entry;
 		time_t s;
 		int64_t uid, gid;
-		int mode;
+		__LA_MODE_T mode;
 
 		pax_attr_entry = archive_entry_new2(&a->archive);
 		p = entry_name.s;

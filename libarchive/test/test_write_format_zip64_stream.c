@@ -38,7 +38,7 @@ DEFINE_TEST(test_write_format_zip64_stream)
 	size_t used, buffsize = 1000000;
 	unsigned long crc;
 	unsigned long compressed_size = 0;
-	int file_perm = 00644;
+	__LA_MODE_T file_perm = 00644;
 	int zip_version = 45;
 	int zip_compression = 8;
 	short file_uid = 10, file_gid = 20;
