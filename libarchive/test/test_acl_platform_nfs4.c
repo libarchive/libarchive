@@ -424,7 +424,7 @@ acl_flagset_to_bitmap(acl_flagset_t opaque_fs)
 #if ARCHIVE_ACL_SUNOS_NFS4 || ARCHIVE_ACL_LIBRICHACL
 		if (flags & perms[i].machine)
 #else
-		if (acl_get_flag_np(opaque_fs, perms[i].machine))
+		if (acl_get_flag_np(opaque_fs, (acl_flag_t)perms[i].machine))
 #endif
 			flagset |= perms[i].portable;
 	return flagset;

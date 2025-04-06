@@ -861,7 +861,8 @@ nexttoken(const char **in, time_t *value)
 			    && i < sizeof(buff)-1) {
 				if (*src != '.') {
 					if (isupper((unsigned char)*src))
-						buff[i++] = tolower((unsigned char)*src);
+						buff[i++] = (char)tolower(
+						    (unsigned char)*src);
 					else
 						buff[i++] = *src;
 				}
