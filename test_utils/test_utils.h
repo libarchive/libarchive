@@ -38,4 +38,4 @@ unsigned long bitcrc32(unsigned long, const void*, size_t);
 unsigned short i2le(const void*);
 unsigned int i4le(const void*);
 unsigned long long i8le(const void*);
-#endif /* TEST_UTILS_H */
+#endif /* !TEST_UTILS_H */
