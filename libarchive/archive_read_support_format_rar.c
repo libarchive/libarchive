@@ -1753,7 +1753,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   case OS_MSDOS:
   case OS_OS2:
   case OS_WIN32:
-    rar->mode = archive_le32dec(file_header.file_attr);
+    rar->mode = (__LA_MODE_T)archive_le32dec(file_header.file_attr);
     if (rar->mode & FILE_ATTRIBUTE_DIRECTORY)
       rar->mode = AE_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
     else
@@ -1764,7 +1764,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   case OS_UNIX:
   case OS_MAC_OS:
   case OS_BEOS:
-    rar->mode = archive_le32dec(file_header.file_attr);
+    rar->mode = (__LA_MODE_T)archive_le32dec(file_header.file_attr);
     break;
 
   default:

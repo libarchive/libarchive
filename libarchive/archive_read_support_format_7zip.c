@@ -233,7 +233,7 @@ struct _7zip_entry {
 	uint32_t		 mtime_ns;
 	uint32_t		 atime_ns;
 	uint32_t		 ctime_ns;
-	uint32_t		 mode;
+	__LA_MODE_T		 mode;
 	uint32_t		 attr;
 };
 
