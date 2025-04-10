@@ -2048,7 +2048,7 @@ static int
 iconv_strncat_in_locale(struct archive_string *as, const void *_p,
     size_t length, struct archive_string_conv *sc)
 {
-	ICONV_CONST char *itp;
+	const char *itp;
 	size_t remaining;
 	iconv_t cd;
 	char *outp;
@@ -2069,7 +2069,7 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 		return (-1);
 
 	cd = sc->cd;
-	itp = (char *)(uintptr_t)_p;
+	itp = (const char *)_p;
 	remaining = length;
 	outp = as->s + as->length;
 	avail = as->buffer_length - as->length - to_size;
