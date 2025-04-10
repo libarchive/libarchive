@@ -131,15 +131,22 @@ static int64_t
 file_skip(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
+#if HAVE__FSEEKI64
+	int64_t skip = request;
+#elif HAVE_FSEEKO
 	off_t skip = (off_t)request;
+#else
+	long skip = (long)request;
+#endif
+
 	int64_t old_offset, new_offset;
-	int skip_bits = sizeof(skip) * 8 - 1;  /* off_t is a signed type. */
 
 	if (!mine->use_lseek)
 		return (0);
 
 	/* Reduce a request that would overflow the 'skip' variable. */
 	if (sizeof(request) > sizeof(skip)) {
+		const int skip_bits = sizeof(skip) * 8 - 1;  /* off_t is a signed type. */
 		const int64_t max_skip =
 		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 		if (request > max_skip)
