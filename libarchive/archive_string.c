@@ -140,7 +140,6 @@ static struct archive_string_conv *find_sconv_object(struct archive *,
 static void add_sconv_object(struct archive *, struct archive_string_conv *);
 static struct archive_string_conv *create_sconv_object(const char *,
 	const char *, unsigned, int);
-static void free_sconv_object(struct archive_string_conv *);
 static struct archive_string_conv *get_sconv_object(struct archive *,
 	const char *, const char *, int);
 static unsigned make_codepage_from_charset(const char *);
@@ -1331,7 +1330,7 @@ create_sconv_object(const char *fc, const char *tc,
 /*
  * Free a string conversion object.
  */
-static void
+void
 free_sconv_object(struct archive_string_conv *sc)
 {
 	free(sc->from_charset);

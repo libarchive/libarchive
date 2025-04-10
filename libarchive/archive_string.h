@@ -236,5 +236,6 @@ int	archive_mstring_copy_mbs_len_l(struct archive_mstring *,
 	    const char *mbs, size_t, struct archive_string_conv *);
 int     archive_mstring_update_utf8(struct archive *, struct archive_mstring *aes, const char *utf8);
 
+void free_sconv_object(struct archive_string_conv *);
 
 #endif

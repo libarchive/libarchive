@@ -2220,7 +2220,11 @@ archive_write_zip_free(struct archive_write *a)
 		archive_encrypto_aes_ctr_release(&zip->cctx);
 	if (zip->hctx_valid)
 		archive_hmac_sha1_cleanup(&zip->hctx);
-	/* TODO: Free opt_sconv, sconv_default */
+
+	if (zip->opt_sconv != NULL)
+		free_sconv_object(zip->opt_sconv);
+	if (zip->sconv_default != NULL)
+		free_sconv_object(zip->sconv_default);
 
 	free(zip);
 	a->format_data = NULL;
