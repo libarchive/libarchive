@@ -153,7 +153,7 @@ static const char template_header[] = {
 static int      archive_write_gnutar_options(struct archive_write *,
 		    const char *, const char *);
 static int	archive_format_gnutar_header(struct archive_write *, char h[512],
-		    struct archive_entry *, int tartype);
+		    struct archive_entry *, char tartype);
 static int      archive_write_gnutar_header(struct archive_write *,
 		    struct archive_entry *entry);
 static ssize_t	archive_write_gnutar_data(struct archive_write *a, const void *buff,
@@ -274,7 +274,7 @@ archive_write_gnutar_header(struct archive_write *a,
 {
 	char buff[512];
 	int r, ret, ret2 = ARCHIVE_OK;
-	int tartype;
+	char tartype;
 	struct gnutar *gnutar;
 	struct archive_string_conv *sconv;
 	struct archive_entry *entry_main;
@@ -562,7 +562,7 @@ exit_write_header:
 
 static int
 archive_format_gnutar_header(struct archive_write *a, char h[512],
-    struct archive_entry *entry, int tartype)
+    struct archive_entry *entry, char tartype)
 {
 	unsigned int checksum;
 	int i, ret;
