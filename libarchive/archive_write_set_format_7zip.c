@@ -303,7 +303,7 @@ static int	compression_code_lzma(struct archive *,
 static int	compression_end_lzma(struct archive *, struct la_zstream *);
 #endif
 static int	compression_init_encoder_ppmd(struct archive *,
-		    struct la_zstream *, unsigned, uint32_t);
+		    struct la_zstream *, uint8_t, uint32_t);
 static int	compression_code_ppmd(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_ppmd(struct archive *, struct la_zstream *);
@@ -2272,7 +2272,7 @@ ppmd_write(void *p, Byte b)
 
 static int
 compression_init_encoder_ppmd(struct archive *a,
-    struct la_zstream *lastrm, unsigned maxOrder, uint32_t msize)
+    struct la_zstream *lastrm, uint8_t maxOrder, uint32_t msize)
 {
 	struct ppmd_stream *strm;
 	uint8_t *props;
