@@ -271,6 +271,16 @@ main(int argc, char **argv)
 	bsdtar->argc = argc;
 
 	/*
+	 * Sanity check: we need all "fake short equivalents" to be lower than
+	 * 63 (ascii '?'), otherwise we'll get into problems trying to parse
+	 * the command-line.  (It's ok if OPTION_ZZZ_LAST is 63.)
+	 * Unfortunately the compiler assigns enum values after the
+	 * preprocessor stage, so this can't be checked with #if.
+	 */
+	if (OPTION_ZZZ_LAST > '?')
+		lafe_errc(1, 0, "Too many OPTION_ enums in bsdtar.h");
+
+	/*
 	 * Comments following each option indicate where that option
 	 * originated:  SUSv2, POSIX, GNU tar, star, etc.  If there's
 	 * no such comment, then I don't know of anyone else who

@@ -175,6 +175,7 @@ enum {
 	OPTION_VERSION,
 	OPTION_XATTRS,
 	OPTION_ZSTD,
+	OPTION_ZZZ_LAST,	/* Added for a sanity check; must be last. */
 };
 
 int	bsdtar_getopt(struct bsdtar *);
