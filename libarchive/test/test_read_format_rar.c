@@ -3829,8 +3829,8 @@ DEFINE_TEST(test_read_format_rar_ppmd_use_after_free)
   assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
   assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
-  /* Test EOF */
-  assertA(1 == archive_read_next_header(a, &ae));
+  /* Test for truncation */
+  assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
 
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -3856,7 +3856,7 @@ DEFINE_TEST(test_read_format_rar_ppmd_use_after_free2)
   assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
 
   /* Test EOF */
-  assertA(1 == archive_read_next_header(a, &ae));
+  assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
 
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
