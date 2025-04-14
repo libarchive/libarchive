@@ -444,7 +444,7 @@ archive_wincrypt_version(void)
 		return NULL;
 	} else {
 		char major = version >> 8;
-		char minor = version & 0xFF
+		char minor = version & 0xFF;
 		static char wincrypt_version[6];
 		snprintf(wincrypt_version, 6, "%hhd.%hhd", major, minor);
 		return wincrypt_version;
@@ -501,7 +501,7 @@ archive_libiconv_version(void)
 {
 #if HAVE_LIBCHARSET && HAVE_ICONV_H
 	char major = _libiconv_version >> 8;
-	char minor = _libiconv_version & 0xFF
+	char minor = _libiconv_version & 0xFF;
 	static char charset_version[6];
 	snprintf(charset_version, 6, "%hhd.%hhd", major, minor);
 	return charset_version;
