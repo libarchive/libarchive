@@ -42,7 +42,7 @@ struct bsdtar {
 	int		  uid;  /* --uid */
 	const char	 *uname; /* --uname */
 	const char	 *passphrase; /* --passphrase */
-	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
+	int		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	const char	 *option_options; /* --options */
 	char		  day_first; /* show day before month in -tv output */
@@ -114,7 +114,7 @@ struct bsdtar {
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_ACLS = 1,
+	OPTION_ACLS = 256,
 	OPTION_B64ENCODE,
 	OPTION_CHECK_LINKS,
 	OPTION_CHROOT,
