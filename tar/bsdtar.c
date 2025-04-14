@@ -104,7 +104,7 @@ need_report(void)
 static __LA_NORETURN void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
-static void		 set_mode(struct bsdtar *, char opt);
+static void		 set_mode(struct bsdtar *, int opt);
 static __LA_NORETURN void		 version(void);
 
 /* A basic set of security flags to request from libarchive. */
@@ -139,7 +139,7 @@ main(int argc, char **argv)
 {
 	struct bsdtar		*bsdtar, bsdtar_storage;
 	int			 opt, t;
-	char			 compression, compression2;
+	int			 compression, compression2;
 	const char		*compression_name, *compression2_name;
 	const char		*compress_program;
 	char			*tptr, *uptr;
@@ -938,7 +938,7 @@ main(int argc, char **argv)
 		switch (compression) {
 		case 'J': case 'j': case 'y': case 'Z': case 'z':
 			strcpy(buff, "-?");
-			buff[1] = compression;
+			buff[1] = (char)compression;
 			break;
 		default:
 			strcpy(buff, "--");
@@ -1008,7 +1008,7 @@ main(int argc, char **argv)
 }
 
 static void
-set_mode(struct bsdtar *bsdtar, char opt)
+set_mode(struct bsdtar *bsdtar, int opt)
 {
 	if (bsdtar->mode != '\0' && bsdtar->mode != opt)
 		lafe_errc(1, 0,
