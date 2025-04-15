@@ -52,6 +52,7 @@
 struct read_fd_data {
 	int	 fd;
 	size_t	 block_size;
+	int64_t	 size;
 	char	 use_lseek;
 	void	*buffer;
 };
@@ -95,6 +96,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	if (S_ISREG(st.st_mode)) {
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		mine->use_lseek = 1;
+		mine->size = st.st_size;
 	}
 #if defined(__CYGWIN__) || defined(_WIN32)
 	setmode(mine->fd, O_BINARY);
@@ -151,9 +153,14 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 	if (skip == 0)
 		return (0);
 
-	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0) &&
-	    ((new_offset = lseek(mine->fd, skip, SEEK_CUR)) >= 0))
-		return (new_offset - old_offset);
+	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0) {
+		if (old_offset >= mine->size ||
+		    skip > mine->size - old_offset) {
+			/* Do not seek past end of file. */
+			errno = ESPIPE;
+		} else if ((new_offset = lseek(mine->fd, skip, SEEK_CUR)) >= 0)
+			return (new_offset - old_offset);
+	}
 
 	/* If seek failed once, it will probably fail again. */
 	mine->use_lseek = 0;

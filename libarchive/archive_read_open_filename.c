@@ -74,6 +74,7 @@ struct read_file_data {
 	size_t	 block_size;
 	void	*buffer;
 	mode_t	 st_mode;  /* Mode bits for opened file. */
+	int64_t	 size;
 	char	 use_lseek;
 	enum fnt_e { FNT_STDIN, FNT_MBS, FNT_WCS } filename_type;
 	union {
@@ -400,8 +401,10 @@ file_open(struct archive *a, void *client_data)
 	mine->st_mode = st.st_mode;
 
 	/* Disk-like inputs can use lseek(). */
-	if (is_disk_like)
+	if (is_disk_like) {
 		mine->use_lseek = 1;
+		mine->size = st.st_size;
+	}
 
 	return (ARCHIVE_OK);
 fail:
@@ -495,9 +498,14 @@ file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 			skip = max_skip;
 	}
 
-	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0 &&
-	    (new_offset = lseek(mine->fd, skip, SEEK_CUR)) >= 0)
-		return (new_offset - old_offset);
+	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0) {
+		if (old_offset >= mine->size ||
+		    skip > mine->size - old_offset) {
+			/* Do not seek past end of file. */
+			errno = ESPIPE;
+		} else if ((new_offset = lseek(mine->fd, skip, SEEK_CUR)) >= 0)
+			return (new_offset - old_offset);
+	}
 
 	/* If lseek() fails, don't bother trying again. */
 	mine->use_lseek = 0;
