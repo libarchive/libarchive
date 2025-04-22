@@ -984,7 +984,9 @@ void
 archive_entry_set_ino(struct archive_entry *entry, la_int64_t ino)
 {
 	if (ino < 0) {
-		ino = 0;
+		entry->stat_valid = 0;
+		entry->ae_set &= ~AE_SET_INO;
+		return;
 	}
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_INO;
@@ -995,7 +997,9 @@ void
 archive_entry_set_ino64(struct archive_entry *entry, la_int64_t ino)
 {
 	if (ino < 0) {
-		ino = 0;
+		entry->stat_valid = 0;
+		entry->ae_set &= ~AE_SET_INO;
+		return;
 	}
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_INO;
