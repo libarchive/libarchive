@@ -835,7 +835,8 @@ static int
 header_afiol(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
-	uint64_t t;
+	int64_t t;
+	uint64_t u;
 	const void *h;
 	const char *header;
 
@@ -852,11 +853,11 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
 
 	archive_entry_set_dev(entry, 
 		(dev_t)atol16(header + afiol_dev_offset, afiol_dev_size));
-	t = atol16u(header + afiol_ino_offset, afiol_ino_size);
+	u = atol16u(header + afiol_ino_offset, afiol_ino_size);
 #if ARCHIVE_VERSION_NUMBER < 4000000
-	archive_entry_set_ino(entry, (int64_t)(t & INT64_MAX));
+	archive_entry_set_ino(entry, (int64_t)(u & INT64_MAX));
 #else
-	archive_entry_set_ino(entry, t);
+	archive_entry_set_ino(entry, u);
 #endif
 	archive_entry_set_mode(entry,
 		(mode_t)atol8(header + afiol_mode_offset, afiol_mode_size));
