@@ -1571,7 +1571,7 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	const char *filename, *filename_end;
 	char *p;
 	int need_slash = 0; /* Was there a trailing slash? */
-	size_t suffix_length = 99;
+	size_t suffix_length = 98; /* 99 - 1 for trailing slash */
 	size_t insert_length;
 
 	/* Length of additional dir element to be added. */
@@ -1623,7 +1623,7 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	/* Step 2: Locate the "prefix" section of the dirname, including
 	 * trailing '/'. */
 	prefix = src;
-	prefix_end = prefix + 155;
+	prefix_end = prefix + 154 /* 155 - 1 for trailing / */;
 	if (prefix_end > filename)
 		prefix_end = filename;
 	while (prefix_end > prefix && *prefix_end != '/')
