@@ -189,6 +189,7 @@ struct cpio {
 };
 
 static int64_t	atol16(const char *, unsigned);
+static uint64_t	atol16u(const char *, unsigned);
 static int64_t	atol8(const char *, unsigned);
 static int	archive_read_format_cpio_bid(struct archive_read *, int);
 static int	archive_read_format_cpio_options(struct archive_read *,
@@ -834,7 +835,7 @@ static int
 header_afiol(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
-	int64_t t;
+	uint64_t t;
 	const void *h;
 	const char *header;
 
@@ -851,12 +852,12 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
 
 	archive_entry_set_dev(entry, 
 		(dev_t)atol16(header + afiol_dev_offset, afiol_dev_size));
-	t = atol16(header + afiol_ino_offset, afiol_ino_size);
-	if (t < 0) {
-		archive_set_error(&a->archive, 0, "Nonsensical ino value");
-		return (ARCHIVE_FATAL);
-	}
+	t = atol16u(header + afiol_ino_offset, afiol_ino_size);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	archive_entry_set_ino(entry, (int64_t)(t & INT64_MAX));
+#else
 	archive_entry_set_ino(entry, t);
+#endif
 	archive_entry_set_mode(entry,
 		(mode_t)atol8(header + afiol_mode_offset, afiol_mode_size));
 	archive_entry_set_uid(entry, atol16(header + afiol_uid_offset, afiol_uid_size));
@@ -1031,6 +1032,12 @@ atol8(const char *p, unsigned char_cnt)
 static int64_t
 atol16(const char *p, unsigned char_cnt)
 {
+	return ((int64_t)atol16u(p, char_cnt));
+}
+
+static uint64_t
+atol16u(const char *p, unsigned char_cnt)
+{
 	uint64_t l;
 	int digit;
 
@@ -1048,7 +1055,7 @@ atol16(const char *p, unsigned char_cnt)
 		l <<= 4;
 		l |= digit;
 	}
-	return ((int64_t)l);
+	return (l);
 }
 
 static int

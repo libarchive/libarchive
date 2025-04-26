@@ -66,12 +66,15 @@
 #define __LA_INT64_T_DEFINED
 # if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__WATCOMC__)
 typedef __int64 la_int64_t;
+typedef unsigned __int64 la_uint64_t;
 # else
 # include <unistd.h>  /* ssize_t */
 #  if defined(_SCO_DS) || defined(__osf__)
 typedef long long la_int64_t;
+typedef unsigned long long la_uint64_t;
 #  else
 typedef int64_t la_int64_t;
+typedef uint64_t la_uint64_t;
 #  endif
 # endif
 #endif

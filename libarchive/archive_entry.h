@@ -40,7 +40,7 @@
 
 #include <sys/types.h>
 #include <stddef.h>  /* for wchar_t */
-#include <stdint.h>
+#include <stdint.h>  /* for C99 int64_t, etc. */
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* time_t is slated to be removed from public includes in 4.0 */
 #include <time.h>
@@ -58,12 +58,15 @@
 #define __LA_INT64_T_DEFINED
 # if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__WATCOMC__)
 typedef __int64 la_int64_t;
+typedef unsigned __int64 la_uint64_t;
 # else
 #include <unistd.h>
 #  if defined(_SCO_DS) || defined(__osf__)
 typedef long long la_int64_t;
+typedef unsigned long long la_uint64_t;
 #  else
 typedef int64_t la_int64_t;
+typedef uint64_t la_uint64_t;
 #  endif
 # endif
 #endif
@@ -113,6 +116,14 @@ typedef ssize_t la_ssize_t;
 #else
 /* Use 64-bits integer types for dev_t */
 #define __LA_DEV_T la_int64_t
+#endif
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* Libarchive 3.x used signed int64 for inode numbers */
+#define __LA_INO_T la_int64_t
+#else
+/* Switch to unsigned for libarchive 4.0 */
+#define __LA_INO_T la_uint64_t
 #endif
 
 /* Large file support for Android */
@@ -284,8 +295,8 @@ __LA_DECL const char	*archive_entry_hardlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink_utf8(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_hardlink_w(struct archive_entry *);
 __LA_DECL int		 archive_entry_hardlink_is_set(struct archive_entry *);
-__LA_DECL la_int64_t	 archive_entry_ino(struct archive_entry *);
-__LA_DECL la_int64_t	 archive_entry_ino64(struct archive_entry *);
+__LA_DECL __LA_INO_T	 archive_entry_ino(struct archive_entry *);
+__LA_DECL __LA_INO_T	 archive_entry_ino64(struct archive_entry *);
 __LA_DECL int		 archive_entry_ino_is_set(struct archive_entry *);
 __LA_DECL __LA_MODE_T	 archive_entry_mode(struct archive_entry *);
 __LA_DECL time_t	 archive_entry_mtime(struct archive_entry *);
@@ -363,8 +374,8 @@ __LA_DECL void	archive_entry_set_hardlink_utf8(struct archive_entry *, const cha
 __LA_DECL void	archive_entry_copy_hardlink(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
 __LA_DECL int	archive_entry_update_hardlink_utf8(struct archive_entry *, const char *);
-__LA_DECL void	archive_entry_set_ino(struct archive_entry *, la_int64_t);
-__LA_DECL void	archive_entry_set_ino64(struct archive_entry *, la_int64_t);
+__LA_DECL void	archive_entry_set_ino(struct archive_entry *, __LA_INO_T);
+__LA_DECL void	archive_entry_set_ino64(struct archive_entry *, __LA_INO_T);
 __LA_DECL void	archive_entry_set_link(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_set_link_utf8(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_copy_link(struct archive_entry *, const char *);
