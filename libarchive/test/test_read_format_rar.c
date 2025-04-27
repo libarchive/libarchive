@@ -3861,3 +3861,51 @@ DEFINE_TEST(test_read_format_rar_ppmd_use_after_free2)
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_rar_newsub_huge)
+{
+#if SIZE_MAX == UINT64_MAX
+  skipping("not relevant on 64 bit platforms");
+#else
+  const char* reffile = "test_read_format_rar_newsub_huge.rar";
+
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+  /* Test for truncation */
+  assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
+}
+
+DEFINE_TEST(test_read_format_rar_symlink_huge)
+{
+#if SIZE_MAX == UINT64_MAX
+  skipping("not relevant on 64 bit platforms");
+#else
+  const char* reffile = "test_read_format_rar_symlink_huge.rar";
+
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+  /* Test for invalid entry */
+  assertA(ARCHIVE_FATAL == archive_read_next_header(a, &ae));
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
+}
