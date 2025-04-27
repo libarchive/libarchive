@@ -741,11 +741,11 @@ archive_read_support_format_rar(struct archive *_a)
     return (ARCHIVE_FATAL);
   }
 
-	/*
-	 * Until enough data has been read, we cannot tell about
-	 * any encrypted entries yet.
-	 */
-	rar->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+  /*
+   * Until enough data has been read, we cannot tell about
+   * any encrypted entries yet.
+   */
+  rar->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 
   r = __archive_read_register_format(a,
                                      rar,
@@ -768,21 +768,21 @@ archive_read_support_format_rar(struct archive *_a)
 static int
 archive_read_support_format_rar_capabilities(struct archive_read * a)
 {
-	(void)a; /* UNUSED */
-	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA
-			| ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
+  (void)a; /* UNUSED */
+  return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA
+    | ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
 }
 
 static int
 archive_read_format_rar_has_encrypted_entries(struct archive_read *_a)
 {
-	if (_a && _a->format) {
-		struct rar * rar = (struct rar *)_a->format->data;
-		if (rar) {
-			return rar->has_encrypted_entries;
-		}
-	}
-	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
+  if (_a && _a->format) {
+    struct rar * rar = (struct rar *)_a->format->data;
+    if (rar) {
+      return rar->has_encrypted_entries;
+    }
+  }
+  return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 }
 
 
@@ -793,7 +793,7 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
 
   /* If there's already a bid > 30, we'll never win. */
   if (best_bid > 30)
-	  return (-1);
+    return (-1);
 
   if ((p = __archive_read_ahead(a, 7, NULL)) == NULL)
     return (-1);
@@ -865,7 +865,7 @@ skip_sfx(struct archive_read *a)
     }
     skip = p - (const char *)h;
     __archive_read_consume(a, skip);
-	total += skip;
+    total += skip;
   }
 fatal:
   archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -930,7 +930,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
    * as well.
    */
   if (rar->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
-	  rar->has_encrypted_entries = 0;
+    rar->has_encrypted_entries = 0;
   }
 
   /* RAR files can be generated without EOF headers, so return ARCHIVE_EOF if
@@ -1053,28 +1053,28 @@ archive_read_format_rar_read_header(struct archive_read *a,
       /* Skim the entire header and compute the CRC. */
       crc32_val = 0;
       while (skip > 0) {
-	      size_t to_read = skip;
-	      if (to_read > 32 * 1024)
-		      to_read = 32 * 1024;
-	      if ((h = __archive_read_ahead(a, to_read, NULL)) == NULL) {
-		      archive_set_error(&a->archive,  ARCHIVE_ERRNO_FILE_FORMAT,
-			  "Bad RAR file");
-		      return (ARCHIVE_FATAL);
-	      }
-	      p = h;
-	      crc32_val = crc32(crc32_val, (const unsigned char *)p, (unsigned int)to_read);
-	      __archive_read_consume(a, to_read);
-	      skip -= to_read;
+        size_t to_read = skip;
+        if (to_read > 32 * 1024)
+          to_read = 32 * 1024;
+        if ((h = __archive_read_ahead(a, to_read, NULL)) == NULL) {
+          archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+            "Bad RAR file");
+          return (ARCHIVE_FATAL);
+        }
+        p = h;
+        crc32_val = crc32(crc32_val, (const unsigned char *)p, (unsigned int)to_read);
+        __archive_read_consume(a, to_read);
+        skip -= to_read;
       }
       if ((crc32_val & 0xffff) != crc32_expected) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
-	      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		  "Header CRC error");
-	      return (ARCHIVE_FATAL);
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+          "Header CRC error");
+        return (ARCHIVE_FATAL);
 #endif
       }
       if (head_type == ENDARC_HEAD)
-	      return (ARCHIVE_EOF);
+        return (ARCHIVE_EOF);
       break;
 
     case NEWSUB_HEAD:
@@ -1083,7 +1083,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
       break;
 
     default:
-      archive_set_error(&a->archive,  ARCHIVE_ERRNO_FILE_FORMAT,
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "Bad RAR file");
       return (ARCHIVE_FATAL);
     }
@@ -1098,7 +1098,7 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
   int ret;
 
   if (rar->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
-	  rar->has_encrypted_entries = 0;
+    rar->has_encrypted_entries = 0;
   }
 
   if (rar->bytes_unconsumed > 0) {
@@ -1460,8 +1460,8 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   if (rar->file_flags & FHD_PASSWORD)
   {
-	archive_entry_set_is_data_encrypted(entry, 1);
-	rar->has_encrypted_entries = 1;
+    archive_entry_set_is_data_encrypted(entry, 1);
+    rar->has_encrypted_entries = 1;
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "RAR encryption support unavailable.");
     /* Since it is only the data part itself that is encrypted we can at least
@@ -2224,7 +2224,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
 
       ret = expand(a, &end);
       if (ret != ARCHIVE_OK)
-	      return (ret);
+        return (ret);
 
       rar->bytes_uncopied = end - start;
       rar->filters.lastend = end;
@@ -2332,9 +2332,9 @@ parse_codes(struct archive_read *a)
       __archive_ppmd7_functions.Ppmd7_Construct(&rar->ppmd7_context);
 
       if (rar->dictionary_size == 0) {
-	      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Invalid zero dictionary size");
-	      return (ARCHIVE_FATAL);
+        return (ARCHIVE_FATAL);
       }
 
       if (!__archive_ppmd7_functions.Ppmd7_Alloc(&rar->ppmd7_context,
