@@ -1670,6 +1670,8 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     !memcmp(rar->filename, rar->filename_save, filename_size + 1))
   {
     __archive_read_consume(a, header_size - 7);
+    rar->br.avail_in = 0;
+    rar->br.next_in = NULL;
     rar->cursor++;
     if (rar->cursor >= rar->nodes)
     {
@@ -1780,6 +1782,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->offset_outgoing = 0;
   rar->br.cache_avail = 0;
   rar->br.avail_in = 0;
+  rar->br.next_in = NULL;
   rar->crc_calculated = 0;
   rar->entry_eof = 0;
   rar->valid = 1;
