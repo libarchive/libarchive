@@ -910,7 +910,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
   const void *h;
   const char *p;
   struct rar *rar;
-  size_t skip;
+  int64_t skip;
   char head_type;
   int ret;
   unsigned flags;
@@ -972,7 +972,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
     case MAIN_HEAD:
       rar->main_flags = archive_le16dec(p + 3);
       skip = archive_le16dec(p + 5);
-      if (skip < 7 + sizeof(rar->reserved1) + sizeof(rar->reserved2)) {
+      if ((size_t)skip < 7 + sizeof(rar->reserved1) + sizeof(rar->reserved2)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
           "Invalid header size");
         return (ARCHIVE_FATAL);
@@ -984,7 +984,8 @@ archive_read_format_rar_read_header(struct archive_read *a,
       memcpy(rar->reserved2, p + 7 + sizeof(rar->reserved1),
              sizeof(rar->reserved2));
       if (rar->main_flags & MHD_ENCRYPTVER) {
-        if (skip < 7 + sizeof(rar->reserved1) + sizeof(rar->reserved2)+1) {
+        if ((size_t)skip <
+            7 + sizeof(rar->reserved1) + sizeof(rar->reserved2) + 1) {
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
             "Invalid header size");
           return (ARCHIVE_FATAL);
@@ -1053,16 +1054,18 @@ archive_read_format_rar_read_header(struct archive_read *a,
       /* Skim the entire header and compute the CRC. */
       crc32_val = 0;
       while (skip > 0) {
-        size_t to_read = skip;
-        if (to_read > 32 * 1024)
+        unsigned to_read;
+        if (skip > 32 * 1024)
           to_read = 32 * 1024;
+        else
+          to_read = (unsigned)skip;
         if ((h = __archive_read_ahead(a, to_read, NULL)) == NULL) {
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
             "Bad RAR file");
           return (ARCHIVE_FATAL);
         }
         p = h;
-        crc32_val = crc32(crc32_val, (const unsigned char *)p, (unsigned int)to_read);
+        crc32_val = crc32(crc32_val, (const unsigned char *)p, to_read);
         __archive_read_consume(a, to_read);
         skip -= to_read;
       }
