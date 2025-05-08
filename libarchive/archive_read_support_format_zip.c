@@ -3366,15 +3366,6 @@ archive_read_support_format_zip_capabilities_streamable(struct archive_read * a)
 }
 
 static int
-archive_read_support_format_zip_comments_streamable(struct archive_read *a, char ** comment, size_t* comment_length)
-{
-	struct zip *zip = (struct zip *)(a->format->data);
-	*comment = zip->comment;
-	*comment_length = zip->comment_length;
-	return ARCHIVE_OK;
-}
-
-static int
 archive_read_format_zip_streamable_bid(struct archive_read *a, int best_bid)
 {
 	const char *p;
@@ -3635,7 +3626,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	    archive_read_format_zip_cleanup,
 	    archive_read_support_format_zip_capabilities_streamable,
 	    archive_read_format_zip_has_encrypted_entries,
-	    archive_read_support_format_zip_comments_streamable);
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(zip);
@@ -3656,6 +3647,15 @@ archive_read_support_format_zip_capabilities_seekable(struct archive_read * a)
 		ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA |
 		ARCHIVE_READ_FORMAT_CAPS_ARCHIVE_COMMENT |
 		ARCHIVE_READ_FORMAT_CAPS_ENTRY_COMMENT);
+}
+
+static int
+archive_read_support_format_zip_comments_seekable(struct archive_read* a, char** comment, size_t* comment_length)
+{
+	struct zip* zip = (struct zip*)(a->format->data);
+	*comment = zip->comment;
+	*comment_length = zip->comment_length;
+	return ARCHIVE_OK;
 }
 
 /*
@@ -4438,7 +4438,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	    archive_read_format_zip_cleanup,
 	    archive_read_support_format_zip_capabilities_seekable,
 	    archive_read_format_zip_has_encrypted_entries,
-	    NULL);
+		archive_read_support_format_zip_comments_seekable);
 
 	if (r != ARCHIVE_OK)
 		free(zip);
