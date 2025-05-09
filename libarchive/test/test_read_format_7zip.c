@@ -1271,7 +1271,7 @@ DEFINE_TEST(test_read_format_7zip_win_attrib)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_read_format_7z_sfx_pe)
+DEFINE_TEST(test_read_format_7zip_sfx_pe)
 {
 	/*
 	 * This is a regular 7z SFX PE file
@@ -1281,7 +1281,7 @@ DEFINE_TEST(test_read_format_7z_sfx_pe)
 	struct archive_entry *ae;
 	int bs = 10240;
 	char buff[32];
-	const char reffile[] = "test_read_format_7z_sfx_pe.exe";
+	const char reffile[] = "test_read_format_7zip_sfx_pe.exe";
 	const char test_txt[] = "123";
 	int size = sizeof(test_txt) - 1;
 
@@ -1301,7 +1301,7 @@ DEFINE_TEST(test_read_format_7z_sfx_pe)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_read_format_7z_sfx_modified_pe)
+DEFINE_TEST(test_read_format_7zip_sfx_modified_pe)
 {
 	/*
 	 * This test simulates a modified 7z SFX PE
@@ -1312,7 +1312,7 @@ DEFINE_TEST(test_read_format_7z_sfx_modified_pe)
 	struct archive_entry *ae;
 	int bs = 10240;
 	char buff[32];
-	const char reffile[] = "test_read_format_7z_sfx_modified_pe.exe";
+	const char reffile[] = "test_read_format_7zip_sfx_modified_pe.exe";
 	const char test_txt[] = "123";
 	int size = sizeof(test_txt) - 1;
 
@@ -1332,7 +1332,7 @@ DEFINE_TEST(test_read_format_7z_sfx_modified_pe)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-DEFINE_TEST(test_read_format_7z_sfx_elf)
+DEFINE_TEST(test_read_format_7zip_sfx_elf)
 {
 	/*
 	 * This is a regular 7z SFX ELF file
@@ -1342,7 +1342,7 @@ DEFINE_TEST(test_read_format_7z_sfx_elf)
 	struct archive_entry *ae;
 	int bs = 10240;
 	char buff[32];
-	const char reffile[] = "test_read_format_7z_sfx_elf.elf";
+	const char reffile[] = "test_read_format_7zip_sfx_elf.elf";
 	const char test_txt[] = "123";
 	int size = sizeof(test_txt) - 1;
 
