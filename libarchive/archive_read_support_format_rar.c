@@ -3186,8 +3186,12 @@ static const void *
 rar_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
 {
   struct rar *rar = (struct rar *)(a->format->data);
-  const void *h = __archive_read_ahead(a, min, avail);
+  const void *h;
   int ret;
+
+again:
+  h = __archive_read_ahead(a, min, avail);
+
   if (avail)
   {
     if (a->archive.read_data_is_posix_read && *avail > (ssize_t)a->archive.read_data_requested)
@@ -3209,7 +3213,7 @@ rar_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
       rar->filename_must_match = 0;
       if (ret != (ARCHIVE_OK))
         return NULL;
-      return rar_read_ahead(a, min, avail);
+      goto again;
     }
   }
   return h;
