@@ -491,6 +491,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_gtar_filename.c \
 	libarchive/test/test_read_format_gtar_gz.c \
 	libarchive/test/test_read_format_gtar_lzma.c \
+	libarchive/test/test_read_format_gtar_redundant_L.c \
 	libarchive/test/test_read_format_gtar_sparse.c \
 	libarchive/test/test_read_format_gtar_sparse_length.c \
 	libarchive/test/test_read_format_gtar_sparse_skip_entry.c \
@@ -843,6 +844,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_gtar_filename_cp866.tar.Z.uu \
 	libarchive/test/test_read_format_gtar_filename_eucjp.tar.Z.uu \
 	libarchive/test/test_read_format_gtar_filename_koi8r.tar.Z.uu \
+	libarchive/test/test_read_format_gtar_redundant_L.tar.Z.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_13.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17.tar.uu \
 	libarchive/test/test_read_format_gtar_sparse_1_17_posix00.tar.uu \

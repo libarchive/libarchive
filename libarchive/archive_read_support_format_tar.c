@@ -816,6 +816,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		switch(header->typeflag[0]) {
 		case 'A': /* Solaris tar ACL */
 			if (seen_headers & seen_A_header) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+						  "Redundant 'A' header");
 				return (ARCHIVE_FATAL);
 			}
 			seen_headers |= seen_A_header;
@@ -825,6 +827,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			break;
 		case 'g': /* POSIX-standard 'g' header. */
 			if (seen_headers & seen_g_header) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+						  "Redundant 'g' header");
 				return (ARCHIVE_FATAL);
 			}
 			seen_headers |= seen_g_header;
@@ -834,27 +838,41 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			break;
 		case 'K': /* Long link name (GNU tar, others) */
 			if (seen_headers & seen_K_header) {
-				return (ARCHIVE_FATAL);
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+						  "Damaged archive: Redundant 'K' headers may cause linknames to be incorrect");
+				err = err_combine(err, ARCHIVE_WARN);
 			}
 			seen_headers |= seen_K_header;
+			a->archive.archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
+			a->archive.archive_format_name = "GNU tar format";
 			err2 = header_gnu_longlink(a, tar, entry, h, unconsumed);
 			break;
 		case 'L': /* Long filename (GNU tar, others) */
 			if (seen_headers & seen_L_header) {
-				return (ARCHIVE_FATAL);
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+						  "Damaged archive: Redundant 'L' headers may cause filenames to be incorrect");
+				err = err_combine(err, ARCHIVE_WARN);
 			}
 			seen_headers |= seen_L_header;
+			a->archive.archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
+			a->archive.archive_format_name = "GNU tar format";
 			err2 = header_gnu_longname(a, tar, entry, h, unconsumed);
 			break;
 		case 'V': /* GNU volume header */
 			if (seen_headers & seen_V_header) {
-				return (ARCHIVE_FATAL);
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+						  "Redundant 'V' header");
+				err = err_combine(err, ARCHIVE_WARN);
 			}
 			seen_headers |= seen_V_header;
+			a->archive.archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
+			a->archive.archive_format_name = "GNU tar format";
 			err2 = header_volume(a, tar, entry, h, unconsumed);
 			break;
 		case 'X': /* Used by SUN tar; same as 'x'. */
 			if (seen_headers & seen_x_header) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+						  "Redundant 'X'/'x' header");
 				return (ARCHIVE_FATAL);
 			}
 			seen_headers |= seen_x_header;
@@ -865,6 +883,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			break;
 		case 'x': /* POSIX-standard 'x' header. */
 			if (seen_headers & seen_x_header) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+						  "Redundant 'x' header");
 				return (ARCHIVE_FATAL);
 			}
 			seen_headers |= seen_x_header;
