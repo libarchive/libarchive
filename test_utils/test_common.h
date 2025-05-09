@@ -48,6 +48,9 @@
 #endif
 
 #include <sys/types.h>  /* Windows requires this before sys/stat.h */
+#if !HAVE_SUSECONDS_T
+#define suseconds_t long
+#endif
 #include <sys/stat.h>
 
 #if HAVE_DIRENT_H
@@ -166,6 +169,8 @@
 /* Assert two integers are the same.  Reports value of each one if not. */
 #define assertEqualInt(v1,v2) \
   assertion_equal_int(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
+#define assertEqualAddress(v1,v2) \
+  assertion_equal_address(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
 /* Assert two strings are the same.  Reports value of each one if not. */
 #define assertEqualString(v1,v2)   \
   assertion_equal_string(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL, 0)
@@ -279,6 +284,7 @@ int assertion_compare_fflags(const char *, int, const char *, const char *,
 int assertion_empty_file(const char *, int, const char *);
 int assertion_equal_file(const char *, int, const char *, const char *);
 int assertion_equal_int(const char *, int, long long, const char *, long long, const char *, void *);
+int assertion_equal_address(const char *, int, const void *, const char *, const void *, const char *, void *);
 int assertion_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int assertion_memory_filled_with(const char *, int, const void *, const char *, size_t, const char *, char, const char *, void *);
 int assertion_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *, int);
@@ -310,7 +316,7 @@ int assertion_non_empty_file(const char *, int, const char *);
 int assertion_set_nodump(const char *, int, const char *);
 int assertion_text_file_contents(const char *, int, const char *buff, const char *f);
 int assertion_umask(const char *, int, int);
-int assertion_utimes(const char *, int, const char *, long, long, long, long );
+int assertion_utimes(const char *, int, const char *, time_t, suseconds_t, time_t, suseconds_t);
 int assertion_version(const char*, int, const char *, const char *);
 
 void skipping_setup(const char *, int);
@@ -461,4 +467,4 @@ void assertVersion(const char *prog, const char *base);
 
 #include "test_utils.h"
 
-#endif	/* TEST_COMMON_H */
+#endif	/* !TEST_COMMON_H */

@@ -145,6 +145,11 @@ struct archive_entry {
 #define	AE_SET_SIZE	64
 #define	AE_SET_INO	128
 #define	AE_SET_DEV	256
+#define	AE_SET_PERM	512
+#define	AE_SET_FILETYPE	1024
+#define	AE_SET_UID	2048
+#define	AE_SET_GID	4096
+#define	AE_SET_RDEV	8192
 
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
@@ -153,9 +158,8 @@ struct archive_entry {
 	unsigned long ae_fflags_set;		/* Bitmap fflags */
 	unsigned long ae_fflags_clear;
 	struct archive_mstring ae_gname;		/* Name of owning group */
-	struct archive_mstring ae_hardlink;	/* Name of target for hardlink */
+	struct archive_mstring ae_linkname;	/* Name of target for hardlink or symlink */
 	struct archive_mstring ae_pathname;	/* Name of entry */
-	struct archive_mstring ae_symlink;		/* symlink contents */
 	struct archive_mstring ae_uname;		/* Name of owner */
 
 	/* Not used within libarchive; useful for some clients. */
@@ -191,8 +195,4 @@ struct archive_entry {
 	int ae_symlink_type;
 };
 
-int
-archive_entry_set_digest(struct archive_entry *entry, int type,
-    const unsigned char *digest);
-
-#endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */
+#endif /* !ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

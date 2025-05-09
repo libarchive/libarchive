@@ -76,6 +76,7 @@
 
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+#include <string.h>
 #include <windows.h>
 
 static char *
@@ -113,13 +114,12 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 	WriteFile(hStdout, "\r\n", 2, NULL, NULL);
 	buf[rbytes] = '\0';
 	/* Remove trailing carriage return(s). */
-	if (rbytes > 2 && buf[rbytes - 2] == '\r' && buf[rbytes - 1] == '\n')
-		buf[rbytes - 2] = '\0';
+	buf[strcspn(buf, "\r\n")] = '\0';
 
 	return (buf);
 }
 
-#else /* _WIN32 && !__CYGWIN__ */
+#elif defined(HAVE_TCGETATTR) && defined(HAVE_TCSETATTR)
 
 #include <assert.h>
 #include <ctype.h>
@@ -314,7 +314,13 @@ restart:
 		errno = save_errno;
 	return(nr == -1 ? NULL : buf);
 }
-#endif /* _WIN32 && !__CYGWIN__ */
+#else
+static char *
+readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
+{
+	return (NULL);
+}
+#endif
 #endif /* HAVE_READPASSPHRASE */
 
 char *

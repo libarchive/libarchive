@@ -43,10 +43,11 @@
 #include "archive_pathmatch.h"
 #include "archive_rb.h"
 #include "archive_string.h"
+#include "archive_time_private.h"
 
 struct match {
 	struct match		*next;
-	int			 matches;
+	int			 matched;
 	struct archive_mstring	 pattern;
 };
 
@@ -220,7 +221,7 @@ archive_match_new(void)
 {
 	struct archive_match *a;
 
-	a = (struct archive_match *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_MATCH_MAGIC;
@@ -605,7 +606,8 @@ add_pattern_from_file(struct archive_match *a, struct match_list *mlist,
 		return (ARCHIVE_FATAL);
 	}
 	r = archive_read_support_format_raw(ar);
-	r = archive_read_support_format_empty(ar);
+	if (r == ARCHIVE_OK)
+		r = archive_read_support_format_empty(ar);
 	if (r != ARCHIVE_OK) {
 		archive_copy_error(&(a->archive), ar);
 		archive_read_free(ar);
@@ -724,12 +726,12 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 	matched = NULL;
 	for (match = a->inclusions.first; match != NULL;
 	    match = match->next){
-		if (match->matches == 0 &&
+		if (!match->matched &&
 		    (r = match_path_inclusion(a, match, mbs, pathname)) != 0) {
 			if (r < 0)
 				return (r);
 			a->inclusions.unmatched_count--;
-			match->matches++;
+			match->matched = 1;
 			matched = match;
 		}
 	}
@@ -752,11 +754,10 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 	for (match = a->inclusions.first; match != NULL;
 	    match = match->next){
 		/* We looked at previously-unmatched inclusions already. */
-		if (match->matches > 0 &&
+		if (match->matched &&
 		    (r = match_path_inclusion(a, match, mbs, pathname)) != 0) {
 			if (r < 0)
 				return (r);
-			match->matches++;
 			return (0);
 		}
 	}
@@ -879,7 +880,7 @@ match_list_unmatched_inclusions_next(struct archive_match *a,
 	for (m = list->unmatched_next; m != NULL; m = m->next) {
 		int r;
 
-		if (m->matches)
+		if (m->matched)
 			continue;
 		if (mbs) {
 			const char *p;
@@ -1145,36 +1146,15 @@ set_timefilter_date_w(struct archive_match *a, int timetype,
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static int
 set_timefilter_find_data(struct archive_match *a, int timetype,
-    DWORD ftLastWriteTime_dwHighDateTime, DWORD ftLastWriteTime_dwLowDateTime,
-    DWORD ftCreationTime_dwHighDateTime, DWORD ftCreationTime_dwLowDateTime)
+    const FILETIME* ftLastWriteTime, const FILETIME* ftCreationTime)
 {
-	ULARGE_INTEGER utc;
 	time_t ctime_sec, mtime_sec;
-	long ctime_ns, mtime_ns;
+	uint32_t ctime_ns, mtime_ns;
 
-	utc.HighPart = ftCreationTime_dwHighDateTime;
-	utc.LowPart = ftCreationTime_dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		ctime_sec = (time_t)(utc.QuadPart / 10000000);
-		ctime_ns = (long)(utc.QuadPart % 10000000) * 100;
-	} else {
-		ctime_sec = 0;
-		ctime_ns = 0;
-	}
-	utc.HighPart = ftLastWriteTime_dwHighDateTime;
-	utc.LowPart = ftLastWriteTime_dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		mtime_sec = (time_t)(utc.QuadPart / 10000000);
-		mtime_ns = (long)(utc.QuadPart % 10000000) * 100;
-	} else {
-		mtime_sec = 0;
-		mtime_ns = 0;
-	}
+	ntfs_to_unix(FILETIME_to_ntfs(ftLastWriteTime), &mtime_sec, &mtime_ns);
+	ntfs_to_unix(FILETIME_to_ntfs(ftCreationTime), &ctime_sec, &ctime_ns);
 	return set_timefilter(a, timetype,
 			mtime_sec, mtime_ns, ctime_sec, ctime_ns);
 }
@@ -1199,9 +1179,7 @@ set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
 		return (ARCHIVE_FAILED);
 	}
 	FindClose(h);
-	return set_timefilter_find_data(a, timetype,
-	    d.ftLastWriteTime.dwHighDateTime, d.ftLastWriteTime.dwLowDateTime,
-	    d.ftCreationTime.dwHighDateTime, d.ftCreationTime.dwLowDateTime);
+	return set_timefilter_find_data(a, timetype, &d.ftLastWriteTime, &d.ftCreationTime);
 }
 
 static int
@@ -1223,9 +1201,7 @@ set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
 		return (ARCHIVE_FAILED);
 	}
 	FindClose(h);
-	return set_timefilter_find_data(a, timetype,
-	    d.ftLastWriteTime.dwHighDateTime, d.ftLastWriteTime.dwLowDateTime,
-	    d.ftCreationTime.dwHighDateTime, d.ftCreationTime.dwLowDateTime);
+	return set_timefilter_find_data(a, timetype, &d.ftLastWriteTime, &d.ftCreationTime);
 }
 
 #else /* _WIN32 && !__CYGWIN__ */
@@ -1793,7 +1769,7 @@ match_owner_name_mbs(struct archive_match *a, struct match_list *list,
 		    < 0 && errno == ENOMEM)
 			return (error_nomem(a));
 		if (p != NULL && strcmp(p, name) == 0) {
-			m->matches++;
+			m->matched = 1;
 			return (1);
 		}
 	}
@@ -1814,7 +1790,7 @@ match_owner_name_wcs(struct archive_match *a, struct match_list *list,
 		    < 0 && errno == ENOMEM)
 			return (error_nomem(a));
 		if (p != NULL && wcscmp(p, name) == 0) {
-			m->matches++;
+			m->matched = 1;
 			return (1);
 		}
 	}
@@ -1871,4 +1847,3 @@ owner_excluded(struct archive_match *a, struct archive_entry *entry)
 	}
 	return (0);
 }
-

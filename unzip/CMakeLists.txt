@@ -1,3 +1,6 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
 ############################################
 #
 # How to build bsdunzip
@@ -11,6 +14,7 @@ IF(ENABLE_UNZIP)
     bsdunzip_platform.h
     cmdline.c
     la_getline.c
+    la_getline.h
     la_queue.h
     ../libarchive_fe/err.c
     ../libarchive_fe/err.h
@@ -34,8 +38,10 @@ IF(ENABLE_UNZIP)
   ENDIF(ENABLE_UNZIP_SHARED)
 
   # Installation rules
-  INSTALL(TARGETS bsdunzip RUNTIME DESTINATION bin)
-  INSTALL_MAN(${bsdunzip_MANS})
+  IF(ENABLE_INSTALL)
+    INSTALL(TARGETS bsdunzip RUNTIME DESTINATION bin)
+    INSTALL_MAN(${bsdunzip_MANS})
+  ENDIF(ENABLE_INSTALL)
 ENDIF(ENABLE_UNZIP)
 
 add_subdirectory(test)

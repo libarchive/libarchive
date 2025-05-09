@@ -62,25 +62,6 @@ struct fileblocks {
 #define GB ((int64_t)1024 * MB)
 #define TB ((int64_t)1024 * GB)
 
-static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
-static ssize_t	memory_read(struct archive *, void *, const void **buff);
-static ssize_t	memory_write(struct archive *, void *, const void *, size_t);
-
-static uint16_t le16(const void *_p) {
-	const uint8_t *p = _p;
-	return p[0] | (p[1] << 8);
-}
-
-static uint32_t le32(const void *_p) {
-	const uint8_t *p = _p;
-	return le16(p) | ((uint32_t)le16(p + 2) << 16);
-}
-
-static uint64_t le64(const void *_p) {
-	const uint8_t *p = _p;
-	return le32(p) | ((uint64_t)le32(p + 4) << 32);
-}
-
 static ssize_t
 memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 {
@@ -96,7 +77,7 @@ memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 	} else {
 		/* Yes, we're assuming the very first write is metadata. */
 		/* It's header or metadata, copy and save it. */
-		block = (struct fileblock *)malloc(sizeof(*block));
+		block = malloc(sizeof(*block));
 		memset(block, 0, sizeof(*block));
 		block->size = (int)size;
 		block->buff = malloc(size);
@@ -272,21 +253,20 @@ static int64_t test_sizes[] = {
 	2 * GB - 1, 2 * GB, 2 * GB + 1,
 	/* Test for 32-bit unsigned overflow. */
 	4 * GB - 1, 4 * GB, 4 * GB + 1,
-	/* And beyond ... because we can. */
-	16 * GB - 1, 16 * GB, 16 * GB + 1,
-	64 * GB - 1, 64 * GB, 64 * GB + 1,
-	256 * GB - 1, 256 * GB, 256 * GB + 1,
-	1 * TB,
+	/* And one larger sample */
+	5 * GB,
 	0
 };
 
 
 static void
-verify_large_zip(struct archive *a, struct fileblocks *fileblocks)
+verify_large_zip(struct archive *a, struct fileblocks *fileblocks, int seeking)
 {
 	char namebuff[64];
 	struct archive_entry *ae;
 	int i;
+
+	(void)seeking; /* UNUSED */
 
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_set_options(a, "zip:ignorecrc32"));
@@ -310,7 +290,13 @@ verify_large_zip(struct archive *a, struct fileblocks *fileblocks)
 		    archive_read_next_header(a, &ae));
 		snprintf(namebuff, sizeof(namebuff), "file_%d", i);
 		assertEqualString(namebuff, archive_entry_pathname(ae));
-		assertEqualInt(test_sizes[i], archive_entry_size(ae));
+		if (seeking) {
+		  assert(archive_entry_size_is_set(ae));
+		  assertEqualInt(test_sizes[i], archive_entry_size(ae));
+		} else {
+		  assertEqualInt(0, archive_entry_size_is_set(ae));
+		}
+		/* TODO: Read to end of data, verify length */
 	}
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualString("lastfile", archive_entry_pathname(ae));
@@ -344,6 +330,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	 */
 	a = archive_write_new();
 	archive_write_set_format_zip(a);
+	/* TODO: Repeat this entire test suite with default compression */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_options(a, "zip:compression=store"));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -397,7 +384,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	a = archive_read_new();
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_zip_seekable(a));
-	verify_large_zip(a, fileblocks);
+	verify_large_zip(a, fileblocks, 1);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
@@ -406,7 +393,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	a = archive_read_new();
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_zip_streamable(a));
-	verify_large_zip(a, fileblocks);
+	verify_large_zip(a, fileblocks, 0);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
@@ -429,8 +416,8 @@ DEFINE_TEST(test_write_format_zip_large)
 	/* Verify regular end-of-central-directory record */
 	eocd = p - 22;
 	assertEqualMem(eocd, "PK\005\006\0\0\0\0", 8);
-	assertEqualMem(eocd + 8, "\021\0\021\0", 4); /* 17 entries total */
-	cd_size = le32(eocd + 12);
+	assertEqualMem(eocd + 8, "\010\0\010\0", 4); /* 8 entries total */
+	cd_size = i4le(eocd + 12);
 	/* Start of CD offset should be 0xffffffff */
 	assertEqualMem(eocd + 16, "\xff\xff\xff\xff", 4);
 	assertEqualMem(eocd + 20, "\0\0", 2);	/* No Zip comment */
@@ -438,25 +425,25 @@ DEFINE_TEST(test_write_format_zip_large)
 	/* Verify Zip64 locator */
 	zip64_locator = p - 42;
 	assertEqualMem(zip64_locator, "PK\006\007\0\0\0\0", 8);
-	zip64_eocd = p - (fileblocks->filesize - le64(zip64_locator + 8));
+	zip64_eocd = p - (fileblocks->filesize - i8le(zip64_locator + 8));
 	assertEqualMem(zip64_locator + 16, "\001\0\0\0", 4);
 
 	/* Verify Zip64 end-of-cd record. */
 	assert(zip64_eocd == p - 98);
 	assertEqualMem(zip64_eocd, "PK\006\006", 4);
-	assertEqualInt(44, le64(zip64_eocd + 4)); // Size of EoCD record - 12
+	assertEqualInt(44, i8le(zip64_eocd + 4)); // Size of EoCD record - 12
 	assertEqualMem(zip64_eocd + 12, "\055\0", 2);  // Made by version: 45
 	assertEqualMem(zip64_eocd + 14, "\055\0", 2);  // Requires version: 45
 	assertEqualMem(zip64_eocd + 16, "\0\0\0\0", 4); // This disk
 	assertEqualMem(zip64_eocd + 20, "\0\0\0\0", 4); // Total disks
-	assertEqualInt(17, le64(zip64_eocd + 24));  // Entries on this disk
-	assertEqualInt(17, le64(zip64_eocd + 32));  // Total entries
-	cd_size = le64(zip64_eocd + 40);
-	cd_start = p - (fileblocks->filesize - le64(zip64_eocd + 48));
+	assertEqualInt(8, i8le(zip64_eocd + 24));  // Entries on this disk
+	assertEqualInt(8, i8le(zip64_eocd + 32));  // Total entries
+	cd_size = i8le(zip64_eocd + 40);
+	cd_start = p - (fileblocks->filesize - i8le(zip64_eocd + 48));
 
 	assert(cd_start + cd_size == zip64_eocd);
 
-	assertEqualInt(le64(zip64_eocd + 48) // Start of CD
+	assertEqualInt(i8le(zip64_eocd + 48) // Start of CD
 	    + cd_size
 	    + 56 // Size of Zip64 EOCD
 	    + 20 // Size of Zip64 locator

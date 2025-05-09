@@ -41,6 +41,7 @@
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
+#include "archive_time_private.h"
 
 #ifndef O_BINARY
 #define O_BINARY	0
@@ -49,6 +50,8 @@
 /* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
+/* To deal with absolute symlink issues */
+#define START_ABSOLUTE_SYMLINK_REPARSE L"\\??\\"
 
 /*-
  * This is a new directory-walking system that addresses a number
@@ -375,7 +378,7 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname, int *linktype)
 		return (-1);
 	}
 
-	tbuf = malloc(len + 1 * sizeof(wchar_t));
+	tbuf = malloc(len + sizeof(wchar_t));
 	if (tbuf == NULL) {
 		free(indata);
 		return (-1);
@@ -386,17 +389,20 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname, int *linktype)
 	free(indata);
 
 	tbuf[len / sizeof(wchar_t)] = L'\0';
+	if (wcsncmp(tbuf, START_ABSOLUTE_SYMLINK_REPARSE, 4) == 0) {
+		/* Absolute symlink, so we'll change the NT path into a verbatim one */
+		tbuf[1] = L'\\';
+	} else {
+		/* Relative symlink, so we can translate backslashes to slashes */
+		wchar_t *temp = tbuf;
+		do {
+			if (*temp == L'\\')
+				*temp = L'/';
+			temp++;
+		} while(*temp != L'\0');
+	}
 
 	*linkname = tbuf;
-
-	/*
-	 * Translate backslashes to slashes for libarchive internal use
-	 */
-	while(*tbuf != L'\0') {
-		if (*tbuf == L'\\')
-			*tbuf = L'/';
-		tbuf++;
-	}
 
 	if ((st.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
 		*linktype = AE_SYMLINK_TYPE_FILE;
@@ -538,7 +544,7 @@ archive_read_disk_new(void)
 {
 	struct archive_read_disk *a;
 
-	a = (struct archive_read_disk *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
@@ -597,7 +603,7 @@ _archive_read_close(struct archive *_a)
 
 static void
 setup_symlink_mode(struct archive_read_disk *a, char symlink_mode, 
-    int follow_symlinks)
+    char follow_symlinks)
 {
 	a->symlink_mode = symlink_mode;
 	a->follow_symlinks = follow_symlinks;
@@ -1955,6 +1961,8 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 				t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
 				return (t->visit_type);
 			}
+			/* Top stack item needs a regular visit. */
+			t->current = t->stack;
 			t->findData = &t->_findData;
 			pattern = NULL;
 		} else if (!FindNextFileW(t->d, &t->_findData)) {
@@ -1976,40 +1984,20 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 	}
 }
 
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-static void
-fileTimeToUtc(const FILETIME *filetime, time_t *t, long *ns)
-{
-	ULARGE_INTEGER utc;
-
-	utc.HighPart = filetime->dwHighDateTime;
-	utc.LowPart  = filetime->dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		/* milli seconds base */
-		*t = (time_t)(utc.QuadPart / 10000000);
-		/* nano seconds base */
-		*ns = (long)(utc.QuadPart % 10000000) * 100;
-	} else {
-		*t = 0;
-		*ns = 0;
-	}
-}
-
 static void
 entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
 	const WIN32_FIND_DATAW *findData,
 	const BY_HANDLE_FILE_INFORMATION *bhfi)
 {
-	time_t secs;
-	long nsecs;
+	int64_t secs;
+	uint32_t nsecs;
 	mode_t mode;
 
-	fileTimeToUtc(&bhfi->ftLastAccessTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastAccessTime), &secs, &nsecs);
 	archive_entry_set_atime(entry, secs, nsecs);
-	fileTimeToUtc(&bhfi->ftLastWriteTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastWriteTime), &secs, &nsecs);
 	archive_entry_set_mtime(entry, secs, nsecs);
-	fileTimeToUtc(&bhfi->ftCreationTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftCreationTime), &secs, &nsecs);
 	archive_entry_set_birthtime(entry, secs, nsecs);
 	archive_entry_set_ctime(entry, secs, nsecs);
 	archive_entry_set_dev(entry, bhfi_dev(bhfi));
@@ -2438,6 +2426,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		return (ARCHIVE_OK);
 	}
 
+	r = ARCHIVE_OK;
 	if ((a->flags & ARCHIVE_READDISK_NO_SPARSE) == 0) {
 		r = setup_sparse_from_disk(a, entry, h);
 		if (fd < 0)
@@ -2470,7 +2459,7 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 	range.FileOffset.QuadPart = 0;
 	range.Length.QuadPart = entry_size;
 	outranges_size = 2048;
-	outranges = (FILE_ALLOCATED_RANGE_BUFFER *)malloc(outranges_size);
+	outranges = malloc(outranges_size);
 	if (outranges == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 			"Couldn't allocate memory");

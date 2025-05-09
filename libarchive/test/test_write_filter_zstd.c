@@ -37,12 +37,12 @@ DEFINE_TEST(test_write_filter_zstd)
 	int i, r;
 
 	buffsize = 2000000;
-	assert(NULL != (buff = (char *)malloc(buffsize)));
+	assert(NULL != (buff = malloc(buffsize)));
 	if (buff == NULL)
 		return;
 
 	datasize = 10000;
-	assert(NULL != (data = (char *)malloc(datasize)));
+	assert(NULL != (data = malloc(datasize)));
 	if (data == NULL) {
 		free(buff);
 		return;
@@ -132,40 +132,106 @@ DEFINE_TEST(test_write_filter_zstd)
 	    archive_write_set_filter_option(a, NULL, "threads", "-1")); /* negative */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "threads", "4"));
-#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 	/* frame-per-file: boolean */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "frame-per-file", ""));
-	/* min-frame-size: >= 0 */
+	/* min-frame-in: >= 0 */
 	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "min-frame-size", ""));
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", ""));
 	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "min-frame-size", "-1"));
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "-1"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_filter_option(a, NULL, "min-frame-size", "0"));
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "0"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_filter_option(a, NULL, "min-frame-size", "1048576"));
-	/* max-frame-size: >= 1024 */
-	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "max-frame-size", ""));
-	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "max-frame-size", "-1"));
-	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "max-frame-size", "0"));
-	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_write_set_filter_option(a, NULL, "max-frame-size", "1023"));
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "1048576"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_filter_option(a, NULL, "max-frame-size", "1024"));
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "1k"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_filter_option(a, NULL, "max-frame-size", "1048576"));
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "1kB"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "1M"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "1MB"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "1G"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-out", "1GB"));
+	/* min-frame-out: >= 0 */
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", ""));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "-1"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "0"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "1048576"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "1k"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "1kB"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "1M"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "1MB"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "1G"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "min-frame-in", "1GB"));
+	/* max-frame-in: >= 1024 */
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", ""));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "-1"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "0"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1023"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1024"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1048576"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1k"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1kB"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1M"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1MB"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1G"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-in", "1GB"));
+	/* max-frame-out: >= 1024 */
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", ""));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "-1"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "0"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1023"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1024"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1048576"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1k"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1kB"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1M"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1MB"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1G"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1GB"));
 #endif
 #if ZSTD_VERSION_NUMBER >= MINVER_LONG
-	if ((int)(sizeof(size_t) == 4))
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_write_set_filter_option(a, NULL, "long", "26"));
-	else
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_write_set_filter_option(a, NULL, "long", "27"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "long", "23"));
 	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_write_set_filter_option(a, NULL, "long", "-1")); /* negative */
 #endif

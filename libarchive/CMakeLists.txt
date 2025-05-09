@@ -117,6 +117,8 @@ SET(libarchive_SOURCES
   archive_string.h
   archive_string_composition.h
   archive_string_sprintf.c
+  archive_time.c
+  archive_time_private.h
   archive_util.c
   archive_version_details.c
   archive_virtual.c
@@ -247,11 +249,16 @@ IF(BUILD_SHARED_LIBS)
   ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
   TARGET_INCLUDE_DIRECTORIES(archive PUBLIC .)
   TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
-  SET_TARGET_PROPERTIES(archive PROPERTIES SOVERSION ${SOVERSION})
+  SET_TARGET_PROPERTIES(archive PROPERTIES 
+                        VERSION ${SOVERSION_FULL}
+                        SOVERSION ${SOVERSION}
+                        MACHO_COMPATIBILITY_VERSION ${MACHO_COMPATIBILITY_VERSION}
+                        MACHO_CURRENT_VERSION ${MACHO_CURRENT_VERSION})
 ENDIF(BUILD_SHARED_LIBS)
 
 # archive_static is a static library
 ADD_LIBRARY(archive_static STATIC ${libarchive_SOURCES} ${include_HEADERS})
+TARGET_INCLUDE_DIRECTORIES(archive_static PUBLIC .)
 TARGET_LINK_LIBRARIES(archive_static ${ADDITIONAL_LIBS})
 SET_TARGET_PROPERTIES(archive_static PROPERTIES COMPILE_DEFINITIONS
   LIBARCHIVE_STATIC)

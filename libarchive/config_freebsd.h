@@ -203,7 +203,6 @@
 #define HAVE_SYS_MOUNT_H 1
 #define HAVE_SYS_PARAM_H 1
 #define HAVE_SYS_POLL_H 1
-#define HAVE_SYS_QUEUE_H 1
 #define HAVE_SYS_SELECT_H 1
 #define HAVE_SYS_STATVFS_H 1
 #define HAVE_SYS_STAT_H 1
@@ -211,6 +210,8 @@
 #define HAVE_SYS_TYPES_H 1
 #define HAVE_SYS_UTSNAME_H 1
 #define HAVE_SYS_WAIT_H 1
+#define HAVE_TCGETATTR 1
+#define HAVE_TCSETATTR 1
 #define HAVE_TIMEGM 1
 #define HAVE_TIME_H 1
 #define HAVE_TZSET 1
