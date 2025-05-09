@@ -786,7 +786,7 @@ find_elf_data_sec(struct archive_read *a)
 		if (__archive_read_seek(a, e_shoff, SEEK_SET) < 0) {
 			break;
 		}
-		h = __archive_read_ahead(a, e_shnum * e_shentsize, NULL);
+		h = __archive_read_ahead(a, (size_t)e_shnum * (size_t)e_shentsize, NULL);
 		if (h == NULL) {
 			break;
 		}
@@ -829,7 +829,7 @@ find_elf_data_sec(struct archive_read *a)
 		if (__archive_read_seek(a, e_shoff, SEEK_SET) < 0) {
 			break;
 		}
-		h = __archive_read_ahead(a, e_shnum * e_shentsize, NULL);
+		h = __archive_read_ahead(a, (size_t)e_shnum * (size_t)e_shentsize, NULL);
 		if (h == NULL) {
 			break;
 		}
