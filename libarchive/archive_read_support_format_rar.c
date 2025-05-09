@@ -953,8 +953,11 @@ archive_read_format_rar_read_header(struct archive_read *a,
   {
     unsigned long crc32_val;
 
-    if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
+    if ((h = __archive_read_ahead(a, 7, NULL)) == NULL) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Failed to read next header.");
       return (ARCHIVE_FATAL);
+    }
     p = h;
 
     head_type = p[2];
@@ -1436,7 +1439,11 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   }
 
   if ((h = __archive_read_ahead(a, (size_t)header_size - 7, NULL)) == NULL)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Failed to read full header content.");
     return (ARCHIVE_FATAL);
+  }
 
   /* File Header CRC check. */
   crc32_computed = crc32(crc32_computed, h, (unsigned)(header_size - 7));
@@ -1509,10 +1516,23 @@ read_header(struct archive_read *a, struct archive_entry *entry,
    */
   if (head_type == NEWSUB_HEAD) {
     size_t distance = p - (const char *)h;
+    if (rar->packed_size > INT64_MAX - header_size) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Extended header size too large.");
+      return (ARCHIVE_FATAL);
+    }
     header_size += rar->packed_size;
+    if ((uintmax_t)header_size > SIZE_MAX) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Unable to read extended header data.");
+      return (ARCHIVE_FATAL);
+    }
     /* Make sure we have the extended data. */
-    if ((h = __archive_read_ahead(a, (size_t)header_size - 7, NULL)) == NULL)
-        return (ARCHIVE_FATAL);
+    if ((h = __archive_read_ahead(a, (size_t)header_size - 7, NULL)) == NULL) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Failed to read extended header data.");
+      return (ARCHIVE_FATAL);
+    }
     p = h;
     endp = p + header_size - 7;
     p += distance;
@@ -1694,6 +1714,12 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     }
     if (rar->dbo[rar->cursor].start_offset < 0)
     {
+      if (rar->packed_size > INT64_MAX - a->filter->position)
+      {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "Unable to store offsets.");
+        return (ARCHIVE_FATAL);
+      }
       rar->dbo[rar->cursor].start_offset = a->filter->position;
       rar->dbo[rar->cursor].end_offset = rar->dbo[rar->cursor].start_offset +
         rar->packed_size;
@@ -1750,6 +1776,11 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   }
 
   __archive_read_consume(a, header_size - 7);
+  if (rar->packed_size > INT64_MAX - a->filter->position) {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Unable to store offsets.");
+    return (ARCHIVE_FATAL);
+  }
   rar->dbo[0].start_offset = a->filter->position;
   rar->dbo[0].end_offset = rar->dbo[0].start_offset + rar->packed_size;
 
@@ -1947,8 +1978,18 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
   int ret = (ARCHIVE_OK);
 
   rar = (struct rar *)(a->format->data);
-  if ((h = rar_read_ahead(a, (size_t)rar->packed_size, NULL)) == NULL)
+  if ((uintmax_t)rar->packed_size > SIZE_MAX)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Unable to read link.");
     return (ARCHIVE_FATAL);
+  }
+  if ((h = rar_read_ahead(a, (size_t)rar->packed_size, NULL)) == NULL)
+  {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Failed to read link.");
+    return (ARCHIVE_FATAL);
+  }
   p = h;
 
   if (archive_entry_copy_symlink_l(entry,
