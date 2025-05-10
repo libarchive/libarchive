@@ -335,8 +335,8 @@ struct rar
   int found_first_header;
   char has_endarc_header;
   struct data_block_offsets *dbo;
-  unsigned int cursor;
-  unsigned int nodes;
+  size_t cursor;
+  size_t nodes;
   char filename_must_match;
 
   /* LZSS members */
@@ -1192,7 +1192,7 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
     int whence)
 {
   int64_t client_offset, ret;
-  unsigned int i;
+  size_t i;
   struct rar *rar = (struct rar *)(a->format->data);
 
   if (rar->compression_method == COMPRESS_METHOD_STORE)
