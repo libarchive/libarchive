@@ -3317,6 +3317,9 @@ parse_filter(struct archive_read *a, const uint8_t *bytes, uint16_t length, uint
   else
     blocklength = prog ? prog->oldfilterlength : 0;
 
+  if (blocklength > rar->dictionary_size)
+    return 0;
+
   registers[3] = PROGRAM_SYSTEM_GLOBAL_ADDRESS;
   registers[4] = blocklength;
   registers[5] = prog ? prog->usagecount : 0;
