@@ -451,7 +451,7 @@ static int read_filter(struct archive_read *, int64_t *);
 static int rar_decode_byte(struct archive_read*, uint8_t *);
 static int execute_filter(struct archive_read*, struct rar_filter *,
                           struct rar_virtual_machine *, size_t);
-static int copy_from_lzss_window(struct archive_read *, void *, int64_t, int);
+static int copy_from_lzss_window(struct archive_read *, uint8_t *, int64_t, int);
 static inline void vm_write_32(struct rar_virtual_machine*, size_t, uint32_t);
 static inline uint32_t vm_read_32(struct rar_virtual_machine*, size_t);
 
@@ -3143,7 +3143,7 @@ bad_data:
 }
 
 static int
-copy_from_lzss_window(struct archive_read *a, void *buffer,
+copy_from_lzss_window(struct archive_read *a, uint8_t *buffer,
                       int64_t startpos, int length)
 {
   int windowoffs, firstpart;
@@ -3158,7 +3158,7 @@ copy_from_lzss_window(struct archive_read *a, void *buffer,
   }
   if (firstpart < length) {
     memcpy(buffer, &rar->lzss.window[windowoffs], firstpart);
-    memcpy(buffer, &rar->lzss.window[0], length - firstpart);
+    memcpy(buffer + firstpart, &rar->lzss.window[0], length - firstpart);
   } else {
     memcpy(buffer, &rar->lzss.window[windowoffs], length);
   }
