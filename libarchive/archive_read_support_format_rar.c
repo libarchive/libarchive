@@ -2976,7 +2976,7 @@ expand(struct archive_read *a, int64_t *end)
     }
 
     if ((symbol = read_next_symbol(a, &rar->maincode)) < 0)
-      return (ARCHIVE_FATAL);
+      goto bad_data;
 
     if (symbol < 256)
     {
@@ -3003,14 +3003,14 @@ expand(struct archive_read *a, int64_t *end)
       else
       {
         if (parse_codes(a) != ARCHIVE_OK)
-          return (ARCHIVE_FATAL);
+          goto bad_data;
         continue;
       }
     }
     else if(symbol==257)
     {
       if (!read_filter(a, end))
-          return (ARCHIVE_FATAL);
+          goto bad_data;
       continue;
     }
     else if(symbol==258)
@@ -3095,7 +3095,7 @@ expand(struct archive_read *a, int64_t *end)
           {
             if ((lowoffsetsymbol =
               read_next_symbol(a, &rar->lowoffsetcode)) < 0)
-              return (ARCHIVE_FATAL);
+              goto bad_data;
             if(lowoffsetsymbol == 16)
             {
               rar->numlowoffsetrepeats = 15;
