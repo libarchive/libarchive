@@ -48,15 +48,6 @@ struct ae_sparse {
 	int64_t	 length;
 };
 
-struct ae_mset_digest {
-	char md5;
-	char rmd160;
-	char sha1;
-	char sha256;
-	char sha384;
-	char sha512;
-};
-
 struct ae_digest {
 	unsigned char md5[16];
 	unsigned char rmd160[20];
@@ -183,7 +174,13 @@ struct archive_entry {
 	size_t mac_metadata_size;
 
 	/* Digest support. */
-	struct ae_mset_digest mset_digest;
+#define AE_MSET_DIGEST_MD5	 1
+#define AE_MSET_DIGEST_RMD160	 2
+#define AE_MSET_DIGEST_SHA1	 4
+#define AE_MSET_DIGEST_SHA256	 8
+#define AE_MSET_DIGEST_SHA384	16
+#define AE_MSET_DIGEST_SHA512	32
+	uint_least32_t mset_digest;
 	struct ae_digest digest;
 
 	/* ACL support. */

@@ -1607,27 +1607,27 @@ archive_entry_set_digest(struct archive_entry *entry, int type,
 	switch (type) {
 	case ARCHIVE_ENTRY_DIGEST_MD5:
 		copy_digest(entry, md5, digest);
-		entry->mset_digest.md5 = 1;
+		entry->mset_digest |= AE_MSET_DIGEST_MD5;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_RMD160:
 		copy_digest(entry, rmd160, digest);
-		entry->mset_digest.rmd160 = 1;
+		entry->mset_digest |= AE_MSET_DIGEST_RMD160;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_SHA1:
 		copy_digest(entry, sha1, digest);
-		entry->mset_digest.sha1 = 1;
+		entry->mset_digest |= AE_MSET_DIGEST_SHA1;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_SHA256:
 		copy_digest(entry, sha256, digest);
-		entry->mset_digest.sha256 = 1;
+		entry->mset_digest |= AE_MSET_DIGEST_SHA256;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_SHA384:
 		copy_digest(entry, sha384, digest);
-		entry->mset_digest.sha384 = 1;
+		entry->mset_digest |= AE_MSET_DIGEST_SHA384;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_SHA512:
 		copy_digest(entry, sha512, digest);
-		entry->mset_digest.sha512 = 1;
+		entry->mset_digest |= AE_MSET_DIGEST_SHA512;
 		break;
 	default:
 		return ARCHIVE_WARN;
