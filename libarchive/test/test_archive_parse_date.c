@@ -81,5 +81,17 @@ DEFINE_TEST(test_archive_parse_date)
 	/* "last tuesday" is one week before "tuesday" */
 	assertEqualInt(get_date(now, "last tuesday UTC"),
 	    now - 6 * 24 * 60 * 60);
+
+	/* Unix epoch timestamps */
+	assertEqualInt(get_date(now, "@0"), 0);
+	assertEqualInt(get_date(now, "@100"), 100);
+	assertEqualInt(get_date(now, "@+100"), 100);
+
+	assertEqualInt(get_date(now, "@"), -1);
+	assertEqualInt(get_date(now, "@-"), -1);
+	assertEqualInt(get_date(now, "@+"), -1);
+	assertEqualInt(get_date(now, "@tenth"), -1);
+	assertEqualInt(get_date(now, "@100 tomorrow"), -1);
+
 	/* TODO: Lots more tests here. */
 }

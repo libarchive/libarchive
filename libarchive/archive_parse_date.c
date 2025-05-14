@@ -820,6 +820,23 @@ RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
 }
 
 /*
+ * Parses and consumes an unsigned number.
+ * Returns 1 if any number is parsed. Otherwise, *value is unchanged.
+ */
+static char
+consume_unsigned_number(const char **in, time_t *value)
+{
+	char c;
+	if (isdigit((unsigned char)(c = **in))) {
+		for (*value = 0; isdigit((unsigned char)(c = *(*in)++)); )
+			*value = 10 * *value + c - '0';
+		(*in)--;
+		return 1;
+	}
+	return 0;
+}
+
+/*
  * Tokenizer.
  */
 static int
@@ -895,10 +912,7 @@ nexttoken(const char **in, time_t *value)
 		 * Because '-' and '+' have other special meanings, I
 		 * don't deal with signed numbers here.
 		 */
-		if (isdigit((unsigned char)(c = **in))) {
-			for (*value = 0; isdigit((unsigned char)(c = *(*in)++)); )
-				*value = 10 * *value + c - '0';
-			(*in)--;
+		if (consume_unsigned_number(in, value)) {
 			return (tUNUMBER);
 		}
 
@@ -930,6 +944,32 @@ difftm (struct tm *a, struct tm *b)
 }
 
 /*
+ * Parses a Unix epoch timestamp (seconds).
+ * This supports a subset of what GNU tar accepts from black box testing,
+ * but covers common use cases.
+ */
+static time_t
+parse_unix_epoch(const char *p)
+{
+	time_t epoch;
+
+	/* may begin with + */
+	if (*p == '+') {
+		p++;
+	}
+
+	/* followed by some number */
+	if (!consume_unsigned_number(&p, &epoch))
+		return (time_t)-1;
+
+	/* ...and nothing else */
+	if (*p != '\0')
+		return (time_t)-1;
+
+	return epoch;
+}
+
+/*
  *
  * The public function.
  *
@@ -947,6 +987,13 @@ archive_parse_date(time_t now, const char *p)
 	time_t		Start;
 	time_t		tod;
 	long		tzone;
+
+	/*
+	 * @-prefixed Unix epoch timestamps (seconds)
+	 * Skip the complex tokenizer - We do not want to accept strings like "@tenth"
+	 */
+	if (*p == '@')
+		return parse_unix_epoch(p + 1);
 
 	/* Clear out the parsed token array. */
 	memset(tokens, 0, sizeof(tokens));
