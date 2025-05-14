@@ -1128,6 +1128,10 @@ __LA_DECL int		 archive_compression(struct archive *)
 				__LA_DEPRECATED;
 #endif
 
+/* Parses a date string relative to the current time.
+ * NOTE: This is not intended for general date parsing, and the resulting timestamp should only be used for libarchive. */
+__LA_DECL time_t	archive_parse_date(time_t now, const char *datestr);
+
 __LA_DECL int		 archive_errno(struct archive *);
 __LA_DECL const char	*archive_error_string(struct archive *);
 __LA_DECL const char	*archive_format_name(struct archive *);

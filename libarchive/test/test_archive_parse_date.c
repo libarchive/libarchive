@@ -26,16 +26,13 @@
 
 #include <time.h>
 
-#define __LIBARCHIVE_BUILD 1
-#include "archive_getdate.h"
-
 /*
- * Verify that the getdate() function works.
+ * Verify that the archive_parse_date() function works.
  */
 
-#define get_date __archive_get_date
+#define get_date archive_parse_date
 
-DEFINE_TEST(test_archive_getdate)
+DEFINE_TEST(test_archive_parse_date)
 {
 	time_t now = time(NULL);
 

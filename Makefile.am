@@ -118,8 +118,6 @@ libarchive_la_SOURCES= \
 	libarchive/archive_entry_stat.c \
 	libarchive/archive_entry_strmode.c \
 	libarchive/archive_entry_xattr.c \
-	libarchive/archive_getdate.c \
-	libarchive/archive_getdate.h \
 	libarchive/archive_hmac.c \
 	libarchive/archive_hmac_private.h \
 	libarchive/archive_match.c \
@@ -129,6 +127,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_options_private.h \
 	libarchive/archive_pack_dev.h \
 	libarchive/archive_pack_dev.c \
+	libarchive/archive_parse_date.c \
 	libarchive/archive_pathmatch.c \
 	libarchive/archive_pathmatch.h \
 	libarchive/archive_platform.h \
@@ -379,10 +378,10 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_clear_error.c \
 	libarchive/test/test_archive_cmdline.c \
 	libarchive/test/test_archive_digest.c \
-	libarchive/test/test_archive_getdate.c \
 	libarchive/test/test_archive_match_owner.c \
 	libarchive/test/test_archive_match_path.c \
 	libarchive/test/test_archive_match_time.c \
+	libarchive/test/test_archive_parse_date.c \
 	libarchive/test/test_archive_pathmatch.c \
 	libarchive/test/test_archive_read.c \
 	libarchive/test/test_archive_read_add_passphrase.c \
