@@ -46,6 +46,9 @@ struct bsdtar {
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	const char	 *option_options; /* --options */
 	char		  day_first; /* show day before month in -tv output */
+	char		has_mtime; /* --mtime exists (0 or 1) */
+	char		clamp_mtime; /* --clamp-mtime (0 or 1)*/
+	time_t		mtime; /* --mtime */
 	struct creation_set *cset;
 
 	/* Option parser state */
@@ -175,11 +178,14 @@ enum {
 	OPTION_VERSION,
 	OPTION_XATTRS,
 	OPTION_ZSTD,
+	OPTION_MTIME,
+	OPTION_CLAMP_MTIME,
 };
 
 int	bsdtar_getopt(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
+void	edit_mtime(struct bsdtar *, struct archive_entry *);
 int	need_report(void);
 int	pathcmp(const char *a, const char *b);
 void	safe_fprintf(FILE *, const char *fmt, ...) __LA_PRINTF(2, 3);
