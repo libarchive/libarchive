@@ -778,11 +778,16 @@ find_elf_data_sec(struct archive_read *a)
 			e_shentsize = (*dec16)(h + 0x3A);
 			e_shnum = (*dec16)(h + 0x3C);
 			e_shstrndx = (*dec16)(h + 0x3E);
+			if (e_shnum < e_shstrndx || e_shentsize < 0x28)
+				break;
+
 		} else {
 			e_shoff = (*dec32)(h + 0x20);
 			e_shentsize = (*dec16)(h + 0x2E);
 			e_shnum = (*dec16)(h + 0x30);
 			e_shstrndx = (*dec16)(h + 0x32);
+			if (e_shnum < e_shstrndx || e_shentsize < 0x18)
+				break;
 		}
 
 		/*
