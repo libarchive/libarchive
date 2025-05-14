@@ -1177,6 +1177,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_lz4.c \
 	tar/test/test_option_lzma.c \
 	tar/test/test_option_lzop.c \
+	tar/test/test_option_mtime.c \
 	tar/test/test_option_n.c \
 	tar/test/test_option_newer_than.c \
 	tar/test/test_option_nodump.c \
