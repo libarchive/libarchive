@@ -143,9 +143,7 @@ archive_compressor_gzip_free(struct archive_write_filter *f)
 #else
 	__archive_write_program_free(data->pdata);
 #endif
-	if (data->original_filename != NULL)
-		free((void*)data->original_filename);
-
+	free((void*)data->original_filename);
 	free(data);
 	f->data = NULL;
 	return (ARCHIVE_OK);
@@ -172,8 +170,7 @@ archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
 		return (ARCHIVE_OK);
 	}
 	if (strcmp(key, "original-filename") == 0) {
-		if (data->original_filename)
-			free((void*)data->original_filename);
+		free((void*)data->original_filename);
 		data->original_filename = NULL;
 		if (value)
 			data->original_filename = strdup(value);
