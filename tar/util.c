@@ -72,7 +72,7 @@ static const char *strip_components(const char *path, int elements);
  */
 
 void
-safe_fprintf(FILE *f, const char *fmt, ...)
+safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 {
 	char fmtbuff_stack[256]; /* Place to format the printf() string. */
 	char outbuff[256]; /* Buffer for outgoing characters. */
