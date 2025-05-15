@@ -146,6 +146,7 @@ main(int argc, char **argv)
 	char			 possible_help_request;
 	char			 buff[16];
 	long			 l;
+	time_t			now;
 
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
@@ -160,6 +161,7 @@ main(int argc, char **argv)
 	compression = compression2 = '\0';
 	compression_name = compression2_name = NULL;
 	compress_program = NULL;
+	time(&now);
 
 #if defined(HAVE_SIGACTION)
 	{ /* Set up signal handling. */
@@ -676,6 +678,16 @@ main(int argc, char **argv)
 				}
 			}
 			break;
+		case OPTION_MTIME: /* GNU tar */
+			bsdtar->has_mtime = 1;
+			bsdtar->mtime = archive_parse_date(now, bsdtar->argument);
+			if (bsdtar->mtime == (time_t)-1) {
+				lafe_errc(1, 0, "Invalid argument to --mtime (bad date string)");
+			}
+			break;
+		case OPTION_CLAMP_MTIME: /* GNU tar */
+			bsdtar->clamp_mtime = 1;
+			break;
 #if 0
 		/*
 		 * The common BSD -P option is not necessary, since
@@ -962,6 +974,10 @@ main(int argc, char **argv)
 		only_mode(bsdtar, buff, "cru");
 	}
 
+	if (!bsdtar->has_mtime && bsdtar->clamp_mtime)
+		lafe_errc(1, 0,
+		    "--clamp-mtime is not valid without --mtime <date>");
+
 	/*
 	 * When creating an archive from a directory tree, the directory
 	 * walking code will already avoid entering directories when
@@ -1066,6 +1082,8 @@ static const char *long_help_msg =
 	"  -z, -j, -J, --lzma  Compress archive with gzip/bzip2/xz/lzma\n"
 	"  --format {ustar|pax|cpio|shar}  Select archive format\n"
 	"  --exclude <pattern>  Skip files that match pattern\n"
+	"  --mtime <date>  Set modification times for added files\n"
+	"  --clamp-mtime   Only set modification times for files newer than --mtime\n"
 	"  -C <dir>  Change to <dir> before processing remaining files\n"
 	"  @<archive>  Add entries from <archive> to output\n"
 	"List: %p -t [options] [<patterns>]\n"

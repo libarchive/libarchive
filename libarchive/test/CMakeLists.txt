@@ -21,10 +21,10 @@ IF(ENABLE_TEST)
     test_archive_clear_error.c
     test_archive_cmdline.c
     test_archive_digest.c
-    test_archive_getdate.c
     test_archive_match_owner.c
     test_archive_match_path.c
     test_archive_match_time.c
+    test_archive_parse_date.c
     test_archive_pathmatch.c
     test_archive_read.c
     test_archive_read_add_passphrase.c

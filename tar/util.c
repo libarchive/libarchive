@@ -563,6 +563,20 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 }
 
 /*
+ * Apply --mtime and --clamp-mtime options.
+ */
+void
+edit_mtime(struct bsdtar *bsdtar, struct archive_entry *entry)
+{
+	if (!bsdtar->has_mtime)
+		return;
+
+	__LA_TIME_T entry_mtime = archive_entry_mtime(entry);
+	if (!bsdtar->clamp_mtime || entry_mtime > bsdtar->mtime)
+		archive_entry_set_mtime(entry, bsdtar->mtime, 0);
+}
+
+/*
  * It would be nice to just use printf() for formatting large numbers,
  * but the compatibility problems are quite a headache.  Hence the
  * following simple utility function.

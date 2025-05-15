@@ -196,6 +196,11 @@ but before extracting entries from the archive.
 to the current directory after processing any
 .Fl C
 options and before extracting any files.
+.It Fl Fl clamp-mtime
+(use with
+.Fl Fl mtime )
+Only set the modification time if the file is newer than the date specified in
+.Fl Fl mtime .
 .It Fl Fl clear-nochange-fflags
 (x mode only)
 Before removing file system objects to replace them, clear platform-specific
@@ -416,6 +421,9 @@ is run in x mode as root.
 Currently supported only for pax formats
 .Po including "pax restricted", the default tar format for
 .Nm bsdtar Pc
+.It Fl Fl mtime Ar date
+(c, r, u modes only)
+Set the modification times of added files to the specified date.
 .It Fl n , Fl Fl norecurse , Fl Fl no-recursion
 Do not operate recursively on the content of directories.
 .It Fl Fl newer Ar date

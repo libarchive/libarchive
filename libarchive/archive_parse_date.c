@@ -35,8 +35,7 @@
 #include <string.h>
 #include <time.h>
 
-#define __LIBARCHIVE_BUILD 1
-#include "archive_getdate.h"
+#include "archive.h"
 
 /* Basic time units. */
 #define	EPOCH		1970
@@ -937,7 +936,7 @@ difftm (struct tm *a, struct tm *b)
  * TODO: tokens[] array should be dynamically sized.
  */
 time_t
-__archive_get_date(time_t now, const char *p)
+archive_parse_date(time_t now, const char *p)
 {
 	struct token	tokens[256];
 	struct gdstate	_gds;
