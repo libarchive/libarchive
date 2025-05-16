@@ -87,6 +87,7 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 	char try_wc;
 
 	/* Use a stack-allocated buffer if we can, for speed and safety. */
+	memset(fmtbuff_stack, '\0', sizeof(fmtbuff_stack));
 	fmtbuff_heap = NULL;
 	fmtbuff_length = sizeof(fmtbuff_stack);
 	fmtbuff = fmtbuff_stack;
