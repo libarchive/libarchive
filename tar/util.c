@@ -67,8 +67,7 @@ static const char *strip_components(const char *path, int elements);
  * malloc()), partly out of expedience (we have to call vsnprintf()
  * before malloc() anyway to find out how big a buffer we need; we may
  * as well point that first call at a small local buffer in case it
- * works), but mostly for safety (so we can use this to print messages
- * about out-of-memory conditions).
+ * works).
  */
 
 void
