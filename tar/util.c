@@ -96,6 +96,10 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 	length = vsnprintf(fmtbuff, fmtbuff_length, fmt, ap);
 	va_end(ap);
 
+	/* If vsnprintf will always fail, stop early. */
+	if (length < 0 && errno == EOVERFLOW)
+		return;
+
 	/* If the result was too large, allocate a buffer on the heap. */
 	while (length < 0 || (size_t)length >= fmtbuff_length) {
 		if (length >= 0 && (size_t)length >= fmtbuff_length)
