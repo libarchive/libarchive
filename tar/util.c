@@ -106,8 +106,8 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 		else if (fmtbuff_length < 1000000)
 			fmtbuff_length += fmtbuff_length / 4;
 		else {
-			length = fmtbuff_length;
-			fmtbuff_heap[length-1] = '\0';
+			fmtbuff[fmtbuff_length - 1] = '\0';
+			length = (int)strlen(fmtbuff);
 			break;
 		}
 		free(fmtbuff_heap);
@@ -122,8 +122,9 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 		} else {
 			/* Leave fmtbuff pointing to the truncated
 			 * string in fmtbuff_stack. */
+			fmtbuff_stack[sizeof(fmtbuff_stack) - 1] = '\0';
 			fmtbuff = fmtbuff_stack;
-			length = sizeof(fmtbuff_stack) - 1;
+			length = (int)strlen(fmtbuff);
 			break;
 		}
 	}
