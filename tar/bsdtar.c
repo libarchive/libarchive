@@ -755,6 +755,8 @@ main(int argc, char **argv)
 			bsdtar->strip_components = (int)l;
 			break;
 		case 'T': /* GNU tar */
+			if (bsdtar->names_from_file)
+				lafe_errc(1, 0, "Multiple --files-from/-T options are not supported");
 			bsdtar->names_from_file = bsdtar->argument;
 			break;
 		case 't': /* SUSv2 */
