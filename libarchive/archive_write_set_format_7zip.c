@@ -615,6 +615,7 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 		} else if (level < 0 || level > 9) {
 			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
 				"compression-level option value `%d' out of range 0-9", level);
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 #endif
