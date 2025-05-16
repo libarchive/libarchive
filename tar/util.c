@@ -78,7 +78,7 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 	char outbuff[256]; /* Buffer for outgoing characters. */
 	char *fmtbuff_heap; /* If fmtbuff_stack is too small, we use malloc */
 	char *fmtbuff;  /* Pointer to fmtbuff_stack or fmtbuff_heap. */
-	int fmtbuff_length;
+	size_t fmtbuff_length;
 	int length, n;
 	va_list ap;
 	const char *p;
@@ -98,9 +98,9 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 	va_end(ap);
 
 	/* If the result was too large, allocate a buffer on the heap. */
-	while (length < 0 || length >= fmtbuff_length) {
-		if (length >= fmtbuff_length)
-			fmtbuff_length = length+1;
+	while (length < 0 || (size_t)length >= fmtbuff_length) {
+		if (length >= 0 && (size_t)length >= fmtbuff_length)
+			fmtbuff_length = (size_t)length + 1;
 		else if (fmtbuff_length < 8192)
 			fmtbuff_length *= 2;
 		else if (fmtbuff_length < 1000000)
