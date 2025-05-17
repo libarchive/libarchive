@@ -3565,9 +3565,10 @@ test_run(int i, const char *tmpdir)
 #else
 	char workdir[1024 * 2];
 #endif
-	char logfilename[64];
+	char logfilename[256];
 	int failures_before = failures;
 	int skips_before = skips;
+	int tmp;
 	mode_t oldumask;
 
 	switch (verbosity) {
@@ -3588,11 +3589,38 @@ test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	/* Create a log file for this test. */
-	snprintf(logfilename, sizeof(logfilename), "%s.log", tests[i].name);
+	tmp = snprintf(logfilename, sizeof(logfilename), "%s.log", tests[i].name);
+	if (tmp < 0) {
+		fprintf(stderr,
+			"ERROR can't create %s.log: %s\n",
+			tests[i].name, strerror(errno));
+		exit(1);
+	}
+	if ((size_t)tmp >= sizeof(logfilename)) {
+		fprintf(stderr,
+			"ERROR can't create %s.log: Name too long. "
+				"Length %d; Max allowed length %zu\n",
+			tests[i].name, tmp, sizeof(logfilename) - 1);
+		exit(1);
+	}
 	logfile = fopen(logfilename, "w");
 	fprintf(logfile, "%s\n\n", tests[i].name);
 	/* Chdir() to a work dir for this specific test. */
-	snprintf(workdir, sizeof(workdir), "%s/%s", tmpdir, tests[i].name);
+	tmp = snprintf(workdir,
+		sizeof(workdir), "%s/%s", tmpdir, tests[i].name);
+	if (tmp < 0) {
+		fprintf(stderr,
+			"ERROR can't create %s/%s: %s\n",
+			tmpdir, tests[i].name, strerror(errno));
+		exit(1);
+	}
+	if ((size_t)tmp >= sizeof(workdir)) {
+		fprintf(stderr,
+			"ERROR can't create %s/%s: Path too long. "
+			"Length %d; Max allowed length %zu\n",
+			tmpdir, tests[i].name, tmp, sizeof(workdir) - 1);
+		exit(1);
+	}
 	testworkdir = workdir;
 	if (!assertMakeDir(testworkdir, 0755)
 	    || !assertChdir(testworkdir)) {
