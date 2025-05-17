@@ -67,8 +67,7 @@ static const char *strip_components(const char *path, int elements);
  * malloc()), partly out of expedience (we have to call vsnprintf()
  * before malloc() anyway to find out how big a buffer we need; we may
  * as well point that first call at a small local buffer in case it
- * works), but mostly for safety (so we can use this to print messages
- * about out-of-memory conditions).
+ * works).
  */
 
 void
@@ -78,7 +77,7 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 	char outbuff[256]; /* Buffer for outgoing characters. */
 	char *fmtbuff_heap; /* If fmtbuff_stack is too small, we use malloc */
 	char *fmtbuff;  /* Pointer to fmtbuff_stack or fmtbuff_heap. */
-	int fmtbuff_length;
+	size_t fmtbuff_length;
 	int length, n;
 	va_list ap;
 	const char *p;
@@ -87,6 +86,7 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 	char try_wc;
 
 	/* Use a stack-allocated buffer if we can, for speed and safety. */
+	memset(fmtbuff_stack, '\0', sizeof(fmtbuff_stack));
 	fmtbuff_heap = NULL;
 	fmtbuff_length = sizeof(fmtbuff_stack);
 	fmtbuff = fmtbuff_stack;
@@ -96,17 +96,21 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 	length = vsnprintf(fmtbuff, fmtbuff_length, fmt, ap);
 	va_end(ap);
 
+	/* If vsnprintf will always fail, stop early. */
+	if (length < 0 && errno == EOVERFLOW)
+		return;
+
 	/* If the result was too large, allocate a buffer on the heap. */
-	while (length < 0 || length >= fmtbuff_length) {
-		if (length >= fmtbuff_length)
-			fmtbuff_length = length+1;
+	while (length < 0 || (size_t)length >= fmtbuff_length) {
+		if (length >= 0 && (size_t)length >= fmtbuff_length)
+			fmtbuff_length = (size_t)length + 1;
 		else if (fmtbuff_length < 8192)
 			fmtbuff_length *= 2;
 		else if (fmtbuff_length < 1000000)
 			fmtbuff_length += fmtbuff_length / 4;
 		else {
-			length = fmtbuff_length;
-			fmtbuff_heap[length-1] = '\0';
+			fmtbuff[fmtbuff_length - 1] = '\0';
+			length = (int)strlen(fmtbuff);
 			break;
 		}
 		free(fmtbuff_heap);
@@ -121,8 +125,9 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 		} else {
 			/* Leave fmtbuff pointing to the truncated
 			 * string in fmtbuff_stack. */
+			fmtbuff_stack[sizeof(fmtbuff_stack) - 1] = '\0';
 			fmtbuff = fmtbuff_stack;
-			length = sizeof(fmtbuff_stack) - 1;
+			length = (int)strlen(fmtbuff);
 			break;
 		}
 	}
