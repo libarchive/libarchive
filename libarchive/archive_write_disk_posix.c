@@ -4486,7 +4486,7 @@ set_xattrs(struct archive_write_disk *a)
 	struct archive_string errlist;
 	int ret = ARCHIVE_OK;
 	int i = archive_entry_xattr_reset(entry);
-	short fail = 0;
+	int fail = 0;
 
 	archive_string_init(&errlist);
 
@@ -4576,7 +4576,7 @@ set_xattrs(struct archive_write_disk *a)
 	struct archive_string errlist;
 	int ret = ARCHIVE_OK;
 	int i = archive_entry_xattr_reset(entry);
-	short fail = 0;
+	int fail = 0;
 
 	archive_string_init(&errlist);
 
@@ -4633,7 +4633,7 @@ set_xattrs(struct archive_write_disk *a)
 				e = extattr_set_fd(a->fd, namespace, name,
 				    value, size);
 				if (e == 0 && errno == 0) {
-					e = size;
+					e = (int)size;
 				}
 			} else {
 				e = extattr_set_link(
