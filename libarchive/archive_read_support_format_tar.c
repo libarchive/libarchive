@@ -2275,6 +2275,7 @@ pax_attribute_read_number(struct archive_read *a, size_t value_length, int64_t *
 	tar_flush_unconsumed(a, &unconsumed);
 	if (r < ARCHIVE_OK) {
 		archive_string_free(&as);
+		*result = 0;
 		return (r);
 	}
 
