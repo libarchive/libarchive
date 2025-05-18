@@ -856,7 +856,7 @@ find_elf_data_sec(struct archive_read *a)
 				}
 				break;
 			}
-			sec_tbl_offset += format_64 ? 0x40 : 0x28;
+			sec_tbl_offset += e_shentsize;
 			e_shnum--;
 		}
 		break;
