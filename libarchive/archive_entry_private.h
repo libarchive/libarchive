@@ -174,6 +174,13 @@ struct archive_entry {
 	size_t mac_metadata_size;
 
 	/* Digest support. */
+#define AE_MSET_DIGEST_MD5	 1
+#define AE_MSET_DIGEST_RMD160	 2
+#define AE_MSET_DIGEST_SHA1	 4
+#define AE_MSET_DIGEST_SHA256	 8
+#define AE_MSET_DIGEST_SHA384	16
+#define AE_MSET_DIGEST_SHA512	32
+	uint_least32_t mset_digest;
 	struct ae_digest digest;
 
 	/* ACL support. */
