@@ -1,4 +1,12 @@
 #!/bin/sh
+set -eu
+
+if [ $# != 1 ]
+then
+	echo "Usage: $0 prepare | test"
+	exit 1
+fi
+
 UNAME=`uname`
 if [ "$1" = "prepare" ]
 then
@@ -53,6 +61,6 @@ then
 		TMPDIR=/tmp_acl_nfsv4 ${BIN_SUBDIR}/libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
 	fi
 else
-	echo "Usage $0 prepare | test_nfsv4_acls"
+	echo "Usage: $0 prepare | test"
 	exit 1
 fi
