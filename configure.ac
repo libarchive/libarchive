@@ -436,13 +436,15 @@ if test "x$with_bz2lib" != "xno"; then
   esac
 fi
 
+PKG_PROG_PKG_CONFIG
+
 AC_ARG_WITH([libb2],
   AS_HELP_STRING([--without-libb2], [Don't build support for BLAKE2 through libb2]))
 
 if test "x$with_libb2" != "xno"; then
   AC_CHECK_HEADERS([blake2.h])
   AC_CHECK_LIB(b2,blake2sp_init)
-  BLAKE2_PC_VER=`pkg-config --modversion libb2`
+  BLAKE2_PC_VER=`$PKG_CONFIG --modversion libb2`
   if test "x$BLAKE2_PC_VER" != "x"; then
     AC_DEFINE_UNQUOTED([LIBB2_PKGCONFIG_VERSION], ["$BLAKE2_PC_VER"], [Libb2 version coming from pkg-config.])
   fi
@@ -925,7 +927,7 @@ if test "x$enable_xattr" != "xno"; then
 ])
     AC_CHECK_DECLS([XATTR_NOFOLLOW], [], [], [#include <sys/xattr.h>
 ])
-    ATTR_PC_VER=`pkg-config --modversion libattr`
+    ATTR_PC_VER=`$PKG_CONFIG --modversion libattr`
     if test "x$ATTR_PC_VER" != "x"; then
       AC_DEFINE_UNQUOTED([LIBATTR_PKGCONFIG_VERSION], ["$ATTR_PC_VER"], [Libattr version coming from pkg-config.])
     fi
@@ -1024,7 +1026,7 @@ AC_ARG_ENABLE([acl],
 if test "x$enable_acl" != "xno"; then
     # Libacl
     AC_CHECK_LIB([acl], [acl_get_file])
-    ACL_PC_VER=`pkg-config --modversion libacl`
+    ACL_PC_VER=`$PKG_CONFIG --modversion libacl`
     if test "x$ACL_PC_VER" != "x"; then
       AC_DEFINE_UNQUOTED([LIBACL_PKGCONFIG_VERSION], ["$ACL_PC_VER"], [Libacl version coming from pkg-config.])
     fi
@@ -1038,7 +1040,7 @@ if test "x$enable_acl" != "xno"; then
     ])
 
     AC_CHECK_LIB([richacl], [richacl_get_file])
-    RICHACL_PC_VER=`pkg-config --modversion librichacl`
+    RICHACL_PC_VER=`$PKG_CONFIG --modversion librichacl`
     if test "x$RICHACL_PC_VER" != "x"; then
       AC_DEFINE_UNQUOTED([LIBRICHACL_PKGCONFIG_VERSION], ["$RICHACL_PC_VER"], [Librichacl version coming from pkg-config.])
     fi
