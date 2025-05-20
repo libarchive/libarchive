@@ -302,7 +302,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		    cset_get_format(bsdtar->cset));
 		/* ... complain if it's not compatible. */
 		format &= ARCHIVE_FORMAT_BASE_MASK;
-		if (format != (int)(archive_format(a) & ARCHIVE_FORMAT_BASE_MASK)
+		if (format != (archive_format(a) & ARCHIVE_FORMAT_BASE_MASK)
 		    && format != ARCHIVE_FORMAT_EMPTY) {
 			lafe_errc(1, 0,
 			    "Format %s is incompatible with the archive %s.",
