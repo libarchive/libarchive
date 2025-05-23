@@ -439,11 +439,11 @@ archive_wincrypt_version(void)
 		if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_NEWKEYSET))
 			return NULL;
 	}
-	DWORD length, version;
-	if (!CryptGetProvParam(prov, PP_VERSION, &version, &length, 0)) {
+	DWORD version, length = sizeof(version);
+	if (!CryptGetProvParam(prov, PP_VERSION, (BYTE *)&version, &length, 0)) {
 		return NULL;
 	} else {
-		char major = version >> 8;
+		char major = (version >> 8) & 0xFF;
 		char minor = version & 0xFF;
 		static char wincrypt_version[6];
 		snprintf(wincrypt_version, 6, "%hhd.%hhd", major, minor);
