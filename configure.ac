@@ -258,7 +258,8 @@ AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 case $host in
   *mingw* | *cygwin* | *msys*  )
   AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
-    [[#ifdef _WIN32_WINNT
+    [[#include <windows.h>
+     #ifdef _WIN32_WINNT
      # error _WIN32_WINNT already defined
      #endif
     ]],[[;]])
@@ -267,7 +268,8 @@ case $host in
     AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
   ])
   AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
-    [[#ifdef WINVER
+    [[#include <windows.h>
+     #ifdef WINVER
      # error WINVER already defined
      #endif
     ]],[[;]])
