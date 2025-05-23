@@ -134,31 +134,31 @@ archive_libb2_version(struct archive_string* str)
 static void
 archive_crypto_version(struct archive_string* str)
 {
-#if defined(ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto) || defined(ARCHIVE_DIGEST_USE_Apple_CommonCrypto)
+#if defined(ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto)
 	archive_strcat(str, " CommonCrypto/");
 	archive_strcat(str, archive_commoncrypto_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_CNG) || defined(ARCHIVE_DIGEST_USE_CNG)
+#if defined(ARCHIVE_CRYPTOR_USE_CNG)
 	archive_strcat(str, " cng/");
 	archive_strcat(str, archive_cng_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_MBED) || defined(ARCHIVE_DIGEST_USE_MBED)
+#if defined(ARCHIVE_CRYPTOR_USE_MBED)
 	archive_strcat(str, " mbedtls/");
 	archive_strcat(str, archive_mbedtls_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_NETTLE) || defined(ARCHIVE_DIGEST_USE_NETTLE)
+#if defined(ARCHIVE_CRYPTOR_USE_NETTLE)
 	archive_strcat(str, " nettle/");
 	archive_strcat(str, archive_nettle_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_OPENSSL) || defined(ARCHIVE_DIGEST_USE_OPENSSL)
+#if defined(ARCHIVE_CRYPTOR_USE_OPENSSL)
 	archive_strcat(str, " openssl/");
 	archive_strcat(str, archive_openssl_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_LIBMD) || defined(ARCHIVE_DIGEST_USE_LIBMD)
+#if defined(ARCHIVE_CRYPTOR_USE_LIBMD)
 	archive_strcat(str, " libmd/");
 	archive_strcat(str, archive_libmd_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_WINCRYPT) || defined(ARCHIVE_DIGEST_USE_WINCRYPT)
+#if defined(ARCHIVE_CRYPTOR_USE_WINCRYPT)
 	archive_strcat(str, " WinCrypt/");
 	archive_strcat(str, archive_wincrypt_version());
 #endif
