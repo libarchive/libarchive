@@ -53,7 +53,6 @@ struct match {
 struct match_list {
 	struct match		*first;
 	struct match		**last;
-	int			 count;
 	int			 unmatched_count;
 	struct match		*unmatched_next;
 	int			 unmatched_eof;
@@ -73,7 +72,6 @@ struct match_file {
 struct entry_list {
 	struct match_file	*first;
 	struct match_file	**last;
-	int			 count;
 };
 
 struct id_array {
@@ -837,7 +835,6 @@ match_list_init(struct match_list *list)
 {
 	list->first = NULL;
 	list->last = &(list->first);
-	list->count = 0;
 }
 
 static void
@@ -858,7 +855,6 @@ match_list_add(struct match_list *list, struct match *m)
 {
 	*list->last = m;
 	list->last = &(m->next);
-	list->count++;
 	list->unmatched_count++;
 }
 
@@ -1343,7 +1339,6 @@ entry_list_init(struct entry_list *list)
 {
 	list->first = NULL;
 	list->last = &(list->first);
-	list->count = 0;
 }
 
 static void
@@ -1364,7 +1359,6 @@ entry_list_add(struct entry_list *list, struct match_file *file)
 {
 	*list->last = file;
 	list->last = &(file->next);
-	list->count++;
 }
 
 static int
@@ -1519,7 +1513,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
 	}
 
 	/* If there is no exclusion list, include the file. */
-	if (a->exclusion_entry_list.count == 0)
+	if (a->exclusion_entry_list.first == NULL)
 		return (0);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -1816,7 +1810,7 @@ owner_excluded(struct archive_match *a, struct archive_entry *entry)
 			return (1);
 	}
 
-	if (a->inclusion_unames.count) {
+	if (a->inclusion_unames.first != NULL) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		r = match_owner_name_wcs(a, &(a->inclusion_unames),
 			archive_entry_uname_w(entry));
@@ -1830,7 +1824,7 @@ owner_excluded(struct archive_match *a, struct archive_entry *entry)
 			return (r);
 	}
 
-	if (a->inclusion_gnames.count) {
+	if (a->inclusion_gnames.first != NULL) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		r = match_owner_name_wcs(a, &(a->inclusion_gnames),
 			archive_entry_gname_w(entry));
