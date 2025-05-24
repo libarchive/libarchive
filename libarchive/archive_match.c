@@ -656,7 +656,7 @@ add_pattern_from_file(struct archive_match *a, struct match_list *mlist,
 						break;
 					}
 				} else {
-			            	if (*b == 0x0d || *b == 0x0a) {
+					if (*b == 0x0d || *b == 0x0a) {
 						found_separator = 1;
 						break;
 					}
@@ -741,7 +741,7 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 		}
 	}
 
-	/* Exclusions take priority */
+	/* Exclusions take priority. */
 	for (match = a->exclusions.first; match != NULL;
 	    match = match->next){
 		r = match_path_exclusion(a, match, mbs, pathname);
@@ -1296,7 +1296,7 @@ cmp_node_mbs(const struct archive_rb_node *n1,
 		return (-1);
 	return (strcmp(p1, p2));
 }
-        
+
 static int
 cmp_key_mbs(const struct archive_rb_node *n, const void *key)
 {
@@ -1325,7 +1325,7 @@ cmp_node_wcs(const struct archive_rb_node *n1,
 		return (-1);
 	return (wcscmp(p1, p2));
 }
-        
+
 static int
 cmp_key_wcs(const struct archive_rb_node *n, const void *key)
 {
