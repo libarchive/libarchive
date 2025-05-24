@@ -2247,12 +2247,16 @@ pax_attribute_read_time(struct archive_read *a, size_t value_length, int64_t *ps
 	r = read_bytes_to_string(a, &as, value_length, unconsumed);
 	if (r < ARCHIVE_OK) {
 		archive_string_free(&as);
+		*ps = 0;
+		*pn = 0;
 		return (r);
 	}
 
 	pax_time(as.s, archive_strlen(&as), ps, pn);
 	archive_string_free(&as);
-	if (*ps < 0 || *ps == INT64_MAX) {
+	if (*ps == INT64_MIN) {
+		*ps = 0;
+		*pn = 0;
 		return (ARCHIVE_WARN);
 	}
 	return (ARCHIVE_OK);
@@ -2838,7 +2842,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 
 
 /*
- * parse a decimal time value, which may include a fractional portion
+ * Parse a decimal time value, which may include a fractional portion
+ *
+ * Sets ps to INT64_MIN on error.
  */
 static void
 pax_time(const char *p, size_t length, int64_t *ps, long *pn)
@@ -2854,6 +2860,7 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 
 	if (length <= 0) {
 		*ps = 0;
+		*pn = 0;
 		return;
 	}
 	s = 0;
@@ -2867,8 +2874,9 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 		digit = *p - '0';
 		if (s > limit ||
 		    (s == limit && digit > last_digit_limit)) {
-			s = INT64_MAX;
-			break;
+			*ps = INT64_MIN;
+			*pn = 0;
+			return;
 		}
 		s = (s * 10) + digit;
 		++p;
