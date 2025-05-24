@@ -1680,7 +1680,7 @@ archive_match_owner_excluded(struct archive *_a,
 static int
 add_owner_id(struct archive_match *a, struct id_array *ids, int64_t id)
 {
-	unsigned i;
+	size_t i;
 
 	if (ids->count + 1 >= ids->size) {
 		void *p;
@@ -1717,10 +1717,10 @@ add_owner_id(struct archive_match *a, struct id_array *ids, int64_t id)
 static int
 match_owner_id(struct id_array *ids, int64_t id)
 {
-	unsigned b, m, t;
+	size_t b, m, t;
 
 	t = 0;
-	b = (unsigned)ids->count;
+	b = ids->count;
 	while (t < b) {
 		m = (t + b)>>1;
 		if (ids->ids[m] == id)
