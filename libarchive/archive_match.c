@@ -35,6 +35,9 @@
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -53,7 +56,7 @@ struct match {
 struct match_list {
 	struct match		*first;
 	struct match		**last;
-	int			 unmatched_count;
+	size_t			 unmatched_count;
 	struct match		*unmatched_next;
 	int			 unmatched_eof;
 };
@@ -508,7 +511,9 @@ archive_match_path_unmatched_inclusions(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_match_unmatched_inclusions");
 	a = (struct archive_match *)_a;
 
-	return (a->inclusions.unmatched_count);
+	if (a->inclusions.unmatched_count > (size_t)INT_MAX)
+		return INT_MAX;
+	return (int)(a->inclusions.unmatched_count);
 }
 
 int
