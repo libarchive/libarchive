@@ -702,6 +702,22 @@ archive_read_format_tar_skip(struct archive_read *a)
 }
 
 /*
+ * This function resets the accumulated state while reading
+ * a header.
+ */
+static void
+tar_reset_header_state(struct tar *tar)
+{
+	tar->pax_hdrcharset_utf8 = 1;
+	tar->sparse_gnu_attributes_seen = 0;
+	archive_string_empty(&(tar->entry_gname));
+	archive_string_empty(&(tar->entry_pathname));
+	archive_string_empty(&(tar->entry_pathname_override));
+	archive_string_empty(&(tar->entry_uname));
+	archive_string_empty(&tar->entry_linkpath);
+}
+
+/*
  * This function reads and interprets all of the headers associated
  * with a single entry.
  */
@@ -726,13 +742,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	static const int32_t seen_x_header = 32; /* Also X */
 	static const int32_t seen_mac_metadata = 512;
 
-	tar->pax_hdrcharset_utf8 = 1;
-	tar->sparse_gnu_attributes_seen = 0;
-	archive_string_empty(&(tar->entry_gname));
-	archive_string_empty(&(tar->entry_pathname));
-	archive_string_empty(&(tar->entry_pathname_override));
-	archive_string_empty(&(tar->entry_uname));
-	archive_string_empty(&tar->entry_linkpath);
+	tar_reset_header_state(tar);
 
 	/* Ensure format is set. */
 	if (a->archive.archive_format_name == NULL) {
@@ -936,6 +946,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 				err = err_combine(err, err2);
 				/* Note: Other headers can appear again. */
 				seen_headers = seen_mac_metadata;
+				tar_reset_header_state(tar);
 				break;
 			}
 
