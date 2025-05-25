@@ -2001,6 +2001,13 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		*unconsumed += p - attr_start;
 		tar_flush_unconsumed(a, unconsumed);
 
+		if (value_length == 0) {
+			archive_set_error(&a->archive, EINVAL,
+					  "Malformed pax attributes");
+			*unconsumed += ext_size + ext_padding;
+			return (ARCHIVE_WARN);
+		}
+
 		/* pax_attribute will consume value_length - 1 */
 		r = pax_attribute(a, tar, entry, attr_name.s, archive_strlen(&attr_name), value_length - 1, unconsumed);
 		ext_size -= value_length - 1;

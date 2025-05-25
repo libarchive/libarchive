@@ -209,6 +209,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_zip64.c
     test_read_format_zip_with_invalid_traditional_eocd.c
     test_read_large.c
+    test_read_pax_empty_val_no_nl.c
     test_read_pax_xattr_rht_security_selinux.c
     test_read_pax_xattr_schily.c
     test_read_pax_truncated.c

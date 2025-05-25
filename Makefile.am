@@ -566,6 +566,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_zip64.c \
 	libarchive/test/test_read_format_zip_with_invalid_traditional_eocd.c \
 	libarchive/test/test_read_large.c \
+	libarchive/test/test_read_pax_empty_val_no_nl.c \
 	libarchive/test/test_read_pax_xattr_rht_security_selinux.c \
 	libarchive/test/test_read_pax_xattr_schily.c \
 	libarchive/test/test_read_pax_truncated.c \
@@ -1043,6 +1044,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_large_splitted_rar_ac.uu \
 	libarchive/test/test_read_large_splitted_rar_ad.uu \
 	libarchive/test/test_read_large_splitted_rar_ae.uu \
+	libarchive/test/test_read_pax_empty_val_no_nl.tar.uu \
 	libarchive/test/test_read_pax_xattr_rht_security_selinux.tar.uu \
 	libarchive/test/test_read_pax_xattr_schily.tar.uu \
 	libarchive/test/test_read_splitted_rar_aa.uu \
