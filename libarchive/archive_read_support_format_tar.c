@@ -174,7 +174,7 @@ static int	gnu_sparse_old_parse(struct archive_read *, struct tar *,
 		    const struct gnu_sparse *sparse, int length);
 static int	gnu_sparse_01_parse(struct archive_read *, struct tar *,
 		    const char *, size_t);
-static ssize_t	gnu_sparse_10_read(struct archive_read *, struct tar *,
+static int64_t	gnu_sparse_10_read(struct archive_read *, struct tar *,
 		    int64_t *);
 static int	header_Solaris_ACL(struct archive_read *,  struct tar *,
 		    struct archive_entry *, const void *, int64_t *);
@@ -3247,12 +3247,10 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
  * Returns length (in bytes) of the sparse data description
  * that was read.
  */
-static ssize_t
+static int64_t
 gnu_sparse_10_read(struct archive_read *a, struct tar *tar, int64_t *unconsumed)
 {
-	ssize_t bytes_read;
-	int entries;
-	int64_t offset, size, to_skip, remaining;
+	int64_t bytes_read, entries, offset, size, to_skip, remaining;
 
 	/* Clear out the existing sparse list. */
 	gnu_clear_sparse_list(tar);
@@ -3260,7 +3258,7 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, int64_t *unconsumed)
 	remaining = tar->entry_bytes_remaining;
 
 	/* Parse entries. */
-	entries = (int)gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
+	entries = gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
 	if (entries < 0)
 		return (ARCHIVE_FATAL);
 	/* Parse the individual entries. */
@@ -3278,14 +3276,14 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, int64_t *unconsumed)
 	}
 	/* Skip rest of block... */
 	tar_flush_unconsumed(a, unconsumed);
-	bytes_read = (ssize_t)(tar->entry_bytes_remaining - remaining);
+	bytes_read = tar->entry_bytes_remaining - remaining;
 	to_skip = 0x1ff & -bytes_read;
 	/* Fail if tar->entry_bytes_remaing would get negative */
 	if (to_skip > remaining)
 		return (ARCHIVE_FATAL);
 	if (to_skip != __archive_read_consume(a, to_skip))
 		return (ARCHIVE_FATAL);
-	return ((ssize_t)(bytes_read + to_skip));
+	return (bytes_read + to_skip);
 }
 
 /*
