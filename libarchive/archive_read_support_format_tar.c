@@ -1129,8 +1129,8 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		break;
 	default:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Malformed Solaris ACL attribute (unsupported type %"
-		    PRIo64 ")", type);
+		    "Malformed Solaris ACL attribute (unsupported type %llu)",
+		    (unsigned long long)type);
 		archive_string_free(&acl_text);
 		return (ARCHIVE_WARN);
 	}
@@ -1314,8 +1314,8 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive, EINVAL,
-		    "Special header too large: %d > 1MiB",
-		    (int)size);
+		    "Special header too large: %lld > 1MiB",
+		    (long long)size);
 		return (ARCHIVE_WARN);
 	}
 	r = read_bytes_to_string(a, as, size, unconsumed);
@@ -1901,8 +1901,8 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive, EINVAL,
-		    "Ignoring oversized pax extensions: %d > %d",
-		    (int)ext_size, (int)ext_size_limit);
+		    "Ignoring oversized pax extensions: %lld > %lld",
+		    (long long)ext_size, (long long)ext_size_limit);
 		return (ARCHIVE_WARN);
 	}
 	tar_flush_unconsumed(a, unconsumed);
@@ -2217,8 +2217,9 @@ pax_attribute_SCHILY_acl(struct archive_read *a, struct tar *tar,
 	if (value_length > acl_limit) {
 		__archive_read_consume(a, value_length);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-				  "Unreasonably large ACL: %d > %d",
-				  (int)value_length, (int)acl_limit);
+				  "Unreasonably large ACL: %llu > %llu",
+				  (unsigned long long)value_length,
+				  (unsigned long long)acl_limit);
 		return (ARCHIVE_WARN);
 	}
 
@@ -2404,8 +2405,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					tar->sparse_gnu_minor = 1;
 					if (value_length > sparse_map_limit) {
 						archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-								  "Unreasonably large sparse map: %d > %d",
-								  (int)value_length, (int)sparse_map_limit);
+								  "Unreasonably large sparse map: %llu > %llu",
+								  (unsigned long long)value_length,
+								  (unsigned long long)sparse_map_limit);
 						err = ARCHIVE_FAILED;
 					} else {
 						p = __archive_read_ahead(a, value_length, &bytes_read);
@@ -2512,8 +2514,8 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				} else {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 							  "symlink type is very long"
-							  "(longest recognized value is 4 bytes, this is %d)",
-							  (int)value_length);
+							  "(longest recognized value is 4 bytes, this is %llu)",
+							  (unsigned long long)value_length);
 					err = ARCHIVE_WARN;
 				}
 				__archive_read_consume(a, value_length);
@@ -2549,8 +2551,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			if (value_length > xattr_limit) {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 						  "Ignoring unreasonably large security.selinux attribute:"
-						  " %d > %d",
-						  (int)value_length, (int)xattr_limit);
+						  " %llu > %llu",
+						  (unsigned long long)value_length,
+						  (unsigned long long)xattr_limit);
 				/* TODO: Should this be FAILED instead? */
 				err = ARCHIVE_WARN;
 			} else {
@@ -2667,8 +2670,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					}
 				} else {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-							  "Unreasonably large xattr: %d > %d",
-							  (int)value_length, (int)xattr_limit);
+							  "Unreasonably large xattr: %llu > %llu",
+							  (unsigned long long)value_length,
+							  (unsigned long long)xattr_limit);
 					err = ARCHIVE_WARN;
 				}
 				__archive_read_consume(a, value_length);
@@ -2698,8 +2702,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					}
 				} else {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-							  "Unreasonably large sparse map: %d > %d",
-							  (int)value_length, (int)sparse_map_limit);
+							  "Unreasonably large sparse map: %llu > %llu",
+							  (unsigned long long)value_length,
+							  (unsigned long long)sparse_map_limit);
 					err = ARCHIVE_FAILED;
 				}
 				__archive_read_consume(a, value_length);
@@ -2768,8 +2773,8 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				}
 			} else {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-						  "hdrcharset attribute is unreasonably large (%d bytes)",
-						  (int)value_length);
+						  "hdrcharset attribute is unreasonably large (%llu bytes)",
+						  (unsigned long long)value_length);
 				err = ARCHIVE_WARN;
 			}
 			__archive_read_consume(a, value_length);
