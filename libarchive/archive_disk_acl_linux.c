@@ -62,8 +62,8 @@ static const acl_perm_map_t acl_posix_perm_map[] = {
 	{ARCHIVE_ENTRY_ACL_READ, ACL_READ},
 };
 
-static const int acl_posix_perm_map_size =
-    (int)(sizeof(acl_posix_perm_map)/sizeof(acl_posix_perm_map[0]));
+static const size_t acl_posix_perm_map_size =
+	(sizeof(acl_posix_perm_map) / sizeof(acl_posix_perm_map[0]));
 #endif /* ARCHIVE_ACL_LIBACL */
 
 #if ARCHIVE_ACL_LIBRICHACL
@@ -87,8 +87,8 @@ static const acl_perm_map_t acl_nfs4_perm_map[] = {
 	{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, RICHACE_SYNCHRONIZE}
 };
 
-static const int acl_nfs4_perm_map_size =
-    (int)(sizeof(acl_nfs4_perm_map)/sizeof(acl_nfs4_perm_map[0]));
+static const size_t acl_nfs4_perm_map_size =
+    (sizeof(acl_nfs4_perm_map)/sizeof(acl_nfs4_perm_map[0]));
 
 static const acl_perm_map_t acl_nfs4_flag_map[] = {
 	{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, RICHACE_FILE_INHERIT_ACE},
@@ -98,8 +98,8 @@ static const acl_perm_map_t acl_nfs4_flag_map[] = {
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, RICHACE_INHERITED_ACE}
 };
 
-static const int acl_nfs4_flag_map_size =
-    (int)(sizeof(acl_nfs4_flag_map)/sizeof(acl_nfs4_flag_map[0]));
+static const size_t acl_nfs4_flag_map_size =
+	(sizeof(acl_nfs4_flag_map) / sizeof(acl_nfs4_flag_map[0]));
 #endif /* ARCHIVE_ACL_LIBRICHACL */
 
 #if ARCHIVE_ACL_LIBACL
@@ -113,8 +113,9 @@ translate_acl(struct archive_read_disk *a,
 	acl_tag_t	 acl_tag;
 	acl_entry_t	 acl_entry;
 	acl_permset_t	 acl_permset;
-	int		 i, entry_acl_type;
+	int		 entry_acl_type;
 	int		 r, s, ae_id, ae_tag, ae_perm;
+	size_t		 i;
 	void		*q;
 	const char	*ae_name;
 
@@ -219,7 +220,8 @@ translate_richacl(struct archive_read_disk *a, struct archive_entry *entry,
     struct richacl *richacl)
 {
 	int ae_id, ae_tag, ae_perm;
-	int entry_acl_type, i;
+	int entry_acl_type;
+	size_t i;
 	const char *ae_name;
 
 	struct richace *richace;
@@ -326,7 +328,7 @@ set_richacl(struct archive *a, int fd, const char *name,
 	gid_t		 ae_gid;
 	const char	*ae_name;
 	int		 entries;
-	int		 i;
+	size_t		 i;
 	int		 ret;
 	int		 e = 0;
 	struct richacl  *richacl = NULL;
@@ -469,7 +471,7 @@ set_acl(struct archive *a, int fd, const char *name,
 	gid_t		 ae_gid;
 	const char	*ae_name;
 	int		 entries;
-	int		 i;
+	size_t		 i;
 	int		 ret;
 	acl_t		 acl = NULL;
 	acl_entry_t	 acl_entry;

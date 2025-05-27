@@ -85,7 +85,7 @@ static BLAKE2_INLINE void store16( void *dst, uint16_t w )
 #else
   uint8_t *p = ( uint8_t * )dst;
   *p++ = ( uint8_t )w; w >>= 8;
-  *p++ = ( uint8_t )w;
+  *p   = ( uint8_t )w;
 #endif
 }
 

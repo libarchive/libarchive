@@ -133,7 +133,6 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 	long skip = (long)request;
 #endif
 	int64_t old_offset, new_offset;
-	int skip_bits = sizeof(skip) * 8 - 1;
 
 	(void)a; /* UNUSED */
 
@@ -148,6 +147,7 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 
 	/* If request is too big for a long or an off_t, reduce it. */
 	if (sizeof(request) > sizeof(skip)) {
+		int skip_bits = sizeof(skip) * 8 - 1;
 		const int64_t max_skip =
 		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 		if (request > max_skip)
