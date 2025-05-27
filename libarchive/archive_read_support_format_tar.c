@@ -1304,10 +1304,13 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	(void)tar; /* UNUSED */
 	header = (const struct archive_entry_header_ustar *)h;
 	size  = tar_atol(header->size, sizeof(header->size));
-	if (size > entry_limit) {
+	if (size < 0 || size > entry_limit) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Special header has invalid size: %lld",
+		    (long long)size);
 		return (ARCHIVE_FATAL);
 	}
-	if ((size > (int64_t)pathname_limit) || (size < 0)) {
+	if (size > (int64_t)pathname_limit) {
 		archive_string_empty(as);
 		int64_t to_consume = ((size + 511) & ~511);
 		if (to_consume != __archive_read_consume(a, to_consume)) {
@@ -1754,7 +1757,10 @@ header_pax_global(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 	size = tar_atol(header->size, sizeof(header->size));
-	if (size > entry_limit) {
+	if (size < 0 || size > entry_limit) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Special header has invalid size: %lld",
+		    (long long)size);
 		return (ARCHIVE_FATAL);
 	}
 	to_consume = ((size + 511) & ~511);
