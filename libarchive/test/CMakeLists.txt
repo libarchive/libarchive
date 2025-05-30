@@ -177,6 +177,7 @@ IF(ENABLE_TEST)
     test_read_format_tar_mac_metadata.c
     test_read_format_tar_pax_g_large.c
     test_read_format_tar_pax_large_attr.c
+    test_read_format_tar_pax_negative_time.c
     test_read_format_tbz.c
     test_read_format_tgz.c
     test_read_format_tlz.c

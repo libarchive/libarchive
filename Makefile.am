@@ -534,6 +534,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_tar_mac_metadata.c \
 	libarchive/test/test_read_format_tar_pax_g_large.c \
 	libarchive/test/test_read_format_tar_pax_large_attr.c \
+	libarchive/test/test_read_format_tar_pax_negative_time.c \
 	libarchive/test/test_read_format_tbz.c \
 	libarchive/test/test_read_format_tgz.c \
 	libarchive/test/test_read_format_tlz.c \
@@ -980,6 +981,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_tar_mac_metadata_1.tar.uu \
 	libarchive/test/test_read_format_tar_pax_g_large.tar.uu \
 	libarchive/test/test_read_format_tar_pax_large_attr.tar.Z.uu \
+	libarchive/test/test_read_format_tar_pax_negative_time.tar.uu \
 	libarchive/test/test_read_format_ustar_filename_cp866.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_eucjp.tar.Z.uu \
 	libarchive/test/test_read_format_ustar_filename_koi8r.tar.Z.uu \
