@@ -77,7 +77,9 @@
 #define O_CLOEXEC	0
 #endif
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
 static int __LA_LIBC_CC archive_utility_string_sort_helper(const void *, const void *);
+#endif
 
 /* Generic initialization of 'struct archive' objects. */
 int
@@ -629,6 +631,7 @@ __archive_ensure_cloexec_flag(int fd)
 #endif
 }
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
 /*
  * Utility functions to sort a group of strings using quicksort.
  */
@@ -652,3 +655,4 @@ archive_utility_string_sort(char **strings)
 	      archive_utility_string_sort_helper);
 	return (ARCHIVE_OK);
 }
+#endif
