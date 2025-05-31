@@ -1250,8 +1250,10 @@ __LA_DECL int	archive_match_include_gname_w(struct archive *,
 		    const wchar_t *);
 
 /* Utility functions */
+#if ARCHIVE_VERSION_NUMBER < 4000000
 /* Convenience function to sort a NULL terminated list of strings */
 __LA_DECL int archive_utility_string_sort(char **);
+#endif
 
 #ifdef __cplusplus
 }
