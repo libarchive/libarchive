@@ -408,7 +408,11 @@ permissive_name_w(struct archive_write_disk *a)
 		wn = _wcsdup(wnp);
 		if (wn == NULL)
 			return (-1);
-		archive_wstring_ensure(&(a->_name_data), 4 + wcslen(wn) + 1);
+		if (archive_wstring_ensure(&(a->_name_data),
+			4 + wcslen(wn) + 1) == NULL) {
+			free(wn);
+			return (-1);
+		}
 		a->name = a->_name_data.s;
 		/* Prepend "\\?\" */
 		archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
@@ -438,8 +442,11 @@ permissive_name_w(struct archive_write_disk *a)
 				wn = _wcsdup(wnp);
 				if (wn == NULL)
 					return (-1);
-				archive_wstring_ensure(&(a->_name_data),
-					8 + wcslen(wn) + 1);
+				if (archive_wstring_ensure(&(a->_name_data),
+					8 + wcslen(wn) + 1) == NULL) {
+					free(wn);
+					return (-1);
+				}
 				a->name = a->_name_data.s;
 				/* Prepend "\\?\UNC\" */
 				archive_wstrncpy(&(a->_name_data),
@@ -475,8 +482,12 @@ permissive_name_w(struct archive_write_disk *a)
 			free(wsp);
 			return (-1);
 		}
-		archive_wstring_ensure(&(a->_name_data),
-			4 + 2 + wcslen(wn) + 1);
+		if (archive_wstring_ensure(&(a->_name_data),
+			4 + 2 + wcslen(wn) + 1) == NULL) {
+			free(wsp);
+			free(wn);
+			return (-1);
+		}
 		a->name = a->_name_data.s;
 		/* Prepend "\\?\" and drive name. */
 		archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
@@ -492,7 +503,12 @@ permissive_name_w(struct archive_write_disk *a)
 		free(wsp);
 		return (-1);
 	}
-	archive_wstring_ensure(&(a->_name_data), 4 + l + 1 + wcslen(wn) + 1);
+	if (archive_wstring_ensure(&(a->_name_data),
+		4 + l + 1 + wcslen(wn) + 1) == NULL) {
+		free(wsp);
+		free(wn);
+		return (-1);
+	}
 	a->name = a->_name_data.s;
 	/* Prepend "\\?\" and drive name if not already added. */
 	if (l > 3 && wsp[0] == L'\\' && wsp[1] == L'\\' &&
