@@ -628,7 +628,10 @@ archive_read_format_tar_read_data(struct archive_read *a,
 		/* If we're at end of file, return EOF. */
 		if (tar->sparse_list == NULL ||
 		    tar->entry_bytes_remaining == 0) {
-			if (__archive_read_consume(a, tar->entry_padding) < 0)
+			int64_t request = tar->entry_bytes_remaining +
+			    tar->entry_padding;
+
+			if (__archive_read_consume(a, request) != request)
 				return (ARCHIVE_FATAL);
 			tar->entry_padding = 0;
 			*buff = NULL;
@@ -666,29 +669,15 @@ archive_read_format_tar_read_data(struct archive_read *a,
 static int
 archive_read_format_tar_skip(struct archive_read *a)
 {
-	int64_t bytes_skipped;
 	int64_t request;
-	struct sparse_block *p;
 	struct tar* tar;
 
 	tar = (struct tar *)(a->format->data);
 
-	/* Do not consume the hole of a sparse file. */
-	request = 0;
-	for (p = tar->sparse_list; p != NULL; p = p->next) {
-		if (!p->hole) {
-			if (p->remaining >= INT64_MAX - request) {
-				return ARCHIVE_FATAL;
-			}
-			request += p->remaining;
-		}
-	}
-	if (request > tar->entry_bytes_remaining)
-		request = tar->entry_bytes_remaining;
-	request += tar->entry_padding + tar->entry_bytes_unconsumed;
+	request = tar->entry_bytes_remaining + tar->entry_padding +
+	    tar->entry_bytes_unconsumed;
 
-	bytes_skipped = __archive_read_consume(a, request);
-	if (bytes_skipped < 0)
+	if (__archive_read_consume(a, request) != request)
 		return (ARCHIVE_FATAL);
 
 	tar->entry_bytes_remaining = 0;
