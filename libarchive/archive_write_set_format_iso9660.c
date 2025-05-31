@@ -1167,7 +1167,12 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->primary.rootent->parent = iso9660->primary.rootent;
 	iso9660->cur_dirent = iso9660->primary.rootent;
 	archive_string_init(&(iso9660->cur_dirstr));
-	archive_string_ensure(&(iso9660->cur_dirstr), 1);
+	if (archive_string_ensure(&(iso9660->cur_dirstr), 1) == NULL) {
+		free(iso9660);
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
 	iso9660->cur_dirstr.s[0] = 0;
 	iso9660->sconv_to_utf16be = NULL;
 	iso9660->sconv_from_utf16be = NULL;
