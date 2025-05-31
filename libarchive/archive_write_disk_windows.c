@@ -471,8 +471,10 @@ permissive_name_w(struct archive_write_disk *a)
 	 */
 	if (wnp[0] == L'\\') {
 		wn = _wcsdup(wnp);
-		if (wn == NULL)
+		if (wn == NULL) {
+			free(wsp);
 			return (-1);
+		}
 		archive_wstring_ensure(&(a->_name_data),
 			4 + 2 + wcslen(wn) + 1);
 		a->name = a->_name_data.s;
@@ -486,8 +488,10 @@ permissive_name_w(struct archive_write_disk *a)
 	}
 
 	wn = _wcsdup(wnp);
-	if (wn == NULL)
+	if (wn == NULL) {
+		free(wsp);
 		return (-1);
+	}
 	archive_wstring_ensure(&(a->_name_data), 4 + l + 1 + wcslen(wn) + 1);
 	a->name = a->_name_data.s;
 	/* Prepend "\\?\" and drive name if not already added. */
