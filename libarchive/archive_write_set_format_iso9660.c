@@ -5671,9 +5671,15 @@ isoent_tree(struct archive_write *a, struct isoent **isoentpp)
 		 * inserted. */
 		iso9660->cur_dirent = dent;
 		archive_string_empty(&(iso9660->cur_dirstr));
-		archive_string_ensure(&(iso9660->cur_dirstr),
+		if (archive_string_ensure(&(iso9660->cur_dirstr),
 		    archive_strlen(&(dent->file->parentdir)) +
-		    archive_strlen(&(dent->file->basename)) + 2);
+		    archive_strlen(&(dent->file->basename)) + 2) == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory");
+			_isoent_free(isoent);
+			*isoentpp = NULL;
+			return (ARCHIVE_FATAL);
+		}
 		if (archive_strlen(&(dent->file->parentdir)) +
 		    archive_strlen(&(dent->file->basename)) == 0)
 			iso9660->cur_dirstr.s[0] = 0;
