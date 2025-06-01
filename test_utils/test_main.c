@@ -3581,7 +3581,7 @@ set_environment(const char *key, const char *value)
  * Enforce C locale for (sub)processes.
  */
 static void
-set_c_locale()
+set_c_locale(void)
 {
 	static const char *lcs[] = {
 		"LC_ADDRESS",
