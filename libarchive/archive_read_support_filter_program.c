@@ -242,9 +242,6 @@ child_stop(struct archive_read_filter *self, struct program_filter *state)
 			state->waitpid_return
 			    = waitpid(state->child, &state->exit_status, 0);
 		} while (state->waitpid_return == -1 && errno == EINTR);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		CloseHandle(state->child);
-#endif
 		state->child = 0;
 	}
 

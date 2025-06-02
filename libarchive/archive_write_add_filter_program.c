@@ -375,9 +375,6 @@ cleanup:
 		close(data->child_stdout);
 	while (waitpid(data->child, &status, 0) == -1 && errno == EINTR)
 		continue;
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	CloseHandle(data->child);
-#endif
 	data->child = 0;
 
 	if (status != 0) {

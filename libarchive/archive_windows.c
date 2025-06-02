@@ -648,6 +648,7 @@ __la_waitpid(HANDLE child, int *status, int option)
 		}
 	} while (cs == STILL_ACTIVE);
 
+	CloseHandle(child);
 	*status = (int)(cs & 0xff);
 	return (0);
 }
