@@ -110,7 +110,7 @@ struct program_filter {
 	pid_t		 child;
 #endif
 	int		 exit_status;
-	int		 waitpid_return;
+	pid_t		 waitpid_return;
 	int		 child_stdin, child_stdout;
 
 	char		*out_buf;
@@ -248,7 +248,7 @@ child_stop(struct archive_read_filter *self, struct program_filter *state)
 	if (state->waitpid_return < 0) {
 		/* waitpid() failed?  This is ugly. */
 		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
-		    "Child process exited badly");
+		    "Error closing child process");
 		return (ARCHIVE_WARN);
 	}
 
