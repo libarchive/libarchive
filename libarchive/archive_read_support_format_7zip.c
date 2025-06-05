@@ -80,7 +80,7 @@
 /*
  * ELF format
  */
-#define ELF_HDR_MIN_LEN 0x34
+#define ELF_HDR_MIN_LEN 0x3f
 #define ELF_HDR_EI_CLASS_OFFSET 0x04
 #define ELF_HDR_EI_DATA_OFFSET 0x05
 
