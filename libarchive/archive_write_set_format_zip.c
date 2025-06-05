@@ -2434,13 +2434,19 @@ init_winzip_aes_encryption(struct archive_write *a)
 		    "Can't generate random number for encryption");
 		return (ARCHIVE_FATAL);
 	}
-	archive_pbkdf2_sha1(passphrase, strlen(passphrase),
+	ret = archive_pbkdf2_sha1(passphrase, strlen(passphrase),
 	    salt, salt_len, 1000, derived_key, key_len * 2 + 2);
+	if (ret != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    ret == CRYPTOR_STUB_FUNCTION ? "Encryption is unsupported due to "
+			"lack of crypto library" : "Failed to process passphrase");
+		return (ARCHIVE_FAILED);
+	}
 
 	ret = archive_encrypto_aes_ctr_init(&zip->cctx, derived_key, key_len);
 	if (ret != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Decryption is unsupported due to lack of crypto library");
+		    "Failed to initialize AES CTR mode");
 		return (ARCHIVE_FAILED);
 	}
 	ret = archive_hmac_sha1_init(&zip->hctx, derived_key + key_len,
