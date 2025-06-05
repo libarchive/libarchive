@@ -183,6 +183,11 @@ main(int argc, char **argv)
 		sa.sa_handler = SIG_IGN;
 		sigaction(SIGPIPE, &sa, NULL);
 #endif
+#ifdef SIGCHLD
+		/* Do not ignore SIGCHLD. */
+		sa.sa_handler = SIG_DFL;
+		sigaction(SIGCHLD, &sa, NULL);
+#endif
 	}
 #endif
 
