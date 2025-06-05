@@ -136,8 +136,10 @@ archive_read_open_filenames(struct archive *a, const char **filenames,
 			mine->filename_type = FNT_STDIN;
 		} else
 			mine->filename_type = FNT_MBS;
-		if (archive_read_append_callback_data(a, mine) != (ARCHIVE_OK))
+		if (archive_read_append_callback_data(a, mine) != (ARCHIVE_OK)) {
+			free(mine);
 			return (ARCHIVE_FATAL);
+		}
 		if (filenames == NULL)
 			break;
 		filename = *(filenames++);
@@ -216,8 +218,10 @@ archive_read_open_filenames_w(struct archive *a, const wchar_t **wfilenames,
 			archive_string_free(&fn);
 #endif
 		}
-		if (archive_read_append_callback_data(a, mine) != (ARCHIVE_OK))
+		if (archive_read_append_callback_data(a, mine) != (ARCHIVE_OK)) {
+			free(mine);
 			return (ARCHIVE_FATAL);
+		}
 		if (wfilenames == NULL)
 			break;
 		wfilename = *(wfilenames++);
