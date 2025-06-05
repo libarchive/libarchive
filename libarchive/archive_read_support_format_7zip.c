@@ -811,6 +811,8 @@ find_elf_data_sec(struct archive_read *a)
 			strtab_size = (*dec32)(
 			    h + e_shstrndx * e_shentsize + 0x14);
 		}
+		if (strtab_size < 6 || strtab_size > SIZE_MAX)
+			break;
 
 		/*
 		 * Read the STRTAB section to find the .data offset
