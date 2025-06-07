@@ -2523,6 +2523,28 @@ static const char *redirectArgs = ">NUL 2>NUL"; /* Win32 cmd.exe */
 #else
 static const char *redirectArgs = ">/dev/null 2>/dev/null"; /* POSIX 'sh' */
 #endif
+
+/*
+ * Can this platform run the specified command?
+ */
+int
+canRunCommand(const char *cmd, int *tested)
+{
+  int value = tested ? *tested : 0;
+  if (!value) {
+    value = systemf("%s %s", cmd, redirectArgs) ? -1 : +1;
+    if (tested)
+      *tested = value;
+  }
+  return (value > 0);
+}
+
+#define CAN_RUN_FUNC(Program, Command) \
+    int can##Program(void) { \
+            static int tested = 0; \
+            return canRunCommand((Command), &tested); \
+    }
+
 /*
  * Can this platform run the bzip2 program?
  */
@@ -2571,18 +2593,6 @@ canGzip(void)
 /*
  * Can this platform run the lrzip program?
  */
-int
-canRunCommand(const char *cmd)
-{
-  static int tested = 0, value = 0;
-  if (!tested) {
-    tested = 1;
-    if (systemf("%s %s", cmd, redirectArgs) == 0)
-      value = 1;
-  }
-  return (value);
-}
-
 int
 canLrzip(void)
 {
