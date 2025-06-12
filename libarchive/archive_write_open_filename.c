@@ -108,6 +108,7 @@ open_filename(struct archive *a, int mbs_fn, const void *filename)
 	else
 		r = archive_mstring_copy_wcs(&mine->filename, filename);
 	if (r < 0) {
+		free(mine);
 		if (errno == ENOMEM) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
