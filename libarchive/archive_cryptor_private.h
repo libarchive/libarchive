@@ -144,8 +144,14 @@ typedef struct {
 
 #else
 
+#if defined(ARCHIVE_CRYPTO_MD5_WIN)    ||\
+	defined(ARCHIVE_CRYPTO_SHA1_WIN)   ||\
+	defined(ARCHIVE_CRYPTO_SHA256_WIN) ||\
+	defined(ARCHIVE_CRYPTO_SHA384_WIN) ||\
+	defined(ARCHIVE_CRYPTO_SHA512_WIN)
 #if defined(_WIN32) && !defined(__CYGWIN__) && !(defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA)
 #define ARCHIVE_CRYPTOR_USE_WINCRYPT 1
+#endif
 #endif
 
 #define AES_BLOCK_SIZE	16
