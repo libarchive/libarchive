@@ -416,7 +416,7 @@ archive_write_client_write(struct archive_write_filter *f,
 		while (remaining > 0) {
 			bytes_written = (a->client_writer)(&a->archive,
 			    a->client_data, buff, remaining);
-			if (bytes_written <= 0)
+			if (bytes_written < 0)
 				return (ARCHIVE_FATAL);
 			remaining -= bytes_written;
 			buff += bytes_written;
@@ -442,7 +442,7 @@ archive_write_client_write(struct archive_write_filter *f,
 			while (to_write > 0) {
 				bytes_written = (a->client_writer)(&a->archive,
 				    a->client_data, p, to_write);
-				if (bytes_written <= 0)
+				if (bytes_written < 0)
 					return (ARCHIVE_FATAL);
 				if ((size_t)bytes_written > to_write) {
 					archive_set_error(&(a->archive),
@@ -461,7 +461,7 @@ archive_write_client_write(struct archive_write_filter *f,
 		/* Write out full blocks directly to client. */
 		bytes_written = (a->client_writer)(&a->archive,
 		    a->client_data, buff, state->buffer_size);
-		if (bytes_written <= 0)
+		if (bytes_written < 0)
 			return (ARCHIVE_FATAL);
 		buff += bytes_written;
 		remaining -= bytes_written;
@@ -532,7 +532,7 @@ archive_write_client_close(struct archive_write_filter *f)
 		while (to_write > 0) {
 			bytes_written = (a->client_writer)(&a->archive,
 			    a->client_data, p, to_write);
-			if (bytes_written <= 0) {
+			if (bytes_written < 0) {
 				ret = ARCHIVE_FATAL;
 				break;
 			}
