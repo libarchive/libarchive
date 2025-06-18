@@ -16,6 +16,10 @@
 #define ENV_WRITER_OPTIONS	"TAR_WRITER_OPTIONS"
 #define IGNORE_WRONG_MODULE_NAME "__ignore_wrong_module_name__,"
 
+#if defined(_MSC_VER ) && (_MSC_VER < 1927 )	/* Check if compiler pre-dated Visual Studio 2019 Release 16.8 */
+#define restrict  		/* The restrict keyword is not supported.  */
+#endif
+
 struct creation_set;
 /*
  * The internal state for the "bsdtar" program.
