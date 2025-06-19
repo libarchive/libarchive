@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
 
 PROJECT(libarchive C)
 #
+# Include standard installation directories
+include(GNUInstallDirs)
+#
 SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${libarchive_BINARY_DIR}/bin)
