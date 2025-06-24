@@ -2195,6 +2195,12 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.h.in
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 
+if(NOT DEFINED CMAKE_INSTALL_LIBDIR)
+    # CMAKE_INSTALL_LIBDIR must be defined before
+    # INCLUDE(CreatePkgConfigFile) and subdirectory_add(libarchive)
+    set(CMAKE_INSTALL_LIBDIR "lib")
+endif()
+
 # Handle generation of the libarchive.pc file for pkg-config
 INCLUDE(CreatePkgConfigFile)
 
