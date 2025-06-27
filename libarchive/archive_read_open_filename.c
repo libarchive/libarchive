@@ -59,6 +59,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_platform_stat.h"
 #include "archive_private.h"
 #include "archive_string.h"
 
@@ -252,7 +253,7 @@ archive_read_open_filename_w(struct archive *a, const wchar_t *wfilename,
 static int
 file_open(struct archive *a, void *client_data)
 {
-	struct stat st;
+	la_seek_stat_t st;
 	struct read_file_data *mine = (struct read_file_data *)client_data;
 	void *buffer;
 	const char *filename = NULL;
@@ -317,7 +318,7 @@ file_open(struct archive *a, void *client_data)
 		goto fail;
 #endif
 	}
-	if (fstat(fd, &st) != 0) {
+	if (la_seek_fstat(fd, &st) != 0) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		if (mine->filename_type == FNT_WCS)
 			archive_set_error(a, errno, "Can't stat '%ls'",
@@ -486,10 +487,11 @@ file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 	struct read_file_data *mine = (struct read_file_data *)client_data;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* We use _lseeki64() on Windows. */
-	int64_t old_offset, new_offset, skip = request;
+	int64_t old_offset, new_offset;
 #else
-	off_t old_offset, new_offset, skip = (off_t)request;
+	off_t old_offset, new_offset;
 #endif
+	la_seek_t skip = (la_seek_t)request;
 	int skip_bits = sizeof(skip) * 8 - 1;
 
 	/* We use off_t here because lseek() is declared that way. */
@@ -556,7 +558,7 @@ static int64_t
 file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
 	struct read_file_data *mine = (struct read_file_data *)client_data;
-	off_t seek = (off_t)request;
+	la_seek_t seek = (la_seek_t)request;
 	int64_t r;
 	int seek_bits = sizeof(seek) * 8 - 1;
 

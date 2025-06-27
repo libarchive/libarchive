@@ -48,6 +48,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_platform_stat.h"
 
 struct read_FILE_data {
 	FILE    *f;
@@ -65,7 +66,7 @@ static int64_t	FILE_skip(struct archive *, void *, int64_t);
 int
 archive_read_open_FILE(struct archive *a, FILE *f)
 {
-	struct stat st;
+	la_seek_stat_t st;
 	struct read_FILE_data *mine;
 	size_t block_size = 128 * 1024;
 	void *b;
@@ -88,7 +89,7 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	 * streams that don't support fileno()).  As a result, fileno()
 	 * should be used cautiously.)
 	 */
-	if (fstat(fileno(mine->f), &st) == 0 && S_ISREG(st.st_mode)) {
+	if (la_seek_fstat(fileno(mine->f), &st) == 0 && S_ISREG(st.st_mode)) {
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		/* Enable the seek optimization only for regular files. */
 		mine->can_skip = 1;

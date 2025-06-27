@@ -51,6 +51,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_entry_private.h"
+#include "archive_platform_stat.h"
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_read_private.h"
@@ -1175,7 +1176,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
     struct mtree *mtree, struct mtree_entry *mentry, int *use_next)
 {
 	const char *path;
-	struct stat st_storage, *st;
+	la_seek_stat_t st_storage, *st;
 	struct mtree_entry *mp;
 	struct archive_entry *sparse_entry;
 	int r = ARCHIVE_OK, r1, parsed_kws;
@@ -1270,7 +1271,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 
 		st = &st_storage;
 		if (mtree->fd >= 0) {
-			if (fstat(mtree->fd, st) == -1) {
+			if (la_seek_fstat(mtree->fd, st) == -1) {
 				archive_set_error(&a->archive, errno,
 						"Could not fstat %s", path);
 				r = ARCHIVE_WARN;
@@ -1283,7 +1284,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 #ifdef HAVE_LSTAT
 		else if (lstat(path, st) == -1)
 #else
-		else if (la_stat(path, st) == -1)
+		else if (la_seek_stat(path, st) == -1)
 #endif
 		{
 			st = NULL;
