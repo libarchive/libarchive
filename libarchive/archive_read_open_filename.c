@@ -564,15 +564,15 @@ file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 
 	/* We use off_t here because lseek() is declared that way. */
 
-	/* Reduce a request that would overflow the 'seek' variable. */
+	/* Do not perform a seek which cannot be fulfilled. */
 	if (sizeof(request) > sizeof(seek)) {
 		const int64_t max_seek =
 		    (((int64_t)1 << (seek_bits - 1)) - 1) * 2 + 1;
 		const int64_t min_seek = ~max_seek;
-		if (request > max_seek)
-			seek = (off_t)max_seek;
-		else if (request < min_seek)
-			seek = (off_t)min_seek;
+		if (request < min_seek || request > max_seek) {
+			errno = EOVERFLOW;
+			goto err;
+		}
 	}
 
 	r = lseek(mine->fd, seek, whence);
@@ -580,6 +580,7 @@ file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 		return r;
 
 	/* If the input is corrupted or truncated, fail. */
+err:
 	if (mine->filename_type == FNT_STDIN)
 		archive_set_error(a, errno, "Error seeking in stdin");
 	else if (mine->filename_type == FNT_MBS)

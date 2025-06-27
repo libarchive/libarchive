@@ -206,15 +206,15 @@ FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
 	int seek_bits = sizeof(seek) * 8 - 1;
 	(void)a; /* UNUSED */
 
-	/* Reduce a request that would overflow the 'seek' variable. */
+	/* Do not perform a seek which cannot be fulfilled. */
 	if (sizeof(request) > sizeof(seek)) {
 		const int64_t max_seek =
 		    (((int64_t)1 << (seek_bits - 1)) - 1) * 2 + 1;
 		const int64_t min_seek = ~max_seek;
-		if (request > max_seek)
-			seek = max_seek;
-		else if (request < min_seek)
-			seek = min_seek;
+		if (request < min_seek || request > max_seek) {
+			errno = EOVERFLOW;
+			goto err;
+		}
 	}
 
 #ifdef __ANDROID__
@@ -237,6 +237,7 @@ FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
 	}
 #endif
 	/* If we arrive here, the input is corrupted or truncated so fail. */
+err:
 	archive_set_error(a, errno, "Error seeking in FILE* pointer");
 	return (ARCHIVE_FATAL);
 }
