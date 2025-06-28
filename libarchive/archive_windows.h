@@ -106,6 +106,7 @@
 #endif
 #define	lstat		__la_stat
 #define	open		__la_open
+#define	_wopen		__la_wopen
 #define	read		__la_read
 #if !defined(__BORLANDC__) && !defined(__WATCOMC__)
 #define setmode		_setmode
@@ -269,6 +270,7 @@ extern int	 __la_lstat(const char *path, struct stat *st);
 extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
 #endif
 extern int	 __la_open(const char *path, int flags, ...);
+extern int	 __la_wopen(const wchar_t *path, int flags, ...);
 extern ssize_t	 __la_read(int fd, void *buf, size_t nbytes);
 extern int	 __la_stat(const char *path, struct stat *st);
 extern pid_t	 __la_waitpid(HANDLE child, int *status, int option);
