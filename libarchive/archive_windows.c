@@ -561,6 +561,8 @@ copy_stat(struct stat *st, struct ustat *us)
 	st->st_mode = us->st_mode;
 	st->st_nlink = us->st_nlink;
 	st->st_size = (off_t)us->st_size;
+	if (st->st_size < 0 || (uint64_t)st->st_size != us->st_size)
+		st->st_size = 0;
 	st->st_uid = us->st_uid;
 	st->st_dev = us->st_dev;
 	st->st_rdev = us->st_rdev;
