@@ -2559,9 +2559,9 @@ _archive_write_disk_close(struct archive *_a)
 			 * for directories. For other file types
 			 * we need to verify via fstat() or lstat()
 			 */
-			if (fd == -1 || p->filetype != AE_IFDIR) {
+			if (fd < 0 || p->filetype != AE_IFDIR) {
 #if HAVE_FSTAT
-				if (fd > 0 && (
+				if (fd >= 0 && (
 				    fstat(fd, &st) != 0 ||
 				    la_verify_filetype(st.st_mode,
 				    p->filetype) == 0)) {
@@ -4441,7 +4441,7 @@ fixup_appledouble(struct archive_write_disk *a, const char *pathname)
 	 */
 	fd = open(pathname, O_RDONLY | O_BINARY | O_CLOEXEC);
 	__archive_ensure_cloexec_flag(fd);
-	if (fd == -1) {
+	if (fd < 0) {
 		archive_set_error(&a->archive, errno,
 		    "Failed to open a restoring file");
 		ret = ARCHIVE_WARN;
