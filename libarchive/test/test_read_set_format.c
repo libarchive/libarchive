@@ -138,7 +138,10 @@ DEFINE_TEST(test_read_append_filter)
     assertEqualInt(ARCHIVE_OK, archive_read_free(a));
     return;
   }
-  assertEqualIntA(a, ARCHIVE_OK, r);
+  if (r == ARCHIVE_WARN && canGzip())
+    assertEqualString(archive_error_string(a), "Using external gzip program");
+  else
+    assertEqualIntA(a, ARCHIVE_OK, r);
   assertEqualInt(ARCHIVE_OK,
       archive_read_open_memory(a, archive, sizeof(archive)));
   assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));

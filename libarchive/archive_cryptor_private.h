@@ -178,6 +178,9 @@ typedef int archive_crypto_ctx;
 #define archive_encrypto_aes_ctr_release(ctx) \
   __archive_cryptor.encrypto_aes_ctr_release(ctx)
 
+/* Stub return value if no encryption support exists. */
+#define CRYPTOR_STUB_FUNCTION	-2
+
 /* Minimal interface to cryptographic functionality for internal use in
  * libarchive */
 struct archive_cryptor
