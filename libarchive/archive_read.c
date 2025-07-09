@@ -575,8 +575,7 @@ choose_filters(struct archive_read *a)
 			return (ARCHIVE_OK);
 		}
 
-		filter
-		    = calloc(1, sizeof(*filter));
+		filter = calloc(1, sizeof(*filter));
 		if (filter == NULL)
 			return (ARCHIVE_FATAL);
 		filter->bidder = best_bidder;
