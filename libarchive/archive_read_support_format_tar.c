@@ -1255,7 +1255,7 @@ read_bytes_to_string(struct archive_read *a,
 	const void *src;
 
 	/* Fail if we can't make our buffer big enough. */
-	if (archive_string_ensure(as, (size_t)size+1) == NULL) {
+	if (archive_string_ensure(as, size + 1) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory");
 		return (ARCHIVE_FATAL);
@@ -1272,9 +1272,9 @@ read_bytes_to_string(struct archive_read *a,
 		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
 	}
-	memcpy(as->s, src, (size_t)size);
+	memcpy(as->s, src, size);
 	as->s[size] = '\0';
-	as->length = (size_t)size;
+	as->length = size;
 	*unconsumed += size;
 	return (ARCHIVE_OK);
 }
