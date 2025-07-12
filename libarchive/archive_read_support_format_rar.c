@@ -1453,7 +1453,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     return (ARCHIVE_FATAL);
 #endif
   }
-  /* If no CRC error, Go on parsing File Header. */
+  /* If no CRC error, go on parsing File Header. */
   p = h;
   endp = p + header_size - 7;
   memcpy(&file_header, p, sizeof(file_header));
@@ -2366,8 +2366,8 @@ parse_codes(struct archive_read *a)
         return (ARCHIVE_FATAL);
       }
 
-      /* Make sure ppmd7_contest is freed before Ppmd7_Construct
-       * because reading a broken file cause this abnormal sequence. */
+      /* Make sure ppmd7_context is freed before Ppmd7_Construct
+       * because reading a broken file causes this abnormal sequence. */
       __archive_ppmd7_functions.Ppmd7_Free(&rar->ppmd7_context);
 
       rar->bytein.a = a;
