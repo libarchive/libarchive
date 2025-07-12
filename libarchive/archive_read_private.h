@@ -199,6 +199,7 @@ struct archive_read {
 		int	(*options)(struct archive_read *, const char *key,
 		    const char *value);
 		int	(*read_header)(struct archive_read *, struct archive_entry *);
+		int	(*read_comment)(struct archive_read *, char **, size_t *);
 		int	(*read_data)(struct archive_read *, const void **, size_t *, int64_t *);
 		int	(*read_data_skip)(struct archive_read *);
 		int64_t	(*seek_data)(struct archive_read *, int64_t, int);
@@ -237,7 +238,8 @@ int	__archive_read_register_format(struct archive_read *a,
 		int64_t (*seek_data)(struct archive_read *, int64_t, int),
 		int (*cleanup)(struct archive_read *),
 		int (*format_capabilities)(struct archive_read *),
-		int (*has_encrypted_entries)(struct archive_read *));
+		int (*has_encrypted_entries)(struct archive_read *),
+		int (*read_comment)(struct archive_read *, char **, size_t *));
 
 int __archive_read_register_bidder(struct archive_read *a,
 		void *bidder_data,
@@ -255,7 +257,6 @@ int __archive_read_header(struct archive_read *, struct archive_entry *);
 int __archive_read_program(struct archive_read_filter *, const char *);
 void __archive_read_free_filters(struct archive_read *);
 struct archive_read_extract *__archive_read_get_extract(struct archive_read *);
-
 
 /*
  * Get a decryption passphrase.
