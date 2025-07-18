@@ -1393,7 +1393,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		 * size to liblzma when using lzma_raw_decoder() liblzma
 		 * could correctly deal with BCJ+LZMA. But unfortunately
 		 * there is no way to do that.
-		 * Discussion about this can be found at XZ Utils forum.
+		 *
+		 * Reference: https://web.archive.org/web/20240405171610/https://www.mail-archive.com/xz-devel@tukaani.org/msg00373.html
 		 */
 		if (coder2 != NULL) {
 			zip->codec2 = coder2->codec;
