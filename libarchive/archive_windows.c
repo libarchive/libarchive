@@ -45,6 +45,7 @@
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
 #include "archive_platform.h"
+#include "archive_platform_stat.h"
 #include "archive_private.h"
 #include "archive_entry.h"
 #include "archive_time_private.h"
@@ -720,6 +721,53 @@ __la_stat(const char *path, struct stat *st)
 				st->st_mode |= S_IXUSR | S_IXGRP | S_IXOTH;
 		}
 	}
+	return (ret);
+}
+
+static void
+copy_seek_stat(la_seek_stat_t *st, struct ustat *us)
+{
+	st->st_mtime = us->st_mtime;
+	st->st_gid = us->st_gid;
+	st->st_ino = getino(us);
+	st->st_mode = us->st_mode;
+	st->st_nlink = us->st_nlink;
+	st->st_size = (la_seek_t)us->st_size;
+	if (st->st_size < 0 || (uint64_t)st->st_size != us->st_size)
+		st->st_size = -1;
+	st->st_uid = us->st_uid;
+	st->st_dev = us->st_dev;
+	st->st_rdev = us->st_rdev;
+}
+
+int
+__la_seek_fstat(int fd, la_seek_stat_t *st)
+{
+	struct ustat u;
+	int ret;
+
+	ret = __hstat((HANDLE)_get_osfhandle(fd), &u);
+	copy_seek_stat(st, &u);
+	return (ret);
+}
+
+int
+__la_seek_stat(const char *path, la_seek_stat_t *st)
+{
+	HANDLE handle;
+	struct ustat u;
+	int ret;
+
+	handle = la_CreateFile(path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS,
+		NULL);
+	if (handle == INVALID_HANDLE_VALUE) {
+		la_dosmaperr(GetLastError());
+		return (-1);
+	}
+	ret = __hstat(handle, &u);
+	CloseHandle(handle);
+	copy_seek_stat(st, &u);
 	return (ret);
 }
 
