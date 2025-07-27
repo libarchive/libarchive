@@ -158,10 +158,6 @@ archive_crypto_version(struct archive_string* str)
 	archive_strcat(str, " libmd/");
 	archive_strcat(str, archive_libmd_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_WINCRYPT)
-	archive_strcat(str, " WinCrypt/");
-	archive_strcat(str, archive_wincrypt_version());
-#endif
 	// Just in case
 	(void)str; /* UNUSED */
 }
@@ -431,27 +427,7 @@ archive_cng_version(void)
 const char *
 archive_wincrypt_version(void)
 {
-#if defined(ARCHIVE_CRYPTOR_USE_WINCRYPT) || defined(ARCHIVE_CRYPTO_WINCRYPT)
-	HCRYPTPROV prov;
-	if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-		if (GetLastError() != (DWORD)NTE_BAD_KEYSET)
-			return NULL;
-		if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_NEWKEYSET))
-			return NULL;
-	}
-	DWORD version, length = sizeof(version);
-	if (!CryptGetProvParam(prov, PP_VERSION, (BYTE *)&version, &length, 0)) {
-		return NULL;
-	} else {
-		char major = (version >> 8) & 0xFF;
-		char minor = version & 0xFF;
-		static char wincrypt_version[6];
-		snprintf(wincrypt_version, 6, "%hhd.%hhd", major, minor);
-		return wincrypt_version;
-	}
-#else
 	return NULL;
-#endif
 }
 
 const char *

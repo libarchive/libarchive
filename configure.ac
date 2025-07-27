@@ -377,7 +377,7 @@ AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
 AC_CHECK_TYPE([suseconds_t])
 AC_CHECK_HEADERS([windows.h])
 # check windows.h first; the other headers require it.
-AC_CHECK_HEADERS([wincrypt.h winioctl.h],[],[],
+AC_CHECK_HEADERS([winioctl.h],[],[],
 [[#ifdef HAVE_WINDOWS_H
 # include <windows.h>
 #endif
