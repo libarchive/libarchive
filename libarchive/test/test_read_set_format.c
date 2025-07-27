@@ -185,8 +185,14 @@ DEFINE_TEST(test_read_append_lzop_filter)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
   r = archive_read_append_filter(a, ARCHIVE_FILTER_LZOP);
-  if (r != ARCHIVE_OK && !canLzop()) {
-	  skipping("lzop reading not fully supported on this platform");
+  if (archive_liblzo2_version() == NULL) {
+	  // Libarchive was not linked with liblzo2, so we must use an external program
+	  if (!canLzop()) {
+		  // The external program doesn't exist
+		  assertEqualIntA(a, ARCHIVE_FATAL, r);
+	  } else {
+		  assertEqualIntA(a, ARCHIVE_WARN, r);
+	  }
   } else {
 	  assertEqualIntA(a, ARCHIVE_OK, r);
   }
@@ -201,10 +207,11 @@ DEFINE_TEST(test_read_append_grzip_filter)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
   r = archive_read_append_filter(a, ARCHIVE_FILTER_GRZIP);
-  if (r != ARCHIVE_OK && !canGrzip()) {
-	  skipping("grzip reading not fully supported on this platform");
+    // Grzip currently always uses an external program.
+  if (!canGrzip()) {
+	  assertEqualIntA(a, ARCHIVE_FATAL, r);
   } else {
-	  assertEqualIntA(a, ARCHIVE_OK, r);
+	  assertEqualIntA(a, ARCHIVE_WARN, r);
   }
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
