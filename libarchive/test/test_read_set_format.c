@@ -185,7 +185,27 @@ DEFINE_TEST(test_read_append_lzop_filter)
   assert((a = archive_read_new()) != NULL);
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
   r = archive_read_append_filter(a, ARCHIVE_FILTER_LZOP);
-  assertEqualIntA(a, ARCHIVE_OK, r);
+  if (r != ARCHIVE_OK && !canLzop()) {
+	  skipping("lzop reading not fully supported on this platform");
+  } else {
+	  assertEqualIntA(a, ARCHIVE_OK, r);
+  }
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_append_grzip_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_GRZIP);
+  if (r != ARCHIVE_OK && !canGrzip()) {
+	  skipping("grzip reading not fully supported on this platform");
+  } else {
+	  assertEqualIntA(a, ARCHIVE_OK, r);
+  }
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
