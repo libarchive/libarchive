@@ -186,17 +186,23 @@ DEFINE_TEST(test_read_append_lzop_filter)
   assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
   r = archive_read_append_filter(a, ARCHIVE_FILTER_LZOP);
   if (archive_liblzo2_version() == NULL) {
-	  // Libarchive was not linked with liblzo2, so we must use an external program
-	  if (!canLzop()) {
+	  // Libarchive was not linked with liblzo2 ...
+	  if (canLzop()) {
+		  // We're using an external program
+		  assertEqualIntA(a, ARCHIVE_WARN, r);
+		  // The `lzop` command-line program exits with an error
+		  // on an empty input, which reflects as an error here
+		  // in that case.
+		  assertEqualIntA(a, ARCHIVE_FAILED, archive_read_free(a));
+	  } else {
 		  // The external program doesn't exist
 		  assertEqualIntA(a, ARCHIVE_FATAL, r);
-	  } else {
-		  assertEqualIntA(a, ARCHIVE_WARN, r);
+		  assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 	  }
   } else {
 	  assertEqualIntA(a, ARCHIVE_OK, r);
+	  assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
   }
-  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_read_append_grzip_filter)
