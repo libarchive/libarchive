@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007 Joerg Sonnenberger
- * Copyright (c) 2012 Michihiro NAKAJIMA 
+ * Copyright (c) 2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,6 +76,11 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 {
 	pid_t child = -1;
 	int stdin_pipe[2], stdout_pipe[2], tmp;
+
+#if (HAVE_FORK || HAVE_VFORK) && (HAVE_CLOSEFROM || HAVE_CLOSE_RANGE)
+#undef HAVE_POSIX_SPAWNP
+#endif
+
 #if HAVE_POSIX_SPAWNP
 	posix_spawn_file_actions_t actions;
 	int r;
@@ -162,6 +167,13 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 			_exit(254);
 		if (stdout_pipe[1] != 1 /* stdout */)
 			close(stdout_pipe[1]);
+
+#if HAVE_CLOSEFROM
+		closefrom(3);
+#elif HAVE_CLOSE_RANGE
+		close_range(3, ~0U, 0);
+#endif
+
 		execvp(cmdline->path, cmdline->argv);
 		_exit(254);
 	}
