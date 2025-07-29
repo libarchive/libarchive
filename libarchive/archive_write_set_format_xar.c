@@ -81,6 +81,7 @@
 #if !defined(XAR_WRITER_HAS_XML) ||\
 	!defined(HAVE_ZLIB_H) || \
 	!defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
+#pragma message "Xar not supported on this platform"
 /*
  * xar needs several external libraries.
  *   o libxml2 or xmllite (on Windows)
