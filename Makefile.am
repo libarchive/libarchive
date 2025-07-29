@@ -132,6 +132,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_pathmatch.h \
 	libarchive/archive_platform.h \
 	libarchive/archive_platform_acl.h \
+	libarchive/archive_platform_stat.h \
 	libarchive/archive_platform_xattr.h \
 	libarchive/archive_ppmd_private.h \
 	libarchive/archive_ppmd7.c \
