@@ -1619,10 +1619,13 @@ static int process_head_file_extra(struct archive_read* a,
 {
 	uint64_t extra_field_size;
 	uint64_t extra_field_id = 0;
-	int ret = ARCHIVE_FATAL;
 	uint64_t var_size;
 
 	while(extra_data_size > 0) {
+		/* Make sure we won't fail if the file declares only unsupported
+		attributes. */
+		int ret = ARCHIVE_OK;
+
 		if(!read_var(a, &extra_field_size, &var_size))
 			return ARCHIVE_EOF;
 
@@ -1675,12 +1678,26 @@ static int process_head_file_extra(struct archive_read* a,
 				if (ARCHIVE_OK != consume(a, extra_field_size)) {
 					return ARCHIVE_EOF;
 				}
+
+				/* Don't fail on unsupported attribute -- we've handled it
+				   by skipping over it. */
+				ret = ARCHIVE_OK;
+		}
+
+		if (ret != ARCHIVE_OK) {
+			/* Forward any errors signalled by the attribute parsing
+			   functions. */
+			return ret;
 		}
 	}
 
-	if(ret != ARCHIVE_OK) {
-		/* Attribute not implemented. */
-		return ret;
+	if (extra_data_size != 0) {
+		/* We didn't skip everything, or we skipped too much; either way,
+		   there's an error in this parsing function. */
+
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+				"unsupported structure of file header extra data");
+		return ARCHIVE_FATAL;
 	}
 
 	return ARCHIVE_OK;
