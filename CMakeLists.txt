@@ -1586,12 +1586,6 @@ CHECK_C_SOURCE_COMPILES(
   "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct statfs s; return sizeof(s);}"
   HAVE_STRUCT_STATFS)
 
-# Make sure we have the POSIX version of readdir_r, not the
-# older 2-argument version.
-CHECK_C_SOURCE_COMPILES(
-  "#include <dirent.h>\nint main() {DIR *d = opendir(\".\"); struct dirent e,*r; return readdir_r(d,&e,&r);}"
-  HAVE_READDIR_R)
-
 # dirfd can be either a function or a macro.
 CHECK_C_SOURCE_COMPILES(
   "#include <dirent.h>\nint main() {DIR *d = opendir(\".\"); return dirfd(d);}"
