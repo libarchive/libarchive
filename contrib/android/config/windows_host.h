@@ -620,9 +620,6 @@
 /* Define to 1 if you have the <pwd.h> header file. */
 /* #undef HAVE_PWD_H */
 
-/* Define to 1 if you have a POSIX compatible readdir_r */
-#define HAVE_READDIR_R 1
-
 /* Define to 1 if you have the `readlink' function. */
 /* #undef HAVE_READLINK */
 
