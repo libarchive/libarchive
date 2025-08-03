@@ -921,6 +921,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar4_encrypted_filenames.rar.uu \
 	libarchive/test/test_read_format_rar4_solid_encrypted.rar.uu \
 	libarchive/test/test_read_format_rar4_solid_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar5_only_crypt_exfld.rar.uu \
+	libarchive/test/test_read_format_rar5_unsupported_exfld.rar.uu \
+	libarchive/test/test_read_format_rar5_invalid_hash_valid_htime_exfld.rar.uu \
 	libarchive/test/test_read_format_rar5_encrypted.rar.uu \
 	libarchive/test/test_read_format_rar5_encrypted_filenames.rar.uu \
 	libarchive/test/test_read_format_rar5_solid_encrypted.rar.uu \
