@@ -3418,8 +3418,8 @@ static int
 xml_writer_get_final_content_and_length(struct xml_writer *ctx,
     const char **out, size_t *size)
 {
-	*out = (const char*)ctx->bp->content;
-	*size = (size_t)ctx->bp->use;
+	*out = (const char*)xmlBufferContent(ctx->bp);
+	*size = (size_t)xmlBufferLength(ctx->bp);
 	return (0);
 }
 
