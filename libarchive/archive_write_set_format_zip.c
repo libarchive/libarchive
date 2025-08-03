@@ -1952,10 +1952,11 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
-			zip->stream.zstd.out.dst = zip->buf;
 			if (zip->stream.zstd.out.pos != zip->stream.zstd.out.size)
 				finishing = 0;
+			zip->stream.zstd.out.dst = zip->buf;
 			zip->stream.zstd.out.size = zip->len_buf;
+			zip->stream.zstd.out.pos = 0;
 		} while (finishing);
 		ZSTD_freeCStream(zip->stream.zstd.context);
 		break;
