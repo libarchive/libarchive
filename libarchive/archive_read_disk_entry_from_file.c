@@ -364,7 +364,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 		tempdir = _PATH_TMP;
 	archive_string_init(&tempfile);
 	archive_strcpy(&tempfile, tempdir);
-	archive_strcat(&tempfile, "tar.md.XXXXXX");
+	archive_strcat(&tempfile, "/tar.md.XXXXXX");
 	tempfd = mkstemp(tempfile.s);
 	if (tempfd < 0) {
 		archive_set_error(&a->archive, errno,
