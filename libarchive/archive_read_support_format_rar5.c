@@ -1686,6 +1686,33 @@ static int process_head_file_extra(struct archive_read* a,
 	return ARCHIVE_OK;
 }
 
+static int file_entry_sanity_checks(struct archive_read* a,
+	size_t block_flags, uint8_t is_dir, uint64_t unpacked_size,
+	size_t packed_size)
+{
+	if (is_dir) {
+		const int declares_data_size =
+			(int) (unpacked_size != 0 || packed_size != 0);
+
+		/* FILE entries for directories still declare HFL_DATA in block flags,
+		   even though attaching data to such blocks doesn't make much sense. */
+		if (declares_data_size) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				"directory entries cannot have any data");
+			return ARCHIVE_FATAL;
+		}
+	} else {
+		const int declares_hfl_data = (int) ((block_flags & HFL_DATA) != 0);
+		if (!declares_hfl_data) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+					"no data found in file/service block");
+			return ARCHIVE_FATAL;
+		}
+	}
+
+	return ARCHIVE_OK;
+}
+
 static int process_head_file(struct archive_read* a, struct rar5* rar,
     struct archive_entry* entry, size_t block_flags)
 {
@@ -1701,6 +1728,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	int c_method = 0, c_version = 0;
 	char name_utf8_buf[MAX_NAME_IN_BYTES];
 	const uint8_t* p;
+	int sanity_ret;
 
 	enum FILE_FLAGS {
 		DIRECTORY = 0x0001, UTIME = 0x0002, CRC32 = 0x0004,
@@ -1744,10 +1772,6 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		rar->file.bytes_remaining = data_size;
 	} else {
 		rar->file.bytes_remaining = 0;
-
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-				"no data found in file/service block");
-		return ARCHIVE_FATAL;
 	}
 
 	if(!read_var_sized(a, &file_flags, NULL))
@@ -1763,6 +1787,13 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	}
 
 	rar->file.dir = (uint8_t) ((file_flags & DIRECTORY) > 0);
+
+	sanity_ret = file_entry_sanity_checks(a, block_flags, rar->file.dir,
+		unpacked_size, data_size);
+
+	if (sanity_ret != ARCHIVE_OK) {
+		return sanity_ret;
+	}
 
 	if(!read_var_sized(a, &file_attr, NULL))
 		return ARCHIVE_EOF;
@@ -4163,7 +4194,7 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 		 * it's impossible to perform any decompression. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't decompress an entry marked as a directory");
-		return ARCHIVE_FAILED;
+		return ARCHIVE_FATAL;
 	}
 
 	if(!rar->skip_mode && (rar->cstate.last_write_ptr > rar->file.unpacked_size)) {

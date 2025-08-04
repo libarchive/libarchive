@@ -1111,6 +1111,18 @@ DEFINE_TEST(test_read_format_rar5_nonempty_dir_stream)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_nonempty_dir_data)
+{
+	PROLOGUE("test_read_format_rar5_dirdata.rar");
+
+	/* This archive is invalid. It declares a directory entry with nonzero
+	   data size. */
+
+	assertA(archive_read_next_header(a, &ae) == ARCHIVE_FATAL);
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_fileattr)
 {
 	unsigned long set, clear, flag;

@@ -952,6 +952,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_multiple_files.rar.uu \
 	libarchive/test/test_read_format_rar5_multiple_files_solid.rar.uu \
 	libarchive/test/test_read_format_rar5_nonempty_dir_stream.rar.uu \
+	libarchive/test/test_read_format_rar5_dirdata.rar.uu \
 	libarchive/test/test_read_format_rar5_owner.rar.uu \
 	libarchive/test/test_read_format_rar5_readtables_overflow.rar.uu \
 	libarchive/test/test_read_format_rar5_sfx.exe.uu \
