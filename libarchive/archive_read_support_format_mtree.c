@@ -1073,6 +1073,7 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 		/* Non-printable characters are not allowed */
 		for (s = p;s < p + len - 1; s++) {
 			if (!isprint((unsigned char)*s) && *s != '\t') {
+				fprintf(stderr, "non-printing character 0x%02X\n", (unsigned char)(*s));
 				r = ARCHIVE_FATAL;
 				break;
 			}
@@ -2130,6 +2131,13 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 		for (u = mtree->line.s + find_off; *u; ++u) {
 			if (u[0] == '\n') {
 				/* Ends with unescaped newline. */
+				/* Check if preceded by '\r' for CRLF handling */
+				if (u > mtree->line.s && u[-1] == '\r') {
+					/* CRLF ending - remove the '\r' */
+					u[-1] = '\n';
+					u[0] = '\0';
+					total_size--;
+				}
 				*start = mtree->line.s;
 				return total_size;
 			} else if (u[0] == '#') {
@@ -2141,7 +2149,14 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 			} else if (u[0] == '\\') {
 				if (u[1] == '\n') {
 					/* Trim escaped newline. */
-					total_size -= 2;
+					/* Check if there's a '\r' before the '\n' for CRLF */
+					if (u > mtree->line.s && u[-1] == '\r') {
+						/* Escaped CRLF - remove '\r\\\n' (3 chars) */
+						total_size -= 3;
+					} else {
+						/* Escaped LF - remove '\\\n' (2 chars) */
+						total_size -= 2;
+					}
 					mtree->line.s[total_size] = '\0';
 					break;
 				} else if (u[1] != '\0') {
