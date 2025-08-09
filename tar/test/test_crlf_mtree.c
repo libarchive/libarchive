@@ -60,9 +60,9 @@ DEFINE_TEST(test_crlf_mtree)
 	if (!assert(s >= 2048))
 		goto done;
 	assertEqualMem(p0 + 0, "f", 2);
-	assertEqualMem(p0 + 512, "abc", 5);
+	assertEqualMem(p0 + 512, "abc", 4);
 	assertEqualMem(p0 + 1024, "g", 2);
-	assertEqualMem(p0 + 1536, "abc", 5);
+	assertEqualMem(p0 + 1536, "abc", 4);
 done:
 	free(p0);
 	free(absolute_path);
