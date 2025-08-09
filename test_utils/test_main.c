@@ -375,7 +375,7 @@ static int fail_if_tests_skipped = 0;
 /* Default is to run the specified tests once and report errors. */
 static int until_failure = 0;
 /* Default is to just report pass/fail for each test. */
-static int verbosity = 2;
+static int verbosity = 0;
 #define	VERBOSITY_SUMMARY_ONLY -1 /* -q */
 #define VERBOSITY_PASSFAIL 0   /* Default */
 #define VERBOSITY_LIGHT_REPORT 1 /* -v */
