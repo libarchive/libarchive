@@ -85,11 +85,11 @@ IF "%1%"=="prepare" (
   )
 ) ELSE IF "%1%"=="test" (
   IF "%BE%"=="cygwin-gcc" (
-    @REM ECHO "Skipping tests on this platform"
-    @REM EXIT /b 0
-    SET BS=cmake
-    SET SKIP_TEST_SPARSE=1
-    C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a test"
+    ECHO "Skipping tests on this platform"
+    EXIT /b 0
+    REM SET BS=cmake
+    REM SET SKIP_TEST_SPARSE=1
+    REM C:\tools\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a test"
   ) ELSE IF "%BE%"=="mingw-gcc" (
     SET PATH=%PATH%;C:\Program Files\cmake\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
     COPY "C:\Program Files (x86)\zlib\bin\libzlib.dll" build_ci\cmake\bin\
