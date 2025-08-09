@@ -15,7 +15,7 @@ DEFINE_TEST(test_crlf_mtree)
 	size_t s;
 	int r;
 	p0 = NULL;
-	char *content = "#mtree\r\n./foo type=file uname=\\\r\nroot gname=root mode=0755\r\n";
+	char *content = "#mtree\r\nf type=file uname=\\\r\nroot gname=root mode=0755 content=bar/foo\r\ng type=file uname=root gname=root mode=0755 content=bar/goo\r\n";
 	char *filename = "output.tar";
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char *p;
@@ -31,6 +31,7 @@ DEFINE_TEST(test_crlf_mtree)
 	assertMakeFile(absolute_path, 0777, content);
 	assertMakeDir("bar", 0775);
 	assertMakeFile("bar/foo", 0777, "abc");
+	assertMakeFile("bar/goo", 0777, "abc");
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	p = absolute_path;
@@ -40,10 +41,10 @@ DEFINE_TEST(test_crlf_mtree)
 		p++;
 	}
 
-	r = systemf("%s -cf %s -C bar @%s >step1.out 2>step1.err", testprog, filename, absolute_path);
+	r = systemf("%s -cf %s @%s >step1.out 2>step1.err", testprog, filename, absolute_path);
 	failure("Error invoking %s -cf %s -C bar @%s", testprog, filename, absolute_path);
 #else
-	r = systemf("%s -cf %s -C bar \"@%s\" >step1.out 2>step1.err", testprog, filename, absolute_path);
+	r = systemf("%s -cf %s \"@%s\" >step1.out 2>step1.err", testprog, filename, absolute_path);
 	failure("Error invoking %s -cf %s -C bar \"@%s\"", testprog, filename, absolute_path);
 #endif
 
@@ -58,10 +59,10 @@ DEFINE_TEST(test_crlf_mtree)
 		goto done;
 	if (!assert(s >= 2048))
 		goto done;
-	assertEqualMem(p0 + 0, "./foo", 5);
-	assertEqualMem(p0 + 512, "abc", 3);
-	assertEqualMem(p0 + 1024, "\0\0\0\0\0\0\0\0", 8);
-	assertEqualMem(p0 + 1536, "\0\0\0\0\0\0\0\0", 8);
+	assertEqualMem(p0 + 0, "f", 2);
+	assertEqualMem(p0 + 512, "abc", 5);
+	assertEqualMem(p0 + 1024, "g", 2);
+	assertEqualMem(p0 + 1536, "abc", 5);
 done:
 	free(p0);
 	free(absolute_path);
