@@ -1413,7 +1413,7 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	 */
 	fid = t->max_filesystem_id++;
 	if (t->max_filesystem_id > t->allocated_filesystem) {
-		size_t s;
+		int s;
 		void *p;
 
 		s = t->max_filesystem_id * 2;
