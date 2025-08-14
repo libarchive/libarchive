@@ -862,7 +862,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			tree_enter_initial_dir(t);
 			return (ARCHIVE_FATAL);
 		case TREE_ERROR_DIR:
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			archive_set_error(&a->archive, t->tree_errno,
 			    "%s: Couldn't visit directory",
 			    tree_current_path(t));
 			tree_enter_initial_dir(t);
