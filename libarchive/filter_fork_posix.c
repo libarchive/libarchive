@@ -78,7 +78,8 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 	int stdin_pipe[2], stdout_pipe[2], tmp;
 
 #if !defined(POSIX_SPAWN_CLOEXEC_DEFAULT) && \
-    (HAVE_FORK || HAVE_VFORK) && (HAVE_CLOSEFROM || HAVE_CLOSE_RANGE)
+    (HAVE_FORK || HAVE_VFORK) && \
+    (HAVE_CLOSEFROM || HAVE_CLOSE_RANGE || defined(_SC_OPEN_MAX))
 #undef HAVE_POSIX_SPAWNP
 #endif
 
@@ -185,6 +186,9 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 		closefrom(3);
 #elif HAVE_CLOSE_RANGE
 		close_range(3, ~0U, 0);
+#elif defined(_SC_OPEN_MAX)
+		for (int i = sysconf(_SC_OPEN_MAX); i > 3;)
+			close(--i);
 #endif
 
 		execvp(cmdline->path, cmdline->argv);
