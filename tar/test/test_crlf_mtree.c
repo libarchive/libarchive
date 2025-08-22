@@ -15,7 +15,10 @@ DEFINE_TEST(test_crlf_mtree)
 	size_t s;
 	int r;
 	p0 = NULL;
-	char *content = "#mtree\r\nf type=file uname=\\\r\nroot gname=root mode=0755 content=bar/foo\r\ng type=file uname=root gname=root mode=0755 content=bar/goo\r\n";
+	char *content = "#mtree\r\n"
+		"f type=file uname=\\\r\n"
+		"root gname=root mode=0755 content=bar/foo\r\n"
+		"g type=file uname=root gname=root mode=0755 content=bar/goo\r\n";
 	char *filename = "output.tar";
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char *p;
