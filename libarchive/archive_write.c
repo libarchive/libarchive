@@ -806,7 +806,10 @@ _archive_write_finish_entry(struct archive *_a)
 	if (a->archive.state & ARCHIVE_STATE_DATA
 	    && a->format_finish_entry != NULL)
 		ret = (a->format_finish_entry)(a);
-	a->archive.state = ARCHIVE_STATE_HEADER;
+	if (ret == ARCHIVE_FATAL)
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	else
+		a->archive.state = ARCHIVE_STATE_HEADER;
 	return (ret);
 }
 
@@ -818,6 +821,7 @@ _archive_write_data(struct archive *_a, const void *buff, size_t s)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	const size_t max_write = INT_MAX;
+	int ret;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_data");
@@ -825,7 +829,10 @@ _archive_write_data(struct archive *_a, const void *buff, size_t s)
 	if (s > max_write)
 		s = max_write;
 	archive_clear_error(&a->archive);
-	return ((a->format_write_data)(a, buff, s));
+	ret = (a->format_write_data)(a, buff, s);
+	if (ret == ARCHIVE_FATAL)
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	return (ret);
 }
 
 static struct archive_write_filter *
