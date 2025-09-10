@@ -52,6 +52,7 @@ SET(libarchive_SOURCES
   archive_pathmatch.h
   archive_platform.h
   archive_platform_acl.h
+  archive_platform_stat.h
   archive_platform_xattr.h
   archive_ppmd_private.h
   archive_ppmd8.c

@@ -72,6 +72,8 @@
 #include <windows.h>
 //#define	EFTYPE 7
 
+#include "archive_platform_stat.h"
+
 #if defined(__BORLANDC__)
 #pragma warn -8068	/* Constant out of range in comparison. */
 #pragma warn -8072	/* Suspicious pointer arithmetic. */
@@ -262,6 +264,9 @@
     #define	F_OK    0       /*  Test for existence of file  */
 #endif
 
+/* Functions to circumvent off_t limitations */
+int __la_seek_fstat(int fd, la_seek_stat_t *st);
+int __la_seek_stat(const char *path, la_seek_stat_t *st);
 
 /* Replacement POSIX function */
 extern int	 __la_fstat(int fd, struct stat *st);
