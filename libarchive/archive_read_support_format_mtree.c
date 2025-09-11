@@ -286,7 +286,7 @@ archive_read_support_format_mtree(struct archive *_a)
 	__archive_rb_tree_init(&mtree->rbtree, &rb_ops);
 
 	r = __archive_read_register_format(a, mtree, "mtree",
-           mtree_bid, archive_read_format_mtree_options, read_header, read_data, skip, NULL, cleanup, NULL, NULL);
+           mtree_bid, archive_read_format_mtree_options, read_header, read_data, skip, NULL, cleanup, NULL, NULL, NULL);
 
 	if (r != ARCHIVE_OK)
 		free(mtree);
