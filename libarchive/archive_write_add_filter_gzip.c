@@ -229,14 +229,16 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		data->compressed[5] = (uint8_t)(t>>8)&0xff;
 		data->compressed[6] = (uint8_t)(t>>16)&0xff;
 		data->compressed[7] = (uint8_t)(t>>24)&0xff;
-	} else
+	} else {
 		memset(&data->compressed[4], 0, 4);
-    if (data->compression_level == 9)
-	    data->compressed[8] = 2;
-    else if(data->compression_level == 1)
-	    data->compressed[8] = 4;
-    else
-	    data->compressed[8] = 0;
+	}
+	if (data->compression_level == 9) {
+		data->compressed[8] = 2;
+	} else if(data->compression_level == 1) {
+		data->compressed[8] = 4;
+	} else {
+		data->compressed[8] = 0;
+	}
 	data->compressed[9] = 3; /* OS=Unix */
 	data->stream.next_out += 10;
 	data->stream.avail_out -= 10;
