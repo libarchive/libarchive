@@ -222,7 +222,7 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	data->compressed[0] = 0x1f; /* GZip signature bytes */
 	data->compressed[1] = 0x8b;
 	data->compressed[2] = 0x08; /* "Deflate" compression */
-	data->compressed[3] = data->original_filename == NULL ? 0 : 0x8;
+	data->compressed[3] = 0x00; /* Flags */
 	if (data->timestamp >= 0) {
 		time_t t = time(NULL);
 		data->compressed[4] = (uint8_t)(t)&0xff;  /* Timestamp */
@@ -257,6 +257,7 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 			ofn_max_length = ofn_space_available;
 		}
 		if (ofn_length < ofn_max_length) {
+			data->compressed[3] |= 0x8;
 			strcpy((char*)data->compressed + 10,
 			       data->original_filename);
 			data->stream.next_out += ofn_length + 1;
