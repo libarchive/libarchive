@@ -25,7 +25,7 @@
 #include <archive_entry.h>
 
 #include "bsdcat.h"
-#include "err.h"
+#include "lafe_err.h"
 
 #define	BYTES_PER_BLOCK	(20*512)
 
