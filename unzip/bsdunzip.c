@@ -57,7 +57,7 @@
 
 #include "bsdunzip.h"
 #include "passphrase.h"
-#include "err.h"
+#include "lafe_err.h"
 
 /* command-line options */
 static int		 a_opt;		/* convert EOL */

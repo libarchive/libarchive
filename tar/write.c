@@ -58,7 +58,7 @@
 #endif
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 #include "line_reader.h"
 
 #ifndef O_BINARY
