@@ -263,7 +263,7 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 			data->stream.next_out += ofn_length + 1;
 			data->stream.avail_out -= ofn_length + 1;
 		} else {
-			archive_set_error(&a->archive, ENOMEM,
+			archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
 					  "Gzip 'Original Filename' ignored because it is too long");
 			ret = ARCHIVE_WARN;
 		}
