@@ -280,9 +280,9 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 #elif !defined(__CYGWIN__) && defined(_WIN32_WINNT) && \
     _WIN32_WINNT >= 0x0601 /* _WIN32_WINNT_WIN7 */
 		if (threads == 0) {
-			DWORD winCores = GetActiveProcessorCount(
-			    ALL_PROCESSOR_GROUPS);
-			threads = (intmax_t)winCores;
+			SYSTEM_INFO systemInfo;
+			GetNativeSystemInfo(&systemInfo);
+			threads = (intmax_t)systemInfo.dwNumberOfProcessors;
 		}
 #endif
 		if (threads < 0 || threads > INT_MAX) {
