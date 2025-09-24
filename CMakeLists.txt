@@ -778,12 +778,22 @@ IF(ENABLE_CNG)
   LA_CHECK_INCLUDE_FILE("bcrypt.h" HAVE_BCRYPT_H)
   IF(HAVE_BCRYPT_H)
     LIST(APPEND ADDITIONAL_LIBS "bcrypt")
+    # bcrypt supports these algorithms on all available versions
+    SET(ARCHIVE_CRYPTO_MD5        1)
+    SET(ARCHIVE_CRYPTO_MD5_WIN    1)
+    SET(ARCHIVE_CRYPTO_SHA1       1)
+    SET(ARCHIVE_CRYPTO_SHA1_WIN   1)
+    SET(ARCHIVE_CRYPTO_SHA256     1)
+    SET(ARCHIVE_CRYPTO_SHA256_WIN 1)
+    SET(ARCHIVE_CRYPTO_SHA384     1)
+    SET(ARCHIVE_CRYPTO_SHA384_WIN 1)
+    SET(ARCHIVE_CRYPTO_SHA512     1)
+    SET(ARCHIVE_CRYPTO_SHA512_WIN 1)
   ENDIF(HAVE_BCRYPT_H)
 ELSE(ENABLE_CNG)
   UNSET(HAVE_BCRYPT_H CACHE)
 ENDIF(ENABLE_CNG)
 # Following files need windows.h, so we should test it after windows.h test.
-LA_CHECK_INCLUDE_FILE("wincrypt.h" HAVE_WINCRYPT_H)
 LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)
 
 #
@@ -991,85 +1001,6 @@ main(int argc, char **argv)
       ENDIF(NOT ARCHIVE_CRYPTO_${ALGORITHM})
     ENDFOREACH(ALGORITHM ${ALGORITHMS})
 ENDMACRO(CHECK_CRYPTO ALGORITHMS IMPLEMENTATION)
-
-#
-# CRYPTO functions on Windows is defined at archive_windows.c, thus we do not
-# need the test what the functions can be mapped to archive_{crypto name}_init,
-# archive_{crypto name}_update and archive_{crypto name}_final.
-# The functions on Windows use CALG_{crypto name} macro to create a crypt object
-# and then we need to know what CALG_{crypto name} macros is available to show
-# ARCHIVE_CRYPTO_{crypto name}_WIN macros because Windows 2000 and earlier version
-# of Windows XP do not support SHA256, SHA384 and SHA512.
-#
-MACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
-  IF(WIN32 AND NOT CYGWIN)
-    FOREACH(CRYPTO ${CRYPTO_LIST})
-      IF(NOT ARCHIVE_CRYPTO_${CRYPTO})
-      IF(NOT DEFINED ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-	STRING(TOUPPER "${CRYPTO}" crypto)
-	SET(ALGID "")
-	IF ("${CRYPTO}" MATCHES "^MD5$")
-	    SET(ALGID "CALG_MD5")
-	ENDIF ("${CRYPTO}" MATCHES "^MD5$")
-	IF ("${CRYPTO}" MATCHES "^SHA1$")
-	    SET(ALGID "CALG_SHA1")
-	ENDIF ("${CRYPTO}" MATCHES "^SHA1$")
-	IF ("${CRYPTO}" MATCHES "^SHA256$")
-	    SET(ALGID "CALG_SHA_256")
-	ENDIF ("${CRYPTO}" MATCHES "^SHA256$")
-	IF ("${CRYPTO}" MATCHES "^SHA384$")
-	    SET(ALGID "CALG_SHA_384")
-	ENDIF ("${CRYPTO}" MATCHES "^SHA384$")
-	IF ("${CRYPTO}" MATCHES "^SHA512$")
-	    SET(ALGID "CALG_SHA_512")
-	ENDIF ("${CRYPTO}" MATCHES "^SHA512$")
-
-    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.h.in
-      ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/confdefs.h)
-	FILE(READ "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/confdefs.h"
-	     CONFDEFS_H)
-
-	SET(SOURCE "${CONFDEFS_H}
-
-#define ${crypto}_COMPILE_TEST
-#include <windows.h>
-#include <wincrypt.h>
-
-int
-main(int argc, char **argv)
-{
-	return ${ALGID};
-}
-")
-	SET(SOURCE_FILE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/check_crypto_win.c")
-
-	FILE(WRITE "${SOURCE_FILE}" "${SOURCE}")
-	MESSAGE(STATUS "Checking support for ARCHIVE_CRYPTO_${CRYPTO}_WIN")
-
-	TRY_COMPILE(ARCHIVE_CRYPTO_${CRYPTO}_WIN
-	  ${CMAKE_BINARY_DIR}
-	  ${SOURCE_FILE}
-	  CMAKE_FLAGS "-DINCLUDE_DIRECTORIES:STRING=${CMAKE_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/libarchive"
-	  OUTPUT_VARIABLE OUTPUT)
-
-	IF (ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-	    MESSAGE(STATUS
-	        "Checking support for ARCHIVE_CRYPTO_${CRYPTO}_WIN -- found")
-		SET(ARCHIVE_CRYPTO_${CRYPTO} 1)
-	ELSE (ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-	    MESSAGE(STATUS
-	         "Checking support for ARCHIVE_CRYPTO_${CRYPTO}_WIN -- not found")
-    	    FILE(APPEND
-	        ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeOutput.log
-                "Checking support for ARCHIVE_CRYPTO_${CRYPTO}_WIN failed with the following output:\n"
-        	"${OUTPUT}\n"
-        	"Source file was:\n${SOURCE}\n")
-	ENDIF (ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-      ENDIF(NOT DEFINED ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-      ENDIF(NOT ARCHIVE_CRYPTO_${CRYPTO})
-    ENDFOREACH(CRYPTO)
-  ENDIF(WIN32 AND NOT CYGWIN)
-ENDMACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
 
 #
 # Find iconv
@@ -2178,8 +2109,6 @@ CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" OPENSSL)
 
 # Libmd has to be probed after OpenSSL.
 CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA512" LIBMD)
-
-CHECK_CRYPTO_WIN("MD5;SHA1;SHA256;SHA384;SHA512")
 
 # Check visibility annotations
 SET(OLD_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")

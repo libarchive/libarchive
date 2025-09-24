@@ -210,7 +210,9 @@ __LA_DECL const char *  archive_openssl_version(void);
 __LA_DECL const char *  archive_libmd_version(void);
 __LA_DECL const char *  archive_commoncrypto_version(void);
 __LA_DECL const char *  archive_cng_version(void);
+#if ARCHIVE_VERSION_NUMBER < 4000000
 __LA_DECL const char *  archive_wincrypt_version(void);
+#endif
 __LA_DECL const char *  archive_librichacl_version(void);
 __LA_DECL const char *  archive_libacl_version(void);
 __LA_DECL const char *  archive_libattr_version(void);
