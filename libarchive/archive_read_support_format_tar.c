@@ -2940,7 +2940,9 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_gnutar *)h;
 	const char *existing_pathname = archive_entry_pathname(entry);
-	if (existing_pathname == NULL || existing_pathname[0] == '\0') {
+	const wchar_t *existing_wcs_pathname = archive_entry_pathname_w(entry);
+	if ((existing_pathname == NULL || existing_pathname[0] == '\0')
+	    && (existing_wcs_pathname == NULL || existing_wcs_pathname[0] == L'\0')) {
 		if (archive_entry_copy_pathname_l(entry,
 		    header->name, sizeof(header->name), tar->sconv) != 0) {
 			err = set_conversion_failed_error(a, tar->sconv, "Pathname");
