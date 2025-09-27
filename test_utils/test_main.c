@@ -2548,52 +2548,52 @@ canRunCommand(const char *cmd, int *tested)
 /*
  * Can this platform run the bzip2 program?
  */
-CAN_RUN_FUNC(Bzip2, "bzip2 --help");
+CAN_RUN_FUNC(Bzip2, "bzip2 --help")
 
 /*
  * Can this platform run the grzip program?
  */
-CAN_RUN_FUNC(Grzip, "grzip -V");
+CAN_RUN_FUNC(Grzip, "grzip -V")
 
 /*
  * Can this platform run the gzip program?
  */
-CAN_RUN_FUNC(Gzip, "gzip --help");
+CAN_RUN_FUNC(Gzip, "gzip --help")
 
 /*
  * Can this platform run the lrzip program?
  */
-CAN_RUN_FUNC(Lrzip, "lrzip -V");
+CAN_RUN_FUNC(Lrzip, "lrzip -V")
 
 /*
  * Can this platform run the lz4 program?
  */
-CAN_RUN_FUNC(Lz4, "lz4 --help");
+CAN_RUN_FUNC(Lz4, "lz4 --help")
 
 /*
  * Can this platform run the zstd program?
  */
-CAN_RUN_FUNC(Zstd, "zstd --help");
+CAN_RUN_FUNC(Zstd, "zstd --help")
 
 /*
  * Can this platform run the lzip program?
  */
-CAN_RUN_FUNC(Lzip, "lzip --help");
+CAN_RUN_FUNC(Lzip, "lzip --help")
 
 /*
  * Can this platform run the lzma program?
  */
-CAN_RUN_FUNC(Lzma, "lzma --help");
+CAN_RUN_FUNC(Lzma, "lzma --help")
 
 /*
  * Can this platform run the lzop program?
  */
-CAN_RUN_FUNC(Lzop, "lzop --help");
+CAN_RUN_FUNC(Lzop, "lzop --help")
 
 /*
  * Can this platform run the xz program?
  */
-CAN_RUN_FUNC(Xz, "xz --help");
+CAN_RUN_FUNC(Xz, "xz --help")
 
 /*
  * Can this filesystem handle nodump flags.
