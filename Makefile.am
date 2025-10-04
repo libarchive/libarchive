@@ -526,6 +526,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar5.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
+	libarchive/test/test_read_format_tar_V_negative_size.c \
 	libarchive/test/test_read_format_tar_concatenated.c \
 	libarchive/test/test_read_format_tar_empty_pax.c \
 	libarchive/test/test_read_format_tar_empty_filename.c \
@@ -977,6 +978,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_raw.data.gz.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \
 	libarchive/test/test_read_format_raw.data.uu \
+	libarchive/test/test_read_format_tar_V_negative_size.tar.uu \
 	libarchive/test/test_read_format_tar_concatenated.tar.uu \
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu \
 	libarchive/test/test_read_format_tar_empty_with_gnulabel.tar.uu \
