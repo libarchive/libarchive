@@ -1571,9 +1571,6 @@ setup_current_filesystem(struct archive_read_disk *a)
 #  endif
 #endif
 	int r, xr = 0;
-#if !defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
-	long nm;
-#endif
 
 	t->current_filesystem->synthetic = -1;
 	t->current_filesystem->remote = -1;
