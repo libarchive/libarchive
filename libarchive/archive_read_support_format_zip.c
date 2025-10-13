@@ -82,7 +82,7 @@
 #define ZIP_LOCHDR_LEN		30U
 
 /* maximum length of Mac metadata in MiB */
-#define ZIP_MAX_METADATA	4U
+#define ZIP_MAX_METADATA	10U
 
 struct zip_entry {
 	struct archive_rb_node	node;
