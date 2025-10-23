@@ -237,6 +237,8 @@ OPTION(ENABLE_PCRE2POSIX "Enable the use of the system PCRE2POSIX library if fou
 OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
 OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
+# NOTE: Support is currently experimental, so disabled by default for now
+OPTION(ENABLE_INFLATELIB "Enable the use of the system InflateLib library if found" OFF)
 
 OPTION(ENABLE_TAR "Enable tar building" ON)
 OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" FALSE)
@@ -684,6 +686,22 @@ IF(ZSTD_FOUND)
 ENDIF(ZSTD_FOUND)
 MARK_AS_ADVANCED(CLEAR ZSTD_INCLUDE_DIR)
 MARK_AS_ADVANCED(CLEAR ZSTD_LIBRARY)
+#
+# Find InflateLib
+#
+IF(ENABLE_INFLATELIB)
+  FIND_PACKAGE(inflatelib)
+ELSE()
+  SET(INFLATELIB_FOUND FALSE) # Override cached value
+ENDIF()
+IF(INFLATELIB_FOUNDB_FOUND)
+  SET(HAVE_INFLATELIB 1)
+  SET(HAVE_INFLATELIB_H 1)
+  INCLUDE_DIRECTORIES(${INFLATELIB_INCLUDE_DIR}) # TODO: Just link to inflatelib::inflatelib???
+  LIST(APPEND ADDITIONAL_LIBS ${INFLATELIB_LIBRARIES})
+ENDIF(INFLATELIB_FOUND)
+MARK_AS_ADVANCED(CLEAR INFLATELIB_INCLUDE_DIR)
+MARK_AS_ADVANCED(CLEAR INFLATELIB_LIBRARY)
 
 #
 # Check headers
