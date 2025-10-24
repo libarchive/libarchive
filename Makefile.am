@@ -750,6 +750,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_8.zip.uu \
 	libarchive/test/test_compat_zstd_1.tar.zst.uu \
 	libarchive/test/test_compat_zstd_2.tar.zst.uu \
+	libarchive/test/test_compat_zstd_3.tar.zst.uu \
 	libarchive/test/test_fuzz.cab.uu \
 	libarchive/test/test_fuzz.lzh.uu \
 	libarchive/test/test_fuzz_1.iso.Z.uu \
