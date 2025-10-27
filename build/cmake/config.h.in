@@ -1294,6 +1294,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <zstd.h> header file. */
 #cmakedefine HAVE_ZSTD_H 1
 
+/* Define to 1 if you have the <inflatelib.h> header file */
+#cmakedefine HAVE_INFLATELIB_H 1
+
 /* Define to 1 if you have the `ctime_s' function. */
 #cmakedefine HAVE_CTIME_S 1
 
