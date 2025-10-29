@@ -1171,3 +1171,74 @@ DEFINE_TEST(test_read_format_zip_7z_deflate)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_zip_deflate64)
+{
+#if !defined(HAVE_INFLATELIB_H)
+	skipping("InflateLib is not available");
+#else
+	const char *refname = "test_read_format_zip_deflate64.zip";
+	struct archive_entry *ae;
+	struct archive *a;
+	char buff[128];
+
+	/*
+	 * This file has a single directory 'xyz...xyz' (repeated 10 times), a
+	 * symlink to this directory named 'dirlink', and inside of the xyz
+	 * directory is a file named 'abc...abc.txt' (repeated 10 times) as well as
+	 * a symlink to this file named 'filelink.txt'.
+	 */
+#define DIRNAME "xyzxyzxyzxyzxyzxyzxyzxyzxyzxyz"
+#define FILENAME "abcabcabcabcabcabcabcabcabcabc.txt"
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 512));
+
+	/* First entry is 'dirlink' */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("ZIP 2.1 (deflation-64-bit)", archive_format_name(a));
+	assertEqualString("dirlink", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualString(DIRNAME "/", archive_entry_symlink(ae));
+
+	/* Next is the directory */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("ZIP 2.0 (uncompressed)", archive_format_name(a));
+	assertEqualString(DIRNAME "/", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+
+	/* Then comes the file */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("ZIP 2.1 (deflation-64-bit)", archive_format_name(a));
+	assertEqualString(DIRNAME "/" FILENAME, archive_entry_pathname(ae));
+	assertEqualInt(30, archive_entry_size(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(30, archive_read_data(a, buff, 31));
+	assertEqualMem(buff, "abcabcabcabcabcabcabcabcabcabc", 30);
+
+	/* And finally 'symlink.txt' */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("ZIP 2.1 (deflation-64-bit)", archive_format_name(a));
+	assertEqualString(DIRNAME "/symlink.txt", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualString(FILENAME, archive_entry_symlink(ae));
+
+	/* No more entries */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualString("ZIP 2.1 (deflation-64-bit)", archive_format_name(a));
+
+	/* Verify the number of files read. */
+	failure("the archive file has four files");
+	assertEqualInt(4, archive_file_count(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
+	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
+}
