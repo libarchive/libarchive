@@ -1186,7 +1186,7 @@ DEFINE_TEST(test_read_format_zip_deflate64)
 	 * This file has a single directory 'xyz...xyz' (repeated 10 times), a
 	 * symlink to this directory named 'dirlink', and inside of the xyz
 	 * directory is a file named 'abc...abc.txt' (repeated 10 times) as well as
-	 * a symlink to this file named 'filelink.txt'.
+	 * a symlink to this file named 'symlink.txt'.
 	 */
 #define DIRNAME "xyzxyzxyzxyzxyzxyzxyzxyzxyzxyz"
 #define FILENAME "abcabcabcabcabcabcabcabcabcabc.txt"
