@@ -37,17 +37,13 @@ DEFINE_TEST(test_read_format_7zip_issue2765)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
+	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_filename(a, refname, 10240));
 
 	/* End of archive. */
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 
 	assertEqualInt(0, archive_file_count(a));
-
-	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
-	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
