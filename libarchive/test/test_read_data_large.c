@@ -96,7 +96,7 @@ DEFINE_TEST(test_read_data_large)
 #else
 	tmpfilefd = open(tmpfilename, O_WRONLY | O_CREAT | O_BINARY, 0777);
 #endif
-	assert(tmpfilefd != 0);
+	assert(tmpfilefd >= 0);
 	assertEqualIntA(a, 0, archive_read_data_into_fd(a, tmpfilefd));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
