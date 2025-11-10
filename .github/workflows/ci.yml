@@ -47,7 +47,7 @@ jobs:
       run: ./build/ci/build.sh -a artifact
       env:
         BS: ${{ matrix.bs }}
-    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+    - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       with:
         name: libarchive-macos-${{ matrix.bs }}-${{ github.sha }}
         path: libarchive.tar.xz
@@ -93,7 +93,7 @@ jobs:
       run: ./build/ci/build.sh -a artifact
       env:
         BS: ${{ matrix.bs }}
-    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+    - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       with:
         name: libarchive-ubuntu-${{ matrix.bs }}-${{ matrix.crypto }}-${{ github.sha }}
         path: libarchive.tar.xz
@@ -115,7 +115,7 @@ jobs:
         SKIP_OPEN_FD_ERR_TEST: 1
     - name: Dist-Artifact
       run: ./build/ci/build.sh -a dist-artifact
-    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+    - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       with:
         name: libarchive-${{ github.sha }}
         path: libarchive-dist.tar
@@ -163,7 +163,7 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
-    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+    - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       with:
         name: libarchive-windows-${{ matrix.be }}-${{ github.sha }}
         path: libarchive.zip
