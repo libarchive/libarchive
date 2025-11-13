@@ -49,6 +49,16 @@
 /* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
+#ifndef IO_REPARSE_TAG_MOUNT_POINT
+/* Old SDKs do not provide IO_REPARSE_TAG_MOUNT_POINT, which we need for
+ * junction support (we treat them like symlinks and so need to be able
+ * to detect them) */
+#define	IO_REPARSE_TAG_MOUNT_POINT 0xA0000003
+#endif
+/* To deal with absolute symlink issues */
+#define START_ABSOLUTE_SYMLINK_REPARSE L"\\??\\"
+
+#define MAX_FILESYSTEM_ID 1000000
 
 /*-
  * This is a new directory-walking system that addresses a number
@@ -362,7 +372,8 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname, int *linktype)
 	}
 
 	buf = (REPARSE_DATA_BUFFER *) indata;
-	if (buf->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
+	if (buf->ReparseTag != IO_REPARSE_TAG_SYMLINK &&
+		buf->ReparseTag != IO_REPARSE_TAG_MOUNT_POINT) {
 		free(indata);
 		/* File is not a symbolic link */
 		errno = EINVAL;
@@ -2032,7 +2043,8 @@ entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
 		mode |= S_IWUSR | S_IWGRP | S_IWOTH;
 	if ((bhfi->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
 	    findData != NULL &&
-	    findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK) {
+	    (findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK ||
+		findData->dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT)) {
 		mode |= S_IFLNK;
 		entry_symlink_from_pathw(entry, path);
 	} else if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
@@ -2163,7 +2175,7 @@ tree_current_is_physical_dir(struct tree *t)
 }
 
 /*
- * Test whether current entry is a symbolic link.
+ * Test whether current entry is a symbolic link or a junction.
  */
 static int
 tree_current_is_physical_link(struct tree *t)
@@ -2171,8 +2183,8 @@ tree_current_is_physical_link(struct tree *t)
 	if (t->findData)
 		return ((t->findData->dwFileAttributes
 			        & FILE_ATTRIBUTE_REPARSE_POINT) &&
-			(t->findData->dwReserved0
-			    == IO_REPARSE_TAG_SYMLINK));
+			(t->findData->dwReserved0 == IO_REPARSE_TAG_SYMLINK ||
+			t->findData->dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT));
 	return (0);
 }
 
@@ -2321,7 +2333,8 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			if (!a->follow_symlinks &&
 			    (findData.dwFileAttributes
 			      & FILE_ATTRIBUTE_REPARSE_POINT) &&
-				  (findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)) {
+				  (findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK ||
+				  findData.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT)) {
 				flag |= FILE_FLAG_OPEN_REPARSE_POINT;
 				desiredAccess = 0;
 			} else if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
