@@ -28,7 +28,7 @@
  * Read a zip file that has a zip comment in the end of the central
  * directory record.
  */
-static void do_mac_metadata_test(const char *refname)
+static void do_zip_mac_metadata_test(const char *refname)
 {
 	char *p;
 	size_t s;
@@ -116,7 +116,7 @@ static void do_mac_metadata_test(const char *refname)
 
 DEFINE_TEST(test_read_format_zip_mac_metadata)
 {
-	do_mac_metadata_test("test_read_format_zip_mac_metadata.zip");
+	do_zip_mac_metadata_test("test_read_format_zip_mac_metadata.zip");
 }
 
 DEFINE_TEST(test_read_format_zip_mac_metadata_deflate64)
@@ -124,6 +124,6 @@ DEFINE_TEST(test_read_format_zip_mac_metadata_deflate64)
 #if !defined(HAVE_INFLATELIB_H)
 	skipping("InflateLib is not available");
 #else
-	do_mac_metadata_test("test_read_format_zip_mac_metadata_deflate64.zip");
+	do_zip_mac_metadata_test("test_read_format_zip_mac_metadata_deflate64.zip");
 #endif
 }
