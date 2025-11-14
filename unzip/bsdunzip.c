@@ -4,39 +4,12 @@
  * Copyright (c) 2009, 2010 Joerg Sonnenberger <joerg@NetBSD.org>
  * Copyright (c) 2007-2008 Dag-Erling Smørgrav
  * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * This file would be much shorter if we didn't care about command-line
- * compatibility with Info-ZIP's UnZip, which requires us to duplicate
- * parts of libarchive in order to gain more detailed control of its
- * behaviour for the purpose of implementing the -n, -o, -L and -a
- * options.
  */
 
 #include "bsdunzip_platform.h"
 
 #include "la_queue.h"
+#include "la_getline.h"
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -55,6 +28,9 @@
 #endif
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
+#endif
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
 #endif
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
@@ -81,7 +57,7 @@
 
 #include "bsdunzip.h"
 #include "passphrase.h"
-#include "err.h"
+#include "lafe_err.h"
 
 /* command-line options */
 static int		 a_opt;		/* convert EOL */
@@ -138,7 +114,7 @@ static int noeol;
 static char *passphrase_buf;
 
 /* fatal error message + errno */
-static void
+static void __LA_NORETURN
 error(const char *fmt, ...)
 {
 	va_list ap;
@@ -155,7 +131,7 @@ error(const char *fmt, ...)
 }
 
 /* fatal error message, no errno */
-static void
+static void __LA_NORETURN
 errorx(const char *fmt, ...)
 {
 	va_list ap;
@@ -260,7 +236,7 @@ pathdup(const char *path)
 	}
 	if (L_opt) {
 		for (i = 0; i < len; ++i)
-			str[i] = tolower((unsigned char)path[i]);
+			str[i] = (char)tolower((unsigned char)path[i]);
 	} else {
 		memcpy(str, path, len);
 	}
@@ -383,7 +359,7 @@ make_dir(const char *path, int mode)
 		 */
 		(void)unlink(path);
 	}
-	if (mkdir(path, mode) != 0 && errno != EEXIST)
+	if (mkdir(path, (mode_t)mode) != 0 && errno != EEXIST)
 		error("mkdir('%s')", path);
 }
 
@@ -727,7 +703,7 @@ recheck:
 			error("symlink('%s')", *path);
 		info(" extracting: %s -> %s\n", *path, linkname);
 #ifdef HAVE_LCHMOD
-		if (lchmod(*path, mode) != 0)
+		if (lchmod(*path, (mode_t)mode) != 0)
 			warning("Cannot set mode for '%s'", *path);
 #endif
 		/* set access and modification time */
@@ -903,6 +879,7 @@ list(struct archive *a, struct archive_entry *e)
 	char buf[20];
 	time_t mtime;
 	struct tm *tm;
+	const char *pathname;
 
 	mtime = archive_entry_mtime(e);
 	tm = localtime(&mtime);
@@ -911,22 +888,25 @@ list(struct archive *a, struct archive_entry *e)
 	else
 		strftime(buf, sizeof(buf), "%m-%d-%g %R", tm);
 
+	pathname = archive_entry_pathname(e);
+	if (!pathname)
+		pathname = "";
 	if (!zipinfo_mode) {
 		if (v_opt == 1) {
 			printf(" %8ju  %s   %s\n",
 			    (uintmax_t)archive_entry_size(e),
-			    buf, archive_entry_pathname(e));
+			    buf, pathname);
 		} else if (v_opt == 2) {
 			printf("%8ju  Stored  %7ju   0%%  %s  %08x  %s\n",
 			    (uintmax_t)archive_entry_size(e),
 			    (uintmax_t)archive_entry_size(e),
 			    buf,
 			    0U,
-			    archive_entry_pathname(e));
+			    pathname);
 		}
 	} else {
 		if (Z1_opt)
-			printf("%s\n",archive_entry_pathname(e));
+			printf("%s\n", pathname);
 	}
 	ac(archive_read_data_skip(a));
 }
@@ -1209,6 +1189,16 @@ main(int argc, char *argv[])
 {
 	const char *zipfile;
 	int nopts;
+
+#if defined(HAVE_SIGACTION) && defined(SIGCHLD)
+	{ /* Do not ignore SIGCHLD. */
+		struct sigaction sa;
+		sa.sa_handler = SIG_DFL;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sigaction(SIGCHLD, &sa, NULL);
+	}
+#endif
 
 	lafe_setprogname(*argv, "bsdunzip");
 

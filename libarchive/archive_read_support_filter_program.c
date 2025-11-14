@@ -110,7 +110,7 @@ struct program_filter {
 	pid_t		 child;
 #endif
 	int		 exit_status;
-	int		 waitpid_return;
+	pid_t		 waitpid_return;
 	int		 child_stdin, child_stdout;
 
 	char		*out_buf;
@@ -139,7 +139,7 @@ archive_read_support_filter_program_signature(struct archive *_a,
 	/*
 	 * Allocate our private state.
 	 */
-	state = (struct program_bidder *)calloc(1, sizeof (*state));
+	state = calloc(1, sizeof (*state));
 	if (state == NULL)
 		goto memerr;
 	state->cmd = strdup(cmd);
@@ -242,16 +242,13 @@ child_stop(struct archive_read_filter *self, struct program_filter *state)
 			state->waitpid_return
 			    = waitpid(state->child, &state->exit_status, 0);
 		} while (state->waitpid_return == -1 && errno == EINTR);
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		CloseHandle(state->child);
-#endif
 		state->child = 0;
 	}
 
 	if (state->waitpid_return < 0) {
 		/* waitpid() failed?  This is ugly. */
 		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
-		    "Child process exited badly");
+		    "Error closing child process");
 		return (ARCHIVE_WARN);
 	}
 
@@ -398,8 +395,8 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 	size_t l;
 
 	l = strlen(prefix) + strlen(cmd) + 1;
-	state = (struct program_filter *)calloc(1, sizeof(*state));
-	out_buf = (char *)malloc(out_buf_len);
+	state = calloc(1, sizeof(*state));
+	out_buf = malloc(out_buf_len);
 	if (state == NULL || out_buf == NULL ||
 	    archive_string_ensure(&state->description, l) == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,

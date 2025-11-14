@@ -98,7 +98,7 @@ open_filename(struct archive *a, int mbs_fn, const void *filename)
 	struct write_file_data *mine;
 	int r;
 
-	mine = (struct write_file_data *)calloc(1, sizeof(*mine));
+	mine = calloc(1, sizeof(*mine));
 	if (mine == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
 		return (ARCHIVE_FATAL);
@@ -108,6 +108,7 @@ open_filename(struct archive *a, int mbs_fn, const void *filename)
 	else
 		r = archive_mstring_copy_wcs(&mine->filename, filename);
 	if (r < 0) {
+		free(mine);
 		if (errno == ENOMEM) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
@@ -118,7 +119,7 @@ open_filename(struct archive *a, int mbs_fn, const void *filename)
 			    (const char *)filename);
 		else
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
-			    "Can't convert '%S' to MBS",
+			    "Can't convert '%ls' to MBS",
 			    (const wchar_t *)filename);
 		return (ARCHIVE_FAILED);
 	}
@@ -170,7 +171,7 @@ file_open(struct archive *a, void *client_data)
 		else {
 			archive_mstring_get_wcs(a, &mine->filename, &wcs);
 			archive_set_error(a, errno,
-			    "Can't convert '%S' to MBS", wcs);
+			    "Can't convert '%ls' to MBS", wcs);
 		}
 		return (ARCHIVE_FATAL);
 	}
@@ -181,7 +182,7 @@ file_open(struct archive *a, void *client_data)
 		if (mbs != NULL)
 			archive_set_error(a, errno, "Failed to open '%s'", mbs);
 		else
-			archive_set_error(a, errno, "Failed to open '%S'", wcs);
+			archive_set_error(a, errno, "Failed to open '%ls'", wcs);
 		return (ARCHIVE_FATAL);
 	}
 
@@ -189,7 +190,9 @@ file_open(struct archive *a, void *client_data)
 		if (mbs != NULL)
 			archive_set_error(a, errno, "Couldn't stat '%s'", mbs);
 		else
-			archive_set_error(a, errno, "Couldn't stat '%S'", wcs);
+			archive_set_error(a, errno, "Couldn't stat '%ls'", wcs);
+		close(mine->fd);
+		mine->fd = -1;
 		return (ARCHIVE_FATAL);
 	}
 
@@ -227,7 +230,7 @@ file_write(struct archive *a, void *client_data, const void *buff,
 	mine = (struct write_file_data *)client_data;
 	for (;;) {
 		bytesWritten = write(mine->fd, buff, length);
-		if (bytesWritten <= 0) {
+		if (bytesWritten < 0) {
 			if (errno == EINTR)
 				continue;
 			archive_set_error(a, errno, "Write error");

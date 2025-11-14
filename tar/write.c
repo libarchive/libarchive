@@ -1,27 +1,9 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2012 Michihiro NAKAJIMA
  * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "bsdtar_platform.h"
@@ -32,7 +14,9 @@
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
-#ifdef HAVE_ATTR_XATTR_H
+#if HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#elif HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
 #ifdef HAVE_ERRNO_H
@@ -74,7 +58,7 @@
 #endif
 
 #include "bsdtar.h"
-#include "err.h"
+#include "lafe_err.h"
 #include "line_reader.h"
 
 #ifndef O_BINARY
@@ -127,7 +111,32 @@ seek_file(int fd, int64_t offset, int whence)
 	return (SetFilePointerEx((HANDLE)_get_osfhandle(fd),
 		distance, NULL, FILE_BEGIN) ? 1 : -1);
 }
-#define	open _open
+
+static int
+_open_wrap_sopen(char const *const path, int const oflag, ...)
+{
+	va_list ap;
+	int r, pmode;
+
+	pmode = 0;
+	if (oflag & _O_CREAT)
+	{
+		va_start(ap, oflag);
+		pmode = va_arg(ap, int);
+		va_end(ap);
+	}
+
+	_sopen_s(&r, path, oflag, _SH_DENYNO, pmode & 0600);
+	if (r < 0)
+	{
+		/* _sopen_s populates errno */
+		return -1;
+	}
+
+	return r;
+}
+
+#define	open _open_wrap_sopen
 #define	close _close
 #define	read _read
 #ifdef lseek
@@ -698,6 +707,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if ((bsdtar->flags & OPTFLAG_INTERACTIVE) &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
 			continue;
+		edit_mtime(bsdtar, in_entry);
 		if (bsdtar->verbose > 1) {
 			safe_fprintf(stderr, "a ");
 			list_item_verbose(bsdtar, stderr, in_entry);
@@ -924,6 +934,9 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		if (edit_pathname(bsdtar, entry))
 			continue;
 
+		/* Rewrite the mtime. */
+		edit_mtime(bsdtar, entry);
+
 		/* Display entry as we process it. */
 		if (bsdtar->verbose > 1) {
 			safe_fprintf(stderr, "a ");
@@ -982,12 +995,11 @@ write_entry(struct bsdtar *bsdtar, struct archive *a,
 			safe_fprintf(stderr, "a ");
 			list_item_verbose(bsdtar, stderr, entry);
 			lafe_warnc(0, ": %s", archive_error_string(a));
-		} else if (bsdtar->verbose > 0) {
+		} else {
 			lafe_warnc(0, "%s: %s",
 			    archive_entry_pathname(entry),
 			    archive_error_string(a));
-		} else
-			fprintf(stderr, ": %s", archive_error_string(a));
+		}
 	}
 
 	if (e == ARCHIVE_FATAL)

@@ -175,6 +175,12 @@
 /* Define to 1 if you have the `chroot' function. */
 /* #undef HAVE_CHROOT */
 
+/* Define to 1 if you have the `closefrom' function. */
+/* #undef HAVE_CLOSEFROM */
+
+/* Define to 1 if you have the `close_range' function. */
+/* #undef HAVE_CLOSE_RANGE */
+
 /* Define to 1 if you have the <copyfile.h> header file. */
 /* #undef HAVE_COPYFILE_H */
 
@@ -530,9 +536,6 @@
 /* Define to 1 if you have the <lz4.h> header file. */
 /* #undef HAVE_LZ4_H */
 
-/* Define to 1 if you have the <lzmadec.h> header file. */
-/* #undef HAVE_LZMADEC_H */
-
 /* Define to 1 if you have the <lzma.h> header file. */
 /* #undef HAVE_LZMA_H */
 
@@ -622,9 +625,6 @@
 
 /* Define to 1 if you have the <pwd.h> header file. */
 /* #undef HAVE_PWD_H */
-
-/* Define to 1 if you have a POSIX compatible readdir_r */
-#define HAVE_READDIR_R 1
 
 /* Define to 1 if you have the `readlink' function. */
 /* #undef HAVE_READLINK */
@@ -827,6 +827,12 @@
 /* Define to 1 if you have the <sys/xattr.h> header file. */
 /* #undef HAVE_SYS_XATTR_H */
 
+/* Define to 1 if you have the `tcgetattr' function. */
+/* #undef HAVE_TCGETATTR */
+
+/* Define to 1 if you have the `tcsetattr' function. */
+/* #undef HAVE_TCSETATTR */
+
 /* Define to 1 if you have the `timegm' function. */
 /* #undef HAVE_TIMEGM */
 
@@ -892,9 +898,6 @@
 
 /* Define to 1 if you have the <wctype.h> header file. */
 #define HAVE_WCTYPE_H 1
-
-/* Define to 1 if you have the <wincrypt.h> header file. */
-#define HAVE_WINCRYPT_H 1
 
 /* Define to 1 if you have the <windows.h> header file. */
 #define HAVE_WINDOWS_H 1
