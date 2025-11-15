@@ -28,6 +28,8 @@
 
 #define HAVE_CHOWN 1
 #define HAVE_CHROOT 1
+#define HAVE_CLOSEFROM 1
+#define HAVE_CLOSE_RANGE 1
 #define HAVE_CTIME_R 1
 #define HAVE_CTYPE_H 1
 #define HAVE_DECL_EXTATTR_NAMESPACE_USER 0
@@ -153,6 +155,8 @@
 #define HAVE_SYS_VFS_H 1
 #define HAVE_SYS_WAIT_H 1
 #define HAVE_SYS_XATTR_H 1
+#define HAVE_TCGETATTR 1
+#define HAVE_TCSETATTR 1
 #define HAVE_TIMEGM 1
 #define HAVE_TIME_H 1
 #define HAVE_TZSET 1
@@ -178,7 +182,7 @@
 #define HAVE_WMEMCMP 1
 #define HAVE_WMEMCPY 1
 #define HAVE_ZLIB_H 1
-#define ICONV_CONST 
+#define ICONV_CONST
 #define LSTAT_FOLLOWS_SLASHED_SYMLINK 1
 #define SIZEOF_WCHAR_T 4
 #define STDC_HEADERS 1

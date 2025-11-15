@@ -1,16 +1,10 @@
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
-if(POLICY CMP0065)
-  cmake_policy(SET CMP0065 NEW) #3.4 don't use `-rdynamic` with executables
-endif()
-if(POLICY CMP0074)
-  cmake_policy(SET CMP0074 NEW) #3.12.0 `find_package()`` uses ``<PackageName>_ROOT`` variables.
-endif()
-if(POLICY CMP0075)
-  cmake_policy(SET CMP0075 NEW) #3.12.0 `check_include_file()`` and friends use ``CMAKE_REQUIRED_LIBRARIES``.
-endif()
-#
+cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
+
 PROJECT(libarchive C)
+#
+# Include standard installation directories
+include(GNUInstallDirs)
 #
 SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
@@ -83,13 +77,28 @@ SET(LIBARCHIVE_VERSION_STRING  "${VERSION}")
 # libarchive 3.1 == interface version 13
 math(EXPR INTERFACE_VERSION  "13 + ${_minor}")
 
-# Set SOVERSION == Interface version
-# ?? Should there be more here ??
-SET(SOVERSION "${INTERFACE_VERSION}")
+# Set SOVERSION so it matches libtool's conventions
+# libtool accepts a string "current:revision:age"; in libarchive, that's set to
+# - current: ${INTERFACE_VERSION} = 13 + ${_minor}
+# - revision: ${_revision}
+# - age: ${_minor}
+# Since libtool computes SOVERSION as "current - age", it's just '13' again
+math(EXPR SOVERSION "${INTERFACE_VERSION} - ${_minor}")
+set(SOVERSION_FULL "${SOVERSION}.${_trimmed_minor}.${_trimmed_revision}")
+
+# Override CMake's default shared library versioning scheme, which uses SOVERSION and VERSION,
+# to match libtool's conventions (see https://github.com/mesonbuild/meson/issues/1451)
+# - compatibility version: current + 1 = ${INTERFACE_VERSION} + 1
+# - current version: ${current + 1}.${revision}
+math(EXPR MACHO_COMPATIBILITY_VERSION "${INTERFACE_VERSION} + 1")
+set(MACHO_CURRENT_VERSION "${MACHO_COMPATIBILITY_VERSION}.${_revision}")
 
 # Enable CMAKE_PUSH_CHECK_STATE() and CMAKE_POP_CHECK_STATE() macros
 # saving and restoring the state of the variables.
 INCLUDE(CMakePushCheckState)
+
+# Enable the pkg-config helpers.
+INCLUDE(FindPkgConfig)
 
 # Initialize the state of the variables. This initialization is not
 # necessary but this shows you what value the variables initially have.
@@ -222,6 +231,7 @@ OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
 OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
 OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
+OPTION(ENABLE_WIN32_XMLLITE "Enable the use of the Windows XmlLite library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
 OPTION(ENABLE_PCRE2POSIX "Enable the use of the system PCRE2POSIX library if found" ON)
 OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
@@ -247,6 +257,10 @@ OPTION(ENABLE_ICONV "Enable iconv support" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 OPTION(ENABLE_COVERAGE "Enable code coverage (GCC only, automatically sets ENABLE_TEST to ON)" FALSE)
 OPTION(ENABLE_INSTALL "Enable installing of libraries" ON)
+
+IF(WIN32 AND MSVC)
+  OPTION(MSVC_USE_STATIC_CRT "Use static CRT" OFF)
+ENDIF()
 
 SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
@@ -277,18 +291,6 @@ IF(WIN32)
     SET(NTDDI_VERSION 0x06000100)
     SET(_WIN32_WINNT 0x0600)
     SET(WINVER 0x0600)
-  ELSEIF(WINDOWS_VERSION STREQUAL "VISTA")
-    SET(NTDDI_VERSION 0x06000000)
-    SET(_WIN32_WINNT 0x0600)
-    SET(WINVER 0x0600)
-  ELSEIF(WINDOWS_VERSION STREQUAL "WS03")
-    SET(NTDDI_VERSION 0x05020000)
-    SET(_WIN32_WINNT 0x0502)
-    SET(WINVER 0x0502)
-  ELSEIF(WINDOWS_VERSION STREQUAL "WINXP")
-    SET(NTDDI_VERSION 0x05010000)
-    SET(_WIN32_WINNT 0x0501)
-    SET(WINVER 0x0501)
   ELSE(WINDOWS_VERSION STREQUAL "WIN10")
     # Default to Windows Server 2003 API if we don't recognize the specifier
     SET(NTDDI_VERSION 0x05020000)
@@ -362,10 +364,12 @@ ENDMACRO (GENERATE_LIST_H)
 # Generate installation rules for man pages.
 #
 MACRO (INSTALL_MAN __mans)
-  FOREACH (_man ${ARGV})
-    STRING(REGEX REPLACE "^.+[.]([1-9])" "\\1" _mansect ${_man})
-    INSTALL(FILES ${_man} DESTINATION "share/man/man${_mansect}")
-  ENDFOREACH (_man)
+  IF(ENABLE_INSTALL)
+    FOREACH (_man ${ARGV})
+      STRING(REGEX REPLACE "^.+[.]([1-9])" "\\1" _mansect ${_man})
+      INSTALL(FILES ${_man} DESTINATION "share/man/man${_mansect}")
+    ENDFOREACH (_man)
+  ENDIF(ENABLE_INSTALL)
 ENDMACRO (INSTALL_MAN __mans)
 #
 # Find out what macro is needed to use libraries on Windows.
@@ -443,7 +447,10 @@ SET(ADDITIONAL_LIBS "")
 # Find ZLIB
 #
 IF(ENABLE_ZLIB)
-  FIND_PACKAGE(ZLIB)
+  # Require zlib >= 1.2.1, see: https://github.com/libarchive/libarchive/issues/615
+  # zlib 1.2.0 should also work, but it is difficult to test for. Let's require
+  # zlib >= 1.2.1 for consistency with the autoconf build.
+  FIND_PACKAGE(ZLIB 1.2.1)
 ELSE()
   SET(ZLIB_FOUND FALSE) # Override cached value
 ENDIF()
@@ -587,6 +594,7 @@ IF(ENABLE_LIBB2)
   FIND_PACKAGE_HANDLE_STANDARD_ARGS(LIBB2 DEFAULT_MSG LIBB2_LIBRARY LIBB2_INCLUDE_DIR)
 ELSE(ENABLE_LIBB2)
   SET(LIBB2_FOUND FALSE) # Override cached value
+  UNSET(LIBB2_PKGCONFIG_VERSION CACHE)
 ENDIF(ENABLE_LIBB2)
 IF(LIBB2_FOUND)
   SET(HAVE_LIBB2 1)
@@ -599,8 +607,13 @@ IF(LIBB2_FOUND)
   SET(CMAKE_REQUIRED_INCLUDES ${LIBB2_INCLUDE_DIR})
   CHECK_FUNCTION_EXISTS(blake2sp_init HAVE_LIBB2)
   CMAKE_POP_CHECK_STATE()
+  pkg_check_modules(LIBB2 libb2)
+  IF(LIBB2_VERSION)
+    SET(LIBB2_PKGCONFIG_VERSION LIBB2_VERSION)
+  ENDIF(LIBB2_VERSION)
 ELSE(LIBB2_FOUND)
   SET(ARCHIVE_BLAKE2 TRUE)
+  UNSET(LIBB2_PKGCONFIG_VERSION CACHE)
 ENDIF(LIBB2_FOUND)
 #
 # Find LZ4
@@ -663,6 +676,7 @@ IF(ZSTD_FOUND)
   SET(CMAKE_REQUIRED_INCLUDES ${ZSTD_INCLUDE_DIR})
   CHECK_FUNCTION_EXISTS(ZSTD_decompressStream HAVE_LIBZSTD)
   CHECK_FUNCTION_EXISTS(ZSTD_compressStream HAVE_ZSTD_compressStream)
+  CHECK_FUNCTION_EXISTS(ZSTD_minCLevel HAVE_ZSTD_minCLevel)
   #
   # TODO: test for static library.
   #
@@ -670,7 +684,6 @@ IF(ZSTD_FOUND)
 ENDIF(ZSTD_FOUND)
 MARK_AS_ADVANCED(CLEAR ZSTD_INCLUDE_DIR)
 MARK_AS_ADVANCED(CLEAR ZSTD_LIBRARY)
-
 
 #
 # Check headers
@@ -765,12 +778,22 @@ IF(ENABLE_CNG)
   LA_CHECK_INCLUDE_FILE("bcrypt.h" HAVE_BCRYPT_H)
   IF(HAVE_BCRYPT_H)
     LIST(APPEND ADDITIONAL_LIBS "bcrypt")
+    # bcrypt supports these algorithms on all available versions
+    SET(ARCHIVE_CRYPTO_MD5        1)
+    SET(ARCHIVE_CRYPTO_MD5_WIN    1)
+    SET(ARCHIVE_CRYPTO_SHA1       1)
+    SET(ARCHIVE_CRYPTO_SHA1_WIN   1)
+    SET(ARCHIVE_CRYPTO_SHA256     1)
+    SET(ARCHIVE_CRYPTO_SHA256_WIN 1)
+    SET(ARCHIVE_CRYPTO_SHA384     1)
+    SET(ARCHIVE_CRYPTO_SHA384_WIN 1)
+    SET(ARCHIVE_CRYPTO_SHA512     1)
+    SET(ARCHIVE_CRYPTO_SHA512_WIN 1)
   ENDIF(HAVE_BCRYPT_H)
 ELSE(ENABLE_CNG)
   UNSET(HAVE_BCRYPT_H CACHE)
 ENDIF(ENABLE_CNG)
 # Following files need windows.h, so we should test it after windows.h test.
-LA_CHECK_INCLUDE_FILE("wincrypt.h" HAVE_WINCRYPT_H)
 LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)
 
 #
@@ -802,7 +825,7 @@ IF(ENABLE_MBEDTLS)
     LA_CHECK_INCLUDE_FILE("mbedtls/aes.h" HAVE_MBEDTLS_AES_H)
     LA_CHECK_INCLUDE_FILE("mbedtls/md.h" HAVE_MBEDTLS_MD_H)
     LA_CHECK_INCLUDE_FILE("mbedtls/pkcs5.h" HAVE_MBEDTLS_PKCS5_H)
-
+    LA_CHECK_INCLUDE_FILE("mbedtls/version.h" HAVE_MBEDTLS_VERSION_H)
   ENDIF(MBEDTLS_FOUND)
   MARK_AS_ADVANCED(CLEAR MBEDTLS_INCLUDE_DIRS)
   MARK_AS_ADVANCED(CLEAR MBEDCRYPTO_LIBRARY)
@@ -825,7 +848,7 @@ IF(ENABLE_NETTLE)
     LA_CHECK_INCLUDE_FILE("nettle/pbkdf2.h" HAVE_NETTLE_PBKDF2_H)
     LA_CHECK_INCLUDE_FILE("nettle/ripemd160.h" HAVE_NETTLE_RIPEMD160_H)
     LA_CHECK_INCLUDE_FILE("nettle/sha.h" HAVE_NETTLE_SHA_H)
-
+    LA_CHECK_INCLUDE_FILE("nettle/version.h" HAVE_NETTLE_VERSION_H)
   ENDIF(NETTLE_FOUND)
   MARK_AS_ADVANCED(CLEAR NETTLE_INCLUDE_DIR)
   MARK_AS_ADVANCED(CLEAR NETTLE_LIBRARIES)
@@ -844,6 +867,7 @@ IF(ENABLE_OPENSSL AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
     SET(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY})
     SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
     LA_CHECK_INCLUDE_FILE("openssl/evp.h" HAVE_OPENSSL_EVP_H)
+    LA_CHECK_INCLUDE_FILE("openssl/opensslv.h" HAVE_OPENSSL_OPENSSLV_H)
     CHECK_FUNCTION_EXISTS(PKCS5_PBKDF2_HMAC_SHA1 HAVE_PKCS5_PBKDF2_HMAC_SHA1)
   ENDIF(OPENSSL_FOUND)
 ELSE()
@@ -861,6 +885,14 @@ IF(NOT OPENSSL_FOUND)
     CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
   ENDIF(LIBMD_FOUND)
 ENDIF(NOT OPENSSL_FOUND)
+
+# libbsd for readpassphrase on Haiku
+IF("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
+  MESSAGE(STATUS "Adding libbsd for Haiku")
+  SET(CMAKE_REQUIRED_LIBRARIES "bsd")
+  FIND_LIBRARY(LIBBSD_LIBRARY NAMES bsd)
+  LIST(APPEND ADDITIONAL_LIBS ${LIBBSD_LIBRARY})
+ENDIF("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
 
 #
 # How to prove that CRYPTO functions, which have several names on various
@@ -971,86 +1003,6 @@ main(int argc, char **argv)
 ENDMACRO(CHECK_CRYPTO ALGORITHMS IMPLEMENTATION)
 
 #
-# CRYPTO functions on Windows is defined at archive_windows.c, thus we do not
-# need the test what the functions can be mapped to archive_{crypto name}_init,
-# archive_{crypto name}_update and archive_{crypto name}_final.
-# The functions on Windows use CALG_{crypto name} macro to create a crypt object
-# and then we need to know what CALG_{crypto name} macros is available to show
-# ARCHIVE_CRYPTO_{crypto name}_WIN macros because Windows 2000 and earlier version
-# of Windows XP do not support SHA256, SHA384 and SHA512.
-#
-MACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
-  IF(WIN32 AND NOT CYGWIN)
-    FOREACH(CRYPTO ${CRYPTO_LIST})
-      IF(NOT ARCHIVE_CRYPTO_${CRYPTO})
-      IF(NOT DEFINED ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-	STRING(TOUPPER "${CRYPTO}" crypto)
-	SET(ALGID "")
-	IF ("${CRYPTO}" MATCHES "^MD5$")
-	    SET(ALGID "CALG_MD5")
-	ENDIF ("${CRYPTO}" MATCHES "^MD5$")
-	IF ("${CRYPTO}" MATCHES "^SHA1$")
-	    SET(ALGID "CALG_SHA1")
-	ENDIF ("${CRYPTO}" MATCHES "^SHA1$")
-	IF ("${CRYPTO}" MATCHES "^SHA256$")
-	    SET(ALGID "CALG_SHA_256")
-	ENDIF ("${CRYPTO}" MATCHES "^SHA256$")
-	IF ("${CRYPTO}" MATCHES "^SHA384$")
-	    SET(ALGID "CALG_SHA_384")
-	ENDIF ("${CRYPTO}" MATCHES "^SHA384$")
-	IF ("${CRYPTO}" MATCHES "^SHA512$")
-	    SET(ALGID "CALG_SHA_512")
-	ENDIF ("${CRYPTO}" MATCHES "^SHA512$")
-
-    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.h.in
-      ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/confdefs.h)
-	FILE(READ "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/confdefs.h"
-	     CONFDEFS_H)
-
-	SET(SOURCE "${CONFDEFS_H}
-
-#define ${crypto}_COMPILE_TEST
-#include <windows.h>
-#include <wincrypt.h>
-
-int
-main(int argc, char **argv)
-{
-	return ${ALGID};
-}
-")
-	SET(SOURCE_FILE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/check_crypto_win.c")
-
-	FILE(WRITE "${SOURCE_FILE}" "${SOURCE}")
-	MESSAGE(STATUS "Checking support for ARCHIVE_CRYPTO_${CRYPTO}_WIN")
-
-	TRY_COMPILE(ARCHIVE_CRYPTO_${CRYPTO}_WIN
-	  ${CMAKE_BINARY_DIR}
-	  ${SOURCE_FILE}
-	  CMAKE_FLAGS "-DINCLUDE_DIRECTORIES:STRING=${CMAKE_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/libarchive"
-	  OUTPUT_VARIABLE OUTPUT)
-
-	IF (ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-	    MESSAGE(STATUS
-	        "Checking support for ARCHIVE_CRYPTO_${CRYPTO}_WIN -- found")
-		SET(ARCHIVE_CRYPTO_${CRYPTO} 1)
-	ELSE (ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-	    MESSAGE(STATUS
-	         "Checking support for ARCHIVE_CRYPTO_${CRYPTO}_WIN -- not found")
-    	    FILE(APPEND
-	        ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeOutput.log
-                "Checking support for ARCHIVE_CRYPTO_${CRYPTO}_WIN failed with the following output:\n"
-        	"${OUTPUT}\n"
-        	"Source file was:\n${SOURCE}\n")
-	ENDIF (ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-
-      ENDIF(NOT DEFINED ARCHIVE_CRYPTO_${CRYPTO}_WIN)
-      ENDIF(NOT ARCHIVE_CRYPTO_${CRYPTO})
-    ENDFOREACH(CRYPTO)
-  ENDIF(WIN32 AND NOT CYGWIN)
-ENDMACRO(CHECK_CRYPTO_WIN CRYPTO_LIST)
-
-#
 # Find iconv
 # POSIX defines the second arg as const char **
 # and requires it to be in libc.  But we can accept
@@ -1136,6 +1088,7 @@ IF(ENABLE_ICONV)
       CHECK_ICONV("libiconv" "const")
       CHECK_ICONV("libiconv" "")
       IF (HAVE_ICONV)
+        SET(HAVE_LIBICONV 1)
         LIST(APPEND ADDITIONAL_LIBS ${LIBICONV_PATH})
       ENDIF(HAVE_ICONV)
     ENDIF(NOT HAVE_ICONV AND LIBICONV_PATH)
@@ -1179,6 +1132,7 @@ ELSE(ENABLE_ICONV)
   # (once enabled).
   UNSET(HAVE_LOCALE_CHARSET CACHE)
   UNSET(HAVE_ICONV CACHE)
+  UNSET(HAVE_LIBICONV CACHE)
   UNSET(HAVE_ICONV_libc_ CACHE)
   UNSET(HAVE_ICONV_libc_const CACHE)
   UNSET(HAVE_ICONV_libiconv_ CACHE)
@@ -1208,6 +1162,7 @@ IF(LIBXML2_FOUND)
   SET(CMAKE_REQUIRED_INCLUDES ${ICONV_INCLUDE_DIR} ${LIBXML2_INCLUDE_DIR})
   CHECK_INCLUDE_FILES("libxml/xmlreader.h" HAVE_LIBXML_XMLREADER_H)
   CHECK_INCLUDE_FILES("libxml/xmlwriter.h" HAVE_LIBXML_XMLWRITER_H)
+  CHECK_INCLUDE_FILES("libxml/xmlversion.h" HAVE_LIBXML_XMLVERSION_H)
   # Test if a macro is needed for the library.
   TRY_MACRO_FOR_LIBRARY(
     "${ICONV_INCLUDE_DIR};${LIBXML2_INCLUDE_DIR}"
@@ -1235,6 +1190,25 @@ ELSE(LIBXML2_FOUND)
     SET(HAVE_LIBEXPAT 1)
     LA_CHECK_INCLUDE_FILE("expat.h" HAVE_EXPAT_H)
     CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
+  ELSE(EXPAT_FOUND)
+    IF(WIN32 AND ENABLE_WIN32_XMLLITE)
+      # Check linkage as well; versions of mingw-w64 before v11.0.0
+      # do not contain an import library for xmllite.
+      cmake_push_check_state()
+      SET(CMAKE_REQUIRED_LIBRARIES "xmllite" "uuid")
+      check_c_source_compiles("
+      #include <initguid.h>
+      #include <xmllite.h>
+      int main() {
+        return CreateXmlReader(&IID_IXmlReader, NULL, NULL);
+      }
+      " HAVE_XMLLITE_H)
+      cmake_pop_check_state()
+      IF(HAVE_XMLLITE_H)
+        SET(XMLLITE_FOUND TRUE)
+        LIST(APPEND ADDITIONAL_LIBS "xmllite" "uuid")
+      ENDIF()
+    ENDIF()
   ENDIF(EXPAT_FOUND)
 ENDIF(LIBXML2_FOUND)
 MARK_AS_ADVANCED(CLEAR LIBXML2_INCLUDE_DIR)
@@ -1436,6 +1410,8 @@ CHECK_FUNCTION_EXISTS_GLIBC(arc4random_buf HAVE_ARC4RANDOM_BUF)
 CHECK_FUNCTION_EXISTS_GLIBC(chflags HAVE_CHFLAGS)
 CHECK_FUNCTION_EXISTS_GLIBC(chown HAVE_CHOWN)
 CHECK_FUNCTION_EXISTS_GLIBC(chroot HAVE_CHROOT)
+CHECK_FUNCTION_EXISTS_GLIBC(closefrom HAVE_CLOSEFROM)
+CHECK_FUNCTION_EXISTS_GLIBC(close_range HAVE_CLOSE_RANGE)
 CHECK_FUNCTION_EXISTS_GLIBC(ctime_r HAVE_CTIME_R)
 CHECK_FUNCTION_EXISTS_GLIBC(fchdir HAVE_FCHDIR)
 CHECK_FUNCTION_EXISTS_GLIBC(fchflags HAVE_FCHFLAGS)
@@ -1453,15 +1429,19 @@ CHECK_FUNCTION_EXISTS_GLIBC(ftruncate HAVE_FTRUNCATE)
 CHECK_FUNCTION_EXISTS_GLIBC(futimens HAVE_FUTIMENS)
 CHECK_FUNCTION_EXISTS_GLIBC(futimes HAVE_FUTIMES)
 CHECK_FUNCTION_EXISTS_GLIBC(futimesat HAVE_FUTIMESAT)
+CHECK_FUNCTION_EXISTS_GLIBC(getegid HAVE_GETEGID)
 CHECK_FUNCTION_EXISTS_GLIBC(geteuid HAVE_GETEUID)
 CHECK_FUNCTION_EXISTS_GLIBC(getgrgid_r HAVE_GETGRGID_R)
 CHECK_FUNCTION_EXISTS_GLIBC(getgrnam_r HAVE_GETGRNAM_R)
 CHECK_FUNCTION_EXISTS_GLIBC(getline HAVE_GETLINE)
+CHECK_FUNCTION_EXISTS_GLIBC(getpid HAVE_GETPID)
 CHECK_FUNCTION_EXISTS_GLIBC(getpwnam_r HAVE_GETPWNAM_R)
 CHECK_FUNCTION_EXISTS_GLIBC(getpwuid_r HAVE_GETPWUID_R)
-CHECK_FUNCTION_EXISTS_GLIBC(getpid HAVE_GETPID)
+CHECK_FUNCTION_EXISTS_GLIBC(getresgid HAVE_GETRESGID)
+CHECK_FUNCTION_EXISTS_GLIBC(getresuid HAVE_GETRESUID)
 CHECK_FUNCTION_EXISTS_GLIBC(getvfsbyname HAVE_GETVFSBYNAME)
 CHECK_FUNCTION_EXISTS_GLIBC(gmtime_r HAVE_GMTIME_R)
+CHECK_FUNCTION_EXISTS_GLIBC(issetugid HAVE_ISSETUGID)
 CHECK_FUNCTION_EXISTS_GLIBC(lchflags HAVE_LCHFLAGS)
 CHECK_FUNCTION_EXISTS_GLIBC(lchmod HAVE_LCHMOD)
 CHECK_FUNCTION_EXISTS_GLIBC(lchown HAVE_LCHOWN)
@@ -1480,6 +1460,7 @@ CHECK_FUNCTION_EXISTS_GLIBC(nl_langinfo HAVE_NL_LANGINFO)
 CHECK_FUNCTION_EXISTS_GLIBC(openat HAVE_OPENAT)
 CHECK_FUNCTION_EXISTS_GLIBC(pipe HAVE_PIPE)
 CHECK_FUNCTION_EXISTS_GLIBC(poll HAVE_POLL)
+CHECK_FUNCTION_EXISTS_GLIBC(posix_spawn HAVE_POSIX_SPAWN)
 CHECK_FUNCTION_EXISTS_GLIBC(posix_spawnp HAVE_POSIX_SPAWNP)
 CHECK_FUNCTION_EXISTS_GLIBC(readlink HAVE_READLINK)
 CHECK_FUNCTION_EXISTS_GLIBC(readpassphrase HAVE_READPASSPHRASE)
@@ -1497,6 +1478,8 @@ CHECK_FUNCTION_EXISTS_GLIBC(strnlen HAVE_STRNLEN)
 CHECK_FUNCTION_EXISTS_GLIBC(strrchr HAVE_STRRCHR)
 CHECK_FUNCTION_EXISTS_GLIBC(symlink HAVE_SYMLINK)
 CHECK_FUNCTION_EXISTS_GLIBC(sysconf HAVE_SYSCONF)
+CHECK_FUNCTION_EXISTS_GLIBC(tcgetattr HAVE_TCGETATTR)
+CHECK_FUNCTION_EXISTS_GLIBC(tcsetattr HAVE_TCSETATTR)
 CHECK_FUNCTION_EXISTS_GLIBC(timegm HAVE_TIMEGM)
 CHECK_FUNCTION_EXISTS_GLIBC(tzset HAVE_TZSET)
 CHECK_FUNCTION_EXISTS_GLIBC(unlinkat HAVE_UNLINKAT)
@@ -1506,9 +1489,9 @@ CHECK_FUNCTION_EXISTS_GLIBC(utimes HAVE_UTIMES)
 CHECK_FUNCTION_EXISTS_GLIBC(utimensat HAVE_UTIMENSAT)
 CHECK_FUNCTION_EXISTS_GLIBC(vfork HAVE_VFORK)
 CHECK_FUNCTION_EXISTS_GLIBC(wcrtomb HAVE_WCRTOMB)
-CHECK_FUNCTION_EXISTS_GLIBC(wcscmp HAVE_WCSCMP)
-CHECK_FUNCTION_EXISTS_GLIBC(wcscpy HAVE_WCSCPY)
-CHECK_FUNCTION_EXISTS_GLIBC(wcslen HAVE_WCSLEN)
+check_symbol_exists(wcscmp wchar.h HAVE_WCSCMP)
+check_symbol_exists(wcscpy wchar.h HAVE_WCSCPY)
+check_symbol_exists(wcslen wchar.h HAVE_WCSLEN)
 CHECK_FUNCTION_EXISTS_GLIBC(wctomb HAVE_WCTOMB)
 CHECK_FUNCTION_EXISTS_GLIBC(_fseeki64 HAVE__FSEEKI64)
 CHECK_FUNCTION_EXISTS_GLIBC(_get_timezone HAVE__GET_TIMEZONE)
@@ -1540,12 +1523,6 @@ CHECK_C_SOURCE_COMPILES(
 CHECK_C_SOURCE_COMPILES(
   "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct statfs s; return sizeof(s);}"
   HAVE_STRUCT_STATFS)
-
-# Make sure we have the POSIX version of readdir_r, not the
-# older 2-argument version.
-CHECK_C_SOURCE_COMPILES(
-  "#include <dirent.h>\nint main() {DIR *d = opendir(\".\"); struct dirent e,*r; return readdir_r(d,&e,&r);}"
-  HAVE_READDIR_R)
 
 # dirfd can be either a function or a macro.
 CHECK_C_SOURCE_COMPILES(
@@ -1786,11 +1763,16 @@ IF(ENABLE_XATTR)
   CHECK_LIBRARY_EXISTS(attr "setxattr" "" HAVE_LIBATTR)
   IF(HAVE_LIBATTR)
     SET(CMAKE_REQUIRED_LIBRARIES "attr")
-  ELSE()
+	  pkg_check_modules(LIBATTR libattr)
+	  IF(LIBATTR_VERSION)
+	    SET(LIBATTR_PKGCONFIG_VERSION ${LIBATTR_VERSION})
+	  ENDIF(LIBATTR_VERSION)
+  ELSE(HAVE_LIBATTR)
     CHECK_LIBRARY_EXISTS(gnu "setxattr" "" HAVE_LIBATTR_GNU)
     IF(HAVE_LIBATTR_GNU)
       SET(CMAKE_REQUIRED_LIBRARIES "gnu")
     ENDIF()
+    UNSET(LIBATTR_PKGCONFIG_VERSION CACHE)
   ENDIF(HAVE_LIBATTR)
   CHECK_SYMBOL_EXISTS(EXTATTR_NAMESPACE_USER "sys/types.h;sys/extattr.h" HAVE_DECL_EXTATTR_NAMESPACE_USER)
   CHECK_SYMBOL_EXISTS(XATTR_NOFOLLOW "sys/xattr.h" HAVE_DECL_XATTR_NOFOLLOW)
@@ -1908,6 +1890,12 @@ IF(ENABLE_ACL)
     SET(CMAKE_REQUIRED_LIBRARIES "acl")
     FIND_LIBRARY(ACL_LIBRARY NAMES acl)
     LIST(APPEND ADDITIONAL_LIBS ${ACL_LIBRARY})
+	  pkg_check_modules(LIBACL libacl)
+	  IF(LIBACL_VERSION)
+	    SET(LIBACL_PKGCONFIG_VERSION ${LIBACL_VERSION})
+	  ENDIF(LIBACL_VERSION)
+  ELSE(HAVE_LIBACL)
+    UNSET(LIBACL_PKGCONFIG_VERSION CACHE)
   ENDIF(HAVE_LIBACL)
 
   CHECK_TYPE_EXISTS(acl_t "sys/types.h;sys/acl.h" HAVE_ACL_T)
@@ -2047,6 +2035,12 @@ int main(void) { return ACL_SYNCHRONIZE; }" HAVE_DECL_ACL_SYNCHRONIZE)
     SET(CMAKE_REQUIRED_LIBRARIES "richacl")
     FIND_LIBRARY(RICHACL_LIBRARY NAMES richacl)
     LIST(APPEND ADDITIONAL_LIBS ${RICHACL_LIBRARY})
+	  pkg_check_modules(LIBRICHACL librichacl)
+	  IF(LIBRICHACL_VERSION)
+	    SET(LIBRICHACL_PKGCONFIG_VERSION ${LIBRICHACL_VERSION})
+	  ENDIF(LIBRICHACL_VERSION)
+  ELSE(HAVE_LIBRICHACL)
+    UNSET(LIBRICHACL_PKGCONFIG_VERSION CACHE)
   ENDIF(HAVE_LIBRICHACL)
 
   CHECK_STRUCT_HAS_MEMBER("struct richace" e_type "sys/richacl.h"
@@ -2121,8 +2115,6 @@ CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" OPENSSL)
 # Libmd has to be probed after OpenSSL.
 CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA512" LIBMD)
 
-CHECK_CRYPTO_WIN("MD5;SHA1;SHA256;SHA384;SHA512")
-
 # Check visibility annotations
 SET(OLD_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
 SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fvisibility=hidden -Werror")
@@ -2146,7 +2138,7 @@ INCLUDE(CreatePkgConfigFile)
 #
 # Register installation of PDF documents.
 #
-IF(WIN32 AND NOT CYGWIN)
+IF(WIN32 AND NOT CYGWIN AND ENABLE_INSTALL)
   #
   # On Windows platform, It's better that we install PDF documents
   # on one's computer.
@@ -2158,7 +2150,7 @@ IF(WIN32 AND NOT CYGWIN)
             FILES_MATCHING PATTERN "*.pdf"
     )
   ENDIF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/pdf)
-ENDIF(WIN32 AND NOT CYGWIN)
+ENDIF(WIN32 AND NOT CYGWIN AND ENABLE_INSTALL)
 #
 #
 #
@@ -2167,11 +2159,6 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
 ENDIF(MSVC)
-
-IF(APPLE)
-  # CC_MD5_Init() functions are deprecated on macOS 10.15, but we want to use them
-  ADD_DEFINITIONS(-Wno-deprecated-declarations)
-ENDIF(APPLE)
 
 OPTION(DONT_FAIL_ON_CRC_ERROR "Ignore CRC errors during parsing (For fuzzing)" OFF)
 IF(DONT_FAIL_ON_CRC_ERROR)

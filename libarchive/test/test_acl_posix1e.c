@@ -94,6 +94,11 @@ static struct archive_test_acl_t acls_nfs4[] = {
 	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
 	  ARCHIVE_ENTRY_ACL_READ | ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT,
 	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
+
+	/* Invalid type codes */
+	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS | ARCHIVE_ENTRY_ACL_TYPE_DEFAULT,
+	  ARCHIVE_ENTRY_ACL_READ,
+	  ARCHIVE_ENTRY_ACL_GROUP_OBJ, -1, "" },
 };
 
 DEFINE_TEST(test_acl_posix1e)
@@ -119,7 +124,7 @@ DEFINE_TEST(test_acl_posix1e)
 	failure("Basic ACLs shouldn't be stored as extended ACLs");
 	assert(0 == archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	failure("Basic ACLs should set mode to 0142, not %04o",
-	    archive_entry_mode(ae)&0777);
+	    (unsigned int)archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0142);
 
 	/* With any extended ACL entry, we should read back a full set. */
@@ -136,7 +141,7 @@ DEFINE_TEST(test_acl_posix1e)
 	assertEntryCompareAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0142);
 	failure("Basic ACLs should set mode to 0142, not %04o",
-	    archive_entry_mode(ae)&0777);
+	    (unsigned int)archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0142);
 
 
@@ -146,7 +151,7 @@ DEFINE_TEST(test_acl_posix1e)
 	assertEntryCompareAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0543);
 	failure("Basic ACLs should set mode to 0543, not %04o",
-	    archive_entry_mode(ae)&0777);
+	    (unsigned int)archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0543);
 
 	/*
@@ -157,7 +162,7 @@ DEFINE_TEST(test_acl_posix1e)
 	failure("Basic ACLs shouldn't be stored as extended ACLs");
 	assert(0 == archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	failure("Basic ACLs should set mode to 0142, not %04o",
-	    archive_entry_mode(ae)&0777);
+	    (unsigned int)archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0142);
 
 	/*

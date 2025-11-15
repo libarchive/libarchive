@@ -5,7 +5,7 @@
 ############################################
 IF(ENABLE_UNZIP AND ENABLE_TEST)
   SET(bsdunzip_test_SOURCES
-    ../../libarchive_fe/err.c
+    ../../libarchive_fe/lafe_err.c
     ../../test_utils/test_utils.c
     ../../test_utils/test_main.c
     test.h
@@ -64,7 +64,9 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
       COMMAND bsdunzip_test -vv
                            -p $<TARGET_FILE:bsdunzip>
                            -r ${CMAKE_CURRENT_SOURCE_DIR}
+                           -s
                            ${_testname})
+    SET_TESTS_PROPERTIES(bsdunzip_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)

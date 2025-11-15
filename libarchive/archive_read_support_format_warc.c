@@ -386,7 +386,8 @@ start_over:
 	case LAST_WT:
 	default:
 		/* consume the content and start over */
-		_warc_skip(a);
+		if (_warc_skip(a) < 0)
+			return (ARCHIVE_FATAL);
 		goto start_over;
 	}
 	return (ARCHIVE_OK);
@@ -404,7 +405,7 @@ _warc_read(struct archive_read *a, const void **buf, size_t *bsz, int64_t *off)
 		/* it's our lucky day, no work, we can leave early */
 		*buf = NULL;
 		*bsz = 0U;
-		*off = w->cntoff + 4U/*for \r\n\r\n separator*/;
+		*off = w->cntoff;
 		w->unconsumed = 0U;
 		return (ARCHIVE_EOF);
 	}
@@ -439,7 +440,9 @@ _warc_skip(struct archive_read *a)
 {
 	struct warc_s *w = a->format->data;
 
-	__archive_read_consume(a, w->cntlen + 4U/*\r\n\r\n separator*/);
+	if (__archive_read_consume(a, w->cntlen) < 0 ||
+	    __archive_read_consume(a, 4U/*\r\n\r\n separator*/) < 0)
+		return (ARCHIVE_FATAL);
 	w->cntlen = 0U;
 	w->cntoff = 0U;
 	return (ARCHIVE_OK);

@@ -1,6 +1,5 @@
-/*-
- * Copyright (c) 2003-2015 Tim Kientzle
- * All rights reserved.
+/*-SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (C) 2024 by наб <nabijaczleweli@nabijaczleweli.xyz>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,16 +21,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
 
-#ifndef ARCHIVE_GETDATE_H_INCLUDED
-#define ARCHIVE_GETDATE_H_INCLUDED
+static const char data[] = "!<arch>\narchivemount.1/ 0           0     0     644     0         `\n";
 
-#ifndef __LIBARCHIVE_BUILD
-#error This header is only to be used internally to libarchive.
-#endif
 
-#include <time.h>
+DEFINE_TEST(test_ar_mode)
+{
+	struct archive * ar = archive_read_new();
+	assertEqualInt(archive_read_support_format_all(ar), ARCHIVE_OK);
+	assertEqualInt(archive_read_open_memory(ar, data, sizeof(data) - 1), ARCHIVE_OK);
 
-time_t __archive_get_date(time_t now, const char *);
+	struct archive_entry * entry;
+	assertEqualIntA(ar, archive_read_next_header(ar, &entry), ARCHIVE_OK);
+	assertEqualIntA(ar, archive_entry_mode(entry), S_IFREG | 0644);
 
-#endif
+	archive_read_free(ar);
+}

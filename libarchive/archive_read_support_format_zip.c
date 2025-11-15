@@ -71,6 +71,7 @@
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_read_private.h"
+#include "archive_time_private.h"
 #include "archive_ppmd8_private.h"
 
 #ifndef HAVE_ZLIB_H
@@ -463,27 +464,6 @@ compression_name(const int compression)
 		i++;
 	}
 	return "??";
-}
-
-/* Convert an MSDOS-style date/time into Unix-style time. */
-static time_t
-zip_time(const char *p)
-{
-	int msTime, msDate;
-	struct tm ts;
-
-	msTime = (0xff & (unsigned)p[0]) + 256 * (0xff & (unsigned)p[1]);
-	msDate = (0xff & (unsigned)p[2]) + 256 * (0xff & (unsigned)p[3]);
-
-	memset(&ts, 0, sizeof(ts));
-	ts.tm_year = ((msDate >> 9) & 0x7f) + 80; /* Years since 1900. */
-	ts.tm_mon = ((msDate >> 5) & 0x0f) - 1; /* Month number. */
-	ts.tm_mday = msDate & 0x1f; /* Day of month. */
-	ts.tm_hour = (msTime >> 11) & 0x1f;
-	ts.tm_min = (msTime >> 5) & 0x3f;
-	ts.tm_sec = (msTime << 1) & 0x3e;
-	ts.tm_isdst = -1;
-	return mktime(&ts);
 }
 
 /*
@@ -978,7 +958,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	zip->init_decryption = (zip_entry->zip_flags & ZIP_ENCRYPTED);
 	zip_entry->compression = (char)archive_le16dec(p + 8);
-	zip_entry->mtime = zip_time(p + 10);
+	zip_entry->mtime = dos_to_unix(archive_le32dec(p + 10));
 	zip_entry->crc32 = archive_le32dec(p + 14);
 	if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 		zip_entry->decdat = p[11];
@@ -1751,8 +1731,7 @@ zipx_xz_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for xz decompression");
@@ -1862,8 +1841,7 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 
 	if(!zip->uncompressed_buffer) {
 		zip->uncompressed_buffer_size = 256 * 1024;
-		zip->uncompressed_buffer =
-			(uint8_t*) malloc(zip->uncompressed_buffer_size);
+		zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 
 		if (zip->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
@@ -2136,15 +2114,15 @@ zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
 
 	if(order < 2 || restore_method > 2) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Invalid parameter set in PPMd8 stream (order=%" PRId32 ", "
-		    "restore=%" PRId32 ")", order, restore_method);
+		    "Invalid parameter set in PPMd8 stream (order=%" PRIu32 ", "
+		    "restore=%" PRIu32 ")", order, restore_method);
 		return (ARCHIVE_FAILED);
 	}
 
 	/* Allocate the memory needed to properly decompress the file. */
 	if(!__archive_ppmd8_functions.Ppmd8_Alloc(&zip->ppmd8, mem << 20)) {
 		archive_set_error(&a->archive, ENOMEM,
-		    "Unable to allocate memory for PPMd8 stream: %" PRId32 " bytes",
+		    "Unable to allocate memory for PPMd8 stream: %" PRIu32 " bytes",
 		    mem << 20);
 		return (ARCHIVE_FATAL);
 	}
@@ -2167,8 +2145,7 @@ zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 
 	if(zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -2291,8 +2268,7 @@ zipx_bzip2_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for bzip2 decompression");
@@ -2434,8 +2410,7 @@ zipx_zstd_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = ZSTD_DStreamOutSize();
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 			"No memory for Zstd decompression");
@@ -2574,7 +2549,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	if (zip->uncompressed_buffer == NULL) {
 		zip->uncompressed_buffer_size = 256 * 1024;
 		zip->uncompressed_buffer
-		    = (unsigned char *)malloc(zip->uncompressed_buffer_size);
+		    = malloc(zip->uncompressed_buffer_size);
 		if (zip->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "No memory for ZIP decompression");
@@ -3040,8 +3015,8 @@ init_WinZip_AES_decryption(struct archive_read *a)
 		    p, salt_len, 1000, derived_key, key_len * 2 + 2);
 		if (r != 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Decryption is unsupported due to lack of "
-			    "crypto library");
+			    r == CRYPTOR_STUB_FUNCTION ? "Decryption is unsupported due "
+				"to lack of crypto library" : "Failed to process passphrase");
 			return (ARCHIVE_FAILED);
 		}
 
@@ -3173,7 +3148,6 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		/* We can't decompress this entry, but we will
 		 * be able to skip() it and try the next entry. */
 		return (ARCHIVE_FAILED);
-		break;
 	}
 	if (r != ARCHIVE_OK)
 		return (r);
@@ -3600,7 +3574,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip");
 
-	zip = (struct zip *)calloc(1, sizeof(*zip));
+	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");
@@ -3992,7 +3966,7 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 			zip->has_encrypted_entries = 1;
 		}
 		zip_entry->compression = (char)archive_le16dec(p + 10);
-		zip_entry->mtime = zip_time(p + 12);
+		zip_entry->mtime = dos_to_unix(archive_le32dec(p + 12));
 		zip_entry->crc32 = archive_le32dec(p + 16);
 		if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 			zip_entry->decdat = p[13];
@@ -4392,7 +4366,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip_seekable");
 
-	zip = (struct zip *)calloc(1, sizeof(*zip));
+	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");

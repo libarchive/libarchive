@@ -59,7 +59,7 @@ archive_write_open_FILE(struct archive *a, FILE *f)
 {
 	struct write_FILE_data *mine;
 
-	mine = (struct write_FILE_data *)malloc(sizeof(*mine));
+	mine = malloc(sizeof(*mine));
 	if (mine == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
 		return (ARCHIVE_FATAL);
@@ -85,16 +85,12 @@ file_write(struct archive *a, void *client_data, const void *buff, size_t length
 	size_t	bytesWritten;
 
 	mine = client_data;
-	for (;;) {
-		bytesWritten = fwrite(buff, 1, length, mine->f);
-		if (bytesWritten <= 0) {
-			if (errno == EINTR)
-				continue;
-			archive_set_error(a, errno, "Write error");
-			return (-1);
-		}
-		return (bytesWritten);
+	bytesWritten = fwrite(buff, 1, length, mine->f);
+	if (bytesWritten != length) {
+		archive_set_error(a, errno, "Write error");
+		return (-1);
 	}
+	return (bytesWritten);
 }
 
 static int

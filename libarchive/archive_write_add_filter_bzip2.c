@@ -177,8 +177,7 @@ archive_compressor_bzip2_open(struct archive_write_filter *f)
 				bs -= bs % bpb;
 		}
 		data->compressed_buffer_size = bs;
-		data->compressed
-		    = (char *)malloc(data->compressed_buffer_size);
+		data->compressed = malloc(data->compressed_buffer_size);
 		if (data->compressed == NULL) {
 			archive_set_error(f->archive, ENOMEM,
 			    "Can't allocate data for compression buffer");
@@ -282,6 +281,10 @@ static int
 archive_compressor_bzip2_free(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
+
+	/* May already have been called, but not necessarily. */
+	(void)BZ2_bzCompressEnd(&(data->stream));
+
 	free(data->compressed);
 	free(data);
 	f->data = NULL;

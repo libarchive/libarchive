@@ -91,7 +91,7 @@ unicode_to_utf16be(char *p, uint32_t uc)
 		archive_be16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
 		return (4);
 	} else {
-		archive_be16enc(utf16, uc);
+		archive_be16enc(utf16, (uint16_t)uc);
 		return (2);
 	}
 }
@@ -118,7 +118,7 @@ unicode_to_utf16le(char *p, uint32_t uc)
 		archive_le16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
 		return (4);
 	} else {
-		archive_le16enc(utf16, uc);
+		archive_le16enc(utf16, (uint16_t)uc);
 		return (2);
 	}
 }
@@ -991,6 +991,7 @@ DEFINE_TEST(test_archive_string_update_utf8_koi8)
 	static const char koi8_string[] = "\xD0\xD2\xC9";
 	static const wchar_t wcs_string[] = L"\U0000043f\U00000440\U00000438";
 	struct archive_mstring mstr;
+	struct archive *a;
 	int r;
 
 	memset(&mstr, 0, sizeof(mstr));
@@ -999,6 +1000,15 @@ DEFINE_TEST(test_archive_string_update_utf8_koi8)
 		skipping("KOI8-R locale not available on this system.");
 		return;
 	}
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from KOI8-R to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	archive_write_free(a);
 
 	r = archive_mstring_update_utf8(NULL, &mstr, utf8_string);
 

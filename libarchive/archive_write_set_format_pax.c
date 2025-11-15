@@ -138,7 +138,7 @@ archive_write_set_format_pax(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	pax = (struct pax *)calloc(1, sizeof(*pax));
+	pax = calloc(1, sizeof(*pax));
 	if (pax == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate pax data");
@@ -1414,7 +1414,7 @@ archive_write_pax_header(struct archive_write *a,
 		struct archive_entry *pax_attr_entry;
 		time_t s;
 		int64_t uid, gid;
-		int mode;
+		__LA_MODE_T mode;
 
 		pax_attr_entry = archive_entry_new2(&a->archive);
 		p = entry_name.s;
@@ -1571,7 +1571,7 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	const char *filename, *filename_end;
 	char *p;
 	int need_slash = 0; /* Was there a trailing slash? */
-	size_t suffix_length = 99;
+	size_t suffix_length = 98; /* 99 - 1 for trailing slash */
 	size_t insert_length;
 
 	/* Length of additional dir element to be added. */
@@ -1623,7 +1623,7 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	/* Step 2: Locate the "prefix" section of the dirname, including
 	 * trailing '/'. */
 	prefix = src;
-	prefix_end = prefix + 155;
+	prefix_end = prefix + 154 /* 155 - 1 for trailing / */;
 	if (prefix_end > filename)
 		prefix_end = filename;
 	while (prefix_end > prefix && *prefix_end != '/')
@@ -1944,7 +1944,7 @@ url_encode(const char *in)
 		}
 	}
 
-	out = (char *)malloc(out_len + 1);
+	out = malloc(out_len + 1);
 	if (out == NULL)
 		return (NULL);
 
@@ -1982,7 +1982,7 @@ base64_encode(const char *s, size_t len)
 	char *d, *out;
 
 	/* 3 bytes becomes 4 chars, but round up and allow for trailing NUL */
-	out = (char *)malloc((len * 4 + 2) / 3 + 1);
+	out = malloc((len * 4 + 2) / 3 + 1);
 	if (out == NULL)
 		return (NULL);
 	d = out;
@@ -2037,7 +2037,7 @@ _sparse_list_add_block(struct pax *pax, int64_t offset, int64_t length,
 {
 	struct sparse_block *sb;
 
-	sb = (struct sparse_block *)malloc(sizeof(*sb));
+	sb = malloc(sizeof(*sb));
 	if (sb == NULL)
 		return (ARCHIVE_FATAL);
 	sb->next = NULL;

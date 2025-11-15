@@ -1,3 +1,6 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
 ############################################
 #
 # How to build bsdcpio
@@ -10,8 +13,8 @@ IF(ENABLE_CPIO)
     cpio.c
     cpio.h
     cpio_platform.h
-    ../libarchive_fe/err.c
-    ../libarchive_fe/err.h
+    ../libarchive_fe/lafe_err.c
+    ../libarchive_fe/lafe_err.h
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
@@ -39,8 +42,10 @@ IF(ENABLE_CPIO)
   ENDIF(ENABLE_CPIO_SHARED)
 
   # Installation rules
-  INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)
-  INSTALL_MAN(${bsdcpio_MANS})
+  IF(ENABLE_INSTALL)
+    INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)
+    INSTALL_MAN(${bsdcpio_MANS})
+  ENDIF(ENABLE_INSTALL)
 
 ENDIF(ENABLE_CPIO)
 
