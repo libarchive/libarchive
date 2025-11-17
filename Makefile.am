@@ -708,6 +708,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lz4_2.tar.lz4.uu \
 	libarchive/test/test_compat_lz4_3.tar.lz4.uu \
 	libarchive/test/test_compat_lz4_B4.tar.lz4.uu \
+	libarchive/test/test_compat_lz4_skippable_frames_B4.tar.lz4.uu \
 	libarchive/test/test_compat_lz4_B4BD.tar.lz4.uu \
 	libarchive/test/test_compat_lz4_B4BDBX.tar.lz4.uu \
 	libarchive/test/test_compat_lz4_B5.tar.lz4.uu \
