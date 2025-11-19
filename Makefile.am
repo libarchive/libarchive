@@ -688,9 +688,9 @@ libarchive_test_LDADD= $(LTLIBICONV)
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
 # above.
-libarchive/test/list.h: Makefile
+libarchive/test/list.h: $(libarchive_test_SOURCES)
 	$(MKDIR_P) libarchive/test
-	cat $(top_srcdir)/libarchive/test/test_*.c | grep '^DEFINE_TEST' > libarchive/test/list.h
+	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
 
@@ -1235,9 +1235,9 @@ bsdtar_test_CPPFLAGS=\
 	-I$(top_builddir)/tar/test \
 	$(PLATFORMCPPFLAGS)
 
-tar/test/list.h: Makefile
+tar/test/list.h: $(bsdtar_test_SOURCES)
 	$(MKDIR_P) tar/test
-	cat $(top_srcdir)/tar/test/test_*.c | grep '^DEFINE_TEST' > tar/test/list.h
+	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDTAR
 bsdtar_test_programs= bsdtar_test
@@ -1391,9 +1391,9 @@ bsdcpio_test_CPPFLAGS= \
 	$(PLATFORMCPPFLAGS)
 bsdcpio_test_LDADD=libarchive_fe.la
 
-cpio/test/list.h: Makefile
+cpio/test/list.h: $(bsdcpio_test_SOURCES)
 	$(MKDIR_P) cpio/test
-	cat $(top_srcdir)/cpio/test/test_*.c | grep '^DEFINE_TEST' > cpio/test/list.h
+	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDCPIO
 bsdcpio_test_programs= bsdcpio_test
@@ -1514,9 +1514,9 @@ bsdcat_test_CPPFLAGS= \
 	$(PLATFORMCPPFLAGS)
 bsdcat_test_LDADD=libarchive_fe.la
 
-cat/test/list.h: Makefile
+cat/test/list.h: $(bsdcat_test_SOURCES)
 	$(MKDIR_P) cat/test
-	cat $(top_srcdir)/cat/test/test_*.c | grep '^DEFINE_TEST' > cat/test/list.h
+	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDCAT
 bsdcat_test_programs= bsdcat_test
@@ -1629,9 +1629,9 @@ bsdunzip_test_CPPFLAGS= \
 	$(PLATFORMCPPFLAGS)
 bsdunzip_test_LDADD=libarchive_fe.la
 
-unzip/test/list.h: Makefile
+unzip/test/list.h: $(bsdunzip_test_SOURCES)
 	$(MKDIR_P) unzip/test
-	cat $(top_srcdir)/unzip/test/test_*.c | grep '^DEFINE_TEST' > unzip/test/list.h
+	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDUNZIP
 bsdunzip_test_programs= bsdunzip_test
