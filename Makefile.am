@@ -96,61 +96,73 @@ distclean-local:
 
 include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 
-libarchive_la_SOURCES= \
-	libarchive/archive_acl.c \
+noinst_HEADERS= \
 	libarchive/archive_acl_private.h \
-	libarchive/archive_check_magic.c \
-	libarchive/archive_cmdline.c \
 	libarchive/archive_cmdline_private.h \
 	libarchive/archive_crc32.h \
-	libarchive/archive_cryptor.c \
 	libarchive/archive_cryptor_private.h \
-	libarchive/archive_digest.c \
 	libarchive/archive_digest_private.h \
 	libarchive/archive_endian.h \
-	libarchive/archive_entry.c \
 	libarchive/archive_entry.h \
-	libarchive/archive_entry_copy_stat.c \
-	libarchive/archive_entry_link_resolver.c \
 	libarchive/archive_entry_locale.h \
 	libarchive/archive_entry_private.h \
-	libarchive/archive_entry_sparse.c \
-	libarchive/archive_entry_stat.c \
-	libarchive/archive_entry_strmode.c \
-	libarchive/archive_entry_xattr.c \
-	libarchive/archive_hmac.c \
 	libarchive/archive_hmac_private.h \
-	libarchive/archive_match.c \
 	libarchive/archive_openssl_evp_private.h \
 	libarchive/archive_openssl_hmac_private.h \
-	libarchive/archive_options.c \
 	libarchive/archive_options_private.h \
 	libarchive/archive_pack_dev.h \
-	libarchive/archive_pack_dev.c \
-	libarchive/archive_parse_date.c \
-	libarchive/archive_pathmatch.c \
 	libarchive/archive_pathmatch.h \
 	libarchive/archive_platform.h \
 	libarchive/archive_platform_acl.h \
 	libarchive/archive_platform_stat.h \
 	libarchive/archive_platform_xattr.h \
-	libarchive/archive_ppmd_private.h \
-	libarchive/archive_ppmd7.c \
 	libarchive/archive_ppmd7_private.h \
-	libarchive/archive_ppmd8.c \
 	libarchive/archive_ppmd8_private.h \
+	libarchive/archive_ppmd_private.h \
 	libarchive/archive_private.h \
-	libarchive/archive_random.c \
 	libarchive/archive_random_private.h \
-	libarchive/archive_rb.c \
 	libarchive/archive_rb.h \
+	libarchive/archive_read_disk_private.h \
+	libarchive/archive_read_private.h \
+	libarchive/archive_string.h \
+	libarchive/archive_string_composition.h \
+	libarchive/archive_time_private.h \
+	libarchive/archive_write_disk_private.h \
+	libarchive/archive_write_private.h \
+	libarchive/archive_write_set_format_private.h \
+	libarchive/archive_xxhash.h \
+	libarchive/config_freebsd.h \
+	libarchive/filter_fork.h
+
+libarchive_la_SOURCES= \
+	libarchive/archive_acl.c \
+	libarchive/archive_check_magic.c \
+	libarchive/archive_cmdline.c \
+	libarchive/archive_cryptor.c \
+	libarchive/archive_digest.c \
+	libarchive/archive_entry.c \
+	libarchive/archive_entry_copy_stat.c \
+	libarchive/archive_entry_link_resolver.c \
+	libarchive/archive_entry_sparse.c \
+	libarchive/archive_entry_stat.c \
+	libarchive/archive_entry_strmode.c \
+	libarchive/archive_entry_xattr.c \
+	libarchive/archive_hmac.c \
+	libarchive/archive_match.c \
+	libarchive/archive_options.c \
+	libarchive/archive_pack_dev.c \
+	libarchive/archive_parse_date.c \
+	libarchive/archive_pathmatch.c \
+	libarchive/archive_ppmd7.c \
+	libarchive/archive_ppmd8.c \
+	libarchive/archive_random.c \
+	libarchive/archive_rb.c \
 	libarchive/archive_read.c \
 	libarchive/archive_read_add_passphrase.c \
 	libarchive/archive_read_append_filter.c \
 	libarchive/archive_read_data_into_fd.c \
 	libarchive/archive_read_disk_entry_from_file.c \
 	libarchive/archive_read_disk_posix.c \
-	libarchive/archive_read_disk_private.h \
 	libarchive/archive_read_disk_set_standard_lookup.c \
 	libarchive/archive_read_extract.c \
 	libarchive/archive_read_extract2.c \
@@ -158,12 +170,11 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_open_file.c \
 	libarchive/archive_read_open_filename.c \
 	libarchive/archive_read_open_memory.c \
-	libarchive/archive_read_private.h \
 	libarchive/archive_read_set_format.c \
 	libarchive/archive_read_set_options.c \
 	libarchive/archive_read_support_filter_all.c \
-	libarchive/archive_read_support_filter_bzip2.c \
 	libarchive/archive_read_support_filter_by_code.c \
+	libarchive/archive_read_support_filter_bzip2.c \
 	libarchive/archive_read_support_filter_compress.c \
 	libarchive/archive_read_support_filter_grzip.c \
 	libarchive/archive_read_support_filter_gzip.c \
@@ -194,23 +205,12 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_format_xar.c \
 	libarchive/archive_read_support_format_zip.c \
 	libarchive/archive_string.c \
-	libarchive/archive_string.h \
-	libarchive/archive_string_composition.h \
 	libarchive/archive_string_sprintf.c \
 	libarchive/archive_time.c \
-	libarchive/archive_time_private.h \
 	libarchive/archive_util.c \
 	libarchive/archive_version_details.c \
 	libarchive/archive_virtual.c \
 	libarchive/archive_write.c \
-	libarchive/archive_write_disk_posix.c \
-	libarchive/archive_write_disk_private.h \
-	libarchive/archive_write_disk_set_standard_lookup.c \
-	libarchive/archive_write_open_fd.c \
-	libarchive/archive_write_open_file.c \
-	libarchive/archive_write_open_filename.c \
-	libarchive/archive_write_open_memory.c \
-	libarchive/archive_write_private.h \
 	libarchive/archive_write_add_filter.c \
 	libarchive/archive_write_add_filter_b64encode.c \
 	libarchive/archive_write_add_filter_by_name.c \
@@ -226,6 +226,12 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_add_filter_uuencode.c \
 	libarchive/archive_write_add_filter_xz.c \
 	libarchive/archive_write_add_filter_zstd.c \
+	libarchive/archive_write_disk_posix.c \
+	libarchive/archive_write_disk_set_standard_lookup.c \
+	libarchive/archive_write_open_fd.c \
+	libarchive/archive_write_open_file.c \
+	libarchive/archive_write_open_filename.c \
+	libarchive/archive_write_open_memory.c \
 	libarchive/archive_write_set_format.c \
 	libarchive/archive_write_set_format_7zip.c \
 	libarchive/archive_write_set_format_ar.c \
@@ -235,58 +241,53 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_cpio_newc.c \
 	libarchive/archive_write_set_format_cpio_odc.c \
 	libarchive/archive_write_set_format_filter_by_ext.c \
+	libarchive/archive_write_set_format_gnutar.c \
 	libarchive/archive_write_set_format_iso9660.c \
 	libarchive/archive_write_set_format_mtree.c \
 	libarchive/archive_write_set_format_pax.c \
-	libarchive/archive_write_set_format_private.h \
 	libarchive/archive_write_set_format_raw.c \
 	libarchive/archive_write_set_format_shar.c \
 	libarchive/archive_write_set_format_ustar.c \
 	libarchive/archive_write_set_format_v7tar.c \
-	libarchive/archive_write_set_format_gnutar.c \
 	libarchive/archive_write_set_format_warc.c \
 	libarchive/archive_write_set_format_xar.c \
 	libarchive/archive_write_set_format_zip.c \
 	libarchive/archive_write_set_options.c \
 	libarchive/archive_write_set_passphrase.c \
-	libarchive/archive_xxhash.h \
-	libarchive/config_freebsd.h \
 	libarchive/filter_fork_posix.c \
-	libarchive/filter_fork.h \
 	libarchive/xxhash.c
 
 if INC_WINDOWS_FILES
+noinst_HEADERS+= \
+	libarchive/archive_windows.h
 libarchive_la_SOURCES+= \
 	libarchive/archive_entry_copy_bhfi.c \
 	libarchive/archive_read_disk_windows.c \
-	libarchive/archive_windows.h \
 	libarchive/archive_windows.c \
 	libarchive/archive_write_disk_windows.c \
 	libarchive/filter_fork_windows.c
 endif
 
 if INC_BLAKE2
-libarchive_la_SOURCES+= \
+noinst_HEADERS+= \
 	libarchive/archive_blake2.h \
-	libarchive/archive_blake2_impl.h \
+	libarchive/archive_blake2_impl.h
+libarchive_la_SOURCES+= \
 	libarchive/archive_blake2s_ref.c \
 	libarchive/archive_blake2sp_ref.c
 endif
 
 if INC_LINUX_ACL
 libarchive_la_SOURCES+= libarchive/archive_disk_acl_linux.c
-else
+endif
 if INC_SUNOS_ACL
 libarchive_la_SOURCES+= libarchive/archive_disk_acl_sunos.c
-else
+endif
 if INC_DARWIN_ACL
 libarchive_la_SOURCES+= libarchive/archive_disk_acl_darwin.c
-else
+endif
 if INC_FREEBSD_ACL
 libarchive_la_SOURCES+= libarchive/archive_disk_acl_freebsd.c
-endif
-endif
-endif
 endif
 
 # -no-undefined marks that libarchive doesn't rely on symbols
@@ -351,22 +352,24 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = build/pkgconfig/libarchive.pc
 
 # Sources needed by all test programs
+noinst_HEADERS+= \
+	test_utils/test_common.h \
+	test_utils/test_utils.h
 test_utils_SOURCES= \
-	test_utils/test_utils.c \
-	test_utils/test_utils.h \
 	test_utils/test_main.c \
-	test_utils/test_common.h
+	test_utils/test_utils.c
 
 #
 #
 # libarchive_test program
 #
 #
+noinst_HEADERS+= \
+	libarchive/test/test.h
 libarchive_test_SOURCES= \
 	$(libarchive_la_SOURCES) \
 	$(test_utils_SOURCES) \
 	libarchive/test/read_open_memory.c \
-	libarchive/test/test.h \
 	libarchive/test/test_7zip_filename_encoding.c \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_pax.c \
@@ -673,7 +676,6 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_read_format_zip.c \
 	libarchive/test/test_xattr_platform.c \
 	libarchive/test/test_zip_filename_encoding.c
-
 libarchive_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive \
 	-I$(top_srcdir)/libarchive/test \
@@ -1078,14 +1080,15 @@ libarchive_test_EXTRA_DIST=\
 #
 # Common code for libarchive frontends (cpio, tar)
 #
-libarchive_fe_la_SOURCES= \
-	libarchive_fe/lafe_err.c \
+noinst_HEADERS+= \
 	libarchive_fe/lafe_err.h \
 	libarchive_fe/lafe_platform.h \
-	libarchive_fe/line_reader.c \
 	libarchive_fe/line_reader.h \
-	libarchive_fe/passphrase.c \
 	libarchive_fe/passphrase.h
+libarchive_fe_la_SOURCES= \
+	libarchive_fe/lafe_err.c \
+	libarchive_fe/line_reader.c \
+	libarchive_fe/passphrase.c
 
 libarchive_fe_la_CPPFLAGS= -I$(top_srcdir)/libarchive
 #
@@ -1094,21 +1097,23 @@ libarchive_fe_la_CPPFLAGS= -I$(top_srcdir)/libarchive
 #
 #
 
+noinst_HEADERS+= \
+	tar/bsdtar.h \
+	tar/bsdtar_platform.h
 bsdtar_SOURCES= \
-		tar/bsdtar.c \
-		tar/bsdtar.h \
-		tar/bsdtar_platform.h \
-		tar/cmdline.c \
-		tar/creation_set.c \
-		tar/read.c \
-		tar/subst.c \
-		tar/util.c \
-		tar/write.c
+	tar/bsdtar.c \
+	tar/cmdline.c \
+	tar/creation_set.c \
+	tar/read.c \
+	tar/subst.c \
+	tar/util.c \
+	tar/write.c
 
 if INC_WINDOWS_FILES
+noinst_HEADERS+= \
+	tar/bsdtar_windows.h
 bsdtar_SOURCES+= \
-		tar/bsdtar_windows.h \
-		tar/bsdtar_windows.c
+	tar/bsdtar_windows.c
 endif
 
 bsdtar_DEPENDENCIES= libarchive.la libarchive_fe.la
@@ -1145,9 +1150,11 @@ endif
 # bsdtar_test
 #
 
+noinst_HEADERS+= \
+	tar/test/test.h
+
 bsdtar_test_SOURCES= \
 	$(test_utils_SOURCES) \
-	tar/test/test.h \
 	tar/test/test_0.c \
 	tar/test/test_basic.c \
 	tar/test/test_copy.c \
@@ -1271,16 +1278,18 @@ bsdtar_test_EXTRA_DIST= \
 #
 #
 
+noinst_HEADERS+= \
+	cpio/cpio.h \
+	cpio/cpio_platform.h
 bsdcpio_SOURCES= \
-		cpio/cmdline.c \
-		cpio/cpio.c \
-		cpio/cpio.h \
-		cpio/cpio_platform.h
+	cpio/cmdline.c \
+	cpio/cpio.c
 
 if INC_WINDOWS_FILES
+noinst_HEADERS+= \
+	cpio/cpio_windows.h
 bsdcpio_SOURCES+= \
-		cpio/cpio_windows.h \
-		cpio/cpio_windows.c
+	cpio/cpio_windows.c
 endif
 
 bsdcpio_DEPENDENCIES = libarchive.la libarchive_fe.la
@@ -1319,10 +1328,11 @@ endif
 # bsdcpio_test
 #
 
+noinst_HEADERS+= \
+	cpio/test/test.h
 bsdcpio_test_SOURCES= \
 	$(test_utils_SOURCES) \
 	cpio/cmdline.c \
-	cpio/test/test.h \
 	cpio/test/test_0.c \
 	cpio/test/test_basic.c \
 	cpio/test/test_cmdline.c \
@@ -1428,13 +1438,15 @@ bsdcpio_test_EXTRA_DIST= \
 #
 #
 
+noinst_HEADERS+= \
+	cat/bsdcat.h \
+	cat/bsdcat_platform.h
 bsdcat_SOURCES= \
-		cat/bsdcat.c \
-		cat/bsdcat.h \
-		cat/bsdcat_platform.h \
-		cat/cmdline.c
+	cat/bsdcat.c \
+	cat/cmdline.c
 
 if INC_WINDOWS_FILES
+noinst_HEADERS+=
 bsdcat_SOURCES+=
 endif
 
@@ -1471,9 +1483,10 @@ endif
 # bsdcat_test
 #
 
+noinst_HEADERS+= \
+	cat/test/test.h
 bsdcat_test_SOURCES= \
 	$(test_utils_SOURCES) \
-	cat/test/test.h \
 	cat/test/test_0.c \
 	cat/test/test_empty_gz.c \
 	cat/test/test_empty_lz4.c \
@@ -1534,16 +1547,18 @@ bsdcat_test_EXTRA_DIST= \
 #
 #
 
+noinst_HEADERS+= \
+	unzip/bsdunzip.h \
+	unzip/bsdunzip_platform.h \
+	unzip/la_getline.h \
+	unzip/la_queue.h
 bsdunzip_SOURCES= \
-		unzip/bsdunzip.c \
-		unzip/bsdunzip.h \
-		unzip/bsdunzip_platform.h \
-		unzip/cmdline.c \
-		unzip/la_getline.c \
-		unzip/la_getline.h \
-		unzip/la_queue.h
+	unzip/bsdunzip.c \
+	unzip/cmdline.c \
+	unzip/la_getline.c
 
 if INC_WINDOWS_FILES
+noinst_HEADERS+=
 bsdunzip_SOURCES+=
 endif
 
@@ -1580,9 +1595,10 @@ endif
 # bsdunzip_test
 #
 
+noinst_HEADERS+= \
+	unzip/test/test.h
 bsdunzip_test_SOURCES= \
 	$(test_utils_SOURCES) \
-	unzip/test/test.h \
 	unzip/test/test_0.c \
 	unzip/test/test_basic.c \
 	unzip/test/test_doubledash.c \
