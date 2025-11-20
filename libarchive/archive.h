@@ -397,6 +397,8 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define ARCHIVE_READ_FORMAT_CAPS_NONE (0) /* no special capabilities */
 #define ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA (1<<0)  /* reader can detect encrypted data */
 #define ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA (1<<1)  /* reader can detect encryptable metadata (pathname, mtime, etc.) */
+#define ARCHIVE_READ_FORMAT_CAPS_ARCHIVE_COMMENT (1<<2)  /* reader can return per-archive comments */
+#define ARCHIVE_READ_FORMAT_CAPS_ENTRY_COMMENT (1<<3)  /* reader can return per-entry comments */
 
 /*
  * Codes returned by archive_read_has_encrypted_entries().
@@ -686,6 +688,23 @@ __LA_DECL int archive_read_set_options(struct archive *_a,
 __LA_DECL int archive_read_add_passphrase(struct archive *, const char *);
 __LA_DECL int archive_read_set_passphrase_callback(struct archive *,
 			    void *client_data, archive_passphrase_callback *);
+
+/*
+ * Get the archive comment. Returns ARCHIVE_WARN if the format doesn't
+ * support them, ARCHIVE_OK otherwise. The char** parameter is libarchive's
+ * to write a pointer to the comment in, NULL is written there if there
+ * aren't any and the size_t* parameter is for libarchive to write the
+ * comment size in, it should be ignored if the comment is NULL.
+ */
+__LA_DECL int archive_get_comment(struct archive *, char **, size_t *);
+/*
+ * Set the archive comment. Returns ARCHIVE_WARN if the format doesn't support
+ * them, ARCHIVE_FAILED if the comment is invalid for the format, ARCHIVE_OK
+ * otherwise. The char* parameter is the comment data, put NULL to clear the
+ * comment, the size_t parameter is the size of the comment, it's ignored if
+ * the data is NULL. 
+ */
+__LA_DECL int archive_set_comment(struct archive *, const char *, size_t);
 
 
 /*-
