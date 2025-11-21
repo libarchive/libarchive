@@ -969,6 +969,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_stored_manyfiles.rar.uu \
 	libarchive/test/test_read_format_rar5_symlink.rar.uu \
 	libarchive/test/test_read_format_rar5_truncated_huff.rar.uu \
+	libarchive/test/test_read_format_rar5_unicode.rar.uu \
 	libarchive/test/test_read_format_rar5_win32.rar.uu \
 	libarchive/test/test_read_format_rar5_arm_filter_on_window_boundary.rar.uu \
 	libarchive/test/test_read_format_rar5_different_winsize_on_merge.rar.uu \
