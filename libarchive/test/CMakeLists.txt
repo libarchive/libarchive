@@ -167,6 +167,7 @@ IF(ENABLE_TEST)
     test_read_format_rar_filter.c
     test_read_format_rar_overflow.c
     test_read_format_rar5.c
+    test_read_format_rar5_solid_split.c
     test_read_format_raw.c
     test_read_format_tar.c
     test_read_format_tar_V_negative_size.c
