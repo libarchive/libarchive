@@ -212,8 +212,9 @@ static int	checksum(struct archive_read *, const void *);
 static int 	pax_attribute(struct archive_read *, struct tar *,
 		    struct archive_entry *, const char *key, size_t key_length,
 		    size_t value_length, int64_t *unconsumed);
-static int	pax_attribute_LIBARCHIVE_xattr(struct archive_entry *,
-		    const char *, size_t, const char *, size_t);
+static int	pax_attribute_LIBARCHIVE_xattr(struct archive_read *,
+		    struct archive_entry *, const char *, size_t,
+		    const char *, size_t);
 static int	pax_attribute_SCHILY_acl(struct archive_read *, struct tar *,
 		    struct archive_entry *, size_t, int);
 static int	pax_attribute_SUN_holesdata(struct archive_read *, struct tar *,
@@ -2138,8 +2139,9 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 }
 
 static int
-pax_attribute_LIBARCHIVE_xattr(struct archive_entry *entry,
-	const char *name, size_t name_length, const char *value, size_t value_length)
+pax_attribute_LIBARCHIVE_xattr(struct archive_read *a,
+	struct archive_entry *entry, const char *name, size_t name_length,
+	const char *value, size_t value_length)
 {
 	char *name_decoded;
 	void *value_decoded;
@@ -2156,7 +2158,18 @@ pax_attribute_LIBARCHIVE_xattr(struct archive_entry *entry,
 	/* Base-64 decode value */
 	value_decoded = base64_decode(value, value_length, &value_len);
 	if (value_decoded == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Failed to decode xattr `%.*s'", (int)name_length, name);
 		free(name_decoded);
+		return 1;
+	}
+
+	if (value_len > xattr_limit) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Unreasonably large xattr: %zu > %zu",
+		    value_len, xattr_limit);
+		free(name_decoded);
+		free(value_decoded);
 		return 1;
 	}
 
@@ -2546,20 +2559,16 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			else if (key_length > 6 && memcmp(key, "xattr.", 6) == 0) {
 				key_length -= 6;
 				key += 6;
-				if (value_length > xattr_limit) {
+				p = __archive_read_ahead(a, value_length, &bytes_read);
+				if (p == NULL) {
+					archive_set_error(&a->archive, EINVAL,
+							  "Truncated archive"
+							  " detected while reading xattr information");
+					return (ARCHIVE_FATAL);
+				}
+				if (pax_attribute_LIBARCHIVE_xattr(a, entry, key, key_length, p, value_length)) {
+					/* Unable to parse xattr */
 					err = ARCHIVE_WARN;
-				} else {
-					p = __archive_read_ahead(a, value_length, &bytes_read);
-					if (p == NULL) {
-						archive_set_error(&a->archive, EINVAL,
-								  "Truncated archive"
-								  " detected while reading xattr information");
-						return (ARCHIVE_FATAL);
-					}
-					if (pax_attribute_LIBARCHIVE_xattr(entry, key, key_length, p, value_length)) {
-						/* TODO: Unable to parse xattr */
-						err = ARCHIVE_WARN;
-					}
 				}
 				__archive_read_consume(a, value_length);
 				return (err);
