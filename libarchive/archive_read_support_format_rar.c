@@ -392,6 +392,9 @@ struct rar
    * Custom field to denote that this archive contains encrypted entries
    */
   int has_encrypted_entries;
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+  char cmt_found;
+#endif
 };
 
 static int archive_read_support_format_rar_capabilities(struct archive_read *);
@@ -1084,8 +1087,13 @@ archive_read_format_rar_read_header(struct archive_read *a,
       break;
 
     case NEWSUB_HEAD:
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+      if ((ret = read_header(a, entry, head_type)) < ARCHIVE_WARN || rar->cmt_found == 1)
+        return ret;
+#else
       if ((ret = read_header(a, entry, head_type)) < ARCHIVE_WARN)
         return ret;
+#endif
       break;
 
     default:
@@ -1364,6 +1372,9 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 {
   const void *h;
   const char *p, *endp;
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+  const char *cmt_beginp = NULL;
+#endif
   struct rar *rar;
   struct rar_header rar_header;
   struct rar_file_header file_header;
@@ -1513,6 +1524,9 @@ read_header(struct archive_read *a, struct archive_entry *entry,
    * consumed at the end.
    */
   if (head_type == NEWSUB_HEAD) {
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+    cmt_beginp = p;
+#endif
     size_t distance = p - (const char *)h;
     if (rar->packed_size > INT64_MAX - header_size) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1556,6 +1570,9 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   filename = rar->filename;
   memcpy(filename, p, filename_size);
   filename[filename_size] = '\0';
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+  rar->cmt_found = 0;
+#endif
   if (rar->file_flags & FHD_UNICODE)
   {
     if (filename_size != strlen(filename))
@@ -1683,6 +1700,14 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     while ((strp = strchr(filename, '\\')) != NULL)
       *strp = '/';
     p += filename_size;
+  
+  #ifdef ARCHIVE_EXTRACT_RAR_CMT
+    if (filename_size == 3 && head_type == NEWSUB_HEAD && (strncmp(filename, "CMT", 3) == 0)) {
+      rar->cmt_found = 1;
+      header_size = archive_le16dec(rar_header.size);
+      endp = cmt_beginp;
+    }
+  #endif
   }
 
   /* Split file in multivolume RAR. No more need to process header. */
@@ -1830,8 +1855,13 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->filters.filterstart = INT64_MAX;
 
   /* Don't set any archive entries for non-file header types */
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+  if (head_type == NEWSUB_HEAD && rar->cmt_found == 0)
+    return ret;
+#else
   if (head_type == NEWSUB_HEAD)
     return ret;
+#endif
 
   archive_entry_set_mtime(entry, rar->mtime, rar->mnsec);
   archive_entry_set_ctime(entry, rar->ctime, rar->cnsec);

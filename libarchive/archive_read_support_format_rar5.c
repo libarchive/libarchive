@@ -2069,7 +2069,12 @@ static int process_head_service(struct archive_read* a, struct rar5* rar,
 		return ret;
 
 	rar->file.service = 1;
-
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+	const char *filename = archive_entry_pathname_utf8(entry);
+	if (filename && strncmp(filename, "CMT", 3) == 0 && (block_flags & HFL_DATA)) {
+		return ARCHIVE_OK;
+	}
+#endif
 	/* But skip the data part automatically. It's no use for the user
 	 * anyway.  It contains only service data, not even needed to
 	 * properly unpack the file. */
