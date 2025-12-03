@@ -2538,9 +2538,9 @@ zip_entry_handle_decryption(struct zip *zip, const void **compressed_buff,
 {
 	if (zip->tctx_valid || zip->cctx_valid) {
 		if (zip->decrypted_bytes_remaining < (size_t)*bytes_avail) {
-			unsigned char* decrypted_buffer_end =
+			unsigned char *decrypted_buffer_end =
 			    zip->decrypted_buffer + zip->decrypted_buffer_size;
-			unsigned char* decrypted_data_end = zip->decrypted_ptr +
+			unsigned char *decrypted_data_end = zip->decrypted_ptr +
 			    zip->decrypted_bytes_remaining;
 
 			/* Calculate the space available at the end of the decryption buffer */
