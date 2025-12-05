@@ -144,10 +144,6 @@ DEFINE_TEST(test_read_format_rar_subblock)
 
   /* First header. */
   assertA(0 == archive_read_next_header(a, &ae));
-#ifdef ARCHIVE_EXTRACT_RAR_CMT
-  assertEqualString("CMT", archive_entry_pathname(ae));
-  assertA(0 == archive_read_next_header(a, &ae));
-#endif
   assertEqualString("test.txt", archive_entry_pathname(ae));
   assertA((int)archive_entry_mtime(ae));
   assertA((int)archive_entry_ctime(ae));
@@ -161,11 +157,7 @@ DEFINE_TEST(test_read_format_rar_subblock)
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
-#ifdef ARCHIVE_EXTRACT_RAR_CMT
-  assertEqualInt(2, archive_file_count(a));
-#else
   assertEqualInt(1, archive_file_count(a));
-#endif
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
