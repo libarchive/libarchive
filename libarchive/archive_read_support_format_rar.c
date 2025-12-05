@@ -393,6 +393,7 @@ struct rar
    */
   int has_encrypted_entries;
 #ifdef ARCHIVE_EXTRACT_RAR_CMT
+  char extract_cmt;
   char cmt_found;
 #endif
 };
@@ -899,6 +900,13 @@ archive_read_format_rar_options(struct archive_read *a,
     }
     return (ret);
   }
+
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+  if (strcmp(key, "cmt")  == 0) {
+    rar->extract_cmt = 1;
+		return (ARCHIVE_OK);
+  }
+#endif
 
   /* Note: The "warn" return is just to inform the options
    * supervisor that we didn't handle it.  It will generate
@@ -1702,7 +1710,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     p += filename_size;
   
   #ifdef ARCHIVE_EXTRACT_RAR_CMT
-    if (filename_size == 3 && head_type == NEWSUB_HEAD && (strncmp(filename, "CMT", 3) == 0)) {
+    if (rar->extract_cmt == 1 && filename_size == 3 && head_type == NEWSUB_HEAD && (strncmp(filename, "CMT", 3) == 0)) {
       rar->cmt_found = 1;
       header_size = archive_le16dec(rar_header.size);
       endp = cmt_beginp;
