@@ -69,6 +69,12 @@
 /* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
+#ifndef IO_REPARSE_TAG_MOUNT_POINT
+/* Old SDKs do not provide IO_REPARSE_TAG_MOUNT_POINT, which we need for
+ * junction support (we treat them like symlinks and so need to be able
+ * to detect them) */
+#define	IO_REPARSE_TAG_MOUNT_POINT 0xA0000003
+#endif
 
 static BOOL SetFilePointerEx_perso(HANDLE hFile,
                              LARGE_INTEGER liDistanceToMove,
@@ -286,11 +292,12 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 		FindClose(h);
 	}
 
-	/* Is symlink file ? */
+	/* Is file symlink or junction ? */
 	if (sim_lstat && 
 	    ((findData.dwFileAttributes
 		        & FILE_ATTRIBUTE_REPARSE_POINT) &&
-		(findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)))
+		(findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK ||
+		findData.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT)))
 		flag |= FILE_FLAG_OPEN_REPARSE_POINT;
 
 # if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
@@ -334,7 +341,8 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 	if ((st->dwFileAttributes & FILE_ATTRIBUTE_READONLY) == 0)
 		*mode |= S_IWUSR | S_IWGRP | S_IWOTH;
 	if ((st->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
-	    findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK)
+	    (findData.dwReserved0 == IO_REPARSE_TAG_SYMLINK ||
+		findData.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT))
 		*mode |= S_IFLNK;
 	else if (st->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		*mode |= S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
