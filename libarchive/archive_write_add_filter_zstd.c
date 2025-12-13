@@ -49,6 +49,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_endian.h"
 #include "archive_private.h"
 #include "archive_string.h"
 #include "archive_write_private.h"
@@ -74,6 +75,7 @@ struct private_data {
 	size_t		 cur_frame_in;
 	size_t		 cur_frame_out;
 	size_t		 total_in;
+	size_t		 total_out;
 	ZSTD_CStream	*cstream;
 	ZSTD_outBuffer	 out;
 #else
@@ -431,11 +433,47 @@ archive_compressor_zstd_flush(struct archive_write_filter *f)
 static int
 archive_compressor_zstd_close(struct archive_write_filter *f)
 {
+	struct archive_write *a = (struct archive_write *)f->archive;
 	struct private_data *data = (struct private_data *)f->data;
+	size_t padsize, size;
+	int ret;
 
 	if (data->state == running)
 		data->state = finishing;
-	return (drive_compressor(f, data, 1, NULL, 0));
+	if ((ret = drive_compressor(f, data, 1, NULL, 0)) != ARCHIVE_OK)
+		return (ret);
+#ifdef ZSTD_MAGIC_SKIPPABLE_START
+#define ZSTD_SKIPHDRLEN 8
+	/*
+	 * Pad out with a skippable frame filled with zeroes, otherwise
+	 * libarchive will pad with just zeroes, which will result in a
+	 * decompression failure.
+	 */
+	while (f->bytes_per_block > 1 && data->total_out % f->bytes_per_block != 0) {
+		padsize = f->bytes_per_block -
+		    data->total_out % f->bytes_per_block;
+		if (padsize < ZSTD_SKIPHDRLEN)
+			padsize += f->bytes_per_block;
+		archive_le32enc(data->out.dst + 0, ZSTD_MAGIC_SKIPPABLE_START);
+		archive_le32enc(data->out.dst + 4, padsize - ZSTD_SKIPHDRLEN);
+		ret = __archive_write_filter(f->next_filter, data->out.dst, ZSTD_SKIPHDRLEN);
+		if (ret != ARCHIVE_OK)
+			break;
+		data->total_out += ZSTD_SKIPHDRLEN;
+		padsize -= ZSTD_SKIPHDRLEN;
+		while (padsize > 0) {
+			size = padsize > a->null_length ? a->null_length : padsize;
+			ret = __archive_write_filter(f->next_filter, a->nulls, size);
+			if (ret != ARCHIVE_OK)
+				break;
+			data->total_out += size;
+			padsize -= size;
+		}
+		if (ret != ARCHIVE_OK)
+			break;
+	}
+#endif
+	return (ret);
 }
 
 /*
@@ -479,6 +517,7 @@ drive_compressor(struct archive_write_filter *f,
 		}
 		data->total_in += in.pos - ipos;
 		data->cur_frame_in += in.pos - ipos;
+		data->total_out += data->out.pos - opos;
 		data->cur_frame_out += data->out.pos - opos;
 		if (data->state == running) {
 			if (data->cur_frame_in >= data->max_frame_in ||
