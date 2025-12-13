@@ -358,28 +358,24 @@ static int
 archive_compressor_zstd_open(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
+	size_t bs;
+	void *buf;
 
-	if (data->out.dst == NULL) {
-		size_t bs = ZSTD_CStreamOutSize(), bpb;
-		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
-			/* Buffer size should be a multiple number of
-			 * the of bytes per block for performance. */
-			bpb = archive_write_get_bytes_per_block(f->archive);
-			if (bpb > bs)
-				bs = bpb;
-			else if (bpb != 0)
-				bs -= bs % bpb;
-		}
-		data->out.size = bs;
-		data->out.pos = 0;
-		data->out.dst = malloc(data->out.size);
-		if (data->out.dst == NULL) {
-			archive_set_error(f->archive, ENOMEM,
-			    "Can't allocate data for compression buffer");
-			return (ARCHIVE_FATAL);
-		}
+	f->bytes_per_block = archive_write_get_bytes_per_block(f->archive);
+	bs = ZSTD_CStreamOutSize();
+	/* round up to multiple of archive block size */
+	if (f->bytes_per_block > 1) {
+		bs = ((bs + f->bytes_per_block - 1) / f->bytes_per_block) *
+		    f->bytes_per_block;
 	}
-
+	if ((buf = realloc(data->out.dst, bs)) == NULL) {
+		archive_set_error(f->archive, ENOMEM,
+		    "Can't allocate data for compression buffer");
+		return (ARCHIVE_FATAL);
+	}
+	data->out.dst = buf;
+	data->out.size = bs;
+	data->out.pos = 0;
 	f->write = archive_compressor_zstd_write;
 
 	if (ZSTD_isError(ZSTD_initCStream(data->cstream,
