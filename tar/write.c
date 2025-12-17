@@ -190,7 +190,6 @@ set_reader_options(struct bsdtar *bsdtar, struct archive *a)
 		char *p;
 		/* Set default write options. */
 		if ((p = malloc(module_len + opt_len)) == NULL)
-		if (p == NULL)
 			lafe_errc(1, errno, "Out of memory");
 		/* Prepend magic code to ignore options for
 		 * a format or filters which are not added to
