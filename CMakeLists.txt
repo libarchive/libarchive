@@ -1016,8 +1016,8 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
         CMAKE_C_COMPILER_ID MATCHES "^Clang$")
       #
       # During checking iconv proto type, we should use -Werror to avoid the
-      # success of iconv detection with a warning which success is a miss
-      # detection. So this needs for all build mode(even it's a release mode).
+      # success of iconv detection with a warning, which would be a false
+      # positive.  So this is needed for all build modes, even in release mode.
       #
       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
     ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
