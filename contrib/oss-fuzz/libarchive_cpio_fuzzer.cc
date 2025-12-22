@@ -8,23 +8,11 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "fuzz_helpers.h"
 
 static constexpr size_t kMaxInputSize = 512 * 1024;
 
-struct Buffer {
-  const uint8_t *buf;
-  size_t len;
-};
 
-static ssize_t reader_callback(struct archive *a, void *client_data,
-                               const void **block) {
-  (void)a;
-  Buffer *buffer = reinterpret_cast<Buffer *>(client_data);
-  *block = buffer->buf;
-  ssize_t len = buffer->len;
-  buffer->len = 0;
-  return len;
-}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   if (len == 0 || len > kMaxInputSize) {
@@ -39,7 +27,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   archive_read_support_format_cpio(a);
   archive_read_support_filter_all(a);
 
-  Buffer buffer = {buf, len};
+  Buffer buffer = {buf, len, 0};
   if (archive_read_open(a, &buffer, NULL, reader_callback, NULL) != ARCHIVE_OK) {
     archive_read_free(a);
     return 0;

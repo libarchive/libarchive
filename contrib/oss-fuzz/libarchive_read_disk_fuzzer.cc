@@ -12,49 +12,10 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "fuzz_helpers.h"
 
 static constexpr size_t kMaxInputSize = 16 * 1024;
 
-class DataConsumer {
-public:
-  DataConsumer(const uint8_t *data, size_t size) : data_(data), size_(size), pos_(0) {
-    memset(string_buf_, 0, sizeof(string_buf_));
-  }
-
-  bool empty() const { return pos_ >= size_; }
-
-  uint8_t consume_byte() {
-    if (pos_ >= size_) return 0;
-    return data_[pos_++];
-  }
-
-  const char* consume_string(size_t max_len) {
-    if (max_len > sizeof(string_buf_) - 1) max_len = sizeof(string_buf_) - 1;
-    size_t avail = size_ - pos_;
-    size_t len = (avail < max_len) ? avail : max_len;
-
-    size_t actual_len = 0;
-    while (actual_len < len && pos_ < size_) {
-      char c = static_cast<char>(data_[pos_++]);
-      if (c == '\0') break;
-      // Sanitize path characters for safety
-      if (c == '/' || c == '\\' || c == ':' || c == '\n' || c == '\r') {
-        c = '_';
-      }
-      string_buf_[actual_len++] = c;
-    }
-    string_buf_[actual_len] = '\0';
-    return string_buf_;
-  }
-
-  size_t remaining() const { return size_ - pos_; }
-
-private:
-  const uint8_t *data_;
-  size_t size_;
-  size_t pos_;
-  char string_buf_[256];
-};
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   if (len == 0 || len > kMaxInputSize) {

@@ -8,24 +8,11 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "fuzz_helpers.h"
 
 static constexpr size_t kMaxInputSize = 256 * 1024;
 
-struct Buffer {
-  const uint8_t *buf;
-  size_t len;
-  size_t pos;
-};
 
-static ssize_t reader_callback(struct archive *a, void *client_data,
-                               const void **block) {
-  (void)a;
-  Buffer *buffer = reinterpret_cast<Buffer *>(client_data);
-  *block = buffer->buf + buffer->pos;
-  ssize_t len = buffer->len - buffer->pos;
-  buffer->pos = buffer->len;
-  return len;
-}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   if (len == 0 || len > kMaxInputSize) {
