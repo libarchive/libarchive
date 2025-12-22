@@ -9,76 +9,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <vector>
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "fuzz_helpers.h"
 
 static constexpr size_t kMaxInputSize = 64 * 1024;
 
 static char g_temp_dir[256] = {0};
-
-class DataConsumer {
-public:
-  DataConsumer(const uint8_t *data, size_t size) : data_(data), size_(size), pos_(0) {
-    memset(string_buf_, 0, sizeof(string_buf_));
-  }
-
-  bool empty() const { return pos_ >= size_; }
-
-  uint8_t consume_byte() {
-    if (pos_ >= size_) return 0;
-    return data_[pos_++];
-  }
-
-  uint32_t consume_uint32() {
-    uint32_t val = 0;
-    for (int i = 0; i < 4 && pos_ < size_; i++) {
-      val |= static_cast<uint32_t>(data_[pos_++]) << (i * 8);
-    }
-    return val;
-  }
-
-  int64_t consume_int64() {
-    int64_t val = 0;
-    for (int i = 0; i < 8 && pos_ < size_; i++) {
-      val |= static_cast<int64_t>(data_[pos_++]) << (i * 8);
-    }
-    return val;
-  }
-
-  const char* consume_path(size_t max_len) {
-    if (max_len > sizeof(string_buf_) - 1) max_len = sizeof(string_buf_) - 1;
-    size_t avail = size_ - pos_;
-    size_t len = (avail < max_len) ? avail : max_len;
-
-    size_t actual_len = 0;
-    while (actual_len < len && pos_ < size_) {
-      char c = static_cast<char>(data_[pos_++]);
-      if (c == '\0') break;
-      string_buf_[actual_len++] = c;
-    }
-    string_buf_[actual_len] = '\0';
-    return string_buf_;
-  }
-
-  const uint8_t* consume_bytes(size_t *out_len, size_t max_len) {
-    size_t avail = size_ - pos_;
-    size_t len = (avail < max_len) ? avail : max_len;
-    const uint8_t *ptr = data_ + pos_;
-    pos_ += len;
-    *out_len = len;
-    return ptr;
-  }
-
-  size_t remaining() const { return size_ - pos_; }
-
-private:
-  const uint8_t *data_;
-  size_t size_;
-  size_t pos_;
-  char string_buf_[256];
-};
 
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
   (void)argc;
@@ -130,7 +68,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
 
     // Build a safe path within our temp directory
     char safe_path[512];
-    const char *name = consumer.consume_path(32);
+    const char *name = consumer.consume_string(32);
     snprintf(safe_path, sizeof(safe_path), "%s/%s", g_temp_dir, name);
 
     // Sanitize path to prevent traversal
@@ -156,16 +94,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
 
     archive_entry_set_uid(entry, 1000);
     archive_entry_set_gid(entry, 1000);
-    archive_entry_set_mtime(entry, consumer.consume_int64(), 0);
+    archive_entry_set_mtime(entry, consumer.consume_i64(), 0);
 
     // Write the entry header
     if (archive_write_header(disk, entry) == ARCHIVE_OK) {
       if (S_ISREG(mode)) {
-        size_t data_len;
-        const uint8_t *data = consumer.consume_bytes(&data_len, 256);
+        uint8_t data_buf[256];
+        size_t data_len = consumer.consume_bytes(data_buf, 256);
         archive_entry_set_size(entry, data_len);
         if (data_len > 0) {
-          archive_write_data(disk, data, data_len);
+          archive_write_data(disk, data_buf, data_len);
         }
       }
       archive_write_finish_entry(disk);
@@ -178,10 +116,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   archive_write_close(disk);
   archive_write_free(disk);
 
-  // Clean up extracted files
-  char cmd[600];
-  snprintf(cmd, sizeof(cmd), "rm -rf %s/* 2>/dev/null", g_temp_dir);
-  (void)system(cmd);
+  // Clean up extracted files using nftw (safer than system())
+  remove_directory_tree(g_temp_dir);
+  // Recreate the temp directory for next iteration
+  mkdir(g_temp_dir, 0700);
 
   return 0;
 }

@@ -9,63 +9,9 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "fuzz_helpers.h"
 
 static constexpr size_t kMaxInputSize = 64 * 1024;  // 64KB
-
-// FuzzedDataProvider-like helper for consuming bytes
-class DataConsumer {
-public:
-  DataConsumer(const uint8_t *data, size_t size) : data_(data), size_(size), pos_(0) {
-    memset(string_buf_, 0, sizeof(string_buf_));
-  }
-
-  bool empty() const { return pos_ >= size_; }
-
-  uint8_t consume_byte() {
-    if (pos_ >= size_) return 0;
-    return data_[pos_++];
-  }
-
-  uint32_t consume_uint32() {
-    uint32_t val = 0;
-    for (int i = 0; i < 4 && pos_ < size_; i++) {
-      val |= static_cast<uint32_t>(data_[pos_++]) << (i * 8);
-    }
-    return val;
-  }
-
-  int64_t consume_int64() {
-    int64_t val = 0;
-    for (int i = 0; i < 8 && pos_ < size_; i++) {
-      val |= static_cast<int64_t>(data_[pos_++]) << (i * 8);
-    }
-    return val;
-  }
-
-  const char* consume_string(size_t max_len) {
-    if (max_len > sizeof(string_buf_) - 1) max_len = sizeof(string_buf_) - 1;
-    size_t avail = size_ - pos_;
-    size_t len = (avail < max_len) ? avail : max_len;
-
-    // Copy to internal buffer and null-terminate
-    size_t actual_len = 0;
-    while (actual_len < len && pos_ < size_) {
-      char c = static_cast<char>(data_[pos_++]);
-      if (c == '\0') break;
-      string_buf_[actual_len++] = c;
-    }
-    string_buf_[actual_len] = '\0';
-    return string_buf_;
-  }
-
-  size_t remaining() const { return size_ - pos_; }
-
-private:
-  const uint8_t *data_;
-  size_t size_;
-  size_t pos_;
-  char string_buf_[512];
-};
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   if (len == 0 || len > kMaxInputSize) {
@@ -81,14 +27,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
 
   // Set basic entry properties
   archive_entry_set_pathname(entry, consumer.consume_string(256));
-  archive_entry_set_size(entry, consumer.consume_int64());
-  archive_entry_set_mode(entry, consumer.consume_uint32());
-  archive_entry_set_uid(entry, consumer.consume_uint32());
-  archive_entry_set_gid(entry, consumer.consume_uint32());
-  archive_entry_set_mtime(entry, consumer.consume_int64(), 0);
-  archive_entry_set_atime(entry, consumer.consume_int64(), 0);
-  archive_entry_set_ctime(entry, consumer.consume_int64(), 0);
-  archive_entry_set_birthtime(entry, consumer.consume_int64(), 0);
+  archive_entry_set_size(entry, consumer.consume_i64());
+  archive_entry_set_mode(entry, consumer.consume_u32());
+  archive_entry_set_uid(entry, consumer.consume_u32());
+  archive_entry_set_gid(entry, consumer.consume_u32());
+  archive_entry_set_mtime(entry, consumer.consume_i64(), 0);
+  archive_entry_set_atime(entry, consumer.consume_i64(), 0);
+  archive_entry_set_ctime(entry, consumer.consume_i64(), 0);
+  archive_entry_set_birthtime(entry, consumer.consume_i64(), 0);
 
   // Set various string fields
   archive_entry_set_uname(entry, consumer.consume_string(64));
@@ -98,9 +44,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
 
   // Exercise ACL functions (low coverage targets)
   int acl_type = consumer.consume_byte() & 0x0F;
-  int acl_permset = consumer.consume_uint32();
+  int acl_permset = consumer.consume_u32();
   int acl_tag = consumer.consume_byte() & 0x0F;
-  int acl_qual = consumer.consume_uint32();
+  int acl_qual = consumer.consume_u32();
   const char *acl_name = consumer.consume_string(64);
 
   archive_entry_acl_add_entry(entry, acl_type, acl_permset, acl_tag, acl_qual, acl_name);
@@ -108,9 +54,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   // Add more ACL entries based on remaining data
   while (!consumer.empty() && consumer.remaining() > 10) {
     acl_type = consumer.consume_byte() & 0x0F;
-    acl_permset = consumer.consume_uint32();
+    acl_permset = consumer.consume_u32();
     acl_tag = consumer.consume_byte() & 0x0F;
-    acl_qual = consumer.consume_uint32();
+    acl_qual = consumer.consume_u32();
     acl_name = consumer.consume_string(32);
     archive_entry_acl_add_entry(entry, acl_type, acl_permset, acl_tag, acl_qual, acl_name);
   }
