@@ -777,17 +777,16 @@ __la_seek_stat(const char *path, la_seek_stat_t *st)
 pid_t
 __la_waitpid(HANDLE child, int *status, int option)
 {
-	DWORD cs;
-
-	(void)option;/* UNUSED */
-	do {
-		if (GetExitCodeProcess(child, &cs) == 0) {
-			la_dosmaperr(GetLastError());
-			CloseHandle(child);
-			*status = 0;
-			return (-1);
-		}
-	} while (cs == STILL_ACTIVE);
+    DWORD cs;
+  
+	(void)option; /* UNUSED */ 
+	WaitForSingleObject(child, INFINITE);
+    if (GetExitCodeProcess(child, &cs) == 0) {
+		la_dosmaperr(GetLastError());
+		CloseHandle(child);
+		*status = 0;
+		return (-1);
+	}
 
 	CloseHandle(child);
 	*status = (int)(cs & 0xff);
