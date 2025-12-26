@@ -76,7 +76,7 @@ static BOOL SetFilePointerEx_perso(HANDLE hFile,
 	if(lpNewFilePointer) {
 		lpNewFilePointer->QuadPart = li.QuadPart;
 	}
-	return li.LowPart != -1 || GetLastError() == NO_ERROR;
+	return li.LowPart != INVALID_SET_FILE_POINTER || GetLastError() == NO_ERROR;
 }
 #endif
 
