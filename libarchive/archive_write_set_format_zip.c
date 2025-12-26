@@ -2077,12 +2077,15 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		archive_le32enc(zip->file_header + 16, 0);/* no CRC.*/
 	else
 		archive_le32enc(zip->file_header + 16, zip->entry_crc32);
-	/* Truncate to 32 bits; we'll fix up below. */
-	archive_le32enc(zip->file_header + 20, (uint32_t)zip->entry_compressed_written);
-	archive_le32enc(zip->file_header + 24, (uint32_t)zip->entry_uncompressed_written);
+	/* Use zipmin to ensure values don't exceed 32-bit limits. */
+	archive_le32enc(zip->file_header + 20,
+		(uint32_t)zipmin(zip->entry_compressed_written, ZIP_4GB_MAX));
+	archive_le32enc(zip->file_header + 24,
+		(uint32_t)zipmin(zip->entry_uncompressed_written, ZIP_4GB_MAX));
 	archive_le16enc(zip->file_header + 30,
 	    (uint16_t)(zip->central_directory_bytes - zip->file_header_extra_offset));
-	archive_le32enc(zip->file_header + 42, (uint32_t)zip->entry_offset);
+	archive_le32enc(zip->file_header + 42,
+		(uint32_t)zipmin(zip->entry_offset, ZIP_4GB_MAX));
 
 	/* If any of the values immediately above are too large, we'll
 	 * need to put the corresponding value in a Zip64 extra field
@@ -2121,23 +2124,6 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		if (archive_le16dec(zip->file_header + 6) < 45)
 			archive_le16enc(zip->file_header + 6, 45);
 	}
-
-	/* Fix up central directory file header. */
-	if (zip->cctx_valid && zip->aes_vendor == AES_VENDOR_AE_2)
-		archive_le32enc(zip->file_header + 16, 0);/* no CRC.*/
-	else
-		archive_le32enc(zip->file_header + 16, zip->entry_crc32);
-	archive_le32enc(zip->file_header + 20,
-		(uint32_t)zipmin(zip->entry_compressed_written,
-				 ZIP_4GB_MAX));
-	archive_le32enc(zip->file_header + 24,
-		(uint32_t)zipmin(zip->entry_uncompressed_written,
-				 ZIP_4GB_MAX));
-	archive_le16enc(zip->file_header + 30,
-	    (uint16_t)(zip->central_directory_bytes - zip->file_header_extra_offset));
-	archive_le32enc(zip->file_header + 42,
-		(uint32_t)zipmin(zip->entry_offset,
-				 ZIP_4GB_MAX));
 
 	return (ARCHIVE_OK);
 }
