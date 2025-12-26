@@ -747,7 +747,8 @@ __la_seek_fstat(int fd, la_seek_stat_t *st)
 	int ret;
 
 	ret = __hstat((HANDLE)_get_osfhandle(fd), &u);
-	copy_seek_stat(st, &u);
+	if (ret >= 0)
+		copy_seek_stat(st, &u);
 	return (ret);
 }
 
