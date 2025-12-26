@@ -163,7 +163,7 @@ set_writer_options(struct bsdtar *bsdtar, struct archive *a)
 		 * a format or filters which are not added to
 		 * the archive write object. */
 		memcpy(p, IGNORE_WRONG_MODULE_NAME, module_len);
-		memcpy(p, writer_options, opt_len);
+		memcpy(p + module_len, writer_options, opt_len);
 		r = archive_write_set_options(a, p);
 		free(p);
 		if (r < ARCHIVE_WARN)
@@ -195,7 +195,7 @@ set_reader_options(struct bsdtar *bsdtar, struct archive *a)
 		 * a format or filters which are not added to
 		 * the archive write object. */
 		memcpy(p, IGNORE_WRONG_MODULE_NAME, module_len);
-		memcpy(p, reader_options, opt_len);
+		memcpy(p + module_len, reader_options, opt_len);
 		r = archive_read_set_options(a, p);
 		free(p);
 		if (r < ARCHIVE_WARN)
