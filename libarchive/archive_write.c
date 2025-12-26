@@ -1,4 +1,4 @@
-/*-
+3/*-
  * Copyright (c) 2003-2010 Tim Kientzle
  * All rights reserved.
  *
@@ -714,7 +714,7 @@ _archive_write_free(struct archive *_a)
 	__archive_write_filters_free(_a);
 
 	/* Release various dynamic buffers. */
-	free((void *)(uintptr_t)(const void *)a->nulls);
+	free((void *)a->nulls);
 	archive_string_free(&a->archive.error_string);
 	if (a->passphrase != NULL) {
 		/* A passphrase should be cleaned. */
