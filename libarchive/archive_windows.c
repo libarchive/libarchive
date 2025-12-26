@@ -253,7 +253,7 @@ la_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	createExParams.dwSize = sizeof(createExParams);
 	createExParams.dwFileAttributes = dwFlagsAndAttributes & 0xFFFF;
 	createExParams.dwFileFlags = dwFlagsAndAttributes & 0xFFF00000;
-	createExParams.dwSecurityQosFlags = dwFlagsAndAttributes & 0x000F00000;
+	createExParams.dwSecurityQosFlags = dwFlagsAndAttributes & 0x000F0000;
 	createExParams.lpSecurityAttributes = lpSecurityAttributes;
 	createExParams.hTemplateFile = hTemplateFile;
 	handle = CreateFile2(wpath, dwDesiredAccess, dwShareMode,
