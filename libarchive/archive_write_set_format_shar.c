@@ -242,6 +242,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 				shar_quote(&shar->work, p, 1);
 				archive_strcat(&shar->work,
 				    " > /dev/null 2>&1\n");
+				free(shar->last_dir);
 				shar->last_dir = p;
 			}
 		} else {
