@@ -779,16 +779,18 @@ pid_t
 __la_waitpid(HANDLE child, int *status, int option)
 {
 	DWORD cs;
+	DWORD wait_result;
 
-	(void)option;/* UNUSED */
-	do {
-		if (GetExitCodeProcess(child, &cs) == 0) {
-			la_dosmaperr(GetLastError());
-			CloseHandle(child);
-			*status = 0;
-			return (-1);
-		}
-	} while (cs == STILL_ACTIVE);
+	(void)option; /* UNUSED */
+	wait_result = WaitForSingleObject(child, INFINITE);
+	if (wait_result != WAIT_OBJECT_0 ||
+	    GetExitCodeProcess(child, &cs) == 0)
+	{
+		la_dosmaperr(GetLastError());
+		CloseHandle(child);
+		*status = 0;
+		return (-1);
+	}
 
 	CloseHandle(child);
 	*status = (int)(cs & 0xff);
