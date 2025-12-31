@@ -139,7 +139,12 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
   # either of the following two, yet neither is supported as of 3.0.2
   # - check_linker_flag - does not exist
   # - try_compile - does not support linker flags
-  IF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  IF(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
+    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
+  ELSEIF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+    # SunOS linker doesn't support --gc-sections
+  ELSE()
     # Place the functions and data into separate sections, allowing the linker
     # to garbage collect the unused ones.
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
@@ -148,10 +153,7 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
     # Printing the discarded section is "too much", so enable on demand.
     #SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -Wl,--print-gc-sections")
     #SET(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--print-gc-sections")
-  ELSE()
-    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
-    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
-  ENDIF(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  ENDIF()
 ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
        CMAKE_C_COMPILER_ID MATCHES "^Clang$" AND NOT MSVC)
 IF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
