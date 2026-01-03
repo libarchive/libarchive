@@ -163,6 +163,35 @@ archive_position_uncompressed(struct archive *a)
 	return archive_filter_bytes(a, 0);
 }
 
+const char *
+archive_charset(struct archive *a)
+{
+	if (a->current_code != NULL && a->current_code[0] != '\0') {
+		return a->current_code;
+	} else {
+		return NULL;
+	}
+}
+
+int
+archive_set_charset(struct archive *a, const char *charset)
+{
+	if (a->current_code != NULL) {
+		free(a->current_code);
+	}
+	if (charset != NULL && charset[0] != '\0') {
+		a->current_code = strdup(charset);
+		if (a->current_code == NULL) {
+			archive_set_error(a, ENOMEM,
+				"Can't allocate data for charset");
+			return ARCHIVE_FATAL;
+		}
+	} else {
+		a->current_code = NULL;
+	}
+	return ARCHIVE_OK;
+}
+
 void
 archive_clear_error(struct archive *a)
 {
