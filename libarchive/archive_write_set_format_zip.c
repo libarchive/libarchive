@@ -182,7 +182,7 @@ struct zip {
 	int init_default_conversion;
 	enum encryption encryption_type;
 	short threads;
-
+	char high_precision_time;
 #define ZIP_FLAG_AVOID_ZIP64 1
 #define ZIP_FLAG_FORCE_ZIP64 2
 #define ZIP_FLAG_EXPERIMENT_xl 4
@@ -246,6 +246,12 @@ static int init_traditional_pkware_encryption(struct archive_write *);
 static int is_traditional_pkware_encryption_supported(void);
 static int init_winzip_aes_encryption(struct archive_write *);
 static int is_winzip_aes_encryption_supported(int encryption);
+
+/* Check if time fits in 32-bits Unix time */
+static char
+fits_in_UT(int64_t secs) {
+	return secs >= INT32_MIN && secs <= INT32_MAX;
+}
 
 #ifdef HAVE_LZMA_H
 /* ZIP's LZMA format requires the use of a alas not exposed in LibLZMA
@@ -546,6 +552,14 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->flags &= ~ZIP_FLAG_FORCE_ZIP64;
 			zip->flags |= ZIP_FLAG_AVOID_ZIP64;
 		}
+		return (ARCHIVE_OK);
+	} else if (strcmp(key, "high-resolution-time") == 0) {
+		/*
+		 * Forcing writing of high-resolution timestamps, if the
+		 * related nanosecond fields are set, which uses the NTFS
+		 * time extra data field.
+		 */
+		zip->high_precision_time = (val != NULL && val[0] != 0);
 		return (ARCHIVE_OK);
 	}
 
@@ -1221,19 +1235,47 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 
 	/*
 	 * Following extra blocks vary between local header and
-	 * central directory. These are the local header versions.
-	 * Central directory versions get formatted in
-	 * archive_write_zip_finish_entry() below.
+	 * central directory so, we can't just format the local
+	 * header version and memcpy() it to the central
+	 * directory, we have to format them twice, if applicable.
 	 */
+
+	/* NTFS time, ID=0x000A. Fixed length without a local
+	 * header form, written only if high-precision timestamps
+	 * are requested and exist or if the times won't fit in
+	 * the UT field (NTFS time is a big extra data).
+	 */
+	if ((archive_entry_mtime_is_set(entry)
+		&& (!fits_in_UT(archive_entry_mtime(entry))
+			|| (zip->high_precision_time && archive_entry_mtime_nsec(entry) != 0)))
+	|| (archive_entry_ctime_is_set(entry)
+		&& (!fits_in_UT(archive_entry_ctime(entry))
+			|| (zip->high_precision_time && archive_entry_ctime_nsec(entry) != 0)))
+	|| (archive_entry_atime_is_set(entry)
+		&& (!fits_in_UT(archive_entry_atime(entry))
+			|| (zip->high_precision_time && archive_entry_atime_nsec(entry) != 0))))
+	{
+		memcpy(e, "\xA\0\x20\0", 4);
+		memcpy(e + 8, "\1\0\x18\0", 4); // In the middle is a reserved field, which we skip
+		e += 12;
+		archive_le64enc(e, unix_to_ntfs(archive_entry_mtime(entry), archive_entry_mtime_nsec(entry)));
+		e += 8;
+		archive_le64enc(e, unix_to_ntfs(archive_entry_atime(entry), archive_entry_atime_nsec(entry)));
+		e += 8;
+		archive_le64enc(e, unix_to_ntfs(archive_entry_ctime(entry), archive_entry_ctime_nsec(entry)));
+		e += 8;
+	}
 
 	/* UT timestamp: length depends on what timestamps are set.
 	 * This header appears in the Central Directory also, but
-	 * according to Info-Zip specification, the CD form
-	 * only holds mtime, so we format it separately. */
-	if (archive_entry_mtime_is_set(entry)
-	    || archive_entry_atime_is_set(entry)
-	    || archive_entry_ctime_is_set(entry)) {
-		unsigned char *ut = e;
+	 * according to Info-Zip specification, the CD form only
+	 * holds mtime, so we format it separately. Also, we write
+	 * it only if the times fit.
+	 */
+	if ((archive_entry_mtime_is_set(entry) && fits_in_UT(archive_entry_mtime(entry)))
+	    || (archive_entry_atime_is_set(entry) && fits_in_UT(archive_entry_atime(entry)))
+	    || (archive_entry_ctime_is_set(entry) && fits_in_UT(archive_entry_ctime(entry)))) {
+		unsigned char *et = e;
 		memcpy(e, "UT\000\000", 4);
 		e += 4;
 		*e++ = (archive_entry_mtime_is_set(entry) ? 1 : 0)
@@ -1251,7 +1293,29 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			archive_le32enc(e, (uint32_t)archive_entry_ctime(entry));
 			e += 4;
 		}
-		archive_le16enc(ut + 2, (uint16_t)(e - ut - 4));
+		archive_le16enc(et + 2, (uint16_t)(e - et - 4));
+
+		/* Central directory formatting: Info-Zip specifies that
+		 * _only_ the mtime should be recorded here; ctime and
+		 * atime are also included in the local file descriptor.
+		 */
+		unsigned char ut[9]; // 9 is the max size, the real one is tbd
+		unsigned char *u = ut, *ud;
+		memcpy(u, "UT", 2);
+		u += 4;
+		*u++ = archive_entry_mtime_is_set(entry) ? 1 : 0;
+		if (archive_entry_mtime_is_set(entry) && fits_in_UT(archive_entry_mtime(entry))) {
+			archive_le32enc(u, (uint32_t)archive_entry_mtime(zip->entry));
+			u += 4;
+		}
+		archive_le16enc(ut + 2, (uint16_t)(u - ut - 4));
+		ud = cd_alloc(zip, u - ut);
+		if (ud == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+					"Can't allocate zip data");
+			return (ARCHIVE_FATAL);
+		}
+		memcpy(ud, ut, u - ut);
 	}
 
 	/*
@@ -1362,9 +1426,15 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		 * zlib's 0 to 9 scale and its negative scale is way bigger than
 		 * its positive one. So setting 1 as the lowest allowed compression
 		 * level and rescaling to 2 to 9 to libzstd's positive scale. */
+#ifdef HAVE_ZSTD_minCLevel
 		int zstd_compression_level = zip->compression_level == 1
 			? ZSTD_minCLevel() // ZSTD_minCLevel is negative !
 			: (zip->compression_level - 1) * ZSTD_maxCLevel() / 8;
+#else
+		/* But that's if we have the function to get the minimum CLevel.
+		 * Otherwise, we're rescaling 1 to 9 to libzstd's scale. */
+		int zstd_compression_level = zip->compression_level * ZSTD_maxCLevel() / 9;
+#endif
 		zip->stream.zstd.context = ZSTD_createCStream();
 		size_t zret = ZSTD_initCStream(zip->stream.zstd.context, zstd_compression_level);
 		if (ZSTD_isError(zret)) {
@@ -1375,6 +1445,9 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		/* Asking for the multi-threaded compressor is a no-op in zstd if
 		 * it's not supported, so no need to explicitly check for it */
 		ZSTD_CCtx_setParameter(zip->stream.zstd.context, ZSTD_c_nbWorkers, zip->threads);
+		/* Zstd will be explicitely requested not to write a checksum: ZIP
+		 * already has a CRC-32 check of its own */
+		ZSTD_CCtx_setParameter(zip->stream.zstd.context, ZSTD_c_checksumFlag, 0);
 		zip->stream.zstd.out.dst = zip->buf;
 		zip->stream.zstd.out.size = zip->len_buf;
 		zip->stream.zstd.out.pos = 0;
@@ -2050,25 +2123,6 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		}
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
-	}
-
-	/* UT timestamp: Info-Zip specifies that _only_ the mtime should
-	 * be recorded here; ctime and atime are also included in the
-	 * local file descriptor. */
-	if (archive_entry_mtime_is_set(zip->entry)) {
-		unsigned char ut[9];
-		unsigned char *u = ut, *ud;
-		memcpy(u, "UT\005\000\001", 5);
-		u += 5;
-		archive_le32enc(u, (uint32_t)archive_entry_mtime(zip->entry));
-		u += 4;
-		ud = cd_alloc(zip, u - ut);
-		if (ud == NULL) {
-			archive_set_error(&a->archive, ENOMEM,
-					  "Can't allocate zip data");
-			return (ARCHIVE_FATAL);
-		}
-		memcpy(ud, ut, u - ut);
 	}
 
 	/* Fill in size information in the central directory entry. */
