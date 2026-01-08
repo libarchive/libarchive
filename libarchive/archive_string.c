@@ -819,7 +819,8 @@ archive_string_append_from_wcs(struct archive_string *as,
 	 * converts a character at a time and resizes the string as
 	 * needed.  We prefer wcrtomb() when it's available because
 	 * it's thread-safe. */
-	int n, ret_val = 0;
+	int ret_val = 0;
+	size_t n;
 	char *p;
 	char *end;
 #if HAVE_WCRTOMB
@@ -857,7 +858,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 #else
 		n = wctomb(p, *w++);
 #endif
-		if (n == -1) {
+		if (n == (size_t)-1) {
 			if (errno == EILSEQ) {
 				/* Skip an illegal wide char. */
 				*p++ = '?';
