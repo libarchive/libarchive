@@ -905,7 +905,7 @@ __LA_DECL la_ssize_t	archive_write_data(struct archive *,
 			    const void *, size_t);
 
 /* This interface is currently only available for archive_write_disk handles.  */
-__LA_DECL la_ssize_t	 archive_write_data_block(struct archive *,
+__LA_DECL int	 archive_write_data_block(struct archive *,
 				    const void *, size_t, la_int64_t);
 
 __LA_DECL int		 archive_write_finish_entry(struct archive *);
