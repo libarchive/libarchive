@@ -402,7 +402,7 @@ static int cdeque_init(struct cdeque* d, int max_capacity_power_of_2) {
 		return CDE_PARAM;
 
 	cdeque_clear(d);
-	d->arr = malloc(sizeof(void*) * max_capacity_power_of_2);
+	d->arr = malloc(sizeof(size_t*) * max_capacity_power_of_2);
 
 	return d->arr ? CDE_OK : CDE_ALLOC;
 }
