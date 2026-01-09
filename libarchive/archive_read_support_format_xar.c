@@ -64,6 +64,7 @@
      !defined(HAVE_XMLLITE_H)) ||\
 	!defined(HAVE_ZLIB_H) || \
 	!defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
+#pragma message "Xar not supported on this platform"
 /*
  * xar needs several external libraries.
  *   o libxml2, expat or (Windows only) xmllite --- XML parser
