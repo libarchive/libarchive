@@ -1860,9 +1860,9 @@ is_symlink(const char *file, int line,
 	}
 
 	buf = (REPARSE_DATA_BUFFER *) indata;
-	if (buf->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
+	if (buf->ReparseTag != IO_REPARSE_TAG_SYMLINK && buf->ReparseTag != IO_REPARSE_TAG_MOUNT_POINT) {
 		free(indata);
-		/* File is not a symbolic link */
+		/* File is not a symbolic link or junction */
 		failure_start(file, line,
 		    "Not a symlink: %s", pathname);
 		failure_finish(NULL);
