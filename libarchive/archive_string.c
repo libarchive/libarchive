@@ -1556,20 +1556,30 @@ get_current_codepage(void)
 {
 	char *locale, *p;
 	unsigned cp;
+	int thread_setting;
 
+	thread_setting = _configthreadlocale(0);
+	_configthreadlocale(_DISABLE_PER_THREAD_LOCALE);
 	locale = setlocale(LC_CTYPE, NULL);
 	if (locale == NULL)
-		return (GetACP());
-	if (locale[0] == 'C' && locale[1] == '\0')
-		return (CP_C_LOCALE);
-	p = strrchr(locale, '.');
-	if (p == NULL)
-		return (GetACP());
-	if ((strcmp(p+1, "utf8") == 0) || (strcmp(p+1, "UTF-8") == 0))
-		return CP_UTF8;
-	cp = my_atoi(p+1);
-	if ((int)cp <= 0)
-		return (GetACP());
+		cp = GetACP();
+	else {
+		if (locale[0] == 'C' && locale[1] == '\0')
+			cp = CP_C_LOCALE;
+		else {
+			p = strrchr(locale, '.');
+			if (p == NULL)
+				cp = GetACP();
+			else if ((strcmp(p + 1, "utf8") == 0) || (strcmp(p + 1, "UTF-8") == 0))
+				cp = CP_UTF8;
+			else {
+				cp = my_atoi(p + 1);
+				if ((int)cp <= 0)
+					cp = GetACP();
+			}
+		}
+	}
+	_configthreadlocale(thread_setting);
 	return (cp);
 }
 
@@ -1631,24 +1641,34 @@ static struct {
 static unsigned
 get_current_oemcp(void)
 {
-	int i;
+	int i, thread_setting;
 	char *locale, *p;
 	size_t len;
 
+	thread_setting = _configthreadlocale(0);
+	_configthreadlocale(_DISABLE_PER_THREAD_LOCALE);
 	locale = setlocale(LC_CTYPE, NULL);
-	if (locale == NULL)
+	if (locale == NULL) {
+		_configthreadlocale(thread_setting);
 		return (GetOEMCP());
-	if (locale[0] == 'C' && locale[1] == '\0')
+	}
+	if (locale[0] == 'C' && locale[1] == '\0') {
+		_configthreadlocale(thread_setting);
 		return (CP_C_LOCALE);
-
+	}
 	p = strrchr(locale, '.');
-	if (p == NULL)
+	if (p == NULL) {
+		_configthreadlocale(thread_setting);
 		return (GetOEMCP());
+	}
 	len = p - locale;
 	for (i = 0; acp_ocp_map[i].acp; i++) {
-		if (strncmp(acp_ocp_map[i].locale, locale, len) == 0)
+		if (strncmp(acp_ocp_map[i].locale, locale, len) == 0) {
+			_configthreadlocale(thread_setting);
 			return (acp_ocp_map[i].ocp);
+		}
 	}
+	_configthreadlocale(thread_setting);
 	return (GetOEMCP());
 }
 #else
