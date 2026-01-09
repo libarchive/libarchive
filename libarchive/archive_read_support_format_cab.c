@@ -543,11 +543,11 @@ cab_strnlen(const unsigned char *p, size_t maxlen)
 {
 	size_t i;
 
-	for (i = 0; i <= maxlen; i++) {
+	for (i = 0; i < maxlen; i++) {
 		if (p[i] == 0)
 			break;
 	}
-	if (i > maxlen)
+	if (i >= maxlen)
 		return (-1);/* invalid */
 	return ((ssize_t)i);
 }
@@ -691,13 +691,13 @@ cab_read_header(struct archive_read *a)
 		/* How many bytes are used for szCabinetPrev. */
 		if ((p = __archive_read_ahead(a, used+256, NULL)) == NULL)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p + used, 255)) <= 0)
+		if ((len = cab_strnlen(p + used, 256)) <= 0)
 			goto invalid;
 		used += len + 1;
 		/* How many bytes are used for szDiskPrev. */
 		if ((p = __archive_read_ahead(a, used+256, NULL)) == NULL)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p + used, 255)) <= 0)
+		if ((len = cab_strnlen(p + used, 256)) <= 0)
 			goto invalid;
 		used += len + 1;
 	}
@@ -705,13 +705,13 @@ cab_read_header(struct archive_read *a)
 		/* How many bytes are used for szCabinetNext. */
 		if ((p = __archive_read_ahead(a, used+256, NULL)) == NULL)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p + used, 255)) <= 0)
+		if ((len = cab_strnlen(p + used, 256)) <= 0)
 			goto invalid;
 		used += len + 1;
 		/* How many bytes are used for szDiskNext. */
 		if ((p = __archive_read_ahead(a, used+256, NULL)) == NULL)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p + used, 255)) <= 0)
+		if ((len = cab_strnlen(p + used, 256)) <= 0)
 			goto invalid;
 		used += len + 1;
 	}
@@ -807,7 +807,7 @@ cab_read_header(struct archive_read *a)
 		cab->cab_offset += 16;
 		if ((p = cab_read_ahead_remaining(a, 256, &avail)) == NULL)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p, avail-1)) <= 0)
+		if ((len = cab_strnlen(p, avail)) <= 0)
 			goto invalid;
 
 		/* Copy a pathname.  */
