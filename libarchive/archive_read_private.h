@@ -160,6 +160,8 @@ struct archive_read {
 
 	struct archive_entry	*entry;
 
+	struct archive_private_metadata	*metadata;
+
 	/* Dev/ino of the archive being read/written. */
 	int		  skip_file_set;
 	int64_t		  skip_file_dev;
@@ -243,6 +245,12 @@ int __archive_read_register_bidder(struct archive_read *a,
 		void *bidder_data,
 		const char *name,
 		const struct archive_read_filter_bidder_vtable *vtable);
+
+void *__archive_read_get_private(struct archive_read *, const char *);
+int __archive_read_set_private(struct archive_read *, const char *,
+		void *, void (*)(void *));
+void __archive_read_clear_private(struct archive_read *, const char *);
+
 
 const void *__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
 const void *__archive_read_filter_ahead(struct archive_read_filter *,
