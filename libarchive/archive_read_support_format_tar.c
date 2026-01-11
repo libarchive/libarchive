@@ -552,7 +552,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	if (tar->sconv == NULL) {
 		if (!tar->init_default_conversion) {
 			tar->sconv_default =
-			    archive_string_default_conversion_for_read(&(a->archive));
+				archive_string_conversion_from_charset(&a->archive, "UTF-8", 1);
 			tar->init_default_conversion = 1;
 		}
 		tar->sconv = tar->sconv_default;
