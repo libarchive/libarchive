@@ -513,6 +513,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_isorr_rr_moved.c \
 	libarchive/test/test_read_format_isozisofs_bz2.c \
 	libarchive/test/test_read_format_lha.c \
+	libarchive/test/test_read_format_lha_amiga_script.c \
 	libarchive/test/test_read_format_lha_bugfix_0.c \
 	libarchive/test/test_read_format_lha_filename.c \
 	libarchive/test/test_read_format_lha_filename_utf16.c \
