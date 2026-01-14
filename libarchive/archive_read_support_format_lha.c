@@ -206,7 +206,7 @@ struct lha {
  * LHA header common member offset.
  */
 #define H_METHOD_OFFSET	2	/* Compress type. */
-#define H_ATTR_OFFSET	19	/* DOS attribute. */
+#define H_ATTR_OFFSET	19	/* AmigaDOS or DOS attributes. */
 #define H_LEVEL_OFFSET	20	/* Header Level.  */
 #define H_SIZE		22	/* Minimum header size. */
 
@@ -316,9 +316,7 @@ lha_check_header_format(const char *h)
 			/* "-lh?-" */
 			if (h[H_METHOD_OFFSET + 3] == 's')
 				break;
-			if (h[H_LEVEL_OFFSET] == 0)
-				return (0);
-			if (h[H_LEVEL_OFFSET] <= 3 && h[H_ATTR_OFFSET] == 0x20)
+			if (h[H_LEVEL_OFFSET] <= 3)
 				return (0);
 		}
 		if (h[H_METHOD_OFFSET + 2] == 'z') {
