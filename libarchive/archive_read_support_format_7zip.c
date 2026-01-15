@@ -2154,6 +2154,10 @@ read_PackInfo(struct archive_read *a, struct _7z_pack_info *pi)
 	if (UMAX_ENTRY < pi->numPackStreams)
 		return (-1);
 
+	/* Security Fix: Prevent OOM by checking numPackStreams against available header bytes */
+	if (pi->numPackStreams > zip->header_bytes_remaining)
+		return (-1);
+
 	/*
 	 * Read PackSizes[num]
 	 */
