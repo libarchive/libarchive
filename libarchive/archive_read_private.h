@@ -286,6 +286,7 @@ struct rpm_file_info {
 struct rpm_inode_info {
 	uint64_t				n_files;
 	struct rpm_file_info	**files;
+	uint64_t				n_processed;
 };
 
 struct rpm_context {

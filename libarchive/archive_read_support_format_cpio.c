@@ -122,6 +122,16 @@
 #define	newc_header_size 110
 
 /*
+ * Stripped CPIO header, used by RPM.
+ * Only contains the magic and the file index.
+ */
+#define	str_magic_offset 0
+#define	str_magic_size 6
+#define	str_fx_offset 6
+#define	str_fx_size 8
+#define	str_header_size 16
+
+/*
  * An afio large ASCII header, which they named itself.
  * afio utility uses this header, if a file size is larger than 2G bytes
  * or inode/uid/gid is bigger than 65535(0xFFFF) or mtime is bigger than
@@ -210,6 +220,8 @@ static int	header_bin_le(struct archive_read *, struct cpio *,
 static int	header_newc(struct archive_read *, struct cpio *,
 		    struct archive_entry *);
 static int	header_odc(struct archive_read *, struct cpio *,
+		    struct archive_entry *);
+static int	header_str(struct archive_read *, struct cpio *,
 		    struct archive_entry *);
 static int	header_afiol(struct archive_read *, struct cpio *,
 		    struct archive_entry *);
@@ -305,6 +317,10 @@ archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 		 * XXX TODO:  More verification; Could check that only hex
 		 * digits appear in appropriate header locations. XXX
 		 */
+	} else if (memcmp(p, "07070X", 6) == 0) {
+		/* Stripped cpio archive (RPM) */
+		cpio->read_header = header_str;
+		bid += 48;
 	} else if (p[0] * 256 + p[1] == 070707) {
 		/* big-endian binary cpio archives */
 		cpio->read_header = header_bin_be;
@@ -860,6 +876,105 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	r2 = set_entry_pathname(a, entry, name_len, 0);
 
 	return (r2 == ARCHIVE_OK) ? (r) : (r2);
+}
+
+static int
+find_str_header(struct archive_read *a)
+{
+	ssize_t avail;
+
+	for (;;) {
+		const unsigned char *p, *q, *end;
+
+		p = __archive_read_ahead(a, str_magic_size, &avail);
+		if (p == NULL) {
+			return (avail < 0 ? ARCHIVE_FATAL : ARCHIVE_EOF);
+		}
+
+		if (avail < (ssize_t)str_magic_size) {
+			/* Not enough bytes left for a full header. */
+			return ARCHIVE_EOF;
+		}
+
+		end = p + avail;
+
+		for (q = p; q + str_magic_size <= end; q++) {
+			if (memcmp(q, "07070X", str_magic_size) == 0) {
+				/* Consume up to the start of the header. */
+				__archive_read_consume(a, q - p);
+				return ARCHIVE_OK;
+			}
+		}
+
+		/* No match in this block: consume all but the last (str_magic_size - 1)
+		   bytes so we don't miss a header straddling the boundary. */
+		if (avail > (ssize_t)(str_magic_size - 1)) {
+			__archive_read_consume(a, avail - (str_magic_size - 1));
+		} else {
+			__archive_read_consume(a, avail);
+		}
+	}
+}
+
+static int
+header_str(struct archive_read *a, struct cpio *cpio,
+    struct archive_entry *entry)
+{
+	struct rpm_context *ctx;
+	struct rpm_file_info *file;
+	struct rpm_inode_info *inode;
+	const void *h;
+	const char *header;
+	uint32_t fx;
+	int r;
+
+	ctx = __archive_read_get_private(a, "rpm");
+	if (ctx == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "no rpm context");
+		return (ARCHIVE_FATAL);
+	}
+
+	/* Find the start of the next header. */
+	r = find_str_header(a);
+	if (r != ARCHIVE_OK)
+		return (r);
+
+	/* Read fixed-size portion of header. */
+	h = __archive_read_ahead(a, str_header_size, NULL);
+	if (h == NULL)
+	    return (ARCHIVE_FATAL);
+
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_STR;
+	a->archive.archive_format_name = "RPM cpio (stripped)";
+
+	/* Parse out hex fields. */
+	header = (const char *)h;
+
+	fx = strtoul(header + str_fx_offset, NULL, 16);
+	if (fx >= ctx->n_files) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT, "fx out of range");
+		return (ARCHIVE_FATAL);
+	}
+
+	file = &ctx->files[fx];
+	inode = &ctx->inodes[file->ino];
+
+	fill_rpm_file_entry(entry, file);
+	archive_entry_set_nlink(entry, inode->n_files);
+
+	/* Eat stripped header */
+	__archive_read_consume(a, str_header_size);
+
+	/* Only the last hardlink group's entry carries the payload. */
+	if (++inode->n_processed == inode->n_files)
+		cpio->entry_bytes_remaining = file->size;
+	else
+		cpio->entry_bytes_remaining = 0;
+
+	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
+	cpio->entry_padding = 0;
+
+	return ARCHIVE_OK;
 }
 
 /*
