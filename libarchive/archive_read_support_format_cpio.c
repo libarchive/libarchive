@@ -174,7 +174,7 @@ struct links_entry {
 struct cpio {
 	int			  magic;
 	int			(*read_header)(struct archive_read *, struct cpio *,
-				     struct archive_entry *, size_t *, size_t *);
+				     struct archive_entry *);
 	struct links_entry	 *links_head;
 	int64_t			  entry_bytes_remaining;
 	int64_t			  entry_bytes_unconsumed;
@@ -204,20 +204,22 @@ static int64_t	be4(const unsigned char *);
 static int	find_odc_header(struct archive_read *);
 static int	find_newc_header(struct archive_read *);
 static int	header_bin_be(struct archive_read *, struct cpio *,
-		    struct archive_entry *, size_t *, size_t *);
+		    struct archive_entry *);
 static int	header_bin_le(struct archive_read *, struct cpio *,
-		    struct archive_entry *, size_t *, size_t *);
+		    struct archive_entry *);
 static int	header_newc(struct archive_read *, struct cpio *,
-		    struct archive_entry *, size_t *, size_t *);
+		    struct archive_entry *);
 static int	header_odc(struct archive_read *, struct cpio *,
-		    struct archive_entry *, size_t *, size_t *);
+		    struct archive_entry *);
 static int	header_afiol(struct archive_read *, struct cpio *,
-		    struct archive_entry *, size_t *, size_t *);
+		    struct archive_entry *);
 static int	is_octal(const char *, size_t);
 static int	is_hex(const char *, size_t);
 static int64_t	le4(const unsigned char *);
 static int	record_hardlink(struct archive_read *a,
 		    struct cpio *cpio, struct archive_entry *entry);
+static int	set_entry_pathname(struct archive_read *, struct archive_entry *,
+		    uint64_t, uint64_t);
 
 int
 archive_read_support_format_cpio(struct archive *_a)
@@ -362,10 +364,8 @@ archive_read_format_cpio_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
 	struct cpio *cpio;
-	const void *h, *hl;
+	const void *hl;
 	struct archive_string_conv *sconv;
-	size_t namelength;
-	size_t name_pad;
 	int r;
 
 	cpio = (struct cpio *)(a->format->data);
@@ -379,31 +379,13 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		}
 		sconv = cpio->sconv_default;
 	}
-	
-	r = (cpio->read_header(a, cpio, entry, &namelength, &name_pad));
 
-	if (r < ARCHIVE_WARN)
+	r = (cpio->read_header(a, cpio, entry));
+
+	if (r < ARCHIVE_WARN || r == ARCHIVE_EOF)
 		return (r);
 
-	/* Read name from buffer. */
-	h = __archive_read_ahead(a, namelength + name_pad, NULL);
-	if (h == NULL)
-	    return (ARCHIVE_FATAL);
-	if (archive_entry_copy_pathname_l(entry,
-	    (const char *)h, namelength, sconv) != 0) {
-		if (errno == ENOMEM) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "Can't allocate memory for Pathname");
-			return (ARCHIVE_FATAL);
-		}
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Pathname can't be converted from %s to current locale.",
-		    archive_string_conversion_charset_name(sconv));
-		r = ARCHIVE_WARN;
-	}
 	cpio->entry_offset = 0;
-
-	__archive_read_consume(a, namelength + name_pad);
 
 	/* If this is a symlink, read the link contents. */
 	if (archive_entry_filetype(entry) == AE_IFLNK) {
@@ -438,14 +420,6 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	 * ACL description for the following entry.  Read this body
 	 * and parse it as a Solaris-style ACL, then read the next
 	 * header.  XXX */
-
-	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
-	if (namelength == 11 && strncmp((const char *)h, "TRAILER!!!",
-	    10) == 0) {
-		/* TODO: Store file location of start of block. */
-		archive_clear_error(&a->archive);
-		return (ARCHIVE_EOF);
-	}
 
 	/* Detect and record hardlinks to previously-extracted entries. */
 	if (record_hardlink(a, cpio, entry) != ARCHIVE_OK) {
@@ -529,6 +503,19 @@ is_hex(const char *p, size_t len)
 	return (1);
 }
 
+static void
+fill_rpm_file_entry(struct archive_entry *entry, const struct rpm_file_info *file)
+{
+	archive_entry_set_pathname_utf8(entry, file->pathname);
+	archive_entry_set_uname_utf8(entry, file->uname);
+	archive_entry_set_gname_utf8(entry, file->gname);
+	archive_entry_set_dev(entry, file->dev);
+	archive_entry_set_ino(entry, file->ino);
+	archive_entry_set_mode(entry, file->mode);
+	archive_entry_set_rdev(entry, file->rdev);
+	archive_entry_set_mtime(entry, file->mtime, 0);
+}
+
 static int
 find_newc_header(struct archive_read *a)
 {
@@ -591,11 +578,13 @@ find_newc_header(struct archive_read *a)
 
 static int
 header_newc(struct archive_read *a, struct cpio *cpio,
-    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
+	struct archive_entry *entry)
 {
+	struct rpm_context *ctx;
 	const void *h;
 	const char *header;
-	int r;
+	uint64_t name_len, name_pad;
+	int r, r2;
 
 	r = find_newc_header(a);
 	if (r < ARCHIVE_WARN)
@@ -611,36 +600,18 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 
 	if (memcmp(header + newc_magic_offset, "070701", 6) == 0) {
 		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
-		a->archive.archive_format_name = "ASCII cpio (SVR4 with no CRC)";
 	} else if (memcmp(header + newc_magic_offset, "070702", 6) == 0) {
 		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
-		a->archive.archive_format_name = "ASCII cpio (SVR4 with CRC)";
 	} else {
 		/* TODO: Abort here? */
 	}
 
-	archive_entry_set_devmajor(entry,
-		(dev_t)atol16(header + newc_devmajor_offset, newc_devmajor_size));
-	archive_entry_set_devminor(entry, 
-		(dev_t)atol16(header + newc_devminor_offset, newc_devminor_size));
-	archive_entry_set_ino(entry, atol16(header + newc_ino_offset, newc_ino_size));
-	archive_entry_set_mode(entry, 
-		(mode_t)atol16(header + newc_mode_offset, newc_mode_size));
-	archive_entry_set_uid(entry, atol16(header + newc_uid_offset, newc_uid_size));
-	archive_entry_set_gid(entry, atol16(header + newc_gid_offset, newc_gid_size));
-	archive_entry_set_nlink(entry,
-		(unsigned int)atol16(header + newc_nlink_offset, newc_nlink_size));
-	archive_entry_set_rdevmajor(entry,
-		(dev_t)atol16(header + newc_rdevmajor_offset, newc_rdevmajor_size));
-	archive_entry_set_rdevminor(entry,
-		(dev_t)atol16(header + newc_rdevminor_offset, newc_rdevminor_size));
-	archive_entry_set_mtime(entry, atol16(header + newc_mtime_offset, newc_mtime_size), 0);
-	*namelength = (size_t)atol16(header + newc_namesize_offset, newc_namesize_size);
+	name_len = (size_t)atol16(header + newc_namesize_offset, newc_namesize_size);
 	/* Pad name to 2 more than a multiple of 4. */
-	*name_pad = (2 - *namelength) & 3;
+	name_pad = (2 - name_len) & 3;
 
 	/* Make sure that the padded name length fits into size_t. */
-	if (*name_pad > SIZE_MAX - *namelength) {
+	if (name_pad > UINT64_MAX - name_pad) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "cpio archive has invalid namelength");
 		return (ARCHIVE_FATAL);
@@ -652,12 +623,79 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 	 * size.
 	 */
 	cpio->entry_bytes_remaining =
-	    atol16(header + newc_filesize_offset, newc_filesize_size);
-	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
+		atol16(header + newc_filesize_offset, newc_filesize_size);
 	/* Pad file contents to a multiple of 4. */
 	cpio->entry_padding = 3 & -cpio->entry_bytes_remaining;
-	__archive_read_consume(a, newc_header_size);
-	return (r);
+	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
+
+	ctx = __archive_read_get_private(a, "rpm");
+	if (ctx != NULL) {
+		struct rpm_file_info *file = NULL;
+		uint64_t i;
+
+		switch (a->archive.archive_format) {
+		case ARCHIVE_FORMAT_CPIO_SVR4_NOCRC:
+			a->archive.archive_format_name = "RPM cpio (SVR4 with no CRC)";
+			break;
+		case ARCHIVE_FORMAT_CPIO_SVR4_CRC:
+			a->archive.archive_format_name = "RPM cpio (SVR4 with CRC)";
+			break;
+		}
+
+		__archive_read_consume(a, newc_header_size);
+
+		r2 = set_entry_pathname(a, entry, name_len, name_pad);
+		if (r2 != ARCHIVE_OK)
+			return (r2);
+
+		for (i = 0; i < ctx->n_files; i++) {
+			file = &ctx->files[i];
+			if (strcmp(file->pathname, archive_entry_pathname(entry)) == 0) {
+				fill_rpm_file_entry(entry, file);
+				break;
+			}
+
+			file = NULL;
+		}
+
+		if (file == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				"rpm header has no such file");
+			return (ARCHIVE_FATAL);
+		}
+	} else {
+		switch (a->archive.archive_format) {
+		case ARCHIVE_FORMAT_CPIO_SVR4_NOCRC:
+			a->archive.archive_format_name = "ASCII cpio (SVR4 with no CRC)";
+			break;
+		case ARCHIVE_FORMAT_CPIO_SVR4_CRC:
+			a->archive.archive_format_name = "ASCII cpio (SVR4 with CRC)";
+			break;
+		}
+
+		archive_entry_set_devmajor(entry,
+			(dev_t)atol16(header + newc_devmajor_offset, newc_devmajor_size));
+		archive_entry_set_devminor(entry,
+			(dev_t)atol16(header + newc_devminor_offset, newc_devminor_size));
+		archive_entry_set_ino(entry, atol16(header + newc_ino_offset, newc_ino_size));
+		archive_entry_set_mode(entry,
+			(mode_t)atol16(header + newc_mode_offset, newc_mode_size));
+		archive_entry_set_uid(entry, atol16(header + newc_uid_offset, newc_uid_size));
+		archive_entry_set_gid(entry, atol16(header + newc_gid_offset, newc_gid_size));
+		archive_entry_set_nlink(entry,
+			(unsigned int)atol16(header + newc_nlink_offset, newc_nlink_size));
+		archive_entry_set_rdevmajor(entry,
+			(dev_t)atol16(header + newc_rdevmajor_offset, newc_rdevmajor_size));
+		archive_entry_set_rdevminor(entry,
+			(dev_t)atol16(header + newc_rdevminor_offset, newc_rdevminor_size));
+		archive_entry_set_mtime(entry, atol16(header + newc_mtime_offset, newc_mtime_size), 0);
+
+		__archive_read_consume(a, newc_header_size);
+
+		r2 = set_entry_pathname(a, entry, name_len, name_pad);
+	}
+
+	return (r2 == ARCHIVE_OK) ? (r) : (r2);
 }
 
 /*
@@ -766,11 +804,12 @@ find_odc_header(struct archive_read *a)
 
 static int
 header_odc(struct archive_read *a, struct cpio *cpio,
-    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
+    struct archive_entry *entry)
 {
 	const void *h;
-	int r;
 	const char *header;
+	uint64_t name_len;
+	int r, r2;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive.archive_format_name = "POSIX octet-oriented cpio";
@@ -781,11 +820,8 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 		return (r);
 
 	if (a->archive.archive_format == ARCHIVE_FORMAT_CPIO_AFIO_LARGE) {
-		int r2 = (header_afiol(a, cpio, entry, namelength, name_pad));
-		if (r2 == ARCHIVE_OK)
-			return (r);
-		else
-			return (r2);
+		r2 = (header_afiol(a, cpio, entry));
+		return r2 < r ? r2 : r;
 	}
 
 	/* Read fixed-size portion of header. */
@@ -808,8 +844,7 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_rdev(entry,
 		(dev_t)atol8(header + odc_rdev_offset, odc_rdev_size));
 	archive_entry_set_mtime(entry, atol8(header + odc_mtime_offset, odc_mtime_size), 0);
-	*namelength = (size_t)atol8(header + odc_namesize_offset, odc_namesize_size);
-	*name_pad = 0; /* No padding of filename. */
+	name_len = (size_t)atol8(header + odc_namesize_offset, odc_namesize_size);
 
 	/*
 	 * Note: entry_bytes_remaining is at least 64 bits and
@@ -821,7 +856,10 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = 0;
 	__archive_read_consume(a, odc_header_size);
-	return (r);
+
+	r2 = set_entry_pathname(a, entry, name_len, 0);
+
+	return (r2 == ARCHIVE_OK) ? (r) : (r2);
 }
 
 /*
@@ -833,12 +871,12 @@ header_odc(struct archive_read *a, struct cpio *cpio,
  */
 static int
 header_afiol(struct archive_read *a, struct cpio *cpio,
-    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
+    struct archive_entry *entry)
 {
-	int64_t t;
-	uint64_t u;
 	const void *h;
 	const char *header;
+	int64_t t;
+	uint64_t u, name_len;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_AFIO_LARGE;
 	a->archive.archive_format_name = "afio large ASCII";
@@ -868,8 +906,7 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_rdev(entry,
 		(dev_t)atol16(header + afiol_rdev_offset, afiol_rdev_size));
 	archive_entry_set_mtime(entry, atol16(header + afiol_mtime_offset, afiol_mtime_size), 0);
-	*namelength = (size_t)atol16(header + afiol_namesize_offset, afiol_namesize_size);
-	*name_pad = 0; /* No padding of filename. */
+	name_len = (size_t)atol16(header + afiol_namesize_offset, afiol_namesize_size);
 
 	t = atol16(header + afiol_filesize_offset, afiol_filesize_size);
 	if (t < 0) {
@@ -880,16 +917,18 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = 0;
 	__archive_read_consume(a, afiol_header_size);
-	return (ARCHIVE_OK);
+
+	return set_entry_pathname(a, entry, name_len, 0);
 }
 
 
 static int
 header_bin_le(struct archive_read *a, struct cpio *cpio,
-    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
+    struct archive_entry *entry)
 {
 	const void *h;
 	const unsigned char *header;
+	uint64_t name_len;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
 	a->archive.archive_format_name = "cpio (little-endian binary)";
@@ -919,22 +958,23 @@ header_bin_le(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_nlink(entry, header[bin_nlink_offset] + header[bin_nlink_offset + 1] * 256);
 	archive_entry_set_rdev(entry, header[bin_rdev_offset] + header[bin_rdev_offset + 1] * 256);
 	archive_entry_set_mtime(entry, le4(header + bin_mtime_offset), 0);
-	*namelength = header[bin_namesize_offset] + header[bin_namesize_offset + 1] * 256;
-	*name_pad = *namelength & 1; /* Pad to even. */
+	name_len = header[bin_namesize_offset] + header[bin_namesize_offset + 1] * 256;
 
 	cpio->entry_bytes_remaining = le4(header + bin_filesize_offset);
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = cpio->entry_bytes_remaining & 1; /* Pad to even. */
 	__archive_read_consume(a, bin_header_size);
-	return (ARCHIVE_OK);
+
+	return set_entry_pathname(a, entry, name_len, name_len & 1);
 }
 
 static int
 header_bin_be(struct archive_read *a, struct cpio *cpio,
-    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
+    struct archive_entry *entry)
 {
 	const void *h;
 	const unsigned char *header;
+	uint64_t name_len;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
 	a->archive.archive_format_name = "cpio (big-endian binary)";
@@ -964,14 +1004,14 @@ header_bin_be(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_nlink(entry, header[bin_nlink_offset] * 256 + header[bin_nlink_offset + 1]);
 	archive_entry_set_rdev(entry, header[bin_rdev_offset] * 256 + header[bin_rdev_offset + 1]);
 	archive_entry_set_mtime(entry, be4(header + bin_mtime_offset), 0);
-	*namelength = header[bin_namesize_offset] * 256 + header[bin_namesize_offset + 1];
-	*name_pad = *namelength & 1; /* Pad to even. */
+	name_len = header[bin_namesize_offset] * 256 + header[bin_namesize_offset + 1];
 
 	cpio->entry_bytes_remaining = be4(header + bin_filesize_offset);
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = cpio->entry_bytes_remaining & 1; /* Pad to even. */
 	    __archive_read_consume(a, bin_header_size);
-	return (ARCHIVE_OK);
+
+	return set_entry_pathname(a, entry, name_len, name_len & 1);
 }
 
 static int
@@ -1118,4 +1158,49 @@ record_hardlink(struct archive_read *a,
 	}
 
 	return (ARCHIVE_OK);
+}
+
+static int
+set_entry_pathname(struct archive_read *a, struct archive_entry *entry,
+    uint64_t namelength, uint64_t name_pad)
+{
+	struct cpio *cpio = a->format->data;
+	struct archive_string_conv *sconv;
+	int r = ARCHIVE_OK;
+
+	sconv = cpio->opt_sconv;
+	if (sconv == NULL) {
+		if (!cpio->init_default_conversion) {
+			cpio->sconv_default =
+			    archive_string_default_conversion_for_read(
+			      &(a->archive));
+			cpio->init_default_conversion = 1;
+		}
+		sconv = cpio->sconv_default;
+	}
+
+	/* Read name from buffer. */
+	const void *h = __archive_read_ahead(a, namelength + name_pad, NULL);
+	if (h == NULL)
+		return (ARCHIVE_FATAL);
+	if (archive_entry_copy_pathname_l(entry, (const char *)h, namelength, sconv)
+		!= 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+				"Can't allocate memory for Pathname");
+			return (ARCHIVE_FATAL);
+		}
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			"Pathname can't be converted from %s to current locale.",
+			archive_string_conversion_charset_name(sconv));
+		r = ARCHIVE_WARN;
+	}
+
+	__archive_read_consume(a, namelength + name_pad);
+
+	if (r == ARCHIVE_OK &&
+		strncmp(archive_entry_pathname(entry), "TRAILER!!!", 11) == 0)
+		r = ARCHIVE_EOF;
+
+	return (r);
 }
