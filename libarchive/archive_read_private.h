@@ -270,4 +270,35 @@ struct archive_read_extract *__archive_read_get_extract(struct archive_read *);
  */
 void __archive_read_reset_passphrase(struct archive_read *a);
 const char * __archive_read_next_passphrase(struct archive_read *a);
+
+struct rpm_file_info {
+	char		*pathname;
+	char		*uname;
+	char		*gname;
+	uint64_t	size;
+	uint16_t	mode;
+	int32_t		dev;
+	int16_t		rdev;
+	uint32_t	mtime;
+	uint32_t	ino;
+};
+
+struct rpm_inode_info {
+	uint64_t				n_files;
+	struct rpm_file_info	**files;
+};
+
+struct rpm_context {
+	/*
+	 * Testing revealed that the maximum ino matches the maximum fx.
+	 * When hardlinks are involved subsequent numbers appear to be simply skipped.
+	 */
+	union {
+		uint64_t	n_files;
+		uint64_t	n_inodes;
+	};
+	struct rpm_file_info	*files;		/* Indexed by fx. */
+	struct rpm_inode_info	*inodes;	/* Indexed by ino (-1). */
+};
+
 #endif
