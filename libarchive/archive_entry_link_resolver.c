@@ -133,6 +133,7 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 		switch (fmt) {
 		case ARCHIVE_FORMAT_CPIO_SVR4_NOCRC:
 		case ARCHIVE_FORMAT_CPIO_SVR4_CRC:
+		case ARCHIVE_FORMAT_CPIO_STR:
 			res->strategy = ARCHIVE_ENTRY_LINKIFY_LIKE_NEW_CPIO;
 			break;
 		default:

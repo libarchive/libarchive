@@ -160,6 +160,8 @@ struct archive_read {
 
 	struct archive_entry	*entry;
 
+	struct archive_private_metadata	*metadata;
+
 	/* Dev/ino of the archive being read/written. */
 	int		  skip_file_set;
 	int64_t		  skip_file_dev;
@@ -244,6 +246,12 @@ int __archive_read_register_bidder(struct archive_read *a,
 		const char *name,
 		const struct archive_read_filter_bidder_vtable *vtable);
 
+void *__archive_read_get_private(struct archive_read *, const char *);
+int __archive_read_set_private(struct archive_read *, const char *,
+		void *, void (*)(void *));
+void __archive_read_clear_private(struct archive_read *, const char *);
+
+
 const void *__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
 const void *__archive_read_filter_ahead(struct archive_read_filter *,
     size_t, ssize_t *);
@@ -262,4 +270,36 @@ struct archive_read_extract *__archive_read_get_extract(struct archive_read *);
  */
 void __archive_read_reset_passphrase(struct archive_read *a);
 const char * __archive_read_next_passphrase(struct archive_read *a);
+
+struct rpm_file_info {
+	char		*pathname;
+	char		*uname;
+	char		*gname;
+	uint64_t	size;
+	uint16_t	mode;
+	int32_t		dev;
+	int16_t		rdev;
+	uint32_t	mtime;
+	uint32_t	ino;
+};
+
+struct rpm_inode_info {
+	uint64_t				n_files;
+	struct rpm_file_info	**files;
+	uint64_t				n_processed;
+};
+
+struct rpm_context {
+	/*
+	 * Testing revealed that the maximum ino matches the maximum fx.
+	 * When hardlinks are involved subsequent numbers appear to be simply skipped.
+	 */
+	union {
+		uint64_t	n_files;
+		uint64_t	n_inodes;
+	};
+	struct rpm_file_info	*files;		/* Indexed by fx. */
+	struct rpm_inode_info	*inodes;	/* Indexed by ino (-1). */
+};
+
 #endif

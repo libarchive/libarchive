@@ -93,6 +93,13 @@ struct archive_vtable {
 	const char * (*archive_filter_name)(struct archive *, int);
 };
 
+struct archive_private_metadata {
+	const char						*key;
+	void							*data;
+	void							(*free_fn)(void *);
+	struct archive_private_metadata *next;
+};
+
 struct archive_string_conv;
 
 struct archive {

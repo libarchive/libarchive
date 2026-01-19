@@ -1065,6 +1065,7 @@ _archive_read_free(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_read_passphrase *p;
+	struct archive_private_metadata *m;
 	int i, n;
 	int slots;
 	int r = ARCHIVE_OK;
@@ -1111,6 +1112,17 @@ _archive_read_free(struct archive *_a)
 		free(p->passphrase);
 		free(p);
 		p = np;
+	}
+
+	/* Release private metadata. */
+	m = a->metadata;
+	while (m != NULL) {
+		struct archive_private_metadata *nm = m->next;
+
+		if (m->free_fn)
+			m->free_fn(m->data);
+		free(m);
+		m = nm;
 	}
 
 	archive_string_free(&a->archive.error_string);
@@ -1257,6 +1269,71 @@ __archive_read_register_bidder(struct archive_read *a,
 	archive_set_error(&a->archive, ENOMEM,
 	    "Not enough slots for filter registration");
 	return (ARCHIVE_FATAL);
+}
+
+void *
+__archive_read_get_private(struct archive_read *a, const char *key)
+{
+	struct archive_private_metadata *m;
+
+	for (m = a->metadata; m != NULL; m = m->next) {
+		if (strcmp(m->key, key) == 0)
+			return m->data;
+	}
+
+	return NULL;
+}
+
+int
+__archive_read_set_private(struct archive_read *a,
+	const char *key,
+	void *data,
+	void (*free_fn)(void *))
+{
+	struct archive_private_metadata *m;
+
+	/* Replace if exists */
+	for (m = a->metadata; m != NULL; m = m->next) {
+		if (strcmp(m->key, key) == 0) {
+			if (m->free_fn)
+				m->free_fn(m->data);
+			m->data = data;
+			m->free_fn = free_fn;
+			return ARCHIVE_OK;
+		}
+	}
+
+	/* Insert new */
+	m = calloc(1, sizeof(*m));
+	if (!m)
+		return ARCHIVE_FATAL;
+
+	m->key = key;
+	m->data = data;
+	m->free_fn = free_fn;
+	m->next = a->metadata;
+	a->metadata = m;
+
+	return ARCHIVE_OK;
+}
+
+void
+__archive_read_clear_private(struct archive_read *a, const char *key)
+{
+	struct archive_private_metadata **pm = &a->metadata;
+	struct archive_private_metadata *m;
+
+	while ((m = *pm) != NULL) {
+		if (strcmp(m->key, key) == 0) {
+			*pm = m->next;
+			if (m->free_fn)
+				m->free_fn(m->data);
+			free(m);
+			return;
+		}
+
+		pm = &m->next;
+	}
 }
 
 /*
