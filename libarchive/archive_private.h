@@ -79,6 +79,8 @@ struct archive_vtable {
 	    const void *, size_t);
 	ssize_t	(*archive_write_data_block)(struct archive *,
 	    const void *, size_t, int64_t);
+	int	(*archive_write_comment)(struct archive *,
+	    const char *, size_t);
 
 	int	(*archive_read_next_header)(struct archive *,
 	    struct archive_entry **);
@@ -86,6 +88,8 @@ struct archive_vtable {
 	    struct archive_entry *);
 	int	(*archive_read_data_block)(struct archive *,
 	    const void **, size_t *, int64_t *);
+	int	(*archive_read_comment)(struct archive *,
+	    char **, size_t *);
 
 	int	(*archive_filter_count)(struct archive *);
 	int64_t (*archive_filter_bytes)(struct archive *, int);
