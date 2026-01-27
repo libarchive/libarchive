@@ -1160,6 +1160,13 @@ cab_checksum_finish(struct archive_read *a)
 	if (cfdata->sum == 0)
 		return (ARCHIVE_OK);
 
+	/* Validate memimage before accessing. */
+	if (cfdata->memimage == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Invalid CAB data: missing CFDATA for checksum");
+		return (ARCHIVE_FATAL);
+	}
+
 	/*
 	 * Calculate the sum of remaining CFDATA.
 	 */
