@@ -152,6 +152,7 @@ IF(ENABLE_TEST)
     test_read_format_isorr_rr_moved.c
     test_read_format_isozisofs_bz2.c
     test_read_format_lha.c
+    test_read_format_lha_amiga_script.c
     test_read_format_lha_bugfix_0.c
     test_read_format_lha_filename.c
     test_read_format_lha_filename_utf16.c
