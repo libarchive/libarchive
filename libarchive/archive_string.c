@@ -772,7 +772,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			int r;
 
 			defchar_used = 0;
-			if (to_cp == CP_UTF8 || sc == NULL)
+			if (to_cp == CP_UTF8)
 				dp = NULL;
 			else
 				dp = &defchar_used;

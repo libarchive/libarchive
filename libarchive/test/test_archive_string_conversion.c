@@ -1006,16 +1006,13 @@ DEFINE_TEST(test_archive_string_conversion_fail_latin1)
 	    archive_string_conversion_to_charset(a, "CP1252", 0)));
 	assertEqualString("CP1252",
 	    archive_string_conversion_charset_name(sconv));
-	// FIXME: archive_mstring_get_mbs_l from WCS incorrectly succeeds
-	// on an internal conversion attempt using `sconv == NULL`.
-	// test_archive_string_conversion_fail_utf16_mbs(a, sconv);
 #else
 	assertA(NULL != (sconv =
 	    archive_string_conversion_to_charset(a, "ISO8859-1", 0)));
 	assertEqualString("ISO8859-1",
 	    archive_string_conversion_charset_name(sconv));
-	test_archive_string_conversion_fail_utf16_mbs(a, sconv);
 #endif
+	test_archive_string_conversion_fail_utf16_mbs(a, sconv);
 	test_archive_string_conversion_fail_utf8_mbs(a, sconv);
 
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
