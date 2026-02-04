@@ -884,6 +884,14 @@ DEFINE_TEST(test_archive_string_conversion)
 }
 
 static void
+test_archive_string_conversion_fail_charset(void)
+{
+	/* Conversion error message construction may use the charset name.  */
+	assertEqualString("current locale",
+	    archive_string_conversion_charset_name(NULL));
+}
+
+static void
 test_archive_string_conversion_fail_utf16_mbs(struct archive *a,
     struct archive_string_conv *sconv)
 {
@@ -961,6 +969,8 @@ DEFINE_TEST(test_archive_string_conversion_fail_c)
 
 	/* Test the C locale by not calling setlocale.  */
 
+	test_archive_string_conversion_fail_charset();
+
 	assert((a = archive_write_new()) != NULL);
 
 	test_archive_string_conversion_fail_utf16_mbs(a, NULL);
@@ -986,6 +996,8 @@ DEFINE_TEST(test_archive_string_conversion_fail_latin1)
 		skipping("No Latin-1 locale found on this system.");
 		return;
 	}
+
+	test_archive_string_conversion_fail_charset();
 
 	assert((a = archive_write_new()) != NULL);
 

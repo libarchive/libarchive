@@ -1873,6 +1873,9 @@ archive_string_conversion_free(struct archive *a)
 const char *
 archive_string_conversion_charset_name(struct archive_string_conv *sc)
 {
+	if (sc == NULL) {
+		return "current locale";
+	}
 	if (sc->flag & SCONV_TO_CHARSET)
 		return (sc->to_charset);
 	else
