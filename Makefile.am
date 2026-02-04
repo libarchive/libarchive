@@ -884,6 +884,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_rockridge_rr_moved.iso.Z.uu \
 	libarchive/test/test_read_format_iso_xorriso.iso.Z.uu \
 	libarchive/test/test_read_format_iso_zisofs.iso.Z.uu \
+	libarchive/test/test_read_format_lha_amiga_script.lzh.uu \
 	libarchive/test/test_read_format_lha_bugfix_0.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_cp932.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_utf16.lzh.uu \

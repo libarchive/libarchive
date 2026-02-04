@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Michihiro NAKAJIMA
+ * Copyright (c) 2026 Alain Greppin
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
