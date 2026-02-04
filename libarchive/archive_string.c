@@ -4123,7 +4123,12 @@ archive_mstring_get_mbs_l(struct archive *a, struct archive_mstring *aes,
 	 * character-set. */
 	if ((aes->aes_set & AES_SET_MBS) == 0) {
 		const char *pm; /* unused */
-		archive_mstring_get_mbs(a, aes, &pm); /* ignore errors, we'll handle it later */
+		if (archive_mstring_get_mbs(a, aes, &pm) != 0) {
+			/* We have another form, but failed to convert it to
+			 * the native locale.  Transitively, we've failed to
+			 * convert it to the specified character set. */
+			ret = -1;
+		}
 	}
 	/* If we already have an MBS form, use it to be translated to
 	 * specified character-set. */
@@ -4141,6 +4146,8 @@ archive_mstring_get_mbs_l(struct archive *a, struct archive_mstring *aes,
 		if (length != NULL)
 			*length = aes->aes_mbs_in_locale.length;
 	} else {
+		/* Either we have no string in any form,
+		 * or conversion failed and set 'ret != 0'.  */
 		*p = NULL;
 		if (length != NULL)
 			*length = 0;
