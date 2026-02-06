@@ -1226,6 +1226,7 @@ AM_CONDITIONAL([INC_FREEBSD_ACL],
 
 # Additional requirements
 AC_SYS_LARGEFILE
+AC_CHECK_FUNCS([copy_file_range])
 
 dnl NOTE: Crypto checks must run last.
 AC_DEFUN([CRYPTO_CHECK], [

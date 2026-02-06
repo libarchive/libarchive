@@ -1005,6 +1005,7 @@ __LA_DECL int archive_write_disk_set_user_lookup(struct archive *,
     void (* /* cleanup */)(void *));
 __LA_DECL la_int64_t archive_write_disk_gid(struct archive *, const char *, la_int64_t);
 __LA_DECL la_int64_t archive_write_disk_uid(struct archive *, const char *, la_int64_t);
+__LA_DECL la_ssize_t archive_write_disk_copy_file(struct archive *, int, off_t);
 
 /*
  * ARCHIVE_READ_DISK API

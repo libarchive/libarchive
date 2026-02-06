@@ -2486,6 +2486,93 @@ create_filesystem_object(struct archive_write_disk *a)
 }
 
 /*
+ * Copy a file.  Starts by trying to use the copy_file_range syscall (if
+ * available).  It does so in a loop using lseek to find data segments.  This
+ * way it prevents copy_file_range from expanding holes in the original file.
+ * If this loop fails, it reverts to a another read+write loop.
+ * Returns to total amount of bytes copied.
+ */
+la_ssize_t
+archive_write_disk_copy_file(struct archive *_a, int fd_in, off_t s)
+{
+	static char buff[16384];
+	size_t buff_size = sizeof(buff);
+	ssize_t bytes_read, bytes_write = 0;
+	ssize_t total = 0;
+#if defined(HAVE_COPY_FILE_RANGE) && defined(SEEK_HOLE) && defined(SEEK_DATA)
+	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+	loff_t off_in, off_in_orig, off_out, off_out_orig, off_delta;
+	off_t next_start, next_end;
+	int fd_out = a->fd;
+
+	off_in_orig = off_in = lseek(fd_in, 0, SEEK_CUR);
+	off_out_orig = off_out = lseek(fd_out, 0, SEEK_CUR);
+	off_delta = off_out - off_in;
+	while (total < s) {
+		next_start = lseek(fd_in, off_in, SEEK_DATA);
+		if (next_start < 0) {
+			/* Hole at the end of the file */
+			if (errno == ENXIO) {
+				off_out = off_out_orig + s;
+				off_in = off_in_orig + s;
+				if (ftruncate(fd_out, off_out) < 0) {
+					archive_set_error(&a->archive, errno,
+							  "Can't truncate file");
+					return (ARCHIVE_FAILED);
+				}
+				total = s;
+				break;
+			}
+			archive_set_error(&a->archive, errno,
+					  "Can't seek to data in file");
+			return (ARCHIVE_FAILED);
+		}
+		next_end = lseek(fd_in, next_start, SEEK_HOLE);
+		if (next_end < 0) {
+			archive_set_error(&a->archive, errno,
+					  "Can't seek to hole in file");
+			return (ARCHIVE_FAILED);
+		}
+		total += (next_start - off_in);
+		off_in = next_start;
+		off_out = next_start + off_delta;
+		bytes_write = copy_file_range(fd_in, &off_in, fd_out, &off_out,
+					      (next_end - next_start), 0);
+		if (bytes_write <= 0)
+			break; /* Stop loop on error */
+
+		total += bytes_write;
+	}
+	a->total_bytes_written += total;
+	/* Adjust file descriptors offsets */
+	off_in = lseek(fd_in, off_in, SEEK_SET);
+	off_out = lseek(fd_out, off_out, SEEK_SET);
+
+	if (total == s)
+		return total;
+#else
+	(void)s; /* UNUSED */
+#endif
+
+	/* Fallback to a copy loop in case of partial copy or if copy failed */
+	bytes_read = read(fd_in, buff, (unsigned)buff_size);
+	while (bytes_read > 0) {
+		bytes_write = archive_write_data(_a, buff, bytes_read);
+		if (bytes_write < 0)
+			return (ARCHIVE_FAILED);
+		/*
+		 * if bytes_write < bytes_read... just keep going.  File may
+		 * have grown while being archived.
+		 */
+		total += bytes_write;
+		bytes_read = read(fd_in, buff,
+				  (unsigned)buff_size);
+	}
+
+	return total;
+}
+
+/*
  * Cleanup function for archive_extract.  Mostly, this involves processing
  * the fixup list, which is used to address a number of problems:
  *   * Dir permissions might prevent us from restoring a file in that
