@@ -264,6 +264,11 @@ IF(WIN32 AND MSVC)
   OPTION(MSVC_USE_STATIC_CRT "Use static CRT" OFF)
 ENDIF()
 
+OPTION(ENABLE_EXTRACT_RAR_CMT "Enable extracting SFX configuration script for RAR3 and RAR5" ON)
+IF(ENABLE_EXTRACT_RAR_CMT)
+  ADD_DEFINITIONS(-DARCHIVE_EXTRACT_RAR_CMT)
+ENDIF(ENABLE_EXTRACT_RAR_CMT)
+
 SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
 SET(WINDOWS_VERSION "WIN10" CACHE STRING "Set Windows version to use (Windows only)")

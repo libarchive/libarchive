@@ -365,6 +365,10 @@ struct rar5 {
 	 */
 	int has_encrypted_entries;
 	int headers_are_encrypted;
+
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+  	char extract_cmt;
+#endif
 };
 
 /* Forward function declarations. */
@@ -1199,9 +1203,23 @@ static int rar5_options(struct archive_read *a, const char *key,
 	(void) key;
 	(void) val;
 
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+	struct rar5 *rar;
+	rar = (struct rar5 *)(a->format->data);
+
+	if (strcmp(key, "cmt")  == 0) {
+		rar->extract_cmt = 1;
+		return ARCHIVE_OK;
+	}
+	/* Note: The "warn" return is just to inform the options
+	* supervisor that we didn't handle it.  It will generate
+	* a suitable error if no one used this option. */
+#else
+
 	/* No options supported in this version. Return the ARCHIVE_WARN code
 	 * to signal the options supervisor that the unpacker didn't handle
 	 * setting this option. */
+#endif
 
 	return ARCHIVE_WARN;
 }
@@ -2069,7 +2087,14 @@ static int process_head_service(struct archive_read* a, struct rar5* rar,
 		return ret;
 
 	rar->file.service = 1;
-
+#ifdef ARCHIVE_EXTRACT_RAR_CMT
+	if (rar->extract_cmt == 1) {
+		const char *filename = archive_entry_pathname_utf8(entry);
+		if (filename && strncmp(filename, "CMT", 3) == 0 && (block_flags & HFL_DATA)) {
+			return ARCHIVE_OK;
+		}
+	}
+#endif
 	/* But skip the data part automatically. It's no use for the user
 	 * anyway.  It contains only service data, not even needed to
 	 * properly unpack the file. */
