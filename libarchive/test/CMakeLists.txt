@@ -210,6 +210,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_winzip_aes.c
     test_read_format_zip_winzip_aes_large.c
     test_read_format_zip_zip64.c
+    test_read_format_zip_zipx_encrypted.c
     test_read_format_zip_with_invalid_traditional_eocd.c
     test_read_large.c
     test_read_pax_empty_val_no_nl.c
