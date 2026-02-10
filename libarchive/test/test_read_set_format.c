@@ -177,6 +177,18 @@ DEFINE_TEST(test_read_append_wrong_filter)
   assertEqualInt(ARCHIVE_OK,archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_append_compress_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_COMPRESS);
+  assertEqualIntA(a, ARCHIVE_OK, r);
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_append_filter_program)
 {
   struct archive_entry *ae;
