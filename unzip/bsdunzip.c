@@ -884,9 +884,9 @@ list(struct archive *a, struct archive_entry *e)
 	mtime = archive_entry_mtime(e);
 	tm = localtime(&mtime);
 	if (*y_str)
-		strftime(buf, sizeof(buf), "%m-%d-%G %R", tm);
+		strftime(buf, sizeof(buf), "%m-%d-%Y %R", tm);
 	else
-		strftime(buf, sizeof(buf), "%m-%d-%g %R", tm);
+		strftime(buf, sizeof(buf), "%m-%d-%y %R", tm);
 
 	pathname = archive_entry_pathname(e);
 	if (!pathname)
