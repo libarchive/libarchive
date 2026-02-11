@@ -22,6 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include "test.h"
 
 static const char *password = "test_password_zipx";
@@ -38,6 +39,36 @@ static const char file_data[] =
     "for the next prize. Sixty zippers were quickly picked from the bag.\n";
 
 static void
+validate_entry_read(struct archive *a, const char* msg)
+{
+	struct archive_entry *ae;
+	size_t total_read;
+	ssize_t r;
+	char readbuf[1024];
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("encrypted_file.txt", archive_entry_pathname(ae));
+	assertEqualInt((int)(sizeof(file_data) - 1),
+				   archive_entry_size(ae));
+	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
+
+	total_read = 0;
+	for (;;) {
+		r = archive_read_data(a, readbuf, sizeof(readbuf));
+		if (r == 0)
+			break;
+		if (r < 0) {
+			failure(msg, (int)r, archive_error_string(a));
+			assertEqualInt(r > 0, 1);
+			break;
+		}
+		assertEqualMem(readbuf, file_data + total_read, (size_t)r);
+		total_read += (size_t)r;
+	}
+	assertEqualInt((int)total_read, (int)(sizeof(file_data) - 1));
+}
+
+static void
 test_encrypted_zipx(const char *compression_name)
 {
 	struct archive *a;
@@ -46,8 +77,6 @@ test_encrypted_zipx(const char *compression_name)
 	size_t buffsize = 1000000;
 	char *buff;
 	char readbuf[1024];
-	ssize_t r;
-	size_t total_read;
 
 	buff = malloc(buffsize);
 	assert(buff != NULL);
@@ -66,19 +95,15 @@ test_encrypted_zipx(const char *compression_name)
 	}
 
 	if (ARCHIVE_OK != archive_write_set_options(a, compression_name)) {
-		skipping("%s is not supported on this platform",
-		    compression_name);
+		skipping("%s is not supported on this platform", compression_name);
 		archive_write_free(a);
 		free(buff);
 		return;
 	}
 
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_passphrase(a, password));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_options(a, "zip:experimental"));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_open_memory(a, buff, buffsize, &used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_passphrase(a, password));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_options(a, "zip:experimental"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used));
 
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_mtime(ae, 1, 0);
@@ -86,8 +111,7 @@ test_encrypted_zipx(const char *compression_name)
 	archive_entry_set_mode(ae, AE_IFREG | 0644);
 	archive_entry_set_size(ae, sizeof(file_data) - 1);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
-	assertEqualInt(sizeof(file_data) - 1,
-	    archive_write_data(a, file_data, sizeof(file_data) - 1));
+	assertEqualInt(sizeof(file_data) - 1, archive_write_data(a, file_data, sizeof(file_data) - 1));
 	archive_entry_free(ae);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
@@ -96,14 +120,12 @@ test_encrypted_zipx(const char *compression_name)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("encrypted_file.txt", archive_entry_pathname(ae));
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
-	assertEqualInt(ARCHIVE_FAILED,
-	    archive_read_data(a, readbuf, sizeof(readbuf)));
+	assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, readbuf, sizeof(readbuf)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 
@@ -111,31 +133,10 @@ test_encrypted_zipx(const char *compression_name)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_add_passphrase(a, password));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, buff, used));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("encrypted_file.txt", archive_entry_pathname(ae));
-	assertEqualInt((int)(sizeof(file_data) - 1),
-	    archive_entry_size(ae));
-	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, password));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
-	total_read = 0;
-	for (;;) {
-		r = archive_read_data(a, readbuf, sizeof(readbuf));
-		if (r == 0)
-			break;
-		if (r < 0) {
-			failure("archive_read_data returned %d: %s",
-			    (int)r, archive_error_string(a));
-			assertEqualInt(r > 0, 1);
-			break;
-		}
-		assertEqualMem(readbuf, file_data + total_read, (size_t)r);
-		total_read += (size_t)r;
-	}
-	assertEqualInt((int)total_read, (int)(sizeof(file_data) - 1));
+	validate_entry_read(a, "archive_read_data returned %d: %s");
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
@@ -144,29 +145,10 @@ test_encrypted_zipx(const char *compression_name)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_add_passphrase(a, password));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    read_open_memory_seek(a, buff, used, 7));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("encrypted_file.txt", archive_entry_pathname(ae));
-	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, password));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 
-	total_read = 0;
-	for (;;) {
-		r = archive_read_data(a, readbuf, sizeof(readbuf));
-		if (r == 0)
-			break;
-		if (r < 0) {
-			failure("seek: archive_read_data returned %d: %s",
-			    (int)r, archive_error_string(a));
-			assertEqualInt(r > 0, 1);
-			break;
-		}
-		assertEqualMem(readbuf, file_data + total_read, (size_t)r);
-		total_read += (size_t)r;
-	}
-	assertEqualInt((int)total_read, (int)(sizeof(file_data) - 1));
+	validate_entry_read(a, "seek: archive_read_data returned %d: %s");
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
