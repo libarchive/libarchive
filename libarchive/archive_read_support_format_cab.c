@@ -1157,7 +1157,7 @@ cab_checksum_finish(struct archive_read *a)
 	int l;
 
 	/* Do not need to compute a sum. */
-	if (cfdata->sum == 0)
+	if (cfdata->sum == 0 || cfdata->memimage == NULL)
 		return (ARCHIVE_OK);
 
 	/*
