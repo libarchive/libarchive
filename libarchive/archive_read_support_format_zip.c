@@ -60,6 +60,9 @@
 #ifdef HAVE_ZSTD_H
 #include <zstd.h>
 #endif
+#ifdef HAVE_INFLATELIB_H
+#include <inflatelib.h>
+#endif
 
 #include "archive.h"
 #include "archive_digest_private.h"
@@ -205,6 +208,11 @@ struct zip {
 	char            zstdstream_valid;
 #endif
 
+#ifdef HAVE_INFLATELIB_H
+	inflatelib_stream	inflstream;
+	char			inflstream_valid;
+#endif
+
 	IByteIn			zipx_ppmd_stream;
 	ssize_t			zipx_ppmd_read_compressed;
 	CPpmd8			ppmd8;
@@ -264,6 +272,11 @@ struct zip {
 #ifdef HAVE_ZLIB_H
 static int
 zip_read_data_deflate(struct archive_read *a, const void **buff,
+	size_t *size, int64_t *offset);
+#endif
+#ifdef HAVE_INFLATELIB_H
+static int
+zip_read_data_deflate64(struct archive_read *a, const void **buff,
 	size_t *size, int64_t *offset);
 #endif
 #if HAVE_LZMA_H && HAVE_LIBLZMA
@@ -1190,6 +1203,13 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				case 8: /* Deflate compression. */
 					zip->entry_bytes_remaining = zip_entry->compressed_size;
 					status = zip_read_data_deflate(a, &uncompressed_buffer,
+						&linkname_full_length, NULL);
+					break;
+#endif
+#if HAVE_INFLATELIB_H
+				case 9: /* Deflate64 compression. */
+					zip->entry_bytes_remaining = zip_entry->compressed_size;
+					status = zip_read_data_deflate64(a, &uncompressed_buffer,
 						&linkname_full_length, NULL);
 					break;
 #endif
@@ -2512,6 +2532,66 @@ zip_read_data_zipx_zstd(struct archive_read *a, const void **buff,
 }
 #endif
 
+static void
+zip_entry_handle_decryption(struct zip *zip, const void **compressed_buff,
+    ssize_t *bytes_avail)
+{
+	if (zip->tctx_valid || zip->cctx_valid) {
+		if (zip->decrypted_bytes_remaining < (size_t)*bytes_avail) {
+			unsigned char *decrypted_buffer_end =
+			    zip->decrypted_buffer + zip->decrypted_buffer_size;
+			unsigned char *decrypted_data_end = zip->decrypted_ptr +
+			    zip->decrypted_bytes_remaining;
+
+			/* Calculate the space available at the end of the decryption buffer */
+			size_t buff_remaining = decrypted_buffer_end -
+			    decrypted_data_end;
+
+			/* Clamp to the size of data that's actually available */
+			if (buff_remaining > (size_t)*bytes_avail)
+				buff_remaining = (size_t)*bytes_avail;
+
+			/* Clamp to the not-yet-decrypted size of the entry, if
+			 * it is known */
+			if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END) &&
+			      zip->entry_bytes_remaining > 0) {
+				if ((int64_t)(zip->decrypted_bytes_remaining
+				    + buff_remaining)
+				      > zip->entry_bytes_remaining) {
+					if (zip->entry_bytes_remaining <
+					    (int64_t)zip->decrypted_bytes_remaining)
+						buff_remaining = 0;
+					else
+						buff_remaining =
+						    (size_t)zip->entry_bytes_remaining
+						    - zip->decrypted_bytes_remaining;
+				}
+			}
+			if (buff_remaining > 0) {
+				if (zip->tctx_valid) {
+					trad_enc_decrypt_update(&zip->tctx,
+					    *compressed_buff, buff_remaining,
+					    zip->decrypted_ptr
+					      + zip->decrypted_bytes_remaining,
+					    buff_remaining);
+				} else {
+					size_t dsize = buff_remaining;
+					archive_decrypto_aes_ctr_update(
+					    &zip->cctx,
+					    *compressed_buff, buff_remaining,
+					    zip->decrypted_ptr
+					      + zip->decrypted_bytes_remaining,
+					    &dsize);
+				}
+				zip->decrypted_bytes_remaining +=
+				    buff_remaining;
+			}
+		}
+		*bytes_avail = zip->decrypted_bytes_remaining;
+		*compressed_buff = (const char *)zip->decrypted_ptr;
+	}
+}
+
 #ifdef HAVE_ZLIB_H
 static int
 zip_deflate_init(struct archive_read *a, struct zip *zip)
@@ -2584,54 +2664,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (zip->tctx_valid || zip->cctx_valid) {
-		if (zip->decrypted_bytes_remaining < (size_t)bytes_avail) {
-			size_t buff_remaining =
-			    (zip->decrypted_buffer +
-			    zip->decrypted_buffer_size)
-			    - (zip->decrypted_ptr +
-			    zip->decrypted_bytes_remaining);
-
-			if (buff_remaining > (size_t)bytes_avail)
-				buff_remaining = (size_t)bytes_avail;
-
-			if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END) &&
-			      zip->entry_bytes_remaining > 0) {
-				if ((int64_t)(zip->decrypted_bytes_remaining
-				    + buff_remaining)
-				      > zip->entry_bytes_remaining) {
-					if (zip->entry_bytes_remaining <
-					    (int64_t)zip->decrypted_bytes_remaining)
-						buff_remaining = 0;
-					else
-						buff_remaining =
-						    (size_t)zip->entry_bytes_remaining
-						    - zip->decrypted_bytes_remaining;
-				}
-			}
-			if (buff_remaining > 0) {
-				if (zip->tctx_valid) {
-					trad_enc_decrypt_update(&zip->tctx,
-					    compressed_buff, buff_remaining,
-					    zip->decrypted_ptr
-					      + zip->decrypted_bytes_remaining,
-					    buff_remaining);
-				} else {
-					size_t dsize = buff_remaining;
-					archive_decrypto_aes_ctr_update(
-					    &zip->cctx,
-					    compressed_buff, buff_remaining,
-					    zip->decrypted_ptr
-					      + zip->decrypted_bytes_remaining,
-					    &dsize);
-				}
-				zip->decrypted_bytes_remaining +=
-				    buff_remaining;
-			}
-		}
-		bytes_avail = zip->decrypted_bytes_remaining;
-		compressed_buff = (const char *)zip->decrypted_ptr;
-	}
+	zip_entry_handle_decryption(zip, &compressed_buff, &bytes_avail);
 
 	/*
 	 * A bug in zlib.h: stream.next_in should be marked 'const'
@@ -2690,6 +2723,136 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	}
 
 	*size = zip->stream.total_out;
+	*buff = zip->uncompressed_buffer;
+
+	return (ARCHIVE_OK);
+}
+#endif
+
+#ifdef HAVE_INFLATELIB_H
+static int
+zip_deflate64_init(struct archive_read *a, struct zip *zip)
+{
+	int r;
+
+	if (!zip->decompress_init) {
+		if (zip->inflstream_valid)
+			r = inflatelib_reset(&zip->inflstream);
+		else
+			r = inflatelib_init(&zip->inflstream);
+		if (r == INFLATELIB_ERROR_OOM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for ZIP decompression");
+			return (ARCHIVE_FATAL);
+		}
+		if (r != INFLATELIB_OK) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Can't initialize ZIP decompression");
+			return (ARCHIVE_FATAL);
+		}
+		zip->inflstream_valid = 1;
+		zip->decompress_init = 1;
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+zip_read_data_deflate64(struct archive_read *a, const void **buff,
+    size_t *size, int64_t *offset)
+{
+	struct zip *zip;
+	ssize_t bytes_avail;
+	const void *compressed_buff, *sp;
+	int r;
+
+	(void)offset; /* UNUSED */
+
+	zip = (struct zip *)(a->format->data);
+
+	/* If the buffer hasn't been allocated, allocate it now.
+	   Note that we use the same buffer & size as zip_read_data_deflate */
+	if (zip->uncompressed_buffer == NULL) {
+		zip->uncompressed_buffer_size = 256 * 1024;
+		zip->uncompressed_buffer
+		    = malloc(zip->uncompressed_buffer_size);
+		if (zip->uncompressed_buffer == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for ZIP decompression");
+			return (ARCHIVE_FATAL);
+		}
+	}
+
+	r = zip_deflate64_init(a, zip);
+	if (r != ARCHIVE_OK)
+		return (r);
+
+	/*
+	 * Note: '1' here is a performance optimization.
+	 * Recall that the decompression layer returns a count of
+	 * available bytes; asking for more than that forces the
+	 * decompressor to combine reads by copying data.:
+	 */
+	compressed_buff = sp = __archive_read_ahead(a, 1, &bytes_avail);
+	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)
+	    && bytes_avail > zip->entry_bytes_remaining) {
+		bytes_avail = (ssize_t)zip->entry_bytes_remaining;
+	}
+	if (bytes_avail < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated ZIP file body");
+		return (ARCHIVE_FATAL);
+	}
+
+	zip_entry_handle_decryption(zip, &compressed_buff, &bytes_avail);
+
+	zip->inflstream.next_in = compressed_buff;
+	zip->inflstream.avail_in = (size_t)bytes_avail;
+	zip->inflstream.total_in = 0;
+	zip->inflstream.next_out = zip->uncompressed_buffer;
+	zip->inflstream.avail_out = zip->uncompressed_buffer_size;
+	zip->inflstream.total_out = 0;
+
+	r = inflatelib_inflate64(&zip->inflstream);
+	switch (r) {
+	case INFLATELIB_OK:
+		break;
+	case INFLATELIB_EOF:
+		zip->end_of_entry = 1;
+		break;
+	default:
+		/* All memory is allocated up-front by inflatelib_init so
+		 * inflatelib_inflate64 will never fail with OOM */
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "ZIP decompression failed (%d)", r);
+		return (ARCHIVE_FATAL);
+	}
+
+	/* Consume as much as was actually used */
+	__archive_read_consume(a, zip->inflstream.total_in);
+	zip->entry_bytes_remaining -= zip->inflstream.total_in;
+	zip->entry_compressed_bytes_read += zip->inflstream.total_in;
+	zip->entry_uncompressed_bytes_read += zip->inflstream.total_out;
+
+	if (zip->tctx_valid || zip->cctx_valid) {
+		zip->decrypted_bytes_remaining -= zip->inflstream.total_in;
+		if (zip->decrypted_bytes_remaining == 0)
+			zip->decrypted_ptr = zip->decrypted_buffer;
+		else
+			zip->decrypted_ptr += zip->inflstream.total_in;
+	}
+	if (zip->hctx_valid)
+		archive_hmac_sha1_update(&zip->hctx, sp, zip->inflstream.total_in);
+
+	if (zip->end_of_entry) {
+		if (zip->hctx_valid) {
+			r = check_authentication_code(a, NULL);
+			if (r != ARCHIVE_OK) {
+				return (r);
+			}
+		}
+	}
+
+	*size = zip->inflstream.total_out;
 	*buff = zip->uncompressed_buffer;
 
 	return (ARCHIVE_OK);
@@ -3146,6 +3309,11 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		r =  zip_read_data_deflate(a, buff, size, offset);
 		break;
 #endif
+#ifdef HAVE_INFLATELIB_H
+	case 9: /* Deflate64 compression. */
+		r = zip_read_data_deflate64(a, buff, size, offset);
+		break;
+#endif
 	default: /* Unsupported compression. */
 		/* Return a warning. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -3231,6 +3399,12 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
 	if (zip->zstdstream_valid) {
 		ZSTD_freeDStream(zip->zstdstream);
+	}
+#endif
+
+#if HAVE_INFLATELIB_H
+	if (zip->inflstream_valid) {
+		inflatelib_destroy(&zip->inflstream);
 	}
 #endif
 
@@ -3532,6 +3706,19 @@ archive_read_format_zip_read_data_skip_streamable(struct archive_read *a)
 			size_t size = 0;
 			int r;
 			r =  zip_read_data_deflate(a, &buff, &size, &offset);
+			if (r != ARCHIVE_OK)
+				return (r);
+		}
+		return ARCHIVE_OK;
+#endif
+#ifdef HAVE_INFLATELIB_H
+	case 9: /* Deflate64 compression. */
+		while (!zip->end_of_entry) {
+			int64_t offset = 0;
+			const void *buff = NULL;
+			size_t size = 0;
+			int r;
+			r = zip_read_data_deflate64(a, &buff, &size, &offset);
 			if (r != ARCHIVE_OK)
 				return (r);
 		}
@@ -4143,6 +4330,9 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 #ifdef HAVE_ZLIB_H
 	case 8: /* Deflate compression. */
 #endif
+#ifdef HAVE_INFLATELIB_H
+	case 9: /* Deflate64 compression. */
+#endif
 		break;
 	default: /* Unsupported compression. */
 		/* Return a warning. */
@@ -4251,6 +4441,43 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 			bytes_used = zip->stream.total_in;
 			metadata_bytes -= zip->stream.total_out;
 			mp += zip->stream.total_out;
+			break;
+		}
+#endif
+#ifdef HAVE_INFLATELIB_H
+		case 9: /* Deflate64 compression. */
+		{
+			int r;
+
+			ret = zip_deflate64_init(a, zip);
+			if (ret != ARCHIVE_OK)
+				goto exit_mac_metadata;
+			zip->inflstream.next_in = p;
+			zip->inflstream.avail_in = bytes_avail;
+			zip->inflstream.total_in = 0;
+			zip->inflstream.next_out = mp;
+			zip->inflstream.avail_out = metadata_bytes;
+			zip->inflstream.total_out = 0;
+
+			r = inflatelib_inflate64(&zip->inflstream);
+			switch (r) {
+			case INFLATELIB_OK:
+				break;
+			case INFLATELIB_EOF:
+				eof = 1;
+				break;
+			default:
+				/* All memory is allocated up-front by
+				   inflatelib_init so inflatelib_inflate64 will
+				   never fail with OOM*/
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "ZIP decompression failed (%d)", r);
+				goto exit_mac_metadata;
+			}
+			bytes_used = zip->inflstream.total_in;
+			metadata_bytes -= zip->inflstream.total_out;
+			mp += zip->inflstream.total_out;
 			break;
 		}
 #endif
