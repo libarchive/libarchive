@@ -227,6 +227,7 @@ IF(ENABLE_TEST)
     test_tar_large.c
     test_ustar_filename_encoding.c
     test_ustar_filenames.c
+    test_v7tar_filename_encoding.c
     test_warn_missing_hardlink_target.c
     test_write_disk.c
     test_write_disk_appledouble.c
