@@ -91,6 +91,7 @@ SET(libarchive_SOURCES
   archive_read_support_filter_lz4.c
   archive_read_support_filter_lzop.c
   archive_read_support_filter_none.c
+  archive_read_support_filter_pbzx.c
   archive_read_support_filter_program.c
   archive_read_support_filter_rpm.c
   archive_read_support_filter_uu.c
