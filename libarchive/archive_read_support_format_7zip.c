@@ -64,6 +64,7 @@
 #define SFX_MIN_ADDR	0x27000
 #define SFX_MAX_ADDR	0x60000
 #define SFX_MAX_OFFSET	(SFX_MAX_ADDR - SFX_MIN_ADDR)
+#define SFX_MAX_STRTAB	0x10000
 
 /*
  * PE format
@@ -817,7 +818,7 @@ find_elf_data_sec(struct archive_read *a)
 			strtab_size = (*dec32)(
 			    h + e_shstrndx * e_shentsize + 0x14);
 		}
-		if (strtab_size < 6 || strtab_size > SIZE_MAX)
+		if (strtab_size < 6 || strtab_size > SFX_MAX_STRTAB)
 			break;
 
 		/*
