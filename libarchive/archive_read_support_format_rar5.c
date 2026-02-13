@@ -1839,15 +1839,18 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	rar->cstate.version = c_version + 50;
 	rar->file.solid = (compression_info & SOLID) > 0;
 
-	/* Archives which declare solid files without initializing the window
-	 * buffer first are invalid, unless previous data was encrypted, in
-	 * which case we may never have had the chance */
+	/* For solid archives, window_buf may be NULL on the first solid file.
+	 * This is valid - the window will be initialized below at line 1909.
+	 * Only error if this is a continuation file (solid_window_size already set)
+	 * but the window buffer is missing, unless previous data was encrypted,
+	 * in which case we may never have had the chance.
+	 * Fixes Issue #1910: solid+split RAR5 archives were incorrectly rejected. */
 
 	if(rar->file.solid > 0 && rar->cstate.data_encrypted == 0 &&
-	    rar->cstate.window_buf == NULL) {
+	    rar->cstate.window_buf == NULL && rar->file.solid_window_size > 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-				  "Declared solid file, but no window buffer "
-				  "initialized yet.");
+				  "Declared solid continuation file, but no window buffer "
+				  "initialized from previous solid file.");
 		return ARCHIVE_FATAL;
 	}
 
