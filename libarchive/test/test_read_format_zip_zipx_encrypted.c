@@ -55,11 +55,11 @@ validate_entry_read(struct archive *a, const char* msg)
 	total_read = 0;
 	for (;;) {
 		r = archive_read_data(a, readbuf, sizeof(readbuf));
-		if (r == 0)
-			break;
-		if (r < 0) {
-			failure(msg, (int)r, archive_error_string(a));
-			assertEqualInt(r > 0, 1);
+		if (r <= 0) {
+			if (r < 0) {
+				failure(msg, (int) r, archive_error_string(a));
+				assertEqualInt(r > 0, 1);
+			}
 			break;
 		}
 		assertEqualMem(readbuf, file_data + total_read, (size_t)r);
