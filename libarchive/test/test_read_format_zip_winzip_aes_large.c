@@ -25,9 +25,9 @@
  */
 #include "test.h"
 
-DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
+void
+test_winzip_aes_large(const char *refname, const char *compression_name)
 {
-	const char *refname = "test_read_format_zip_winzip_aes256_large.zip";
 	struct archive_entry *ae;
 	struct archive *a;
 	char buff[512];
@@ -43,8 +43,17 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 		archive_write_free(a);
 		return;
 	}
-	archive_write_free(a);
 
+	/* Check if running system supports compression format used */
+	if (compression_name) {
+		if (ARCHIVE_OK != archive_write_set_options(a, compression_name)) {
+			skipping("%s is not supported on this platform", compression_name);
+			archive_write_free(a);
+			return;
+		}
+	}
+
+	archive_write_free(a);
 
 	extract_reference_file(refname);
 
@@ -54,7 +63,7 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, 
+	assertEqualIntA(a, ARCHIVE_OK,
                archive_read_open_filename(a, refname, 10240));
 
 	assertEqualIntA(a, ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW,
@@ -122,7 +131,7 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 		archive_read_add_passphrase(a, "password"));
-	assertEqualIntA(a, ARCHIVE_OK, 
+	assertEqualIntA(a, ARCHIVE_OK,
 		archive_read_open_filename(a, refname, 10240));
 
 	assertEqualIntA(a, ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW,
@@ -199,7 +208,7 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 		    "Unsupported ZIP compression method (8: deflation)");
 		assert(archive_errno(a) != 0);
 	}
-	
+
 	assertEqualInt(4, archive_file_count(a));
 
 	/* End of archive. */
@@ -214,3 +223,31 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+
+DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
+{
+	// Deflate is always supported, no need to test for it
+	test_winzip_aes_large("test_read_format_zip_winzip_aes256_large.zip", NULL);
+}
+
+
+DEFINE_TEST(test_read_format_zip_winzip_aes256_bzip2)
+{
+	test_winzip_aes_large("test_read_format_zip_winzip_aes256_large_bzip2.zip", "zip:compression=bzip2");
+}
+
+DEFINE_TEST(test_read_format_zip_winzip_aes256_lzma)
+{
+	test_winzip_aes_large("test_read_format_zip_winzip_aes256_large_lzma.zip", "zip:compression=lzma");
+}
+
+DEFINE_TEST(test_read_format_zip_winzip_aes256_ppmd)
+{
+	// There is no writing support for ppmd, so testing for it causes issues
+	test_winzip_aes_large("test_read_format_zip_winzip_aes256_large_ppmd.zip", NULL);
+}
+
+DEFINE_TEST(test_read_format_zip_winzip_aes256_xz)
+{
+	test_winzip_aes_large("test_read_format_zip_winzip_aes256_large_xz.zip", "zip:compression=xz");
+}
