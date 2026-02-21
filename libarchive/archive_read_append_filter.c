@@ -117,7 +117,7 @@ archive_read_append_filter(struct archive *_a, int code)
     bidder = a->bidders;
     for (i = 1; i < number_bidders; i++, bidder++)
     {
-      if (!bidder->name || !strcmp(bidder->name, str))
+      if (bidder->name && !strcmp(bidder->name, str))
         break;
     }
     if (!bidder->name || strcmp(bidder->name, str))
