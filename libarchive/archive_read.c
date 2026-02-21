@@ -1232,13 +1232,18 @@ __archive_read_register_bidder(struct archive_read *a,
 	int i, number_slots;
 
 	archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "__archive_read_register_bidder");
+	    ARCHIVE_STATE_NEW | ARCHIVE_STATE_HEADER,
+		"__archive_read_register_bidder");
 
 	number_slots = sizeof(a->bidders) / sizeof(a->bidders[0]);
 
 	for (i = 0; i < number_slots; i++) {
-		if (a->bidders[i].vtable != NULL)
+		if (a->bidders[i].vtable != NULL) {
+			if (a->bidders[i].vtable == vtable)
+				/* Already registered. */
+				return (ARCHIVE_OK);
 			continue;
+		}
 		memset(a->bidders + i, 0, sizeof(a->bidders[0]));
 		bidder = (a->bidders + i);
 		bidder->data = bidder_data;
