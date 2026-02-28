@@ -832,6 +832,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_sfx_elf.elf.uu \
+	libarchive/test/test_read_format_7zip_sfx_elf64trunc.elf.uu \
 	libarchive/test/test_read_format_7zip_sfx_modified_pe.exe.uu \
 	libarchive/test/test_read_format_7zip_sfx_pe.exe.uu \
 	libarchive/test/test_read_format_7zip_solid_zstd.7z.uu \
