@@ -138,27 +138,17 @@ progress_func(void *cookie)
 static void
 do_top_level_dir(struct bsdtar *bsdtar)
 {
-	char *name = NULL;
 	if ((bsdtar->flags & OPTFLAG_ONE_TOP_LEVEL) == 0)
 		return;
-	// TODO: check for --one-top-level argument here
-	if (name == NULL) {
-		if (bsdtar->filename == NULL)
-			lafe_errc(1, 0, "Archive name unknown, can't infer a "
-			                 "default value for --one-top-level.");
-		name = archive_basename(bsdtar->filename);
-	}
 
 	/* It would be nice to have a flag to abort the extraction when the
 	 * directory already exists.  The directory permissions could maybe
 	 * be inferred from the permissions of the archive file, but GNU tar
 	 * doesn't do that, and it's unclear what to do about stdin. */
-	if (mkdir(name, 0777) != 0 && errno != EEXIST)
+	if (mkdir(bsdtar->top_level, 0777) != 0 && errno != EEXIST)
 		lafe_errc(1, errno, "Can't create top level directory");
-	if (chdir(name) != 0)
+	if (chdir(bsdtar->top_level) != 0)
 		lafe_errc(1, 0, "Couldn't chdir to top level directory");
-
-	free(name);
 }
 
 /*

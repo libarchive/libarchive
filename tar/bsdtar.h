@@ -35,6 +35,7 @@ struct bsdtar {
 	/* Options */
 	const char	 *filename; /* -f filename */
 	char		 *pending_chdir; /* -C dir */
+	char		 *top_level; /* --one-top-level directory */
 	const char	 *names_from_file; /* -T file */
 	int		  bytes_per_block; /* -b block_size */
 	int		  bytes_in_last_block; /* See -b handling. */
