@@ -7,7 +7,7 @@ FreeBSD_task:
   matrix:
     - name: 15.0-STABLE (UFS) cmake
       freebsd_instance:
-        image_family: freebsd-15-0-amd64-ufs-snap
+        image_family: freebsd-15-0-amd64-ufs
       env:
         BS: cmake
     - name: 15.0-RELEASE (ZFS)
