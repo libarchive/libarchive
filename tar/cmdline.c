@@ -125,6 +125,7 @@ static const struct bsdtar_option {
 	{ "older-mtime-than",	  1, OPTION_OLDER_MTIME_THAN },
 	{ "older-than",		  1, OPTION_OLDER_CTIME_THAN },
 	{ "one-file-system",	  0, OPTION_ONE_FILE_SYSTEM },
+	{ "one-top-level",	  0, OPTION_ONE_TOP_LEVEL },
 	{ "options",              1, OPTION_OPTIONS },
 	{ "owner",		  1, OPTION_OWNER },
 	{ "passphrase",		  1, OPTION_PASSPHRASE },

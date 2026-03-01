@@ -646,6 +646,10 @@ main(int argc, char **argv)
 			bsdtar->readdisk_flags |=
 			    ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS;
 			break;
+		case OPTION_ONE_TOP_LEVEL: /* GNU tar */
+			// TODO accept optional argument
+			bsdtar->flags |= OPTFLAG_ONE_TOP_LEVEL;
+			break;
 		case OPTION_OPTIONS:
 			if (bsdtar->option_options != NULL) {
 				lafe_warnc(0,
@@ -932,6 +936,8 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+	if (bsdtar->flags & OPTFLAG_ONE_TOP_LEVEL)
+		only_mode(bsdtar, "--one-top-level", "x");
 	if (bsdtar->flags & OPTFLAG_STDOUT)
 		only_mode(bsdtar, "-O", "xt");
 	if (bsdtar->flags & OPTFLAG_UNLINK_FIRST)

@@ -120,6 +120,7 @@ struct bsdtar {
 #define	OPTFLAG_MAC_METADATA	(0x00400000)	/* --mac-metadata */
 #define	OPTFLAG_NO_READ_SPARSE	(0x00800000)    /* --no-read-sparse */
 #define	OPTFLAG_READ_SPARSE		(0x01000000)    /* --read-sparse */
+#define	OPTFLAG_ONE_TOP_LEVEL	(0x02000000)    /* --one-top-level */
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
@@ -168,6 +169,7 @@ enum {
 	OPTION_OLDER_MTIME,
 	OPTION_OLDER_MTIME_THAN,
 	OPTION_ONE_FILE_SYSTEM,
+	OPTION_ONE_TOP_LEVEL,
 	OPTION_OPTIONS,
 	OPTION_OWNER,
 	OPTION_PASSPHRASE,
@@ -222,6 +224,7 @@ int		cset_read_support_filter_program(struct creation_set *,
 void		cset_set_format(struct creation_set *, const char *);
 int		cset_write_add_filters(struct creation_set *,
 		    struct archive *, const void **);
+char *		archive_basename(const char *);
 
 const char * passphrase_callback(struct archive *, void *);
 void	     passphrase_free(char *);
