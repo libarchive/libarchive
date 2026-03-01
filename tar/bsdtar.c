@@ -647,8 +647,9 @@ main(int argc, char **argv)
 			    ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS;
 			break;
 		case OPTION_ONE_TOP_LEVEL: /* GNU tar */
-			// TODO accept optional argument
 			bsdtar->flags |= OPTFLAG_ONE_TOP_LEVEL;
+			bsdtar->top_level = bsdtar->argument
+			    ? strdup(bsdtar->argument) : NULL;
 			break;
 		case OPTION_OPTIONS:
 			if (bsdtar->option_options != NULL) {

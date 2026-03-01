@@ -1210,6 +1210,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_newer_than.c \
 	tar/test/test_option_nodump.c \
 	tar/test/test_option_older_than.c \
+	tar/test/test_option_one_top_level.c \
 	tar/test/test_option_one_top_level_infer.c \
 	tar/test/test_option_owner.c \
 	tar/test/test_option_passphrase.c \
