@@ -30,7 +30,6 @@ DEFINE_TEST(test_read_format_lha_oversize_header)
 	extract_reference_file(refname);
 	struct archive_entry *ae;
 	struct archive *a;
-	int ret;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
