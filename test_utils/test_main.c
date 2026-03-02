@@ -96,6 +96,12 @@ extern char **environ;
 #  define USE_POSIX_SPAWN 1
 # endif
 #endif
+#if !defined(_WIN32)
+# if HAVE_PWD_H && HAVE_GETEUID && HAVE_GETEGID
+#  include <pwd.h>
+#  define RUN_TEST_UNPRIV 1
+# endif
+#endif
 
 #ifndef nitems
 #define nitems(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -177,6 +183,14 @@ const char *testprogfile;
 /* Name of exe to use in printf-formatted command strings. */
 /* On Windows, this includes leading/trailing quotes. */
 const char *testprog;
+#endif
+
+#ifdef RUN_TEST_UNPRIV
+/* Unprivileged user to run as */
+const char *tuser = "nobody";
+/* Original and test credentials */
+uid_t ouid, tuid;
+uid_t ogid, tgid;
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -3626,8 +3640,11 @@ test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	testworkdir = workdir;
-	if (!assertMakeDir(testworkdir, 0755)
-	    || !assertChdir(testworkdir)) {
+	if (!assertMakeDir(testworkdir, 0755) ||
+#ifdef RUN_TEST_UNPRIV
+	    (tuser != NULL && !assertChown(testworkdir, tuid, tgid)) ||
+#endif
+	    !assertChdir(testworkdir)) {
 		fprintf(stderr,
 		    "ERROR: Can't chdir to work dir %s\n", testworkdir);
 		exit(1);
@@ -3636,10 +3653,28 @@ test_run(int i, const char *tmpdir)
 	set_c_locale();
 	/* Record the umask before we run the test. */
 	umask(oldumask = umask(0));
+#ifdef RUN_TEST_UNPRIV
+	/*
+	 * Temporarily drop privileges.
+	 */
+	if (tuser != NULL) {
+		(void)setegid(tuid);
+		(void)seteuid(tuid);
+	}
+#endif
 	/*
 	 * Run the actual test.
 	 */
 	(*tests[i].func)();
+#ifdef RUN_TEST_UNPRIV
+	/*
+	 * Restore original credentials.
+	 */
+	if (tuser != NULL) {
+		(void)seteuid(ouid);
+		(void)setegid(ogid);
+	}
+#endif
 	/*
 	 * Clean up and report afterwards.
 	 */
@@ -3965,6 +4000,9 @@ main(int argc, char **argv)
 #endif
 	char *pwd, *testprogdir, *tmp2 = NULL, *vlevel = NULL;
 	char tmpdir_timestamp[32];
+#ifdef RUN_TEST_UNPRIV
+	struct passwd *pw;
+#endif
 
 	(void)argc; /* UNUSED */
 
@@ -4126,6 +4164,11 @@ main(int argc, char **argv)
 			case 's':
 				fail_if_tests_skipped = 1;
 				break;
+#ifdef RUN_TEST_UNPRIV
+			case 'U':
+				tuser = optarg;
+				break;
+#endif
 			case 'u':
 				until_failure++;
 				break;
@@ -4207,6 +4250,28 @@ main(int argc, char **argv)
 		sigemptyset(&sa.sa_mask);
 		sa.sa_flags = 0;
 		sigaction(SIGPIPE, &sa, NULL);
+	}
+#endif
+
+#ifdef RUN_TEST_UNPRIV
+	/*
+	 * Check if we are root, and get user to run as.
+	 */
+	ouid = getuid();
+	ogid = getgid();
+	if (ouid == 0) {
+		if ((pw = getpwnam(tuser)) == NULL) {
+			fprintf(stderr, "ERROR: Unknown user %s\n", tuser);
+			exit(1);
+		}
+		tuid = pw->pw_uid;
+		tgid = pw->pw_gid;
+		printf("Will switch to user %s (uid %d gid %d)\n", tuser,
+		    tuid, tgid);
+	} else {
+		tuser = NULL;
+		tuid = ouid;
+		tgid = ogid;
 	}
 #endif
 

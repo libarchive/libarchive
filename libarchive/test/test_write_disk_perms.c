@@ -26,6 +26,13 @@
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 
+#ifdef HAVE_GETEUID
+#define getuid() geteuid()
+#endif
+#ifdef HAVE_GETEGID
+#define getgid() getegid()
+#endif
+
 #define UMASK 022
 
 static long _default_gid = -1;
