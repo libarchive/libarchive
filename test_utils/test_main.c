@@ -632,6 +632,22 @@ assertion_chmod(const char *file, int line, const char *pathname, int mode)
 
 }
 
+/* change file/directory ownership and errors if it fails */
+int
+assertion_chown(const char *file, int line, const char *pathname, int user,
+    int group)
+{
+	assertion_count(file, line);
+#ifdef HAVE_CHOWN
+	if (chown(pathname, (uid_t)user, (gid_t)group) == 0)
+		return (1);
+#endif
+	failure_start(file, line, "chown(\"%s\", %d, %d)", pathname,
+	    user, group);
+	failure_finish(NULL);
+	return (0);
+}
+
 /* Verify two integers are equal. */
 int
 assertion_equal_int(const char *file, int line,
