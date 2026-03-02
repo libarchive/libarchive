@@ -2100,8 +2100,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 	ssize_t bytes_read;
 	ssize_t total_size = 0;
 	ssize_t find_off = 0;
-	const void *t;
-	void *nl;
+	const void *nl, *t;
 	char *u;
 
 	/* Accumulate line in a line buffer. */
