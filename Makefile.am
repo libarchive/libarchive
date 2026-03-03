@@ -516,6 +516,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_lha_bugfix_0.c \
 	libarchive/test/test_read_format_lha_filename.c \
 	libarchive/test/test_read_format_lha_filename_utf16.c \
+	libarchive/test/test_read_format_lha_oversize_header.c \
 	libarchive/test/test_read_format_mtree.c \
 	libarchive/test/test_read_format_mtree_crash747.c \
 	libarchive/test/test_read_format_pax_bz2.c \
@@ -833,6 +834,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_sfx_elf.elf.uu \
+	libarchive/test/test_read_format_7zip_sfx_elf64trunc.elf.uu \
 	libarchive/test/test_read_format_7zip_sfx_modified_pe.exe.uu \
 	libarchive/test/test_read_format_7zip_sfx_pe.exe.uu \
 	libarchive/test/test_read_format_7zip_solid_zstd.7z.uu \
@@ -894,6 +896,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_lha_lh0.lzh.uu \
 	libarchive/test/test_read_format_lha_lh6.lzh.uu \
 	libarchive/test/test_read_format_lha_lh7.lzh.uu \
+	libarchive/test/test_read_format_lha_oversize_header.lzh.uu \
 	libarchive/test/test_read_format_lha_withjunk.lzh.uu \
 	libarchive/test/test_read_format_mtree.mtree.uu \
 	libarchive/test/test_read_format_mtree_nomagic.mtree.uu \

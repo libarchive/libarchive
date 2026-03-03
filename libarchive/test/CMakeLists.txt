@@ -155,6 +155,7 @@ IF(ENABLE_TEST)
     test_read_format_lha_bugfix_0.c
     test_read_format_lha_filename.c
     test_read_format_lha_filename_utf16.c
+    test_read_format_lha_oversize_header.c
     test_read_format_mtree.c
     test_read_format_mtree_crash747.c
     test_read_format_pax_bz2.c
@@ -228,6 +229,7 @@ IF(ENABLE_TEST)
     test_tar_large.c
     test_ustar_filename_encoding.c
     test_ustar_filenames.c
+    test_v7tar_filename_encoding.c
     test_warn_missing_hardlink_target.c
     test_write_disk.c
     test_write_disk_appledouble.c
