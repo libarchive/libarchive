@@ -572,6 +572,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_winzip_aes.c \
 	libarchive/test/test_read_format_zip_winzip_aes_large.c \
 	libarchive/test/test_read_format_zip_zip64.c \
+	libarchive/test/test_read_format_zip_zipx_encrypted.c \
 	libarchive/test/test_read_format_zip_with_invalid_traditional_eocd.c \
 	libarchive/test/test_read_large.c \
 	libarchive/test/test_read_pax_empty_val_no_nl.c \
@@ -1050,6 +1051,11 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_winzip_aes128.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes256.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes256_large.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes256_large_bzip2.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes256_large_lzma.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes256_large_ppmd.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes256_large_xz.zip.uu \
+	libarchive/test/test_read_format_zip_winzip_aes256_large_zstd.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes256_stored.zip.uu \
 	libarchive/test/test_read_format_zip_with_invalid_traditional_eocd.zip.uu \
 	libarchive/test/test_read_format_zip_xz_multi.zipx.uu \
