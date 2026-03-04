@@ -49,8 +49,6 @@ archive_read_support_filter_by_code(struct archive *a, int filter_code)
 		return archive_read_support_filter_xz(a);
 	case ARCHIVE_FILTER_UU:
 		return archive_read_support_filter_uu(a);
-	case ARCHIVE_FILTER_RPM:
-		return archive_read_support_filter_rpm(a);
 	case ARCHIVE_FILTER_LZIP:
 		return archive_read_support_filter_lzip(a);
 	case ARCHIVE_FILTER_LRZIP:
