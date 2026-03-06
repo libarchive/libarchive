@@ -1,0 +1,66 @@
+name: Swift CI
+
+on:
+  push:
+    branches: [ '*' ]
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: "Test Swift Package on Linux"
+        run: swift test -c release --parallel
+      - name: "Test expected build failure without dependencies"
+        run: '! swift test --enable-all-traits'
+      - name: "Install dependencies for additional traits"
+        run: sudo apt install -y liblzma-dev libbz2-dev
+      - name: "Test Swift Package on Linux with all traits"
+        run: swift test -c release --parallel --enable-all-traits
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: "Test Swift Package on Android"
+        uses: skiptools/swift-android-action@v2
+        with:
+          swift-version: nightly-6.3
+          swift-configuration: debug
+          free-disk-space: true
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: "Test Swift Package on macOS"
+        run: swift test -c release --parallel
+      - name: "Test Swift Package on macOS with all traits"
+        run: swift test -c release --parallel --enable-all-traits
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: "List available simulators"
+        run: |
+          echo "::group::Available simulators"
+          xcrun simctl list devices available
+          echo "::endgroup::"
+      - name: "Test Swift Package on iOS"
+        run: xcodebuild test -sdk "iphonesimulator" -destination "platform=iOS Simulator,name=iPhone 17,OS=latest" -scheme "Archive"
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          swift-version: swift-6.2-release
+          swift-build: 6.2-RELEASE
+      - uses: actions/checkout@v6
+      - run: swift test -c release
+

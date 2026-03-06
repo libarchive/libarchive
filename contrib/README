@@ -6,6 +6,15 @@ I do not support or use any of these; but if you can use them, enjoy!
 
 ======================================================================
 
+From: Marc Prud'hommeaux <marc@prux.org>
+
+Swift
+
+A Swift 6.1 package that provides an idiomatic API atop libarchive
+and offers customizable traits in the Package.swift
+
+======================================================================
+
 From: Andre Stechert <andre@splunk.com>
 
 libarchive_autodetect-st_lib_archive.m4

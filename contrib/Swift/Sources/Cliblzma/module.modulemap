@@ -1,0 +1,4 @@
+module Cliblzma [system] {
+    link "lzma"
+    export *
+}
