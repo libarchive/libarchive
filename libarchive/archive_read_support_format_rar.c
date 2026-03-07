@@ -2548,7 +2548,8 @@ parse_codes(struct archive_read *a)
       return (r);
   }
 
-  if (!rar->dictionary_size || !rar->lzss.window)
+  if (!rar->dictionary_size || !rar->lzss.window ||
+      (rar->lzss.mask + 1) < rar->dictionary_size)
   {
     /* Seems as though dictionary sizes are not used. Even so, minimize
      * memory usage as much as possible.
@@ -3149,6 +3150,11 @@ copy_from_lzss_window(struct archive_read *a, uint8_t *buffer,
 
   windowoffs = lzss_offset_for_position(&rar->lzss, startpos);
   firstpart = lzss_size(&rar->lzss) - windowoffs;
+  if (length > lzss_size(&rar->lzss)) {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Bad RAR file data");
+    return (ARCHIVE_FATAL);
+  }
   if (firstpart < 0) {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Bad RAR file data");
@@ -3315,7 +3321,8 @@ parse_filter(struct archive_read *a, const uint8_t *bytes, uint16_t length, uint
   else
     blocklength = prog ? prog->oldfilterlength : 0;
 
-  if (blocklength > rar->dictionary_size)
+  if (blocklength > rar->dictionary_size ||
+      blocklength > (uint32_t)(rar->lzss.mask + 1))
     return 0;
 
   registers[3] = PROGRAM_SYSTEM_GLOBAL_ADDRESS;
