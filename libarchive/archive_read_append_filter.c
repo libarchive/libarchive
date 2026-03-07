@@ -80,10 +80,6 @@ archive_read_append_filter(struct archive *_a, int code)
       strcpy(str, "uu");
       r1 = archive_read_support_filter_uu(_a);
       break;
-    case ARCHIVE_FILTER_RPM:
-      strcpy(str, "rpm");
-      r1 = archive_read_support_filter_rpm(_a);
-      break;
     case ARCHIVE_FILTER_LZ4:
       strcpy(str, "lz4");
       r1 = archive_read_support_filter_lz4(_a);
@@ -117,7 +113,7 @@ archive_read_append_filter(struct archive *_a, int code)
     bidder = a->bidders;
     for (i = 1; i < number_bidders; i++, bidder++)
     {
-      if (!bidder->name || !strcmp(bidder->name, str))
+      if (bidder->name && !strcmp(bidder->name, str))
         break;
     }
     if (!bidder->name || strcmp(bidder->name, str))

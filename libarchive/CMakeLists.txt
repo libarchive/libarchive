@@ -92,7 +92,6 @@ SET(libarchive_SOURCES
   archive_read_support_filter_lzop.c
   archive_read_support_filter_none.c
   archive_read_support_filter_program.c
-  archive_read_support_filter_rpm.c
   archive_read_support_filter_uu.c
   archive_read_support_filter_xz.c
   archive_read_support_filter_zstd.c
@@ -109,6 +108,7 @@ SET(libarchive_SOURCES
   archive_read_support_format_rar.c
   archive_read_support_format_rar5.c
   archive_read_support_format_raw.c
+  archive_read_support_format_rpm.c
   archive_read_support_format_tar.c
   archive_read_support_format_warc.c
   archive_read_support_format_xar.c
