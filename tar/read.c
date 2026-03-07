@@ -55,6 +55,9 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifndef STDIN_FILENO
+#define STDIN_FILENO 0
+#endif
 
 #include "bsdtar.h"
 #include "lafe_err.h"
@@ -200,8 +203,11 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			&passphrase_callback);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(a));
-	if (archive_read_open_filename(a, bsdtar->filename,
-					bsdtar->bytes_per_block))
+	if (bsdtar->filename == NULL || *bsdtar->filename == '\0')
+		bsdtar->fd = STDIN_FILENO;
+	else if ((bsdtar->fd = open(bsdtar->filename, O_RDONLY)) < 0)
+		lafe_errc(1, errno, "Couldn't open %s", bsdtar->filename);
+	if (archive_read_open_fd(a, bsdtar->fd, bsdtar->bytes_per_block))
 		lafe_errc(1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
 
@@ -373,6 +379,9 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		lafe_warnc(0, "%s", archive_error_string(a));
 	if (r <= ARCHIVE_WARN)
 		bsdtar->return_value = 1;
+	if (bsdtar->fd != STDIN_FILENO)
+		close(bsdtar->fd);
+	bsdtar->fd = -1;
 
 	if (bsdtar->verbose > 2)
 		fprintf(stdout, "Archive Format: %s,  Compression: %s\n",
