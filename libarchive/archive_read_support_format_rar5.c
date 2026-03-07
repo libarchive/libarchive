@@ -430,8 +430,7 @@ static int cdeque_front(struct cdeque* d, void** value) {
 		return CDE_OUT_OF_BOUNDS;
 }
 
-/* Pushes a new element into the end of this circular deque object. If current
- * size will exceed capacity, the oldest element will be overwritten. */
+/* Pushes a new element into the end of this circular deque object. */
 static int cdeque_push_back(struct cdeque* d, void* item) {
 	if(d == NULL)
 		return CDE_PARAM;
@@ -555,7 +554,11 @@ static struct filter_info* add_new_filter(struct rar5* rar) {
 		return NULL;
 	}
 
-	cdeque_push_back(&rar->cstate.filters, cdeque_filter(f));
+	if (CDE_OK != cdeque_push_back(&rar->cstate.filters, cdeque_filter(f))) {
+		free(f);
+		return NULL;
+	}
+
 	return f;
 }
 
