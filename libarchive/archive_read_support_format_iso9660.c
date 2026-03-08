@@ -2760,7 +2760,10 @@ parse_rockridge_ZF1(struct file_info *file, const unsigned char *data,
         file->pz = 1;
         file->pz_log2_bs = data[3];
         if (file->pz_log2_bs < 15 || file->pz_log2_bs > 17) {
-            /* Invalid block size exponent; disable zisofs. */
+            /* TODO: Return an error here instead of silently
+             * disabling zisofs. That requires propagating an
+             * error return through parse_rockridge() and its
+             * callers. */
             file->pz = 0;
             return;
         }
