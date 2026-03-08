@@ -2549,7 +2549,7 @@ parse_codes(struct archive_read *a)
   }
 
   if (!rar->dictionary_size || !rar->lzss.window ||
-      (rar->lzss.mask + 1) < rar->dictionary_size)
+      (unsigned int)(rar->lzss.mask + 1) < rar->dictionary_size)
   {
     /* Seems as though dictionary sizes are not used. Even so, minimize
      * memory usage as much as possible.
