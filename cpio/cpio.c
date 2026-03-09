@@ -83,7 +83,7 @@ struct name_cache {
 
 static int	extract_data(struct archive *, struct archive *);
 const char *	cpio_i64toa(int64_t);
-static const char *cpio_rename(const char *name);
+static void	cpio_rename(struct archive_entry *);
 static int	entry_to_archive(struct cpio *, struct archive_entry *);
 static int	file_to_archive(struct cpio *, const char *);
 static void	free_cache(struct name_cache *cache);
@@ -696,7 +696,6 @@ remove_leading_slash(const char *p)
 static int
 file_to_archive(struct cpio *cpio, const char *srcpath)
 {
-	const char *destpath;
 	struct archive_entry *entry, *spare;
 	size_t len;
 	int r;
@@ -738,7 +737,6 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	 * pass mode or the name that will go into the archive in
 	 * output mode.
 	 */
-	destpath = srcpath;
 	if (cpio->destdir) {
 		len = cpio->destdir_len + strlen(srcpath) + 8;
 		if (len >= cpio->pass_destpath_alloc) {
@@ -754,15 +752,17 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		}
 		strcpy(cpio->pass_destpath, cpio->destdir);
 		strcat(cpio->pass_destpath, remove_leading_slash(srcpath));
-		destpath = cpio->pass_destpath;
+		archive_entry_set_pathname(entry, cpio->pass_destpath);
+	} else {
+		archive_entry_set_pathname(entry, srcpath);
 	}
 	if (cpio->option_rename)
-		destpath = cpio_rename(destpath);
-	if (destpath == NULL) {
+		cpio_rename(entry);
+
+	if (archive_entry_pathname(entry) == NULL) {
 		archive_entry_free(entry);
 		return (0);
 	}
-	archive_entry_copy_pathname(entry, destpath);
 
 	/*
 	 * If we're trying to preserve hardlinks, match them here.
@@ -997,11 +997,9 @@ mode_in(struct cpio *cpio)
 		}
 		if (archive_match_path_excluded(cpio->matching, entry))
 			continue;
-		if (cpio->option_rename) {
-			destpath = cpio_rename(archive_entry_pathname(entry));
-			archive_entry_set_pathname(entry, destpath);
-		} else
-			destpath = archive_entry_pathname(entry);
+		if (cpio->option_rename)
+			cpio_rename(entry);
+		destpath = archive_entry_pathname(entry);
 		if (destpath == NULL)
 			continue;
 		if (cpio->verbose)
@@ -1292,30 +1290,30 @@ mode_pass(struct cpio *cpio, const char *destdir)
  * that an input of '.' means the name should be unchanged.  GNU cpio
  * treats '.' as a literal new name.
  */
-static const char *
-cpio_rename(const char *name)
+void
+cpio_rename(struct archive_entry *entry)
 {
-	static char buff[1024];
+	char buff[1024];
 	FILE *t;
-	char *p, *ret;
+	char *p, *ret = NULL;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	FILE *to;
 
 	t = fopen("CONIN$", "r");
 	if (t == NULL)
-		return (name);
+		return;
 	to = fopen("CONOUT$", "w");
 	if (to == NULL) {
 		fclose(t);
-		return (name);
+		return;
 	}
-	fprintf(to, "%s (Enter/./(new name))? ", name);
+	fprintf(to, "%s (Enter/./(new name))? ", archive_entry_pathname(entry));
 	fclose(to);
 #else
 	t = fopen("/dev/tty", "r+");
 	if (t == NULL)
-		return (name);
-	fprintf(t, "%s (Enter/./(new name))? ", name);
+		return;
+	fprintf(t, "%s (Enter/./(new name))? ", archive_entry_pathname(entry));
 	fflush(t);
 #endif
 
@@ -1323,23 +1321,25 @@ cpio_rename(const char *name)
 	fclose(t);
 	if (p == NULL)
 		/* End-of-file is a blank line. */
-		return (NULL);
+		goto done;
 
 	while (*p == ' ' || *p == '\t')
 		++p;
 	if (*p == '\n' || *p == '\0')
 		/* Empty line. */
-		return (NULL);
-	if (*p == '.' && p[1] == '\n')
+		goto done;
+	if (*p == '.' && p[1] == '\n') {
 		/* Single period preserves original name. */
-		return (name);
+		return;
+	}
 	ret = p;
 	/* Trim the final newline. */
 	while (*p != '\0' && *p != '\n')
 		++p;
 	/* Overwrite the final \n with a null character. */
 	*p = '\0';
-	return (ret);
+done:
+	archive_entry_set_pathname(entry, ret);
 }
 
 static void
