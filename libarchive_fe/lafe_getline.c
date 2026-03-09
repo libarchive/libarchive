@@ -7,11 +7,14 @@
  * All rights reserved.
  */
 
-#include "bsdunzip_platform.h"
+#include "lafe_platform.h"
 #ifndef HAVE_GETLINE
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
 #endif
 #ifdef HAVE_STDIO_H
 #include <stdio.h>
@@ -27,7 +30,7 @@
 #endif
 
 static ssize_t
-la_getdelim(char **buf, size_t *bufsiz, int delimiter, FILE *fp)
+lafe_getdelim(char **buf, size_t *bufsiz, int delimiter, FILE *fp)
 {
 	char *ptr, *eptr;
 
@@ -72,6 +75,6 @@ la_getdelim(char **buf, size_t *bufsiz, int delimiter, FILE *fp)
 ssize_t
 getline(char **buf, size_t *bufsiz, FILE *fp)
 {
-	return la_getdelim(buf, bufsiz, '\n', fp);
+	return lafe_getdelim(buf, bufsiz, '\n', fp);
 }
 #endif
