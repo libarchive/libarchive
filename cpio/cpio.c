@@ -8,6 +8,8 @@
 
 #include "cpio_platform.h"
 
+#include "lafe_getline.h"
+
 #include <sys/types.h>
 #include <archive.h>
 #include <archive_entry.h>
@@ -1293,9 +1295,10 @@ mode_pass(struct cpio *cpio, const char *destdir)
 void
 cpio_rename(struct archive_entry *entry)
 {
-	char buff[1024];
+	char *buff = NULL, *p, *ret = NULL;
 	FILE *t;
-	char *p, *ret = NULL;
+	size_t n = 0;
+	ssize_t r;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	FILE *to;
 
@@ -1317,11 +1320,12 @@ cpio_rename(struct archive_entry *entry)
 	fflush(t);
 #endif
 
-	p = fgets(buff, sizeof(buff), t);
+	r = getline(&buff, &n, t);
 	fclose(t);
-	if (p == NULL)
+	if (r < 1)
 		/* End-of-file is a blank line. */
 		goto done;
+	p = buff;
 
 	while (*p == ' ' || *p == '\t')
 		++p;
@@ -1330,6 +1334,7 @@ cpio_rename(struct archive_entry *entry)
 		goto done;
 	if (*p == '.' && p[1] == '\n') {
 		/* Single period preserves original name. */
+		free(buff);
 		return;
 	}
 	ret = p;
@@ -1340,6 +1345,7 @@ cpio_rename(struct archive_entry *entry)
 	*p = '\0';
 done:
 	archive_entry_set_pathname(entry, ret);
+	free(buff);
 }
 
 static void
