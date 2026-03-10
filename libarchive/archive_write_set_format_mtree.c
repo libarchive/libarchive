@@ -2041,7 +2041,7 @@ mtree_entry_find_child(struct mtree_entry *parent, const char *child_name)
 static int
 get_path_component(char *name, size_t n, const char *fn)
 {
-	char *p;
+	const char *p;
 	size_t l;
 
 	p = strchr(fn, '/');
