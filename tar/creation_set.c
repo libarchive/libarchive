@@ -297,3 +297,43 @@ cset_auto_compress(struct creation_set *cset, const char *filename)
 		return (0);
 	}
 }
+
+/*
+ * Returns the basename of an archive, stripping any known extensions.
+ * The returned string must be freed by the caller.
+ * The argument must not be NULL.
+ */
+char *
+archive_basename(const char *path)
+{
+	const char *start;
+	char *name, *p;
+
+	/* Strip everything up to the last slash. */
+	start = strrchr(path, '/');
+	start = start ? start+1 : path;
+	name = strdup(start);
+	if (name == NULL)
+		lafe_errc(1, 0, "No memory");
+
+	/* Mirrors cset_auto_compress. */
+	while ((p = strrchr(name, '.'))) {
+		if (get_filter_code(p)) {
+			*p = '\0';
+			continue;
+		}
+		/*
+		 * Only one format suffix is removed.
+		 * Assumption: all aliases consist of a format code
+		 * followed by filter codes.
+		 * It would be sensible to just remove multiple format
+		 * suffixes here too; this doesn't really matter.
+		 */
+		if (get_format_code(p) || decompose_alias(p)) {
+			*p = '\0';
+			break;
+		}
+	}
+
+	return name;
+}
