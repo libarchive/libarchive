@@ -3044,7 +3044,9 @@ static int parse_filter(struct archive_read* ar, const uint8_t* p) {
 	if(block_length < 4 ||
 	    block_length > 0x400000 ||
 	    filter_type > FILTER_ARM ||
-	    !is_valid_filter_block_start(rar, block_start))
+	    !is_valid_filter_block_start(rar, block_start) ||
+	    (rar->cstate.window_size > 0 &&
+	     (ssize_t)block_length > rar->cstate.window_size >> 1))
 	{
 		archive_set_error(&ar->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Invalid filter encountered");
