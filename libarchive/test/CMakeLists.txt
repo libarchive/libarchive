@@ -114,6 +114,7 @@ IF(ENABLE_TEST)
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c
+    test_read_format_cab_skip_malformed.c
     test_read_format_cpio_afio.c
     test_read_format_cpio_bin.c
     test_read_format_cpio_bin_Z.c
