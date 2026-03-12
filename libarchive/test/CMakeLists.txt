@@ -98,6 +98,7 @@ IF(ENABLE_TEST)
     test_read_filter_grzip.c
     test_read_filter_gzip_recursive.c
     test_read_filter_lrzip.c
+    test_read_filter_pbzx.c
     test_read_filter_lzop.c
     test_read_filter_lzop_multiple_parts.c
     test_read_filter_program.c
