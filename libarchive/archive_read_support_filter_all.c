@@ -58,6 +58,8 @@ archive_read_support_filter_all(struct archive *a)
 	archive_read_support_filter_lzma(a);
 	/* Xz falls back to "unxz" command-line program. */
 	archive_read_support_filter_xz(a);
+	/* pbzx framing filter (Apple payloads). */
+	archive_read_support_filter_pbzx(a);
 	/* The decode code doesn't use an outside library. */
 	archive_read_support_filter_uu(a);
 	/* The decode code doesn't use an outside library. */
