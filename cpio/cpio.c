@@ -320,7 +320,7 @@ main(int argc, char *argv[])
 			if (owner_parse(cpio->argument, &owner, &errmsg) != 0) {
 				if (!errmsg)
 					errmsg = "Error parsing owner";
-				lafe_warnc(-1, "%s", errmsg);
+				lafe_warnc(0, "%s", errmsg);
 				usage();
 			}
 			if (owner.uid != -1)
