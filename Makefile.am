@@ -1089,11 +1089,13 @@ libarchive_test_EXTRA_DIST=\
 #
 noinst_HEADERS+= \
 	libarchive_fe/lafe_err.h \
+	libarchive_fe/lafe_getline.h \
 	libarchive_fe/lafe_platform.h \
 	libarchive_fe/line_reader.h \
 	libarchive_fe/passphrase.h
 libarchive_fe_la_SOURCES= \
 	libarchive_fe/lafe_err.c \
+	libarchive_fe/lafe_getline.c \
 	libarchive_fe/line_reader.c \
 	libarchive_fe/passphrase.c
 
@@ -1557,12 +1559,10 @@ bsdcat_test_EXTRA_DIST= \
 noinst_HEADERS+= \
 	unzip/bsdunzip.h \
 	unzip/bsdunzip_platform.h \
-	unzip/la_getline.h \
 	unzip/la_queue.h
 bsdunzip_SOURCES= \
 	unzip/bsdunzip.c \
-	unzip/cmdline.c \
-	unzip/la_getline.c
+	unzip/cmdline.c
 
 if INC_WINDOWS_FILES
 noinst_HEADERS+=
