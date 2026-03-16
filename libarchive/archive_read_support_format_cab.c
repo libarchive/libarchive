@@ -1175,6 +1175,9 @@ cab_checksum_finish(struct archive_read *a)
 	l = 4;
 	if (cab->cfheader.flags & RESERVE_PRESENT)
 		l += cab->cfheader.cfdata;
+	if (cfdata->memimage == NULL) {
+		return (ARCHIVE_FAILED);
+	}
 	cfdata->sum_calculated = cab_checksum_cfdata(
 	    cfdata->memimage + CFDATA_cbData, l, cfdata->sum_calculated);
 	if (cfdata->sum_calculated != cfdata->sum) {
