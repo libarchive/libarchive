@@ -33,6 +33,9 @@
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -116,7 +119,8 @@ main(int argc, char *argv[])
 	struct cpio_owner owner;
 	const char *errmsg;
 	char *tptr;
-	int opt, t;
+	int opt;
+	long t;
 
 	cpio = &_cpio;
 	memset(cpio, 0, sizeof(*cpio));
@@ -204,13 +208,13 @@ main(int argc, char *argv[])
 		case 'C': /* NetBSD/OpenBSD */
 			errno = 0;
 			tptr = NULL;
-			t = (int)strtol(cpio->argument, &tptr, 10);
-			if (errno || t <= 0 || *(cpio->argument) == '\0' ||
+			t = strtol(cpio->argument, &tptr, 10);
+			if (errno || t <= 0 || t > INT_MAX || *(cpio->argument) == '\0' ||
 			    tptr == NULL || *tptr != '\0') {
 				lafe_errc(1, 0, "Invalid blocksize: %s",
 				    cpio->argument);
 			}
-			cpio->bytes_per_block = t;
+			cpio->bytes_per_block = (int)t;
 			break;
 		case 'c': /* POSIX 1997 */
 			cpio->format = "odc";
