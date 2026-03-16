@@ -28,6 +28,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -527,7 +530,7 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 		if (string_to_number(value, &threads) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-		if (threads < 0) {
+		if (threads < 0 || threads > INT_MAX) {
 			return (ARCHIVE_WARN);
 		}
 		if (threads == 0) {
