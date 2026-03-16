@@ -427,7 +427,7 @@ main(int argc, char *argv[])
 		break;
 	default:
 		lafe_errc(1, 0,
-		    "Must specify at least one of -i, -o, or -p");
+		    "Must specify one of -i, -o, or -p");
 	}
 
 	archive_match_free(cpio->matching);
