@@ -399,7 +399,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 		if (archive_match_exclude_entry(bsdtar->matching,
 		    ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_OLDER |
 		    ARCHIVE_MATCH_EQUAL, entry) != ARCHIVE_OK)
-			lafe_errc(1, 0, "Error : %s",
+			lafe_errc(1, 0, "%s",
 			    archive_error_string(bsdtar->matching));
 		/* Record the last format determination we see */
 		format = archive_format(a);

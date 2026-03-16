@@ -224,7 +224,7 @@ main(int argc, char *argv[])
 			if (archive_match_include_pattern_from_file(
 			    cpio->matching, cpio->argument,
 			    cpio->option_null) != ARCHIVE_OK)
-				lafe_errc(1, 0, "Error : %s",
+				lafe_errc(1, 0, "%s",
 				    archive_error_string(cpio->matching));
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
@@ -233,7 +233,7 @@ main(int argc, char *argv[])
 		case 'f': /* POSIX 1997 */
 			if (archive_match_exclude_pattern(cpio->matching,
 			    cpio->argument) != ARCHIVE_OK)
-				lafe_errc(1, 0, "Error : %s",
+				lafe_errc(1, 0, "%s",
 				    archive_error_string(cpio->matching));
 			break;
 		case OPTION_GRZIP:
@@ -411,7 +411,7 @@ main(int argc, char *argv[])
 		while (*cpio->argv != NULL) {
 			if (archive_match_include_pattern(cpio->matching,
 			    *cpio->argv) != ARCHIVE_OK)
-				lafe_errc(1, 0, "Error : %s",
+				lafe_errc(1, 0, "%s",
 				    archive_error_string(cpio->matching));
 			--cpio->argc;
 			++cpio->argv;
