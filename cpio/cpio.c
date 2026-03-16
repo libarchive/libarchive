@@ -247,7 +247,7 @@ main(int argc, char *argv[])
 			cpio->filename = cpio->argument;
 			break;
 		case 'i': /* POSIX 1997 */
-			if (cpio->mode != '\0')
+			if (cpio->mode != '\0' && cpio->mode != opt)
 				lafe_errc(1, 0,
 				    "Cannot use both -i and -%c", cpio->mode);
 			cpio->mode = opt;
@@ -289,13 +289,13 @@ main(int argc, char *argv[])
 			cpio->filename = cpio->argument;
 			break;
 		case 'o': /* POSIX 1997 */
-			if (cpio->mode != '\0')
+			if (cpio->mode != '\0' && cpio->mode != opt)
 				lafe_errc(1, 0,
 				    "Cannot use both -o and -%c", cpio->mode);
 			cpio->mode = opt;
 			break;
 		case 'p': /* POSIX 1997 */
-			if (cpio->mode != '\0')
+			if (cpio->mode != '\0' && cpio->mode != opt)
 				lafe_errc(1, 0,
 				    "Cannot use both -p and -%c", cpio->mode);
 			cpio->mode = opt;
