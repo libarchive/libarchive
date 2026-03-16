@@ -333,6 +333,7 @@ string_to_number(const char *string, intmax_t *numberp)
 
 	if (string == NULL || *string == '\0')
 		return (ARCHIVE_WARN);
+	errno = 0;
 	*numberp = strtoimax(string, &end, 10);
 	if (end == string || *end != '\0' || errno == EOVERFLOW) {
 		*numberp = 0;
@@ -487,8 +488,9 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 		}
 
 		char *end = NULL;
+		errno = 0;
 		long lvl = strtol(value, &end, 10);
-		if (end == NULL || *end != '\0') {
+		if (errno != 0 || end == NULL || *end != '\0') {
 			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
 				"parsing compression-level option value failed `%s'", value);
 			return (ARCHIVE_FAILED);
