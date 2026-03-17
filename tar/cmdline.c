@@ -28,7 +28,7 @@
  * Short options for tar.  Please keep this sorted.
  */
 static const char *short_options
-	= "aBb:C:cf:HhI:JjkLlmnOoPpqrSs:T:tUuvW:wX:xyZz";
+	= "aBb:C:cf:HhI:JjkLlmnOoPpqRrSs:T:tUuvW:wX:xyZz";
 
 /*
  * Long options for tar.  Please keep this list sorted.
@@ -48,6 +48,7 @@ static const struct bsdtar_option {
 	{ "append",               0, 'r' },
 	{ "acls",                 0, OPTION_ACLS },
 	{ "auto-compress",        0, 'a' },
+	{ "auto-rename",          0, 'R' },
 	{ "b64encode",            0, OPTION_B64ENCODE },
 	{ "block-size",           1, 'b' },
 	{ "blocking-factor",	  1, 'b' },

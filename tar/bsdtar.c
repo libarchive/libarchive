@@ -724,6 +724,9 @@ main(int argc, char **argv)
 		case 'q': /* FreeBSD GNU tar --fast-read, NetBSD -q */
 			bsdtar->flags |= OPTFLAG_FAST_READ;
 			break;
+		case 'R':
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_AUTO_RENAME;
+			break;
 		case 'r': /* SUSv2 */
 			set_mode(bsdtar, opt);
 			break;
