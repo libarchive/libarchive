@@ -1322,7 +1322,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Pathname cannot be converted "
-			    "from %s to current locale.",
+			    "from %s to current locale",
 			    archive_string_conversion_charset_name(
 			      iso9660->sconv_utf16be));
 
@@ -1400,7 +1400,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Linkname cannot be converted "
-				    "from %s to current locale.",
+				    "from %s to current locale",
 				    archive_string_conversion_charset_name(
 				      iso9660->sconv_utf16be));
 				rd_r = ARCHIVE_WARN;
@@ -1728,7 +1728,7 @@ zisofs_read_data(struct archive_read *a,
 	(void)size;/* UNUSED */
 	(void)offset;/* UNUSED */
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-	    "zisofs is not supported on this platform.");
+	    "zisofs is not supported on this platform");
 	return (ARCHIVE_FAILED);
 }
 
