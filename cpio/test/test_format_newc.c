@@ -150,9 +150,6 @@ DEFINE_TEST(test_format_newc)
 		    sizeof(result) - strlen(result) -1);
 	}
 
-	/* Record some facts about what we just created: */
-	now = time(NULL); /* They were all created w/in last two seconds. */
-
 	/* Use the cpio program to create an archive. */
 	fclose(list);
 	r = systemf("%s -o --format=newc <list >newc.out 2>newc.err",
@@ -196,6 +193,7 @@ DEFINE_TEST(test_format_newc)
 	gid = from_hex(e + 30, 8); /* gid */
 	assertEqualMem(e + 38, "00000003", 8); /* nlink */
 	t = from_hex(e + 46, 8); /* mtime */
+	now = time(NULL); /* Capture time after archive creation to avoid race */
 	failure("t=%#08jx now=%#08jx=%jd", (uintmax_t)t, (uintmax_t)now,
 	    (intmax_t)now);
 	assert(t <= now); /* File wasn't created in future. */
