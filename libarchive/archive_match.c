@@ -269,7 +269,7 @@ archive_match_free(struct archive *_a)
  *
  * Returns 1 if archive entry is excluded.
  * Returns 0 if archive entry is not excluded.
- * Returns <0 if something error happened.
+ * Returns <0 if some error happened.
  */
 int
 archive_match_excluded(struct archive *_a, struct archive_entry *entry)
@@ -449,7 +449,7 @@ archive_match_include_pattern_from_file_w(struct archive *_a,
  *
  * Returns 1 if archive entry is excluded.
  * Returns 0 if archive entry is not excluded.
- * Returns <0 if something error happened.
+ * Returns <0 if some error happened.
  */
 int
 archive_match_path_excluded(struct archive *_a,
@@ -1007,7 +1007,7 @@ archive_match_exclude_entry(struct archive *_a, int flag,
  *
  * Returns 1 if archive entry is excluded.
  * Returns 0 if archive entry is not excluded.
- * Returns <0 if something error happened.
+ * Returns <0 if some error happened.
  */
 int
 archive_match_time_excluded(struct archive *_a,
@@ -1653,7 +1653,7 @@ archive_match_include_gname_w(struct archive *_a, const wchar_t *gname)
  *
  * Returns 1 if archive entry is excluded.
  * Returns 0 if archive entry is not excluded.
- * Returns <0 if something error happened.
+ * Returns <0 if some error happened.
  */
 int
 archive_match_owner_excluded(struct archive *_a,
