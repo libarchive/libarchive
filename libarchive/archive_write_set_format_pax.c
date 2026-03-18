@@ -1471,7 +1471,7 @@ archive_write_pax_header(struct archive_write *a,
 		if (r < ARCHIVE_WARN) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "archive_write_pax_header: "
-			    "'x' header failed?!  This can't happen.\n");
+			    "'x' header failed?!  This can't happen");
 			archive_entry_free(entry_main);
 			archive_string_free(&entry_name);
 			return (ARCHIVE_FATAL);
