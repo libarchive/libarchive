@@ -1723,7 +1723,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			if (bytes < 0) {
 				archive_set_error(&(a->archive),
 				    ARCHIVE_ERRNO_MISC,
-				    "BCJ2 conversion Failed");
+				    "BCJ2 conversion failed");
 				return (ARCHIVE_FAILED);
 			}
 			zip->main_stream_bytes_remaining -=
@@ -1979,7 +1979,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		bytes = Bcj2_Decode(zip, bcj2_next_out, bcj2_avail_out);
 		if (bytes < 0) {
 			archive_set_error(&(a->archive),
-			    ARCHIVE_ERRNO_MISC, "BCJ2 conversion Failed");
+			    ARCHIVE_ERRNO_MISC, "BCJ2 conversion failed");
 			return (ARCHIVE_FAILED);
 		}
 		zip->main_stream_bytes_remaining -=
