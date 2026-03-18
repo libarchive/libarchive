@@ -209,6 +209,14 @@ DEFINE_TEST(test_archive_pathmatch)
 	failure("Trailing '/.' is still the same directory.");
 	assertEqualInt(1, archive_pathmatch("./abc*/./def", "abc/def/.", 0));
 
+	/* Anchor characters without flags not special. */
+	assertEqualInt(0, archive_pathmatch("^abc", "abc", 0));
+	assertEqualInt(1, archive_pathmatch("^abc", "^abc", 0));
+	assertEqualInt(0, archive_pathmatch("abc$", "abc", 0));
+	assertEqualInt(1, archive_pathmatch("abc$", "abc$", 0));
+	assertEqualInt(0, archive_pathmatch("^abc$", "abc", 0));
+	assertEqualInt(1, archive_pathmatch("^abc$", "^abc$", 0));
+
 	/* Matches not anchored at beginning. */
 	assertEqualInt(0,
 	    archive_pathmatch("bcd", "abcd", PATHMATCH_NO_ANCHOR_START));
