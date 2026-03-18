@@ -1494,3 +1494,25 @@ DEFINE_TEST(test_read_format_rar5_invalidhash_and_validhtime_exfld)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_zero_remaining_block_header)
+{
+	/* Malformed RAR5 block layout that used to drive bytes_remaining
+	 * negative and reach the oversized allocation path in merge_block(). */
+
+	char buf[4096];
+	la_ssize_t r;
+	PROLOGUE("test_read_format_rar5_zero_remaining_block_header.rar");
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("bin/2to3;1", archive_entry_pathname(ae));
+
+	do {
+		r = archive_read_data(a, buf, sizeof(buf));
+	} while (r > 0);
+
+	assertEqualIntA(a, ARCHIVE_FATAL, r);
+	assertA(archive_error_string(a) != NULL);
+
+	EPILOGUE();
+}

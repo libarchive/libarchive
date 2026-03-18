@@ -3521,13 +3521,18 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
 	while(1) {
 		/* Get the size of current block chunk in this multivolume
 		 * archive file and read it. */
+		if(partial_offset > block_size || rar->file.bytes_remaining <= 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Invalid state when merging split RAR5 blocks");
+			return ARCHIVE_FATAL;
+		}
 		cur_block_size = rar5_min(rar->file.bytes_remaining,
 		    block_size - partial_offset);
 
-		if(cur_block_size == 0) {
+		if(cur_block_size <= 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Encountered block size == 0 during block merge");
+			    "Encountered invalid block size during block merge");
 			return ARCHIVE_FATAL;
 		}
 
@@ -3602,6 +3607,12 @@ static int process_block(struct archive_read* a) {
 		ssize_t to_skip;
 		ssize_t cur_block_size;
 
+		if(rar->file.bytes_remaining <= 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "No compressed data left for another RAR5 block");
+			return ARCHIVE_FATAL;
+		}
+
 		/* The header size won't be bigger than 6 bytes. */
 		if(!read_ahead(a, 6, &p)) {
 			/* Failed to prefetch data block header. */
@@ -3626,6 +3637,11 @@ static int process_block(struct archive_read* a) {
 		 * if present. */
 		to_skip = sizeof(struct compressed_block_header) +
 			bf_byte_count(&rar->last_block_hdr) + 1;
+		if(rar->file.bytes_remaining < to_skip) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "RAR5 block header exceeds remaining compressed data");
+			return ARCHIVE_FATAL;
+		}
 
 		if(ARCHIVE_OK != consume(a, to_skip))
 			return ARCHIVE_EOF;
