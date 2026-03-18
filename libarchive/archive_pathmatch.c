@@ -387,7 +387,7 @@ __archive_pathmatch(const char *p, const char *s, int flags)
 		return (0);
 
 	/* Leading '^' anchors the start of the pattern. */
-	if (*p == '^') {
+	if ((flags & PATHMATCH_NO_ANCHOR_START) && *p == '^') {
 		++p;
 		flags &= ~PATHMATCH_NO_ANCHOR_START;
 	}
@@ -429,7 +429,7 @@ __archive_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags)
 		return (0);
 
 	/* Leading '^' anchors the start of the pattern. */
-	if (*p == L'^') {
+	if ((flags & PATHMATCH_NO_ANCHOR_START) && *p == L'^') {
 		++p;
 		flags &= ~PATHMATCH_NO_ANCHOR_START;
 	}
