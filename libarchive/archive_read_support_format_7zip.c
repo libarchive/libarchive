@@ -1777,7 +1777,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		default:
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
-				"Decompression failed(%d)",
+				"Decompression failed (%d)",
 			    r);
 			return (ARCHIVE_FAILED);
 		}

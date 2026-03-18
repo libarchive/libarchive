@@ -1726,7 +1726,7 @@ zipx_xz_init(struct archive_read *a, struct zip *zip)
 	r = lzma_stream_decoder(&zip->zipx_lzma_stream, UINT64_MAX, 0);
 	if (r != LZMA_OK) {
 		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
-		    "xz initialization failed(%d)",
+		    "xz initialization failed (%d)",
 		    r);
 
 		return (ARCHIVE_FAILED);
@@ -1778,7 +1778,7 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	r = lzma_alone_decoder(&zip->zipx_lzma_stream, UINT64_MAX);
 	if (r != LZMA_OK) {
 		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
-		    "lzma initialization failed(%d)", r);
+		    "lzma initialization failed (%d)", r);
 
 		return (ARCHIVE_FAILED);
 	}
@@ -2261,7 +2261,7 @@ zipx_bzip2_init(struct archive_read *a, struct zip *zip)
 	r = BZ2_bzDecompressInit(&zip->bzstream, 0, 1);
 	if(r != BZ_OK) {
 		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
-		    "bzip2 initialization failed(%d)",
+		    "bzip2 initialization failed (%d)",
 		    r);
 
 		return ARCHIVE_FAILED;
@@ -3193,7 +3193,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		    != (zip->entry_uncompressed_bytes_read & UINT32_MAX)) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "ZIP uncompressed data is wrong size "
-			    "(read %jd, expected %jd)\n",
+			    "(read %jd, expected %jd)",
 			    (intmax_t)zip->entry_uncompressed_bytes_read,
 			    (intmax_t)zip->entry->uncompressed_size);
 			return (ARCHIVE_FAILED);
