@@ -975,7 +975,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Pathname cannot be converted "
-		    "from %s to current locale.",
+		    "from %s to current locale",
 		    archive_string_conversion_charset_name(zip->sconv));
 		ret = ARCHIVE_WARN;
 	}
