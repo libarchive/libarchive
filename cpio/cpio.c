@@ -115,7 +115,6 @@ static void	passphrase_free(char *);
 int
 main(int argc, char *argv[])
 {
-	static char buff[16384];
 	struct cpio _cpio; /* Allocated on stack. */
 	struct cpio *cpio;
 	struct cpio_owner owner;
@@ -126,9 +125,6 @@ main(int argc, char *argv[])
 
 	cpio = &_cpio;
 	memset(cpio, 0, sizeof(*cpio));
-	cpio->buff = buff;
-	cpio->buff_size = sizeof(buff);
-
 
 #if defined(HAVE_SIGACTION)
 	{
@@ -797,7 +793,6 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	const char *destpath = archive_entry_pathname(entry);
 	const char *srcpath = archive_entry_sourcepath(entry);
 	int fd = -1;
-	ssize_t bytes_read;
 	int r;
 
 	/* Print out the destination name to the user. */
@@ -875,11 +870,14 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		exit(1);
 
 	if (r >= ARCHIVE_WARN && archive_entry_size(entry) > 0 && fd >= 0) {
-		bytes_read = read(fd, cpio->buff, (unsigned)cpio->buff_size);
+		static char buff[16384];
+		ssize_t bytes_read;
+
+		bytes_read = read(fd, buff, sizeof(buff));
 		while (bytes_read > 0) {
 			ssize_t bytes_write;
 			bytes_write = archive_write_data(cpio->archive,
-			    cpio->buff, bytes_read);
+			    buff, bytes_read);
 			if (bytes_write < 0)
 				lafe_errc(1, archive_errno(cpio->archive),
 				    "%s", archive_error_string(cpio->archive));
@@ -888,8 +886,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 				    "Truncated write; file may have "
 				    "grown while being archived.");
 			}
-			bytes_read = read(fd, cpio->buff,
-			    (unsigned)cpio->buff_size);
+			bytes_read = read(fd, buff, sizeof(buff));
 		}
 	}
 
