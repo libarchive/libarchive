@@ -35,6 +35,9 @@
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -112,19 +115,16 @@ static void	passphrase_free(char *);
 int
 main(int argc, char *argv[])
 {
-	static char buff[16384];
 	struct cpio _cpio; /* Allocated on stack. */
 	struct cpio *cpio;
 	struct cpio_owner owner;
 	const char *errmsg;
 	char *tptr;
-	int opt, t;
+	int opt;
+	long t;
 
 	cpio = &_cpio;
 	memset(cpio, 0, sizeof(*cpio));
-	cpio->buff = buff;
-	cpio->buff_size = sizeof(buff);
-
 
 #if defined(HAVE_SIGACTION)
 	{
@@ -206,13 +206,13 @@ main(int argc, char *argv[])
 		case 'C': /* NetBSD/OpenBSD */
 			errno = 0;
 			tptr = NULL;
-			t = (int)strtol(cpio->argument, &tptr, 10);
-			if (errno || t <= 0 || *(cpio->argument) == '\0' ||
+			t = strtol(cpio->argument, &tptr, 10);
+			if (errno || t <= 0 || t > INT_MAX || *(cpio->argument) == '\0' ||
 			    tptr == NULL || *tptr != '\0') {
 				lafe_errc(1, 0, "Invalid blocksize: %s",
 				    cpio->argument);
 			}
-			cpio->bytes_per_block = t;
+			cpio->bytes_per_block = (int)t;
 			break;
 		case 'c': /* POSIX 1997 */
 			cpio->format = "odc";
@@ -224,7 +224,7 @@ main(int argc, char *argv[])
 			if (archive_match_include_pattern_from_file(
 			    cpio->matching, cpio->argument,
 			    cpio->option_null) != ARCHIVE_OK)
-				lafe_errc(1, 0, "Error : %s",
+				lafe_errc(1, 0, "%s",
 				    archive_error_string(cpio->matching));
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
@@ -233,7 +233,7 @@ main(int argc, char *argv[])
 		case 'f': /* POSIX 1997 */
 			if (archive_match_exclude_pattern(cpio->matching,
 			    cpio->argument) != ARCHIVE_OK)
-				lafe_errc(1, 0, "Error : %s",
+				lafe_errc(1, 0, "%s",
 				    archive_error_string(cpio->matching));
 			break;
 		case OPTION_GRZIP:
@@ -249,7 +249,7 @@ main(int argc, char *argv[])
 			cpio->filename = cpio->argument;
 			break;
 		case 'i': /* POSIX 1997 */
-			if (cpio->mode != '\0')
+			if (cpio->mode != '\0' && cpio->mode != opt)
 				lafe_errc(1, 0,
 				    "Cannot use both -i and -%c", cpio->mode);
 			cpio->mode = opt;
@@ -291,13 +291,13 @@ main(int argc, char *argv[])
 			cpio->filename = cpio->argument;
 			break;
 		case 'o': /* POSIX 1997 */
-			if (cpio->mode != '\0')
+			if (cpio->mode != '\0' && cpio->mode != opt)
 				lafe_errc(1, 0,
 				    "Cannot use both -o and -%c", cpio->mode);
 			cpio->mode = opt;
 			break;
 		case 'p': /* POSIX 1997 */
-			if (cpio->mode != '\0')
+			if (cpio->mode != '\0' && cpio->mode != opt)
 				lafe_errc(1, 0,
 				    "Cannot use both -p and -%c", cpio->mode);
 			cpio->mode = opt;
@@ -318,7 +318,7 @@ main(int argc, char *argv[])
 			if (owner_parse(cpio->argument, &owner, &errmsg) != 0) {
 				if (!errmsg)
 					errmsg = "Error parsing owner";
-				lafe_warnc(-1, "%s", errmsg);
+				lafe_warnc(0, "%s", errmsg);
 				usage();
 			}
 			if (owner.uid != -1)
@@ -411,7 +411,7 @@ main(int argc, char *argv[])
 		while (*cpio->argv != NULL) {
 			if (archive_match_include_pattern(cpio->matching,
 			    *cpio->argv) != ARCHIVE_OK)
-				lafe_errc(1, 0, "Error : %s",
+				lafe_errc(1, 0, "%s",
 				    archive_error_string(cpio->matching));
 			--cpio->argc;
 			++cpio->argv;
@@ -429,7 +429,7 @@ main(int argc, char *argv[])
 		break;
 	default:
 		lafe_errc(1, 0,
-		    "Must specify at least one of -i, -o, or -p");
+		    "Must specify one of -i, -o, or -p");
 	}
 
 	archive_match_free(cpio->matching);
@@ -793,7 +793,6 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	const char *destpath = archive_entry_pathname(entry);
 	const char *srcpath = archive_entry_sourcepath(entry);
 	int fd = -1;
-	ssize_t bytes_read;
 	int r;
 
 	/* Print out the destination name to the user. */
@@ -871,11 +870,14 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		exit(1);
 
 	if (r >= ARCHIVE_WARN && archive_entry_size(entry) > 0 && fd >= 0) {
-		bytes_read = read(fd, cpio->buff, (unsigned)cpio->buff_size);
+		static char buff[16384];
+		ssize_t bytes_read;
+
+		bytes_read = read(fd, buff, sizeof(buff));
 		while (bytes_read > 0) {
 			ssize_t bytes_write;
 			bytes_write = archive_write_data(cpio->archive,
-			    cpio->buff, bytes_read);
+			    buff, bytes_read);
 			if (bytes_write < 0)
 				lafe_errc(1, archive_errno(cpio->archive),
 				    "%s", archive_error_string(cpio->archive));
@@ -884,8 +886,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 				    "Truncated write; file may have "
 				    "grown while being archived.");
 			}
-			bytes_read = read(fd, cpio->buff,
-			    (unsigned)cpio->buff_size);
+			bytes_read = read(fd, buff, sizeof(buff));
 		}
 	}
 

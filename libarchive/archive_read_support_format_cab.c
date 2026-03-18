@@ -980,7 +980,7 @@ archive_read_format_cab_read_header(struct archive_read *a,
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Pathname cannot be converted "
-		    "from %s to current locale.",
+		    "from %s to current locale",
 		    archive_string_conversion_charset_name(sconv));
 		err = ARCHIVE_WARN;
 	}
@@ -1026,7 +1026,7 @@ archive_read_format_cab_read_data(struct archive_read *a,
 		*offset = 0;
 		archive_clear_error(&a->archive);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Cannot restore this file split in multivolume.");
+		    "Cannot restore this file split in multivolume");
 		return (ARCHIVE_FAILED);
 	default:
 		break;
@@ -1672,7 +1672,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 		    cab->entry_cffolder->compdata);
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Can't initialize LZX decompression.");
+			    "Can't initialize LZX decompression");
 			*avail = ARCHIVE_FATAL;
 			return (NULL);
 		}
