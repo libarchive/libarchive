@@ -1790,12 +1790,16 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			 * 123456789.1 represents 123456789
 			 * seconds and 1 nanosecond. */
 			if (*val == '.') {
+				int64_t v;
+
 				++val;
-				ns = (long)mtree_atol(&val, 10);
-				if (ns < 0)
+				v = mtree_atol(&val, 10);
+				if (v < 0)
 					ns = 0;
-				else if (ns > 999999999)
+				else if (v > 999999999)
 					ns = 999999999;
+				else
+					ns = (long)v;
 			}
 			if (m > my_time_t_max)
 				m = my_time_t_max;
