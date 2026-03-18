@@ -216,6 +216,14 @@ error_nomem(struct archive_match *a)
 	return (ARCHIVE_FATAL);
 }
 
+static int
+error_pattern(struct archive_match *a)
+{
+	archive_set_error(&(a->archive), EINVAL, "Failed to apply pattern");
+	a->archive.state = ARCHIVE_STATE_FATAL;
+	return (ARCHIVE_FATAL);
+}
+
 /*
  * Create an ARCHIVE_MATCH object.
  */
@@ -293,6 +301,8 @@ archive_match_excluded(struct archive *_a, struct archive_entry *entry)
 #else
 		r = path_excluded(a, 1, archive_entry_pathname(entry));
 #endif
+		if (r < 0)
+			return (error_pattern(a));
 		if (r != 0)
 			return (r);
 	}
@@ -456,6 +466,7 @@ archive_match_path_excluded(struct archive *_a,
     struct archive_entry *entry)
 {
 	struct archive_match *a;
+	int r;
 
 	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_match_path_excluded");
@@ -471,10 +482,13 @@ archive_match_path_excluded(struct archive *_a,
 	if ((a->setflag & PATTERN_IS_SET) == 0)
 		return (0);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	return (path_excluded(a, 0, archive_entry_pathname_w(entry)));
+	r = path_excluded(a, 0, archive_entry_pathname_w(entry));
 #else
-	return (path_excluded(a, 1, archive_entry_pathname(entry)));
+	r = path_excluded(a, 1, archive_entry_pathname(entry));
 #endif
+	if (r < 0)
+		return (error_pattern(a));
+	return (r);
 }
 
 /*
