@@ -2527,7 +2527,7 @@ zip_deflate_init(struct archive_read *a, struct zip *zip)
 			    -15 /* Don't check for zlib header */);
 		if (r != Z_OK) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Can't initialize ZIP decompression.");
+			    "Can't initialize ZIP decompression");
 			return (ARCHIVE_FATAL);
 		}
 		/* Stream structure has been set up. */

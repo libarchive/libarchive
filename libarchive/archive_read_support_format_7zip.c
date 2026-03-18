@@ -1581,7 +1581,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			    -15 /* Don't check for zlib header */);
 		if (r != Z_OK) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Couldn't initialize zlib stream.");
+			    "Couldn't initialize zlib stream");
 			return (ARCHIVE_FAILED);
 		}
 		zip->stream_valid = 1;

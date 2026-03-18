@@ -526,7 +526,7 @@ mode_out(struct cpio *cpio)
 	int r;
 
 	if (cpio->option_append)
-		lafe_errc(1, 0, "Append mode not yet supported.");
+		lafe_errc(1, 0, "Append mode not yet supported");
 
 	cpio->archive_read_disk = archive_read_disk_new();
 	if (cpio->archive_read_disk == NULL)
@@ -884,7 +884,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 			if (bytes_write < bytes_read) {
 				lafe_warnc(0,
 				    "Truncated write; file may have "
-				    "grown while being archived.");
+				    "grown while being archived");
 			}
 			bytes_read = read(fd, buff, sizeof(buff));
 		}
