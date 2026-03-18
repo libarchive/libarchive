@@ -1921,7 +1921,7 @@ zip_read_data_zipx_xz(struct archive_read *a, const void **buff,
 	switch(lz_ret) {
 		case LZMA_DATA_ERROR:
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "xz data error (error %d)", (int) lz_ret);
+			    "xz data error (%d)", (int) lz_ret);
 			return (ARCHIVE_FATAL);
 
 		case LZMA_NO_CHECK:
@@ -1930,7 +1930,7 @@ zip_read_data_zipx_xz(struct archive_read *a, const void **buff,
 
 		default:
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "xz unknown error %d", (int) lz_ret);
+			    "xz unknown error (%d)", (int) lz_ret);
 			return (ARCHIVE_FATAL);
 
 		case LZMA_STREAM_END:
@@ -2018,7 +2018,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	switch(lz_ret) {
 		case LZMA_DATA_ERROR:
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "lzma data error (error %d)", (int) lz_ret);
+			    "lzma data error (%d)", (int) lz_ret);
 			return (ARCHIVE_FATAL);
 
 		/* This case is optional in lzma alone format. It can happen,
@@ -2041,7 +2041,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 
 		default:
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "lzma unknown error %d", (int) lz_ret);
+			    "lzma unknown error (%d)", (int) lz_ret);
 			return (ARCHIVE_FATAL);
 	}
 
