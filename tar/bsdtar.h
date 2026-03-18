@@ -124,6 +124,7 @@ struct bsdtar {
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
 	OPTION_ACLS = 256,
+	OPTION_AUTO_RENAME,
 	OPTION_B64ENCODE,
 	OPTION_CHECK_LINKS,
 	OPTION_CHROOT,

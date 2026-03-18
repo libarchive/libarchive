@@ -293,6 +293,9 @@ main(int argc, char **argv)
 			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_NO_ACL;
 			bsdtar->flags |= OPTFLAG_ACLS;
 			break;
+		case OPTION_AUTO_RENAME:
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_AUTO_RENAME;
+			break;
 		case 'B': /* GNU tar */
 			/* libarchive doesn't need this; just ignore it. */
 			break;
@@ -723,9 +726,6 @@ main(int argc, char **argv)
 			break;
 		case 'q': /* FreeBSD GNU tar --fast-read, NetBSD -q */
 			bsdtar->flags |= OPTFLAG_FAST_READ;
-			break;
-		case 'R':
-			bsdtar->extract_flags |= ARCHIVE_EXTRACT_AUTO_RENAME;
 			break;
 		case 'r': /* SUSv2 */
 			set_mode(bsdtar, opt);
