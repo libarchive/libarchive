@@ -3808,7 +3808,7 @@ static int push_data_ready(struct archive_read* a, struct rar5* rar,
 	 * as an internal error. */
 
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-	    "Error: premature end of data_ready stack");
+	    "Premature end of data_ready stack");
 	return ARCHIVE_FATAL;
 }
 
