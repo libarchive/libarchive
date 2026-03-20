@@ -323,12 +323,16 @@ main(int argc, char *argv[])
 			}
 			if (owner.uid != -1)
 				cpio->uid_override = owner.uid;
-			if (owner.uname != NULL)
+			if (owner.uname != NULL) {
+				free(cpio->uname_override);
 				cpio->uname_override = owner.uname;
+			}
 			if (owner.gid != -1)
 				cpio->gid_override = owner.gid;
-			if (owner.gname != NULL)
+			if (owner.gname != NULL) {
+				free(cpio->gname_override);
 				cpio->gname_override = owner.gname;
+			}
 			break;
 		case 'r': /* POSIX 1997 */
 			cpio->option_rename = 1;
