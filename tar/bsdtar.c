@@ -293,6 +293,9 @@ main(int argc, char **argv)
 			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_NO_ACL;
 			bsdtar->flags |= OPTFLAG_ACLS;
 			break;
+		case OPTION_AUTO_RENAME:
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_AUTO_RENAME;
+			break;
 		case 'B': /* GNU tar */
 			/* libarchive doesn't need this; just ignore it. */
 			break;
