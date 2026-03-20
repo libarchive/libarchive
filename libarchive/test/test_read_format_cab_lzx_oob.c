@@ -28,17 +28,13 @@ DEFINE_TEST(test_read_format_cab_lzx_oob)
 
 	/* Read the header of the malformed entry */
 	if (ARCHIVE_OK == archive_read_next_header(a, &ae)) {
-		/* * We do NOT assert ARCHIVE_OK here. The file is intentionally malformed.
-		 * The goal is to ensure the patched decoder catches the malicious size
-		 * and returns an error (ARCHIVE_FATAL or ARCHIVE_WARN) instead of crashing.
-		 */
-		if (archive_read_data_block(a, &buff, &size, &offset) == ARCHIVE_OK) {
+			/* * We attempt to read a block to initialize the LZX state machine.
+			* We do not assert the result because the file is intentionally malformed.
+			* Regardless of success or failure, we force a skip to test state handling
+			* and trigger the vulnerability.
+			*/
+			archive_read_data_block(a, &buff, &size, &offset);
 			archive_read_data_skip(a);
-		} else {
-			/* Even if the first block read fails, force a skip to test state handling */
-			archive_read_data_skip(a);
-		}
-		
 		/* * Optional: We could assert that the error string contains our patch message, 
 		 * but simply surviving without a segfault/ASAN violation is the primary goal 
 		 * for fuzzing regression tests.
