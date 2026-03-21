@@ -171,7 +171,7 @@ static int64_t
 client_skip_proxy(struct archive_read_filter *self, int64_t request)
 {
 	if (request < 0)
-		__archive_errx(1, "Negative skip requested.");
+		__archive_errx(1, "Negative skip requested");
 	if (request == 0)
 		return 0;
 

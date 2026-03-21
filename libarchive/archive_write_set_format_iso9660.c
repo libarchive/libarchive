@@ -7964,7 +7964,7 @@ zisofs_extract(struct archive_write *a, struct zisofs_extract *zisofs,
 			r = inflateInit(&zisofs->stream);
 		if (r != Z_OK) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Can't initialize zisofs decompression.");
+			    "Can't initialize zisofs decompression");
 			return (ARCHIVE_FATAL);
 		}
 		zisofs->stream_valid = 1;

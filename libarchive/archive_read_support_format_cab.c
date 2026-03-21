@@ -1365,7 +1365,7 @@ cab_read_ahead_cfdata(struct archive_read *a, ssize_t *avail)
 		return (cab_read_ahead_cfdata_lzx(a, avail));
 	default: /* Unsupported compression. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Unsupported CAB compression : %s",
+		    "Unsupported CAB compression: %s",
 		    cab->entry_cffolder->compname);
 		*avail = ARCHIVE_FAILED;
 		return (NULL);
@@ -1452,7 +1452,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 			    -15 /* Don't check for zlib header */);
 		if (r != Z_OK) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Can't initialize deflate decompression.");
+			    "Can't initialize deflate decompression");
 			*avail = ARCHIVE_FATAL;
 			return (NULL);
 		}
