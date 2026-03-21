@@ -1690,6 +1690,13 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 		    cab->uncompressed_buffer + cab->xstrm.total_out;
 		cab->xstrm.avail_out =
 		    cfdata->uncompressed_size - cab->xstrm.total_out;
+		
+		if ((size_t)cfdata->uncompressed_size > cab->uncompressed_buffer_size) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				"Invalid CFDATA uncompressed size");
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
 
 		d = __archive_read_ahead(a, 1, &bytes_avail);
 		if (d == NULL) {
