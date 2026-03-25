@@ -1304,6 +1304,49 @@ DEFINE_TEST(test_read_format_rar5_different_solid_window_size)
 	EPILOGUE();
 }
 
+/*
+ * Regression test for solid_window_size check bypass (CWE-665).
+ *
+ * Bug: reset_file_context() in archive_read_support_format_rar5.c
+ * calls memset(&rar->file, 0, ...) which zeros solid_window_size.
+ * This defeats the consistency check in process_head_file() that
+ * prevents changing window sizes between solid archive entries.
+ *
+ * Test archive layout (crafted):
+ *   Entry 1: non-solid, stored, window=256KB
+ *   Entry 2: solid, stored, window=256KB (sets solid_window_size)
+ *   Entry 3: solid, stored, window=1MB   (should trigger mismatch)
+ *
+ * Without fix: all 3 headers return ARCHIVE_OK (bypass)
+ * With fix: entry 3 returns ARCHIVE_FATAL (mismatch detected)
+ */
+DEFINE_TEST(test_read_format_rar5_solid_window_bypass)
+{
+	char buf[4096];
+	int r;
+	PROLOGUE("test_read_format_rar5_solid_window_bypass.rar");
+
+	/* Entry 1: non-solid, should succeed. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	/* Entry 2: first solid entry, sets solid_window_size=256KB. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	/* Entry 3: solid with window=1MB. The consistency check should
+	 * detect the mismatch and return ARCHIVE_FATAL.
+	 *
+	 * Without fix: reset_file_context() zeros solid_window_size,
+	 * the check at line 1871 sees 0 > 0 == false, returns ARCHIVE_OK.
+	 * With fix: solid_window_size is preserved, check fires. */
+	r = archive_read_next_header(a, &ae);
+	assertEqualIntA(a, ARCHIVE_FATAL, r);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_rar5_different_winsize_on_merge)
 {
 	char buf[4096];
