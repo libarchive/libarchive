@@ -131,6 +131,7 @@ noinst_HEADERS= \
 	libarchive/archive_write_private.h \
 	libarchive/archive_write_set_format_private.h \
 	libarchive/archive_xxhash.h \
+	libarchive/archive_zip_legacy.h \
 	libarchive/config_freebsd.h \
 	libarchive/filter_fork.h
 
@@ -254,6 +255,9 @@ libarchive_la_SOURCES= \
 	libarchive/archive_write_set_format_zip.c \
 	libarchive/archive_write_set_options.c \
 	libarchive/archive_write_set_passphrase.c \
+	libarchive/archive_zip_legacy_shrink.c \
+	libarchive/archive_zip_legacy_reduce.c \
+	libarchive/archive_zip_legacy_implode.c \
 	libarchive/filter_fork_posix.c \
 	libarchive/xxhash.c
 

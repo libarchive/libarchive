@@ -74,6 +74,10 @@
 #include "archive_time_private.h"
 #include "archive_ppmd8_private.h"
 
+// #if HAVE_LEGACY
+#include "archive_zip_legacy.h"
+// #endif
+
 #ifndef HAVE_ZLIB_H
 #include "archive_crc32.h"
 #endif
@@ -204,6 +208,17 @@ struct zip {
 	ZSTD_DStream	*zstdstream;
 	char            zstdstream_valid;
 #endif
+
+// #if HAVE_LEGACY
+	struct implode_desc *implode;
+	char                implode_valid;
+
+	struct shrink_desc *shrink;
+	char                shrink_valid;
+
+	struct reduce_desc *reduce;
+	char                reduce_valid;
+// #endif
 
 	IByteIn			zipx_ppmd_stream;
 	ssize_t			zipx_ppmd_read_compressed;
@@ -1711,6 +1726,159 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 	return (ARCHIVE_OK);
 }
 
+// #if HAVE_LEGACY
+static int
+zip_read_data_implode(struct archive_read *a, const void **buff,
+    size_t *size, int64_t *offset)
+{
+	struct zip *zip = (struct zip *)(a->format->data);
+	int r;
+	size_t cmp_size;
+
+	(void)offset; /* UNUSED */
+
+	/* Initialize decompression context if we're here for the first time. */
+	if (!zip->decompress_init) {
+		r = implode_init(&zip->implode, a,
+			zip->entry->compressed_size, zip->entry->zip_flags,
+			&cmp_size);
+		zip->entry_compressed_bytes_read += cmp_size;
+		if(r != ARCHIVE_OK)
+			return r;
+		zip->decompress_init = 1;
+		zip->implode_valid = 1;
+
+		if (zip->uncompressed_buffer == NULL) {
+			zip->uncompressed_buffer_size = 256 * 1024;
+			zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
+			if (zip->uncompressed_buffer == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory for implode decompression");
+				return (ARCHIVE_FATAL);
+			}
+		}
+	}
+
+	r = implode_read(zip->implode, zip->uncompressed_buffer,
+		zip->uncompressed_buffer_size, size, &cmp_size);
+	if (*size > zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read) {
+		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
+	}
+	zip->entry_compressed_bytes_read += cmp_size;
+	zip->entry_uncompressed_bytes_read += *size;
+	if (r == ARCHIVE_EOF) {
+		zip->end_of_entry = 1;
+	} else if (r != ARCHIVE_OK) {
+		archive_set_error(&a->archive, 0, "%s", implode_error(r));
+		return (ARCHIVE_FATAL);
+	}
+
+	*buff = zip->uncompressed_buffer;
+	return ARCHIVE_OK;
+}
+
+static int
+zip_read_data_shrink(struct archive_read *a, const void **buff,
+    size_t *size, int64_t *offset)
+{
+	struct zip *zip = (struct zip *)(a->format->data);
+	int r;
+	size_t cmp_size;
+
+	(void)offset; /* UNUSED */
+
+	/* Initialize decompression context if we're here for the first time. */
+	if (!zip->decompress_init) {
+		r = shrink_init(&zip->shrink, a,
+			zip->entry->compressed_size,
+			&cmp_size);
+		zip->entry_compressed_bytes_read += cmp_size;
+		if(r != ARCHIVE_OK)
+			return r;
+		zip->decompress_init = 1;
+		zip->shrink_valid = 1;
+
+		if (zip->uncompressed_buffer == NULL) {
+			zip->uncompressed_buffer_size = 256 * 1024;
+			zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
+			if (zip->uncompressed_buffer == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory for shrink decompression");
+				return (ARCHIVE_FATAL);
+			}
+		}
+	}
+
+	r = shrink_read(zip->shrink, zip->uncompressed_buffer,
+		zip->uncompressed_buffer_size, size, &cmp_size);
+	if (*size > zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read) {
+		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
+	}
+	zip->entry_compressed_bytes_read += cmp_size;
+	zip->entry_uncompressed_bytes_read += *size;
+	if (r == ARCHIVE_EOF) {
+		zip->end_of_entry = 1;
+	} else if (r != ARCHIVE_OK) {
+		archive_set_error(&a->archive, 0, "%s", shrink_error(r));
+		return (ARCHIVE_FATAL);
+	}
+
+	*buff = zip->uncompressed_buffer;
+	return ARCHIVE_OK;
+}
+
+static int
+zip_read_data_reduce(struct archive_read *a, const void **buff,
+    size_t *size, int64_t *offset)
+{
+	struct zip *zip = (struct zip *)(a->format->data);
+	int r;
+	size_t cmp_size;
+
+	(void)offset; /* UNUSED */
+
+	/* Initialize decompression context if we're here for the first time. */
+	if (!zip->decompress_init) {
+		r = reduce_init(&zip->reduce, a,
+			zip->entry->compressed_size,
+			zip->entry->compression - 1, /* level: 1, 2, 3, 4 */
+			&cmp_size);
+		zip->entry_compressed_bytes_read += cmp_size;
+		if(r != ARCHIVE_OK)
+			return r;
+		zip->decompress_init = 1;
+		zip->reduce_valid = 1;
+
+		if (zip->uncompressed_buffer == NULL) {
+			zip->uncompressed_buffer_size = 256 * 1024;
+			zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
+			if (zip->uncompressed_buffer == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory for reduce decompression");
+				return (ARCHIVE_FATAL);
+			}
+		}
+	}
+
+	r = reduce_read(zip->reduce, zip->uncompressed_buffer,
+		zip->uncompressed_buffer_size, size, &cmp_size);
+	if (*size > zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read) {
+		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
+	}
+	zip->entry_compressed_bytes_read += cmp_size;
+	zip->entry_uncompressed_bytes_read += *size;
+	if (r == ARCHIVE_EOF) {
+		zip->end_of_entry = 1;
+	} else if (r != ARCHIVE_OK) {
+		archive_set_error(&a->archive, 0, "%s", reduce_error(r));
+		return (ARCHIVE_FATAL);
+	}
+
+	*buff = zip->uncompressed_buffer;
+	return ARCHIVE_OK;
+}
+// #endif /* HAVE_LEGACY */
+
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 static int
 zipx_xz_init(struct archive_read *a, struct zip *zip)
@@ -3118,6 +3286,20 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	case 0:  /* No compression. */
 		r =  zip_read_data_none(a, buff, size, offset);
 		break;
+// #if HAVE_LEGACY
+	case 1:	 /* Shrink */
+		r = zip_read_data_shrink(a, buff, size, offset);
+		break;
+	case 2:  /* Reduce */
+	case 3:
+	case 4:
+	case 5:
+		r = zip_read_data_reduce(a, buff, size, offset);
+		break;
+	case 6:	 /* Implode */
+		r = zip_read_data_implode(a, buff, size, offset);
+		break;
+// #endif
 #ifdef HAVE_BZLIB_H
 	case 12: /* ZIPx bzip2 compression. */
 		r = zip_read_data_zipx_bzip2(a, buff, size, offset);
@@ -3210,6 +3392,15 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	struct zip_entry *zip_entry, *next_zip_entry;
 
 	zip = (struct zip *)(a->format->data);
+
+// #if HAVE_LEGACY
+	if (zip->implode_valid)
+		implode_free(&zip->implode);
+	if (zip->shrink_valid)
+		shrink_free(&zip->shrink);
+	if (zip->reduce_valid)
+		reduce_free(&zip->reduce);
+// #endif
 
 #ifdef HAVE_ZLIB_H
 	if (zip->stream_valid)
