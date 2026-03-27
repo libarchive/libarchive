@@ -21,13 +21,24 @@ struct follower_set {
 	uint8_t chr[63];
 };
 
+/* Current state of sliding window */
+struct lz77_window {
+	uint8_t *window;
+	unsigned window_pos;
+	unsigned copy_pos;
+	unsigned copy_size;
+	unsigned window_mask;
+};
+
 struct reduce_desc {
 	/* Source of bytes */
 	struct archive_read *arch;
 	uint64_t cmp_size;
-
 	unsigned bits;
 	uint8_t num_bits;
+
+	/* Current state of sliding window */
+	struct lz77_window lz77;
 
 	/* Compression level */
 	uint8_t level;
@@ -36,13 +47,6 @@ struct reduce_desc {
 	/* Follower set encoding */
 	struct follower_set folset[256];
 	uint8_t last_ch;
-
-	/* Current state of sliding window */
-	uint8_t window[4096];
-	uint16_t window_pos;
-	uint16_t copy_pos;
-	uint16_t copy_size;
-	uint16_t window_mask;
 };
 
 /* Errors occurring within the ZIP format */
@@ -52,12 +56,17 @@ enum {
 	file_inconsistent = -3
 };
 
-static void add_byte(struct reduce_desc *desc, uint8_t byte);
 static int read_follower_set(struct reduce_desc *desc,
 	struct follower_set *folset);
 static int reduce_read_byte(struct reduce_desc *desc, unsigned *byte);
 static int read_bits(struct reduce_desc *desc, unsigned num_bits,
 	unsigned *bits);
+
+static int lz77_init(struct lz77_window *lz77, unsigned window_size);
+static void lz77_free(struct lz77_window *lz77);
+static size_t lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes);
+static void lz77_add_byte(struct lz77_window *lz77, uint8_t byte);
+static void lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length);
 
 int
 reduce_init(struct reduce_desc **desc, struct archive_read *a,
@@ -79,11 +88,11 @@ reduce_init(struct reduce_desc **desc, struct archive_read *a,
 	(*desc)->level = level;
 	(*desc)->length_mask = 255 >> level;
 	(*desc)->last_ch = 0;
-	(*desc)->window_pos = 0;
-	(*desc)->copy_pos = 0;
-	(*desc)->copy_size = 0;
-	(*desc)->window_mask = (256 << level) - 1;
-	memset((*desc)->window, 0, sizeof((*desc)->window));
+	err = lz77_init(&(*desc)->lz77, 0x100 << level);
+	if (err) {
+		reduce_free(desc);
+		return err;
+	}
 
 	/* Read the follower sets */
 	for (unsigned j = 256; j-- != 0; ) {
@@ -104,6 +113,7 @@ fail:
 void
 reduce_free(struct reduce_desc **desc)
 {
+	lz77_free(&(*desc)->lz77);
 	free(*desc);
 	*desc = NULL;
 }
@@ -119,15 +129,11 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 	b_read = 0;
 	while (b_read < num_bytes) {
 		unsigned byte;
+		size_t count;
 
 		/* Fulfill any pending copy */
-		while (desc->copy_size != 0 && b_read < num_bytes) {
-			byte = desc->window[desc->copy_pos];
-			bytes[b_read++] = byte;
-			desc->copy_pos = (desc->copy_pos + 1) & desc->window_mask;
-			--desc->copy_size;
-			add_byte(desc, byte);
-		}
+		count = lz77_copy(&desc->lz77, bytes + b_read, num_bytes - b_read);
+		b_read += count;
 
 		if (b_read >= num_bytes) {
 			break;
@@ -143,7 +149,7 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 		if (byte != 0x90) {
 			/* Literal byte */
 			bytes[b_read++] = byte;
-			add_byte(desc, byte);
+			lz77_add_byte(&desc->lz77, byte);
 		} else {
 			/* May be a copy marker or a literal 0x90 */
 			err = reduce_read_byte(desc, &byte);
@@ -153,7 +159,7 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 			if (byte == 0x00) {
 				/* Literal 0x90 */
 				bytes[b_read++] = 0x90;
-				add_byte(desc, 0x90);
+				lz77_add_byte(&desc->lz77, 0x90);
 			} else {
 				/* Copy marker */
 				unsigned distance = byte >> (8 - desc->level);
@@ -172,9 +178,7 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 					goto fail;
 				}
 				distance = (distance << 8) + byte + 1;
-				desc->copy_size = length;
-				desc->copy_pos = (desc->window_pos - distance)
-					       & desc->window_mask;
+				lz77_set_copy(&desc->lz77, distance, length);
 			}
 		}
 	}
@@ -207,14 +211,6 @@ reduce_error(int err)
 	default:
 		return strerror(err);
 	}
-}
-
-/* Add a byte to the sliding window */
-static void
-add_byte(struct reduce_desc *desc, uint8_t byte)
-{
-	desc->window[desc->window_pos] = byte;
-	desc->window_pos = (desc->window_pos + 1) & desc->window_mask;
 }
 
 static int
@@ -311,6 +307,61 @@ read_bits(struct reduce_desc *desc, unsigned num_bits, unsigned *bits)
 	*bits &= (1 << num_bits) - 1;
 
 	return 0;
+}
+
+static int
+lz77_init(struct lz77_window *lz77, unsigned window_size)
+{
+	free(lz77->window);
+	lz77->window = calloc(1, window_size);
+	if (lz77->window == NULL) {
+		return errno;
+	}
+	lz77->window_pos = 0;
+	lz77->copy_pos = 0;
+	lz77->copy_size = 0;
+	lz77->window_mask = window_size - 1;
+	return 0;
+}
+
+static void
+lz77_free(struct lz77_window *lz77)
+{
+	free(lz77->window);
+	lz77->window = NULL;
+}
+
+/* Fulfill any pending copy */
+static size_t
+lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes)
+{
+	size_t b_read = 0;
+
+	while (lz77->copy_size != 0 && b_read < num_bytes) {
+		uint8_t byte = lz77->window[lz77->copy_pos];
+		bytes[b_read++] = byte;
+		lz77_add_byte(lz77, byte);
+		lz77->copy_pos = (lz77->copy_pos + 1) & lz77->window_mask;
+		--lz77->copy_size;
+	}
+
+	return b_read;
+}
+
+/* Add a byte to the sliding window */
+static void
+lz77_add_byte(struct lz77_window *lz77, uint8_t byte)
+{
+	lz77->window[lz77->window_pos] = byte;
+	lz77->window_pos = (lz77->window_pos + 1) & lz77->window_mask;
+}
+
+/* Begin a copy */
+static void
+lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length)
+{
+	lz77->copy_size = length;
+	lz77->copy_pos = (lz77->window_pos - distance) & lz77->window_mask;
 }
 
 #endif /* HAVE_LEGACY */
