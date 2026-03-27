@@ -60,6 +60,7 @@ enum {
 static void add_byte(struct reduce_desc *desc, uint8_t byte);
 static int read_follower_set(struct reduce_desc *desc,
 	struct follower_set *folset);
+static int reduce_read_byte(struct reduce_desc *desc, unsigned *byte);
 static int read_bits(struct reduce_desc *desc, unsigned num_bits,
 	unsigned *bits);
 
@@ -121,114 +122,79 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 {
 	int err = 0;
 	uint64_t cmp_size = desc->cmp_size;
+	size_t b_read;
 
-	*bytes_read = 0;
-	while (num_bytes != 0) {
+	b_read = 0;
+	while (b_read < num_bytes) {
 		unsigned byte;
-		unsigned literal;
-		unsigned length, distance;
 
 		/* Fulfill any pending copy */
-		while (desc->copy_size != 0 && num_bytes != 0) {
+		while (desc->copy_size != 0 && b_read < num_bytes) {
 			byte = desc->window[desc->copy_pos];
-			bytes[0] = byte;
-			++bytes;
-			--num_bytes;
-			++(*bytes_read);
+			bytes[b_read++] = byte;
 			desc->copy_pos = (desc->copy_pos + 1) & desc->window_mask;
 			--desc->copy_size;
 			add_byte(desc, byte);
 		}
 
-		if (num_bytes == 0) {
+		if (b_read >= num_bytes) {
 			break;
 		}
 
 		/* desc->copy_size is 0 at this point */
 		/* Decode one byte from the follower set encoding */
-		if (desc->folset[desc->last_ch].size == 0) {
-			/* Always literal if the follower set is empty */
-			literal = 1;
-		} else {
-			/* If the follower set is empty, the next bit determines
-			   whether a literal follows */
-			err = read_bits(desc, 1, &literal);
-			if (err) {
-				goto fail;
-			}
+		err = reduce_read_byte(desc, &byte);
+		if (err) {
+			goto fail;
 		}
-		if (literal) {
-			err = read_bits(desc, 8, &byte);
-			if (err) {
-				goto fail;
-			}
+
+		if (byte != 0x90) {
+			/* Literal byte */
+			bytes[b_read++] = byte;
+			add_byte(desc, byte);
 		} else {
-			unsigned index;
-			err = read_bits(desc, desc->folset[desc->last_ch].bits, &index);
+			/* May be a copy marker or a literal 0x90 */
+			err = reduce_read_byte(desc, &byte);
 			if (err) {
 				goto fail;
 			}
-			byte = desc->folset[desc->last_ch].chr[index];
-		}
-		desc->last_ch = byte;
-
-		/* State machine according to 5.2.5 */
-		switch (desc->state) {
-		case 0: /* Normal state */
-			if (byte == 0x90) {
-				desc->state = 1;
-			} else {
-				bytes[0] = byte;
-				++bytes;
-				--num_bytes;
-				++(*bytes_read);
-				add_byte(desc, byte);
-			}
-			break;
-
-		case 1: /* Escape byte received */
-			if (byte != 0) {
-				/* let V <- C */
-				desc->distance = byte >> (8 - desc->level);
-				/* let len <- L(V) */
-				desc->length = byte & desc->length_mask;
-				/* let state <- F(len) */
-				desc->state = (desc->length == desc->length_mask)
-					    ? 2 : 3;
-			} else {
+			if (byte == 0x00) {
 				/* Literal 0x90 */
-				bytes[0] = 0x90;
-				++bytes;
-				--num_bytes;
-				++(*bytes_read);
+				bytes[b_read++] = 0x90;
 				add_byte(desc, 0x90);
-				desc->state = 0;
+			} else {
+				/* Copy marker */
+				unsigned distance = byte >> (8 - desc->level);
+				unsigned length = byte & desc->length_mask;
+				if (length == desc->length_mask) {
+					/* Need another length byte */
+					err = reduce_read_byte(desc, &byte);
+					if (err) {
+						goto fail;
+					}
+					length += byte;
+				}
+				length += 3;
+				err = reduce_read_byte(desc, &byte);
+				if (err) {
+					goto fail;
+				}
+				distance = (distance << 8) + byte + 1;
+				desc->copy_size = length;
+				desc->copy_pos = (desc->window_pos - distance)
+					       & desc->window_mask;
 			}
-			break;
-
-		case 2: /* Additional length */
-			desc->length += byte;
-			desc->state = 3;
-			break;
-
-		case 3: /* Additional distance */
-			/* Copy marker is complete */
-			distance = (desc->distance << 8) + byte + 1;
-			length = desc->length + 3;
-			desc->copy_size = length;
-			desc->copy_pos = (desc->window_pos - distance)
-				       & desc->window_mask;
-			desc->state = 0;
-			break;
 		}
 	}
 
+	*bytes_read = b_read;
 	*cmp_bytes_read = cmp_size - desc->cmp_size;
 	return 0;
 
 fail:
 	/* If we reach the end of the compressed data, return success with the
 	   number of bytes read so far */
+	*bytes_read = b_read;
 	*cmp_bytes_read = cmp_size - desc->cmp_size;
 	return err == end_of_data ? ARCHIVE_EOF : err;
 }
@@ -288,6 +254,41 @@ read_follower_set(struct reduce_desc *desc,
 		folset->chr[i] = byte;
 	}
 
+	return 0;
+}
+
+/* Read one byte from the follower set encoding */
+static int
+reduce_read_byte(struct reduce_desc *desc, unsigned *byte)
+{
+	unsigned literal;
+	int err;
+
+	if (desc->folset[desc->last_ch].size == 0) {
+		/* Always literal if the follower set is empty */
+		literal = 1;
+	} else {
+		/* If the follower set is empty, the next bit determines
+		   whether a literal follows */
+		err = read_bits(desc, 1, &literal);
+		if (err) {
+			return err;
+		}
+	}
+	if (literal) {
+		err = read_bits(desc, 8, byte);
+		if (err) {
+			return err;
+		}
+	} else {
+		unsigned index;
+		err = read_bits(desc, desc->folset[desc->last_ch].bits, &index);
+		if (err) {
+			return err;
+		}
+		*byte = desc->folset[desc->last_ch].chr[index];
+	}
+	desc->last_ch = *byte;
 	return 0;
 }
 

@@ -139,24 +139,22 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 {
 	int err = 0;
 	uint64_t cmp_size = desc->cmp_size;
+	size_t b_read;
 
-	*bytes_read = 0;
-	while (num_bytes != 0) {
+	b_read = 0;
+	while (b_read < num_bytes) {
 		uint8_t literal;
 
 		/* Fulfill any pending copy */
-		while (desc->copy_size != 0 && num_bytes != 0) {
+		while (desc->copy_size != 0 && b_read < num_bytes) {
 			uint8_t byte = desc->window[desc->copy_pos];
-			bytes[0] = byte;
-			++bytes;
-			--num_bytes;
-			++(*bytes_read);
+			bytes[b_read++] = byte;
 			desc->copy_pos = (desc->copy_pos + 1) & desc->window_mask;
 			--desc->copy_size;
 			add_byte(desc, byte);
 		}
 
-		if (num_bytes == 0) {
+		if (b_read >= num_bytes) {
 			break;
 		}
 
@@ -179,10 +177,7 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 			if (err) {
 				goto fail;
 			}
-			bytes[0] = byte;
-			++bytes;
-			--num_bytes;
-			++(*bytes_read);
+			bytes[b_read++] = byte;
 			add_byte(desc, byte);
 		} else {
 			/* Copy marker found */
@@ -227,12 +222,14 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 		}
 	}
 
+	*bytes_read = b_read;
 	*cmp_bytes_read = cmp_size - desc->cmp_size;
 	return 0;
 
 fail:
 	/* If we reach the end of the compressed data, return success with the
 	   number of bytes read so far */
+	*bytes_read = b_read;
 	*cmp_bytes_read = cmp_size - desc->cmp_size;
 	return err == end_of_data ? ARCHIVE_EOF : err;
 }
