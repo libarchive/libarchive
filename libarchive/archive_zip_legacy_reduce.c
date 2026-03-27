@@ -128,7 +128,7 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 
 		/* Fulfill any pending copy */
 		while (desc->copy_size != 0 && num_bytes != 0) {
-			uint8_t byte = desc->window[desc->copy_pos];
+			byte = desc->window[desc->copy_pos];
 			bytes[0] = byte;
 			++bytes;
 			--num_bytes;
@@ -273,7 +273,7 @@ read_follower_set(struct reduce_desc *desc,
 	folset->size = size;
 
 	/* Size in terms of bits (e.g. 64 -> 6 bits) */
-	for (i = 1; (1 << i) < size; ++i) {}
+	for (i = 1; (1U << i) < size; ++i) {}
 	folset->bits = i;
 
 	/* Read the set of bytes */

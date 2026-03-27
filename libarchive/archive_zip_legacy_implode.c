@@ -167,7 +167,6 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 
 		if (literal) {
 			/* Literal byte found */
-			int err;
 			uint8_t byte;
 
 			if (desc->have_literal_tree) {
@@ -242,7 +241,7 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 {
 	const uint8_t *ptr;
 	ssize_t avail;
-	int tree_bytes;
+	unsigned tree_bytes;
 	uint8_t tree_data[256];
 	uint8_t bit_lengths[256];
 	uint16_t codes[256];
@@ -318,7 +317,6 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 		uint16_t code = codes[i];
 		uint8_t length = bit_lengths[i];
 		unsigned node = 0;
-		unsigned bit;
 		for (j = 0; j + 1 < length; ++j) {
 			bit = (code >> (15 - j)) & 1;
 			if (tree[node].next[bit] == 0xFFFF) {

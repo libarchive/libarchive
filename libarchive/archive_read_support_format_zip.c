@@ -1761,7 +1761,7 @@ zip_read_data_implode(struct archive_read *a, const void **buff,
 
 	r = implode_read(zip->implode, zip->uncompressed_buffer,
 		zip->uncompressed_buffer_size, size, &cmp_size);
-	if (*size > zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read) {
+	if ((uintmax_t)*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
 		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
 	}
 	zip->entry_compressed_bytes_read += cmp_size;
@@ -1811,7 +1811,7 @@ zip_read_data_shrink(struct archive_read *a, const void **buff,
 
 	r = shrink_read(zip->shrink, zip->uncompressed_buffer,
 		zip->uncompressed_buffer_size, size, &cmp_size);
-	if (*size > zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read) {
+	if ((uintmax_t)*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
 		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
 	}
 	zip->entry_compressed_bytes_read += cmp_size;
@@ -1862,7 +1862,7 @@ zip_read_data_reduce(struct archive_read *a, const void **buff,
 
 	r = reduce_read(zip->reduce, zip->uncompressed_buffer,
 		zip->uncompressed_buffer_size, size, &cmp_size);
-	if (*size > zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read) {
+	if ((uintmax_t)*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
 		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
 	}
 	zip->entry_compressed_bytes_read += cmp_size;
