@@ -16,9 +16,9 @@ struct reduce_desc;
 
 /* Decompressor state */
 struct follower_set {
-    uint8_t size;
-    uint8_t bits;
-    uint8_t chr[63];
+	uint8_t size;
+	uint8_t bits;
+	uint8_t chr[63];
 };
 
 struct reduce_desc {
@@ -69,9 +69,11 @@ reduce_init(struct reduce_desc **desc, struct archive_read *a,
 {
 	int err = 0;
 
-	*desc = calloc(1, sizeof(**desc));
 	if (*desc == NULL) {
-		return errno;
+		*desc = calloc(1, sizeof(**desc));
+		if (*desc == NULL) {
+			return errno;
+		}
 	}
 
 	(*desc)->arch = a;

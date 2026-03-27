@@ -22,9 +22,9 @@ struct shrink_dictionary {
 
 /* Values for shrink_dictionary::flag */
 enum {
-    node_free,
-    node_used,
-    node_parent
+	node_free,
+	node_used,
+	node_parent
 };
 
 struct shrink_desc {
@@ -64,9 +64,11 @@ int
 shrink_init(struct shrink_desc **desc, struct archive_read *a,
 	uint64_t cmp_size, size_t *cmp_bytes_read)
 {
-	*desc = calloc(1, sizeof(**desc));
 	if (*desc == NULL) {
-		return errno;
+		*desc = calloc(1, sizeof(**desc));
+		if (*desc == NULL) {
+			return errno;
+		}
 	}
 
 	(*desc)->arch = a;
@@ -79,13 +81,13 @@ shrink_init(struct shrink_desc **desc, struct archive_read *a,
 	(*desc)->outstr_size = 0;
 	(*desc)->outstr_start = 0;
 
-    /* The dictionary is initially empty */
+	/* The dictionary is initially empty */
 	(*desc)->free_list = 0;
-    for (unsigned i = 0; i < SIZE((*desc)->dictionary) - 1; ++i) {
-        (*desc)->dictionary[i].flag = node_free;
-        (*desc)->dictionary[i].next = i + 1;
-    }
-    (*desc)->dictionary[SIZE((*desc)->dictionary) - 1].next = 0xFFFF;
+	for (unsigned i = 0; i < SIZE((*desc)->dictionary) - 1; ++i) {
+		(*desc)->dictionary[i].flag = node_free;
+		(*desc)->dictionary[i].next = i + 1;
+	}
+	(*desc)->dictionary[SIZE((*desc)->dictionary) - 1].next = 0xFFFF;
 
 	*cmp_bytes_read = 0;
 	return ARCHIVE_OK;

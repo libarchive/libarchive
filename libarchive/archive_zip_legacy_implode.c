@@ -15,12 +15,12 @@
 /* 5.3.7 and 5.3.8 */
 struct implode_tree {
 	/*
-     * Each bit indexes this array
+	 * Each bit indexes this array
 	 * The value is 0-255 for a terminal value and 256-511 for an index
 	 * to another node in the tree
 	 * For 256-511, subtract 256 for the actual index
-     * 0xFFFF marks an invalid entry
-     */
+	 * 0xFFFF marks an invalid entry
+	 */
 	uint16_t next[2];
 };
 
@@ -34,9 +34,9 @@ struct implode_desc {
 	/* Current state of Shannon-Fano decoder */
 	unsigned bits;
 	uint8_t num_bits;
-	struct implode_tree literal_tree[255];
-	struct implode_tree length_tree[63];
-	struct implode_tree distance_tree[63];
+	struct implode_tree literal_tree[256];
+	struct implode_tree length_tree[64];
+	struct implode_tree distance_tree[64];
 	/* Current state of sliding window */
 	uint8_t window[8192];
 	uint16_t window_pos;
@@ -66,9 +66,11 @@ implode_init(struct implode_desc **desc, struct archive_read *a,
 {
 	int err = 0;
 
-	*desc = calloc(1, sizeof(**desc));
 	if (*desc == NULL) {
-		return errno;
+		*desc = calloc(1, sizeof(**desc));
+		if (*desc == NULL) {
+			return errno;
+		}
 	}
 
 	(*desc)->arch = a;
@@ -308,7 +310,7 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 	}
 
 	/* Build the tree */
-	for (i = 0; i < num_values+1; ++i) {
+	for (i = 0; i < num_values; ++i) {
 		tree[i].next[0] = 0xFFFF;
 		tree[i].next[1] = 0xFFFF;
 	}
