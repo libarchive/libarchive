@@ -12,10 +12,19 @@
 #include "archive_read_private.h"
 #include "archive_zip_legacy.h"
 
+#define SIZE(x) (sizeof(x)/sizeof((x)[0]))
+
 struct shrink_dictionary {
 	uint16_t next;
 	uint8_t byte;
 	uint8_t flag;
+};
+
+/* Values for shrink_dictionary::flag */
+enum {
+    node_free,
+    node_used,
+    node_parent
 };
 
 struct shrink_desc {
@@ -28,7 +37,7 @@ struct shrink_desc {
 	unsigned code_size;
 	int old_code;
 	struct shrink_dictionary dictionary[8192 - 257];
-	uint16_t next_node;
+	uint16_t free_list;
 	uint8_t last_byte;
 	/* Output string */
 	uint8_t outstr[8192];
@@ -66,10 +75,17 @@ shrink_init(struct shrink_desc **desc, struct archive_read *a,
 	(*desc)->num_bits = 0;
 	(*desc)->code_size = 9;
 	(*desc)->old_code = -1;
-	(*desc)->next_node = 0;
 	(*desc)->last_byte = 0;
 	(*desc)->outstr_size = 0;
 	(*desc)->outstr_start = 0;
+
+    /* The dictionary is initially empty */
+	(*desc)->free_list = 0;
+    for (unsigned i = 0; i < SIZE((*desc)->dictionary) - 1; ++i) {
+        (*desc)->dictionary[i].flag = node_free;
+        (*desc)->dictionary[i].next = i + 1;
+    }
+    (*desc)->dictionary[SIZE((*desc)->dictionary) - 1].next = 0xFFFF;
 
 	*cmp_bytes_read = 0;
 	return ARCHIVE_OK;
@@ -178,8 +194,10 @@ lookup(struct shrink_desc *desc, int code)
 	int end_byte = -1;
 
 	// If code equals the next node, issue last_byte at the end
-	if ((code >= desc->next_node + 257)
-	||  (code >= 257 && desc->dictionary[code - 257].next == 0xFFFF)) {
+	if (code >= 257 && desc->dictionary[code - 257].flag == node_free) {
+		if (code - 257 != desc->free_list) {
+			return file_inconsistent;
+		}
 		end_byte = desc->last_byte;
 		code = desc->old_code;
 	}
@@ -219,27 +237,20 @@ lookup(struct shrink_desc *desc, int code)
 static void
 add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte)
 {
-	unsigned empty = 0xFFFF;
+	unsigned empty;
 
-	/* Look for an empty node */
-	for (uint16_t i = 0; i < desc->next_node; ++i) {
-		if (empty == 0xFFFF && desc->dictionary[i].next == 0xFFFF) {
-			empty = i;
-		}
-	}
-
-	/* If no empty node, use the next unused one */
+	/* Use the first empty node */
+	empty = desc->free_list;
 	if (empty == 0xFFFF) {
-		/* Don't overflow the array */
-		if (desc->next_node >= sizeof(desc->dictionary)/sizeof(desc->dictionary[0])) {
-			return;
-		}
-		empty = desc->next_node++;
+		/* Dictionary is full */
+		return;
 	}
+	desc->free_list = desc->dictionary[empty].next;
 
 	/* Add the new entry */
 	desc->dictionary[empty].next = code;
 	desc->dictionary[empty].byte = byte;
+	desc->dictionary[empty].flag = node_used;
 }
 
 /* Read a code from the file, and process any 256 escapes */
@@ -268,18 +279,26 @@ read_code_with_escapes(struct shrink_desc *desc, int *code)
 			break;
 
 		case 2: /* Partial clearing */
-			for (unsigned i = 0; i < desc->next_node; ++i) {
-				desc->dictionary[i].flag = 0;
-			}
-			for (unsigned i = 0; i < desc->next_node; ++i) {
-				unsigned j = desc->dictionary[i].next;
-				if (j >= 257) {
-					desc->dictionary[j - 257].flag = 1;
+			for (unsigned i = 0; i < SIZE(desc->dictionary); ++i) {
+				struct shrink_dictionary *node = &desc->dictionary[i];
+				if (node->flag != node_free) {
+					unsigned j = node->next;
+					if (j >= 257) {
+						desc->dictionary[j - 257].flag = node_parent;
+					}
 				}
 			}
-			for (unsigned i = 0; i < desc->next_node; ++i) {
-				if (!desc->dictionary[i].flag) {
-					desc->dictionary[i].next = 0xFFFF;
+			desc->free_list = 0xFFFF;
+			for (unsigned i = SIZE(desc->dictionary); i-- != 0; ) {
+				struct shrink_dictionary *node = &desc->dictionary[i];
+				if (node->flag == node_used) {
+					node->flag = node_free;
+				} else if (node->flag == node_parent) {
+					node->flag = node_used;
+				}
+				if (node->flag == node_free) {
+					node->next = desc->free_list;
+					desc->free_list = i;
 				}
 			}
 			break;
