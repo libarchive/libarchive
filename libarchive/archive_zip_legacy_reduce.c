@@ -31,16 +31,11 @@ struct reduce_desc {
 
 	/* Compression level */
 	uint8_t level;
+	uint8_t length_mask;
 
 	/* Follower set encoding */
 	struct follower_set folset[256];
 	uint8_t last_ch;
-
-	/* State machine according to 5.2.5 */
-	uint8_t state;
-	uint8_t length_mask;
-	uint8_t distance;
-	uint16_t length;
 
 	/* Current state of sliding window */
 	uint8_t window[4096];
@@ -82,11 +77,8 @@ reduce_init(struct reduce_desc **desc, struct archive_read *a,
 	(*desc)->bits = 0;
 	(*desc)->num_bits = 0;
 	(*desc)->level = level;
-	(*desc)->last_ch = 0;
-	(*desc)->state = 0;
-	(*desc)->length = 0;
 	(*desc)->length_mask = 255 >> level;
-	(*desc)->distance = 0;
+	(*desc)->last_ch = 0;
 	(*desc)->window_pos = 0;
 	(*desc)->copy_pos = 0;
 	(*desc)->copy_size = 0;
