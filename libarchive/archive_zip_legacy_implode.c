@@ -1,8 +1,8 @@
 /* implode */
 
-// #if HAVE_LEGACY
-
 #include "archive_platform.h"
+
+#if HAVE_LEGACY
 
 #include <errno.h>
 #include <stdint.h>
@@ -402,3 +402,5 @@ read_bits(struct implode_desc *desc, unsigned num_bits, uint8_t *bits)
 
 	return 0;
 }
+
+#endif /* HAVE_LEGACY */

@@ -330,6 +330,27 @@ esac
 
 AM_CONDITIONAL([BUILD_BSDUNZIP], [ test "$build_bsdunzip" = yes ])
 AM_CONDITIONAL([STATIC_BSDUNZIP], [ test "$static_bsdunzip" = yes ])
+#
+# Options for building legacy compression formats.
+#
+# Default is to build these formats, but that can be overridden.
+#
+AC_ARG_ENABLE([legacy],
+	[AS_HELP_STRING([--enable-legacy], [enable build of legacy compression formats (default)])
+AS_HELP_STRING([--disable-legacy], [disable build of legacy compression formats])],
+	[], [enable_legacy=yes])
+
+case "$enable_legacy" in
+yes)
+	AC_DEFINE([HAVE_LEGACY], [1], [Define to 1 to build legacy compression formats.])
+	;;
+
+no)
+	;;
+*)
+	AC_MSG_FAILURE([Unsupported value for --enable-legacy])
+	;;
+esac
 
 # Checks for header files.
 AC_HEADER_DIRENT

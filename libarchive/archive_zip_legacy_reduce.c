@@ -1,8 +1,8 @@
 /* reduce */
 
-// #if HAVE_LEGACY
-
 #include "archive_platform.h"
+
+#if HAVE_LEGACY
 
 #include <errno.h>
 #include <stdint.h>
@@ -318,4 +318,4 @@ read_bits(struct reduce_desc *desc, unsigned num_bits, unsigned *bits)
 	return 0;
 }
 
-// #endif /* HAVE_LEGACY */
+#endif /* HAVE_LEGACY */

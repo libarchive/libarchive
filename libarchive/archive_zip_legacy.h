@@ -3,7 +3,7 @@
 #ifndef ARCHIVE_ZIP_LEGACY_H_INCLUDED
 #define ARCHIVE_ZIP_LEGACY_H_INCLUDED
 
-// #ifdef HAVE_LEGACY
+#ifdef HAVE_LEGACY
 
 #include "archive_read_private.h"
 
@@ -37,6 +37,6 @@ int reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read);
 const char *reduce_error(int err);
 
-// #endif /* HAVE_LEGACY */
+#endif /* HAVE_LEGACY */
 
 #endif /* !ARCHIVE_ZIP_LEGACY_H_INCLUDED */

@@ -1,8 +1,8 @@
 /* shrink */
 
-// #if HAVE_LEGACY
-
 #include "archive_platform.h"
+
+#if HAVE_LEGACY
 
 #include <errno.h>
 #include <stdint.h>
@@ -317,4 +317,4 @@ read_code(struct shrink_desc *desc, int *code)
 	return ARCHIVE_OK;
 }
 
-// #endif /* HAVE_LEGACY */
+#endif /* HAVE_LEGACY */

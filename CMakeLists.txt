@@ -256,6 +256,7 @@ ENDIF()
 OPTION(ENABLE_XATTR "Enable extended attribute support" ON)
 OPTION(ENABLE_ACL "Enable ACL support" ON)
 OPTION(ENABLE_ICONV "Enable iconv support" ON)
+OPTION(ENABLE_LEGACY "Enable legacy compression formats" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 OPTION(ENABLE_COVERAGE "Enable code coverage (GCC only, automatically sets ENABLE_TEST to ON)" FALSE)
 OPTION(ENABLE_INSTALL "Enable installing of libraries" ON)
@@ -1147,6 +1148,12 @@ ELSE(ENABLE_ICONV)
   UNSET(LIBCHARSET_DLL CACHE)
   UNSET(LIBCHARSET_STATIC CACHE)
 ENDIF(ENABLE_ICONV)
+
+IF(ENABLE_LEGACY)
+  SET(HAVE_LEGACY 1)
+ELSE(ENABLE_LEGACY)
+  UNSET(HAVE_LEGACY)
+ENDIF(ENABLE_LEGACY)
 
 #
 # Find Libxml2

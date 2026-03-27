@@ -74,9 +74,9 @@
 #include "archive_time_private.h"
 #include "archive_ppmd8_private.h"
 
-// #if HAVE_LEGACY
+#if HAVE_LEGACY
 #include "archive_zip_legacy.h"
-// #endif
+#endif
 
 #ifndef HAVE_ZLIB_H
 #include "archive_crc32.h"
@@ -209,7 +209,7 @@ struct zip {
 	char            zstdstream_valid;
 #endif
 
-// #if HAVE_LEGACY
+#if HAVE_LEGACY
 	struct implode_desc *implode;
 	char                implode_valid;
 
@@ -218,7 +218,7 @@ struct zip {
 
 	struct reduce_desc *reduce;
 	char                reduce_valid;
-// #endif
+#endif
 
 	IByteIn			zipx_ppmd_stream;
 	ssize_t			zipx_ppmd_read_compressed;
@@ -1726,7 +1726,7 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 	return (ARCHIVE_OK);
 }
 
-// #if HAVE_LEGACY
+#if HAVE_LEGACY
 static int
 zip_read_data_implode(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
@@ -1877,7 +1877,7 @@ zip_read_data_reduce(struct archive_read *a, const void **buff,
 	*buff = zip->uncompressed_buffer;
 	return ARCHIVE_OK;
 }
-// #endif /* HAVE_LEGACY */
+#endif /* HAVE_LEGACY */
 
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 static int
@@ -3286,7 +3286,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	case 0:  /* No compression. */
 		r =  zip_read_data_none(a, buff, size, offset);
 		break;
-// #if HAVE_LEGACY
+#if HAVE_LEGACY
 	case 1:	 /* Shrink */
 		r = zip_read_data_shrink(a, buff, size, offset);
 		break;
@@ -3299,7 +3299,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	case 6:	 /* Implode */
 		r = zip_read_data_implode(a, buff, size, offset);
 		break;
-// #endif
+#endif
 #ifdef HAVE_BZLIB_H
 	case 12: /* ZIPx bzip2 compression. */
 		r = zip_read_data_zipx_bzip2(a, buff, size, offset);
@@ -3393,14 +3393,14 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 
 	zip = (struct zip *)(a->format->data);
 
-// #if HAVE_LEGACY
+#if HAVE_LEGACY
 	if (zip->implode_valid)
 		implode_free(&zip->implode);
 	if (zip->shrink_valid)
 		shrink_free(&zip->shrink);
 	if (zip->reduce_valid)
 		reduce_free(&zip->reduce);
-// #endif
+#endif
 
 #ifdef HAVE_ZLIB_H
 	if (zip->stream_valid)

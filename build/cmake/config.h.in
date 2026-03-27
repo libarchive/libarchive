@@ -1399,6 +1399,9 @@ typedef uint64_t uintmax_t;
 /* Define for large files, on AIX-style hosts. */
 #cmakedefine _LARGE_FILES @_LARGE_FILES@
 
+/* Define to 1 to include support for legacy compression formats */
+#cmakedefine HAVE_LEGACY 1
+
 /* Define to control Windows SDK version */
 #ifndef NTDDI_VERSION
 #cmakedefine NTDDI_VERSION @NTDDI_VERSION@
