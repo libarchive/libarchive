@@ -208,19 +208,26 @@ lookup(struct shrink_desc *desc, int code)
 	length = 1;
 	index = code;
 	while (index >= 257) {
-		if (index == 0xFFFF) {
-			return file_inconsistent;
+		if (desc->dictionary[index - 257].flag == node_free) {
+			end_byte = desc->last_byte;
+			index = desc->old_code;
+		} else {
+			index = desc->dictionary[index - 257].next;
+			++length;
 		}
-		++length;
-		index = desc->dictionary[index - 257].next;
 	}
 
 	// Write the string in the opposite order from how the nodes are linked
 	i = length;
 	index = code;
 	while (index >= 257) {
-		str[--i] = desc->dictionary[index - 257].byte;
-		index = desc->dictionary[index - 257].next;
+		if (desc->dictionary[index - 257].flag == node_free) {
+			end_byte = desc->last_byte;
+			index = desc->old_code;
+		} else {
+			str[--i] = desc->dictionary[index - 257].byte;
+			index = desc->dictionary[index - 257].next;
+		}
 	}
 	str[0] = index;
 
