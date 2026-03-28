@@ -1,4 +1,27 @@
-/* shrink */
+/*-
+ * Copyright (c) 2026 Ray Chason
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include "archive_platform.h"
 
@@ -14,6 +37,25 @@
 
 #define SIZE(x) (sizeof(x)/sizeof((x)[0]))
 
+/*
+ * The dictionary is built as codes are received. "byte" is the last character
+ * of the string and "next" is the code for the rest of the string. The string
+ * is built by chasing the "next" field until a literal (less than 257) is
+ * found, and then outputting the "byte" fields in the reverse of the order in
+ * which they were found. "flag" indicates used and free nodes, and while
+ * clearing, also indicates nodes that will not be cleared.
+ *
+ * The index of a used node is the code that it stands for, minus 257.
+ * Codes 0 through 255 are literal bytes, and 256 is an escape code used to
+ * change the code size or partially clear the dictionary.
+ *
+ * The dictionary is an array of size 8192-257. The largest code size is 13,
+ * and so there can never be more than 8192-257 nodes in the dictionary.
+ *
+ * Unused nodes are kept in a free list, where "next" is the index of the next
+ * free node (not offset by 257 in this case). The free list is built at
+ * initialization and again when the clear code is received.
+ */
 struct shrink_dictionary {
 	uint16_t next;
 	uint8_t byte;
@@ -22,9 +64,9 @@ struct shrink_dictionary {
 
 /* Values for shrink_dictionary::flag */
 enum {
-	node_free,
-	node_used,
-	node_parent
+	node_free,      /* Node is free */
+	node_used,      /* Node is in use */
+	node_parent     /* Temporary while clearing: a used node that will not be cleared */
 };
 
 struct shrink_desc {
