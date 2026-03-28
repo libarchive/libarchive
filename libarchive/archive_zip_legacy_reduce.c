@@ -27,10 +27,18 @@
 
 #if HAVE_LEGACY
 
-#include <errno.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#if HAVE_ERRNO_H
+#  include <errno.h>
+#endif
+#if HAVE_STDINT_H
+#  include <stdint.h>
+#endif
+#if HAVE_STDLIB_H
+#  include <stdlib.h>
+#endif
+#if HAVE_STRING_H
+#  include <string.h>
+#endif
 
 #include "archive_read_private.h"
 #include "archive_zip_legacy.h"
