@@ -45,6 +45,17 @@
 
 #define SIZE(x) (sizeof(x)/sizeof((x)[0]))
 
+/* Archive data, remaining bytes, decryption */
+struct arch_data {
+	/* Archive data from caller */
+	struct archive_read *arch;
+	/* Compressed bytes remaining */
+	uint64_t cmp_size;
+	/* Traditional PKZIP decryption */
+	struct trad_enc_ctx *decrypt;
+	uint8_t decrypt_buf[256];
+};
+
 /*
  * The dictionary is built as codes are received. "byte" is the last character
  * of the string and "next" is the code for the rest of the string. The string
@@ -79,8 +90,7 @@ enum {
 
 struct shrink_desc {
 	/* Source of bytes */
-	struct archive_read *arch;
-	uint64_t cmp_size;
+	struct arch_data arch_;
 	/* Decompressor state */
 	uint32_t bits;
 	unsigned num_bits;
@@ -108,11 +118,12 @@ static int lookup(struct shrink_desc *desc, int code);
 static void add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte);
 static int read_code_with_escapes(struct shrink_desc *desc, int *code);
 static int read_code(struct shrink_desc *desc, int *code);
+static void const *read_bytes(struct arch_data *arch, unsigned num_bytes);
 
 /* Initialize the shrink_desc structure */
 int
 shrink_init(struct shrink_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, size_t *cmp_bytes_read)
+	uint64_t cmp_size, struct trad_enc_ctx *decrypt, size_t *cmp_bytes_read)
 {
 	if (*desc == NULL) {
 		*desc = calloc(1, sizeof(**desc));
@@ -121,8 +132,9 @@ shrink_init(struct shrink_desc **desc, struct archive_read *a,
 		}
 	}
 
-	(*desc)->arch = a;
-	(*desc)->cmp_size = cmp_size;
+	(*desc)->arch_.arch = a;
+	(*desc)->arch_.cmp_size = cmp_size;
+	(*desc)->arch_.decrypt = decrypt;
 	(*desc)->bits = 0;
 	(*desc)->num_bits = 0;
 	(*desc)->code_size = 9;
@@ -154,7 +166,7 @@ int
 shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read)
 {
-	uint64_t cmp_size = desc->cmp_size;
+	uint64_t cmp_size = desc->arch_.cmp_size;
 	int err = 0;
 
 	*bytes_read = 0;
@@ -208,13 +220,13 @@ shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 		}
 	}
 
-	*cmp_bytes_read = cmp_size - desc->cmp_size;
+	*cmp_bytes_read = cmp_size - desc->arch_.cmp_size;
 	return ARCHIVE_OK;
 
 fail:
 	/* If we reach the end of the compressed data, return success with the
 	   number of bytes read so far */
-	*cmp_bytes_read = cmp_size - desc->cmp_size;
+	*cmp_bytes_read = cmp_size - desc->arch_.cmp_size;
 	return err == end_of_data ? ARCHIVE_EOF : err;
 }
 
@@ -376,23 +388,45 @@ read_code(struct shrink_desc *desc, int *code)
 		const uint8_t *ptr;
 		ssize_t avail;
 
-		if (desc->cmp_size == 0) {
+		if (desc->arch_.cmp_size == 0) {
 			return end_of_data;
 		}
-		ptr = __archive_read_ahead(desc->arch, 1, &avail);
+		ptr = read_bytes(&desc->arch_, 1);
 		if (ptr == NULL) {
 			return file_truncated;
 		}
 		desc->bits |= ptr[0] << desc->num_bits;
-		__archive_read_consume(desc->arch, 1);
 		desc->num_bits += 8;
-		--desc->cmp_size;
 	}
 
 	*code = desc->bits & ((1 << desc->code_size) - 1);
 	desc->num_bits -= desc->code_size;
 	desc->bits >>= desc->code_size;
 	return ARCHIVE_OK;
+}
+
+/* Read and possibly decrypt one or more bytes */
+static void const *
+read_bytes(struct arch_data *arch, unsigned num_bytes)
+{
+	void const *ptr;
+	ssize_t avail;
+
+	ptr = __archive_read_ahead(arch->arch, num_bytes, &avail);
+	if (ptr == NULL) {
+		return NULL;
+	}
+	__archive_read_consume(arch->arch, num_bytes);
+	arch->cmp_size -= num_bytes;
+
+	if (arch->decrypt) {
+		trad_enc_decrypt_update(arch->decrypt,
+			ptr, num_bytes,
+			arch->decrypt_buf, num_bytes);
+		ptr = arch->decrypt_buf;
+	}
+
+	return ptr;
 }
 
 #endif /* HAVE_LEGACY */

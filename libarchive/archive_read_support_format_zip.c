@@ -340,7 +340,10 @@ trad_enc_decrypt_byte(struct trad_enc_ctx *ctx)
 	return (uint8_t)((temp * (temp ^ 1)) >> 8) & 0xff;
 }
 
-static void
+#ifndef HAVE_LEGACY
+static
+#endif
+void
 trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
     size_t in_len, uint8_t *out, size_t out_len)
 {
@@ -1740,7 +1743,9 @@ zip_read_data_implode(struct archive_read *a, const void **buff,
 	/* Initialize decompression context if we're here for the first time. */
 	if (!zip->decompress_init) {
 		r = implode_init(&zip->implode, a,
-			zip->entry->compressed_size, zip->entry->zip_flags,
+			zip->entry->compressed_size - zip->entry_compressed_bytes_read,
+			zip->tctx_valid ? &zip->tctx : NULL,
+			zip->entry->zip_flags,
 			&cmp_size);
 		zip->entry_compressed_bytes_read += cmp_size;
 		if(r != ARCHIVE_OK)
@@ -1790,7 +1795,8 @@ zip_read_data_shrink(struct archive_read *a, const void **buff,
 	/* Initialize decompression context if we're here for the first time. */
 	if (!zip->decompress_init) {
 		r = shrink_init(&zip->shrink, a,
-			zip->entry->compressed_size,
+			zip->entry->compressed_size - zip->entry_compressed_bytes_read,
+			zip->tctx_valid ? &zip->tctx : NULL,
 			&cmp_size);
 		zip->entry_compressed_bytes_read += cmp_size;
 		if(r != ARCHIVE_OK)

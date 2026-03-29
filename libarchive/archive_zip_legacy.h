@@ -30,11 +30,17 @@
 
 #include "archive_read_private.h"
 
+/* To decrypt compressed data */
+struct trad_enc_ctx;
+void trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
+    size_t in_len, uint8_t *out, size_t out_len);
+
 /* Implode */
 struct implode_desc;
 
 int implode_init(struct implode_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, unsigned zip_flags, size_t *cmp_bytes_read);
+	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned zip_flags,
+	size_t *cmp_bytes_read);
 void implode_free(struct implode_desc **desc);
 int implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read);
@@ -44,7 +50,7 @@ const char *implode_error(int err);
 struct shrink_desc;
 
 int shrink_init(struct shrink_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, size_t *cmp_bytes_read);
+	uint64_t cmp_size, struct trad_enc_ctx *decrypt, size_t *cmp_bytes_read);
 void shrink_free(struct shrink_desc **desc);
 int shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read);

@@ -43,6 +43,17 @@
 #include "archive_read_private.h"
 #include "archive_zip_legacy.h"
 
+/* Archive data, remaining bytes, decryption */
+struct arch_data {
+	/* Archive data from caller */
+	struct archive_read *arch;
+	/* Compressed bytes remaining */
+	uint64_t cmp_size;
+	/* Traditional PKZIP decryption */
+	struct trad_enc_ctx *decrypt;
+	uint8_t decrypt_buf[256];
+};
+
 /* Current state of sliding window */
 struct lz77_window {
 	uint8_t *window;
@@ -66,8 +77,8 @@ struct implode_tree {
 
 struct implode_desc {
 	/* Source of bytes */
-	struct archive_read *arch;
-	uint64_t cmp_size;
+	struct arch_data arch;
+	/* For reading individual bits */
 	unsigned bits;
 	uint8_t num_bits;
 	/* Current state of sliding window */
@@ -93,6 +104,7 @@ static int sf_decode(struct implode_desc *desc, struct implode_tree const tree[]
 	uint8_t *elem);
 static int read_bits(struct implode_desc *desc, unsigned num_bits,
 	uint8_t *bits);
+static void const *read_bytes(struct arch_data *arch, unsigned num_bytes);
 
 static int lz77_init(struct lz77_window *lz77, unsigned window_size);
 static void lz77_free(struct lz77_window *lz77);
@@ -103,7 +115,8 @@ static void lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned 
 /* Initialize the implode_desc structure and read the Shannon-Fano trees */
 int
 implode_init(struct implode_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, unsigned zip_flags, size_t *cmp_bytes_read)
+	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned zip_flags,
+	size_t *cmp_bytes_read)
 {
 	int err = 0;
 
@@ -114,8 +127,9 @@ implode_init(struct implode_desc **desc, struct archive_read *a,
 		}
 	}
 
-	(*desc)->arch = a;
-	(*desc)->cmp_size = cmp_size;
+	(*desc)->arch.arch = a;
+	(*desc)->arch.cmp_size = cmp_size;
+	(*desc)->arch.decrypt = decrypt;
 	(*desc)->window_8k = (zip_flags & 0x02) != 0;
 	(*desc)->have_literal_tree = (zip_flags & 0x04) != 0;
 	(*desc)->bits = 0;
@@ -141,11 +155,11 @@ implode_init(struct implode_desc **desc, struct archive_read *a,
 		goto fail;
 	}
 
-	*cmp_bytes_read = cmp_size - (*desc)->cmp_size;
+	*cmp_bytes_read = cmp_size - (*desc)->arch.cmp_size;
 	return 0;
 
 fail:
-	*cmp_bytes_read = cmp_size - (*desc)->cmp_size;
+	*cmp_bytes_read = cmp_size - (*desc)->arch.cmp_size;
 	return err;
 }
 
@@ -180,7 +194,7 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read)
 {
 	int err = 0;
-	uint64_t cmp_size = desc->cmp_size;
+	uint64_t cmp_size = desc->arch.cmp_size;
 	size_t b_read;
 
 	b_read = 0;
@@ -259,14 +273,14 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 	}
 
 	*bytes_read = b_read;
-	*cmp_bytes_read = cmp_size - desc->cmp_size;
+	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
 	return 0;
 
 fail:
 	/* If we reach the end of the compressed data, return success with the
 	   number of bytes read so far */
 	*bytes_read = b_read;
-	*cmp_bytes_read = cmp_size - desc->cmp_size;
+	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
 	return err == end_of_data ? ARCHIVE_EOF : err;
 }
 
@@ -275,7 +289,6 @@ static int
 read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tree[])
 {
 	const uint8_t *ptr;
-	ssize_t avail;
 	unsigned tree_bytes;
 	uint8_t tree_data[256];
 	uint8_t bit_lengths[256];
@@ -286,28 +299,24 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 
 	/* Raw data for the tree (5.3.7): */
 	/* Number of bytes that encode the tree */
-	if (desc->cmp_size == 0) {
+	if (desc->arch.cmp_size == 0) {
 		return file_inconsistent;
 	}
-	ptr = __archive_read_ahead(desc->arch, 1, &avail);
+	ptr = read_bytes(&desc->arch, 1);
 	if (ptr == NULL) {
 		return file_truncated;
 	}
 	tree_bytes = ptr[0] + 1;
-	__archive_read_consume(desc->arch, 1);
-	--desc->cmp_size;
 
 	/* The code counts and bit lengths */
-	if (desc->cmp_size < tree_bytes) {
+	if (desc->arch.cmp_size < tree_bytes) {
 		return file_inconsistent;
 	}
-	ptr = __archive_read_ahead(desc->arch, tree_bytes, &avail);
+	ptr = read_bytes(&desc->arch, tree_bytes);
 	if (ptr == NULL) {
 		return file_truncated;
 	}
-	desc->cmp_size -= tree_bytes;
 	memcpy(tree_data, ptr, tree_bytes);
-	__archive_read_consume(desc->arch, tree_bytes);
 
 	/* Set the bit lengths */
 	i = 0;
@@ -407,19 +416,16 @@ read_bits(struct implode_desc *desc, unsigned num_bits, uint8_t *bits)
 {
 	while (desc->num_bits < num_bits) {
 		const uint8_t *ptr;
-		ssize_t avail;
 
-		if (desc->cmp_size == 0) {
+		if (desc->arch.cmp_size == 0) {
 			return end_of_data;
 		}
-		ptr = __archive_read_ahead(desc->arch, 1, &avail);
+		ptr = read_bytes(&desc->arch, 1);
 		if (ptr == NULL) {
 			return file_truncated;
 		}
 		desc->bits |= ptr[0] << desc->num_bits;
 		desc->num_bits += 8;
-		--desc->cmp_size;
-		__archive_read_consume(desc->arch, 1);
 	}
 
 	*bits = desc->bits;
@@ -428,6 +434,30 @@ read_bits(struct implode_desc *desc, unsigned num_bits, uint8_t *bits)
 	*bits &= (1 << num_bits) - 1;
 
 	return 0;
+}
+
+/* Read and possibly decrypt one or more bytes */
+static void const *
+read_bytes(struct arch_data *arch, unsigned num_bytes)
+{
+	void const *ptr;
+	ssize_t avail;
+
+	ptr = __archive_read_ahead(arch->arch, num_bytes, &avail);
+	if (ptr == NULL) {
+		return NULL;
+	}
+	__archive_read_consume(arch->arch, num_bytes);
+	arch->cmp_size -= num_bytes;
+
+	if (arch->decrypt) {
+		trad_enc_decrypt_update(arch->decrypt,
+			ptr, num_bytes,
+			arch->decrypt_buf, num_bytes);
+		ptr = arch->decrypt_buf;
+	}
+
+	return ptr;
 }
 
 static int
