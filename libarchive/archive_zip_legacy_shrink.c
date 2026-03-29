@@ -40,21 +40,9 @@
 #  include <stdlib.h>
 #endif
 
-#include "archive_read_private.h"
 #include "archive_zip_legacy.h"
 
 #define SIZE(x) (sizeof(x)/sizeof((x)[0]))
-
-/* Archive data, remaining bytes, decryption */
-struct arch_data {
-	/* Archive data from caller */
-	struct archive_read *arch;
-	/* Compressed bytes remaining */
-	uint64_t cmp_size;
-	/* Traditional PKZIP decryption */
-	struct trad_enc_ctx *decrypt;
-	uint8_t decrypt_buf[256];
-};
 
 /*
  * The dictionary is built as codes are received. "byte" is the last character
@@ -90,12 +78,10 @@ enum {
 
 struct shrink_desc {
 	/* Source of bytes */
-	struct arch_data arch_;
+	struct arch_data arch;
 	/* Decompressor state */
-	uint32_t bits;
-	unsigned num_bits;
 	unsigned code_size;
-	int old_code;
+	unsigned old_code;
 	struct shrink_dictionary dictionary[8192 - 257];
 	uint16_t free_list;
 	uint8_t last_byte;
@@ -107,18 +93,9 @@ struct shrink_desc {
 	uint64_t unc_size;
 };
 
-/* Errors occurring within the ZIP format */
-enum {
-	end_of_data = -1,
-	file_truncated = -2,
-	file_inconsistent = -3
-};
-
 static int lookup(struct shrink_desc *desc, int code);
 static void add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte);
-static int read_code_with_escapes(struct shrink_desc *desc, int *code);
-static int read_code(struct shrink_desc *desc, int *code);
-static void const *read_bytes(struct arch_data *arch, unsigned num_bytes);
+static int read_code_with_escapes(struct shrink_desc *desc, unsigned *code);
 
 /* Initialize the shrink_desc structure */
 int
@@ -132,13 +109,13 @@ shrink_init(struct shrink_desc **desc, struct archive_read *a,
 		}
 	}
 
-	(*desc)->arch_.arch = a;
-	(*desc)->arch_.cmp_size = cmp_size;
-	(*desc)->arch_.decrypt = decrypt;
-	(*desc)->bits = 0;
-	(*desc)->num_bits = 0;
+	(*desc)->arch.arch = a;
+	(*desc)->arch.cmp_size = cmp_size;
+	(*desc)->arch.decrypt = decrypt;
+	(*desc)->arch.bits = 0;
+	(*desc)->arch.num_bits = 0;
 	(*desc)->code_size = 9;
-	(*desc)->old_code = -1;
+	(*desc)->old_code = 0xFFFF;
 	(*desc)->last_byte = 0;
 	(*desc)->outstr_size = 0;
 	(*desc)->outstr_start = 0;
@@ -166,7 +143,7 @@ int
 shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read)
 {
-	uint64_t cmp_size = desc->arch_.cmp_size;
+	uint64_t cmp_size = desc->arch.cmp_size;
 	int err = 0;
 
 	*bytes_read = 0;
@@ -191,7 +168,7 @@ shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 		desc->outstr_size = 0;
 
 		/* Read and decode */
-		if (desc->old_code == -1) {
+		if (desc->old_code == 0xFFFF) {
 			/* First time through */
 			err = read_code_with_escapes(desc, &desc->old_code);
 			if (err != 0) {
@@ -205,7 +182,7 @@ shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 			desc->outstr_size = 1;
 			desc->last_byte = desc->old_code;
 		} else {
-			int new_code;
+			unsigned new_code;
 
 			err = read_code_with_escapes(desc, &new_code);
 			if (err != 0) {
@@ -220,32 +197,14 @@ shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 		}
 	}
 
-	*cmp_bytes_read = cmp_size - desc->arch_.cmp_size;
+	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
 	return ARCHIVE_OK;
 
 fail:
 	/* If we reach the end of the compressed data, return success with the
 	   number of bytes read so far */
-	*cmp_bytes_read = cmp_size - desc->arch_.cmp_size;
+	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
 	return err == end_of_data ? ARCHIVE_EOF : err;
-}
-
-const char *
-shrink_error(int err)
-{
-	switch (err) {
-	case end_of_data:
-		return "End of compressed data";
-
-	case file_truncated:
-		return "Truncated ZIP file data";
-
-	case file_inconsistent:
-		return "Corrupted ZIP file data";
-
-	default:
-		return strerror(err);
-	}
 }
 
 static int
@@ -326,17 +285,17 @@ add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte)
 
 /* Read a code from the file, and process any 256 escapes */
 static int
-read_code_with_escapes(struct shrink_desc *desc, int *code)
+read_code_with_escapes(struct shrink_desc *desc, unsigned *code)
 {
 	while (1) {
-		int code2;
-		int err = read_code(desc, code);
+		unsigned code2;
+		int err = archive_read_bits(&desc->arch, desc->code_size, code);
 		if (err != 0 || *code != 256) {
 			/* Not an escape code */
 			return err;
 		}
 
-		err = read_code(desc, &code2);
+		err = archive_read_bits(&desc->arch, desc->code_size, &code2);
 		if (err != 0) {
 			return err;
 		}
@@ -378,55 +337,6 @@ read_code_with_escapes(struct shrink_desc *desc, int *code)
 			return file_inconsistent;
 		}
 	}
-}
-
-/* Read a single code from the file */
-static int
-read_code(struct shrink_desc *desc, int *code)
-{
-	while (desc->num_bits < desc->code_size) {
-		const uint8_t *ptr;
-		ssize_t avail;
-
-		if (desc->arch_.cmp_size == 0) {
-			return end_of_data;
-		}
-		ptr = read_bytes(&desc->arch_, 1);
-		if (ptr == NULL) {
-			return file_truncated;
-		}
-		desc->bits |= ptr[0] << desc->num_bits;
-		desc->num_bits += 8;
-	}
-
-	*code = desc->bits & ((1 << desc->code_size) - 1);
-	desc->num_bits -= desc->code_size;
-	desc->bits >>= desc->code_size;
-	return ARCHIVE_OK;
-}
-
-/* Read and possibly decrypt one or more bytes */
-static void const *
-read_bytes(struct arch_data *arch, unsigned num_bytes)
-{
-	void const *ptr;
-	ssize_t avail;
-
-	ptr = __archive_read_ahead(arch->arch, num_bytes, &avail);
-	if (ptr == NULL) {
-		return NULL;
-	}
-	__archive_read_consume(arch->arch, num_bytes);
-	arch->cmp_size -= num_bytes;
-
-	if (arch->decrypt) {
-		trad_enc_decrypt_update(arch->decrypt,
-			ptr, num_bytes,
-			arch->decrypt_buf, num_bytes);
-		ptr = arch->decrypt_buf;
-	}
-
-	return ptr;
 }
 
 #endif /* HAVE_LEGACY */

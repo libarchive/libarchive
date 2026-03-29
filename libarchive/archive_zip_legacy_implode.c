@@ -40,28 +40,7 @@
 #  include <string.h>
 #endif
 
-#include "archive_read_private.h"
 #include "archive_zip_legacy.h"
-
-/* Archive data, remaining bytes, decryption */
-struct arch_data {
-	/* Archive data from caller */
-	struct archive_read *arch;
-	/* Compressed bytes remaining */
-	uint64_t cmp_size;
-	/* Traditional PKZIP decryption */
-	struct trad_enc_ctx *decrypt;
-	uint8_t decrypt_buf[256];
-};
-
-/* Current state of sliding window */
-struct lz77_window {
-	uint8_t *window;
-	unsigned window_pos;
-	unsigned copy_pos;
-	unsigned copy_size;
-	unsigned window_mask;
-};
 
 /* 5.3.7 and 5.3.8 */
 struct implode_tree {
@@ -78,9 +57,6 @@ struct implode_tree {
 struct implode_desc {
 	/* Source of bytes */
 	struct arch_data arch;
-	/* For reading individual bits */
-	unsigned bits;
-	uint8_t num_bits;
 	/* Current state of sliding window */
 	struct lz77_window lz77;
 	/* Flags set in the Zip structure */
@@ -92,25 +68,9 @@ struct implode_desc {
 	struct implode_tree distance_tree[64];
 };
 
-/* Errors occurring within the ZIP format */
-enum {
-	end_of_data = -1,
-	file_truncated = -2,
-	file_inconsistent = -3
-};
-
 static int read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tree[]);
 static int sf_decode(struct implode_desc *desc, struct implode_tree const tree[],
-	uint8_t *elem);
-static int read_bits(struct implode_desc *desc, unsigned num_bits,
-	uint8_t *bits);
-static void const *read_bytes(struct arch_data *arch, unsigned num_bytes);
-
-static int lz77_init(struct lz77_window *lz77, unsigned window_size);
-static void lz77_free(struct lz77_window *lz77);
-static size_t lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes);
-static void lz77_add_byte(struct lz77_window *lz77, uint8_t byte);
-static void lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length);
+	unsigned *elem);
 
 /* Initialize the implode_desc structure and read the Shannon-Fano trees */
 int
@@ -130,10 +90,10 @@ implode_init(struct implode_desc **desc, struct archive_read *a,
 	(*desc)->arch.arch = a;
 	(*desc)->arch.cmp_size = cmp_size;
 	(*desc)->arch.decrypt = decrypt;
+	(*desc)->arch.bits = 0;
+	(*desc)->arch.num_bits = 0;
 	(*desc)->window_8k = (zip_flags & 0x02) != 0;
 	(*desc)->have_literal_tree = (zip_flags & 0x04) != 0;
-	(*desc)->bits = 0;
-	(*desc)->num_bits = 0;
 	err = lz77_init(&(*desc)->lz77, (*desc)->window_8k ? 0x2000 : 0x1000);
 	if (err) {
 		implode_free(desc);
@@ -171,24 +131,6 @@ implode_free(struct implode_desc **desc)
 	*desc = NULL;
 }
 
-const char *
-implode_error(int err)
-{
-	switch (err) {
-	case end_of_data:
-		return "End of compressed data";
-
-	case file_truncated:
-		return "Truncated ZIP file data";
-
-	case file_inconsistent:
-		return "Corrupted ZIP file data";
-
-	default:
-		return strerror(err);
-	}
-}
-
 int
 implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read)
@@ -199,7 +141,7 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 
 	b_read = 0;
 	while (b_read < num_bytes) {
-		uint8_t literal;
+		unsigned literal;
 		size_t count;
 
 		/* Fulfill any pending copy */
@@ -212,19 +154,19 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 
 		/* desc->copy_size is 0 at this point */
 		/* Read one bit: literal or copy marker? */
-		err = read_bits(desc, 1, &literal);
+		err = archive_read_bits(&desc->arch, 1, &literal);
 		if (err) {
 			goto fail;
 		}
 
 		if (literal) {
 			/* Literal byte found */
-			uint8_t byte;
+			unsigned byte;
 
 			if (desc->have_literal_tree) {
 				err = sf_decode(desc, desc->literal_tree, &byte);
 			} else {
-				err = read_bits(desc, 8, &byte);
+				err = archive_read_bits(&desc->arch, 8, &byte);
 			}
 			if (err) {
 				goto fail;
@@ -233,13 +175,13 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 			lz77_add_byte(&desc->lz77, byte);
 		} else {
 			/* Copy marker found */
-			uint8_t dist_low, dist_high;
-			uint8_t length1, length2;
+			unsigned dist_low, dist_high;
+			unsigned length1, length2;
 			unsigned distance;
 			unsigned length;
 
 			/* Low bits of distance */
-			err = read_bits(desc, desc->window_8k ? 7 : 6, &dist_low);
+			err = archive_read_bits(&desc->arch, desc->window_8k ? 7 : 6, &dist_low);
 			if (err) {
 				goto fail;
 			}
@@ -260,7 +202,7 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 			length = length1;
 			if (length1 == 63) {
 				/* Second part of length */
-				err = read_bits(desc, 8, &length2);
+				err = archive_read_bits(&desc->arch, 8, &length2);
 				if (err) {
 					goto fail;
 				}
@@ -302,7 +244,7 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 	if (desc->arch.cmp_size == 0) {
 		return file_inconsistent;
 	}
-	ptr = read_bytes(&desc->arch, 1);
+	ptr = archive_read_bytes(&desc->arch, 1);
 	if (ptr == NULL) {
 		return file_truncated;
 	}
@@ -312,7 +254,7 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 	if (desc->arch.cmp_size < tree_bytes) {
 		return file_inconsistent;
 	}
-	ptr = read_bytes(&desc->arch, tree_bytes);
+	ptr = archive_read_bytes(&desc->arch, tree_bytes);
 	if (ptr == NULL) {
 		return file_truncated;
 	}
@@ -386,15 +328,15 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 /* Return 0 on success, -1 on end of data, positive on file error */
 static int
 sf_decode(struct implode_desc *desc, struct implode_tree const tree[],
-	uint8_t *elem)
+	unsigned *elem)
 {
 	unsigned node = 0;
-	uint8_t bit;
+	unsigned bit;
 	int err;
 
 	while (1) {
 		unsigned node2;
-		err = read_bits(desc, 1, &bit);
+		err = archive_read_bits(&desc->arch, 1, &bit);
 		if (err) {
 			return err;
 		}
@@ -408,111 +350,6 @@ sf_decode(struct implode_desc *desc, struct implode_tree const tree[],
 		}
 		node = node2 - 0x100;
 	}
-}
-
-/* Read one or more bits from the archive */
-static int
-read_bits(struct implode_desc *desc, unsigned num_bits, uint8_t *bits)
-{
-	while (desc->num_bits < num_bits) {
-		const uint8_t *ptr;
-
-		if (desc->arch.cmp_size == 0) {
-			return end_of_data;
-		}
-		ptr = read_bytes(&desc->arch, 1);
-		if (ptr == NULL) {
-			return file_truncated;
-		}
-		desc->bits |= ptr[0] << desc->num_bits;
-		desc->num_bits += 8;
-	}
-
-	*bits = desc->bits;
-	desc->bits >>= num_bits;
-	desc->num_bits -= num_bits;
-	*bits &= (1 << num_bits) - 1;
-
-	return 0;
-}
-
-/* Read and possibly decrypt one or more bytes */
-static void const *
-read_bytes(struct arch_data *arch, unsigned num_bytes)
-{
-	void const *ptr;
-	ssize_t avail;
-
-	ptr = __archive_read_ahead(arch->arch, num_bytes, &avail);
-	if (ptr == NULL) {
-		return NULL;
-	}
-	__archive_read_consume(arch->arch, num_bytes);
-	arch->cmp_size -= num_bytes;
-
-	if (arch->decrypt) {
-		trad_enc_decrypt_update(arch->decrypt,
-			ptr, num_bytes,
-			arch->decrypt_buf, num_bytes);
-		ptr = arch->decrypt_buf;
-	}
-
-	return ptr;
-}
-
-static int
-lz77_init(struct lz77_window *lz77, unsigned window_size)
-{
-	free(lz77->window);
-	lz77->window = calloc(1, window_size);
-	if (lz77->window == NULL) {
-		return errno;
-	}
-	lz77->window_pos = 0;
-	lz77->copy_pos = 0;
-	lz77->copy_size = 0;
-	lz77->window_mask = window_size - 1;
-	return 0;
-}
-
-static void
-lz77_free(struct lz77_window *lz77)
-{
-	free(lz77->window);
-	lz77->window = NULL;
-}
-
-/* Fulfill any pending copy */
-static size_t
-lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes)
-{
-	size_t b_read = 0;
-
-	while (lz77->copy_size != 0 && b_read < num_bytes) {
-		uint8_t byte = lz77->window[lz77->copy_pos];
-		bytes[b_read++] = byte;
-		lz77_add_byte(lz77, byte);
-		lz77->copy_pos = (lz77->copy_pos + 1) & lz77->window_mask;
-		--lz77->copy_size;
-	}
-
-	return b_read;
-}
-
-/* Add a byte to the sliding window */
-static void
-lz77_add_byte(struct lz77_window *lz77, uint8_t byte)
-{
-	lz77->window[lz77->window_pos] = byte;
-	lz77->window_pos = (lz77->window_pos + 1) & lz77->window_mask;
-}
-
-/* Begin a copy */
-static void
-lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length)
-{
-	lz77->copy_size = length;
-	lz77->copy_pos = (lz77->window_pos - distance) & lz77->window_mask;
 }
 
 #endif /* HAVE_LEGACY */

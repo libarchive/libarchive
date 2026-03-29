@@ -30,6 +30,15 @@
 
 #include "archive_read_private.h"
 
+/* Errors occurring within the ZIP format */
+enum {
+	end_of_data = -1,
+	file_truncated = -2,
+	file_inconsistent = -3
+};
+
+const char *zip_legacy_error(int err);
+
 /* To decrypt compressed data */
 struct trad_enc_ctx;
 void trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
@@ -44,7 +53,6 @@ int implode_init(struct implode_desc **desc, struct archive_read *a,
 void implode_free(struct implode_desc **desc);
 int implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read);
-const char *implode_error(int err);
 
 /* Shrink */
 struct shrink_desc;
@@ -54,17 +62,48 @@ int shrink_init(struct shrink_desc **desc, struct archive_read *a,
 void shrink_free(struct shrink_desc **desc);
 int shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read);
-const char *shrink_error(int err);
 
 /* Reduce */
 struct reduce_desc;
 
 int reduce_init(struct reduce_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, unsigned level, size_t *cmp_bytes_read);
+	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned level,
+	size_t *cmp_bytes_read);
 void reduce_free(struct reduce_desc **desc);
 int reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read);
-const char *reduce_error(int err);
+
+/* Current state of sliding window */
+struct lz77_window {
+	uint8_t *window;
+	unsigned window_pos;
+	unsigned copy_pos;
+	unsigned copy_size;
+	unsigned window_mask;
+};
+
+int lz77_init(struct lz77_window *lz77, unsigned window_size);
+void lz77_free(struct lz77_window *lz77);
+size_t lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes);
+void lz77_add_byte(struct lz77_window *lz77, uint8_t byte);
+void lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length);
+
+/* Archive data, remaining bytes, decryption */
+struct arch_data {
+	/* Archive data from caller */
+	struct archive_read *arch;
+	/* Compressed bytes remaining */
+	uint64_t cmp_size;
+	/* To read bits not on a byte boundary */
+	uint32_t bits;
+	uint8_t num_bits;
+	/* Traditional PKZIP decryption */
+	struct trad_enc_ctx *decrypt;
+	uint8_t decrypt_buf[256];
+};
+
+int archive_read_bits(struct arch_data *arch, unsigned num_bits, unsigned *bits);
+void const *archive_read_bytes(struct arch_data *arch, unsigned num_bytes);
 
 #endif /* HAVE_LEGACY */
 

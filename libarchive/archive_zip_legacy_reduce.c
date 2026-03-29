@@ -40,10 +40,7 @@
 #  include <string.h>
 #endif
 
-#include "archive_read_private.h"
 #include "archive_zip_legacy.h"
-
-struct reduce_desc;
 
 /* Decompressor state */
 struct follower_set {
@@ -52,21 +49,9 @@ struct follower_set {
 	uint8_t chr[63];
 };
 
-/* Current state of sliding window */
-struct lz77_window {
-	uint8_t *window;
-	unsigned window_pos;
-	unsigned copy_pos;
-	unsigned copy_size;
-	unsigned window_mask;
-};
-
 struct reduce_desc {
 	/* Source of bytes */
-	struct archive_read *arch;
-	uint64_t cmp_size;
-	unsigned bits;
-	uint8_t num_bits;
+	struct arch_data arch;
 
 	/* Current state of sliding window */
 	struct lz77_window lz77;
@@ -80,28 +65,14 @@ struct reduce_desc {
 	uint8_t last_ch;
 };
 
-/* Errors occurring within the ZIP format */
-enum {
-	end_of_data = -1,
-	file_truncated = -2,
-	file_inconsistent = -3
-};
-
 static int read_follower_set(struct reduce_desc *desc,
 	struct follower_set *folset);
 static int reduce_read_byte(struct reduce_desc *desc, unsigned *byte);
-static int read_bits(struct reduce_desc *desc, unsigned num_bits,
-	unsigned *bits);
-
-static int lz77_init(struct lz77_window *lz77, unsigned window_size);
-static void lz77_free(struct lz77_window *lz77);
-static size_t lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes);
-static void lz77_add_byte(struct lz77_window *lz77, uint8_t byte);
-static void lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length);
 
 int
 reduce_init(struct reduce_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, unsigned level, size_t *cmp_bytes_read)
+	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned level,
+	size_t *cmp_bytes_read)
 {
 	int err = 0;
 
@@ -112,10 +83,11 @@ reduce_init(struct reduce_desc **desc, struct archive_read *a,
 		}
 	}
 
-	(*desc)->arch = a;
-	(*desc)->cmp_size = cmp_size;
-	(*desc)->bits = 0;
-	(*desc)->num_bits = 0;
+	(*desc)->arch.arch = a;
+	(*desc)->arch.cmp_size = cmp_size;
+	(*desc)->arch.decrypt = decrypt;
+	(*desc)->arch.bits = 0;
+	(*desc)->arch.num_bits = 0;
 	(*desc)->level = level;
 	(*desc)->length_mask = 255 >> level;
 	(*desc)->last_ch = 0;
@@ -133,11 +105,11 @@ reduce_init(struct reduce_desc **desc, struct archive_read *a,
 		}
 	}
 
-	*cmp_bytes_read = cmp_size - (*desc)->cmp_size;
+	*cmp_bytes_read = cmp_size - (*desc)->arch.cmp_size;
 	return 0;
 
 fail:
-	*cmp_bytes_read = cmp_size - (*desc)->cmp_size;
+	*cmp_bytes_read = cmp_size - (*desc)->arch.cmp_size;
 	return err;
 }
 
@@ -154,7 +126,7 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read)
 {
 	int err = 0;
-	uint64_t cmp_size = desc->cmp_size;
+	uint64_t cmp_size = desc->arch.cmp_size;
 	size_t b_read;
 
 	b_read = 0;
@@ -215,33 +187,15 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 	}
 
 	*bytes_read = b_read;
-	*cmp_bytes_read = cmp_size - desc->cmp_size;
+	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
 	return 0;
 
 fail:
 	/* If we reach the end of the compressed data, return success with the
 	   number of bytes read so far */
 	*bytes_read = b_read;
-	*cmp_bytes_read = cmp_size - desc->cmp_size;
+	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
 	return err == end_of_data ? ARCHIVE_EOF : err;
-}
-
-const char *
-reduce_error(int err)
-{
-	switch (err) {
-	case end_of_data:
-		return "End of compressed data";
-
-	case file_truncated:
-		return "Truncated ZIP file data";
-
-	case file_inconsistent:
-		return "Corrupted ZIP file data";
-
-	default:
-		return strerror(err);
-	}
 }
 
 static int
@@ -253,7 +207,7 @@ read_follower_set(struct reduce_desc *desc,
 	unsigned i;
 
 	/* Size of follower set */
-	err = read_bits(desc, 6, &size);
+	err = archive_read_bits(&desc->arch, 6, &size);
 	if (err) {
 		return err;
 	}
@@ -266,7 +220,7 @@ read_follower_set(struct reduce_desc *desc,
 	/* Read the set of bytes */
 	for (i = 0; i < size; ++i) {
 		unsigned byte;
-		err = read_bits(desc, 8, &byte);
+		err = archive_read_bits(&desc->arch, 8, &byte);
 		if (err) {
 			return err;
 		}
@@ -289,19 +243,19 @@ reduce_read_byte(struct reduce_desc *desc, unsigned *byte)
 	} else {
 		/* If the follower set is empty, the next bit determines
 		   whether a literal follows */
-		err = read_bits(desc, 1, &literal);
+		err = archive_read_bits(&desc->arch, 1, &literal);
 		if (err) {
 			return err;
 		}
 	}
 	if (literal) {
-		err = read_bits(desc, 8, byte);
+		err = archive_read_bits(&desc->arch, 8, byte);
 		if (err) {
 			return err;
 		}
 	} else {
 		unsigned index;
-		err = read_bits(desc, desc->folset[desc->last_ch].bits, &index);
+		err = archive_read_bits(&desc->arch, desc->folset[desc->last_ch].bits, &index);
 		if (err) {
 			return err;
 		}
@@ -309,90 +263,6 @@ reduce_read_byte(struct reduce_desc *desc, unsigned *byte)
 	}
 	desc->last_ch = *byte;
 	return 0;
-}
-
-/* Read one or more bits from the archive */
-static int
-read_bits(struct reduce_desc *desc, unsigned num_bits, unsigned *bits)
-{
-	while (desc->num_bits < num_bits) {
-		const uint8_t *ptr;
-		ssize_t avail;
-
-		if (desc->cmp_size == 0) {
-			return end_of_data;
-		}
-		ptr = __archive_read_ahead(desc->arch, 1, &avail);
-		if (ptr == NULL) {
-			return file_truncated;
-		}
-		desc->bits |= ptr[0] << desc->num_bits;
-		desc->num_bits += 8;
-		--desc->cmp_size;
-		__archive_read_consume(desc->arch, 1);
-	}
-
-	*bits = desc->bits;
-	desc->bits >>= num_bits;
-	desc->num_bits -= num_bits;
-	*bits &= (1 << num_bits) - 1;
-
-	return 0;
-}
-
-static int
-lz77_init(struct lz77_window *lz77, unsigned window_size)
-{
-	free(lz77->window);
-	lz77->window = calloc(1, window_size);
-	if (lz77->window == NULL) {
-		return errno;
-	}
-	lz77->window_pos = 0;
-	lz77->copy_pos = 0;
-	lz77->copy_size = 0;
-	lz77->window_mask = window_size - 1;
-	return 0;
-}
-
-static void
-lz77_free(struct lz77_window *lz77)
-{
-	free(lz77->window);
-	lz77->window = NULL;
-}
-
-/* Fulfill any pending copy */
-static size_t
-lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes)
-{
-	size_t b_read = 0;
-
-	while (lz77->copy_size != 0 && b_read < num_bytes) {
-		uint8_t byte = lz77->window[lz77->copy_pos];
-		bytes[b_read++] = byte;
-		lz77_add_byte(lz77, byte);
-		lz77->copy_pos = (lz77->copy_pos + 1) & lz77->window_mask;
-		--lz77->copy_size;
-	}
-
-	return b_read;
-}
-
-/* Add a byte to the sliding window */
-static void
-lz77_add_byte(struct lz77_window *lz77, uint8_t byte)
-{
-	lz77->window[lz77->window_pos] = byte;
-	lz77->window_pos = (lz77->window_pos + 1) & lz77->window_mask;
-}
-
-/* Begin a copy */
-static void
-lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length)
-{
-	lz77->copy_size = length;
-	lz77->copy_pos = (lz77->window_pos - distance) & lz77->window_mask;
 }
 
 #endif /* HAVE_LEGACY */

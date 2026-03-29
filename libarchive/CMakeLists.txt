@@ -173,6 +173,7 @@ SET(libarchive_SOURCES
   archive_zip_legacy_implode.c
   archive_zip_legacy_reduce.c
   archive_zip_legacy_shrink.c
+  archive_zip_legacy_common.c
   archive_zip_legacy.h
   filter_fork_posix.c
   filter_fork.h

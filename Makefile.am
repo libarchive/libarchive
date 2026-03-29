@@ -258,6 +258,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_zip_legacy_shrink.c \
 	libarchive/archive_zip_legacy_reduce.c \
 	libarchive/archive_zip_legacy_implode.c \
+	libarchive/archive_zip_legacy_common.c \
 	libarchive/filter_fork_posix.c \
 	libarchive/xxhash.c
 

@@ -1774,7 +1774,7 @@ zip_read_data_implode(struct archive_read *a, const void **buff,
 	if (r == ARCHIVE_EOF) {
 		zip->end_of_entry = 1;
 	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, 0, "%s", implode_error(r));
+		archive_set_error(&a->archive, 0, "%s", zip_legacy_error(r));
 		return (ARCHIVE_FATAL);
 	}
 
@@ -1825,7 +1825,7 @@ zip_read_data_shrink(struct archive_read *a, const void **buff,
 	if (r == ARCHIVE_EOF) {
 		zip->end_of_entry = 1;
 	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, 0, "%s", shrink_error(r));
+		archive_set_error(&a->archive, 0, "%s", zip_legacy_error(r));
 		return (ARCHIVE_FATAL);
 	}
 
@@ -1846,7 +1846,8 @@ zip_read_data_reduce(struct archive_read *a, const void **buff,
 	/* Initialize decompression context if we're here for the first time. */
 	if (!zip->decompress_init) {
 		r = reduce_init(&zip->reduce, a,
-			zip->entry->compressed_size,
+			zip->entry->compressed_size - zip->entry_compressed_bytes_read,
+			zip->tctx_valid ? &zip->tctx : NULL,
 			zip->entry->compression - 1, /* level: 1, 2, 3, 4 */
 			&cmp_size);
 		zip->entry_compressed_bytes_read += cmp_size;
@@ -1876,7 +1877,7 @@ zip_read_data_reduce(struct archive_read *a, const void **buff,
 	if (r == ARCHIVE_EOF) {
 		zip->end_of_entry = 1;
 	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, 0, "%s", reduce_error(r));
+		archive_set_error(&a->archive, 0, "%s", zip_legacy_error(r));
 		return (ARCHIVE_FATAL);
 	}
 
