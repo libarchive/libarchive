@@ -120,18 +120,21 @@ lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length)
 int
 archive_read_bits(struct arch_data *arch, unsigned num_bits, unsigned *bits)
 {
-	while (arch->num_bits < num_bits) {
+	if (arch->num_bits < num_bits) {
+		unsigned num_bytes = (num_bits - arch->num_bits + 7) / 8;
 		const uint8_t *ptr;
 
 		if (arch->cmp_size == 0) {
 			return end_of_data;
 		}
-		ptr = archive_read_bytes(arch, 1);
+		ptr = archive_read_bytes(arch, num_bytes);
 		if (ptr == NULL) {
 			return file_truncated;
 		}
-		arch->bits |= ptr[0] << arch->num_bits;
-		arch->num_bits += 8;
+		for (unsigned i = 0; i < num_bytes; ++i) {
+			arch->bits |= ptr[i] << arch->num_bits;
+			arch->num_bits += 8;
+		}
 	}
 
 	*bits = arch->bits;
