@@ -1774,7 +1774,7 @@ zip_read_data_implode(struct archive_read *a, const void **buff,
 	if (r == ARCHIVE_EOF) {
 		zip->end_of_entry = 1;
 	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, 0, "%s", zip_legacy_error(r));
+		archive_set_error(&a->archive, -1, "%s", zip_legacy_error(r));
 		return (ARCHIVE_FATAL);
 	}
 
@@ -1825,7 +1825,7 @@ zip_read_data_shrink(struct archive_read *a, const void **buff,
 	if (r == ARCHIVE_EOF) {
 		zip->end_of_entry = 1;
 	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, 0, "%s", zip_legacy_error(r));
+		archive_set_error(&a->archive, -1, "%s", zip_legacy_error(r));
 		return (ARCHIVE_FATAL);
 	}
 
@@ -1877,7 +1877,7 @@ zip_read_data_reduce(struct archive_read *a, const void **buff,
 	if (r == ARCHIVE_EOF) {
 		zip->end_of_entry = 1;
 	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, 0, "%s", zip_legacy_error(r));
+		archive_set_error(&a->archive, -1, "%s", zip_legacy_error(r));
 		return (ARCHIVE_FATAL);
 	}
 
