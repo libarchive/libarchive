@@ -223,6 +223,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 OPTION(ENABLE_MBEDTLS "Enable use of mbed TLS" OFF)
 OPTION(ENABLE_NETTLE "Enable use of Nettle" OFF)
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
+OPTION(ENABLE_MD "Enable use of Message Digest" ON)
 OPTION(ENABLE_LIBB2 "Enable the use of the system LIBB2 library if found" ON)
 OPTION(ENABLE_LZ4 "Enable the use of the system LZ4 library if found" ON)
 OPTION(ENABLE_LZO "Enable the use of the system LZO library if found" OFF)
@@ -878,7 +879,7 @@ ELSE()
 ENDIF()
 
 # FreeBSD libmd
-IF(NOT OPENSSL_FOUND)
+IF(ENABLE_MD AND NOT OPENSSL_FOUND)
   CHECK_LIBRARY_EXISTS(md "MD5Init" "" LIBMD_FOUND)
   IF(LIBMD_FOUND)
     CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
@@ -887,7 +888,7 @@ IF(NOT OPENSSL_FOUND)
     LIST(APPEND ADDITIONAL_LIBS ${LIBMD_LIBRARY})
     CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
   ENDIF(LIBMD_FOUND)
-ENDIF(NOT OPENSSL_FOUND)
+ENDIF(ENABLE_MD AND NOT OPENSSL_FOUND)
 
 # libbsd for readpassphrase on Haiku
 IF("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
