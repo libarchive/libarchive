@@ -207,7 +207,7 @@ struct lha {
  * LHA header common member offset.
  */
 #define H_METHOD_OFFSET	2	/* Compress type. */
-#define H_ATTR_OFFSET	19	/* DOS attribute. */
+#define H_ATTR_OFFSET	19	/* AmigaDOS or DOS attributes. */
 #define H_LEVEL_OFFSET	20	/* Header Level.  */
 #define H_SIZE		22	/* Minimum header size. */
 
@@ -318,9 +318,7 @@ lha_check_header_format(const void *h)
 			/* "-lh?-" */
 			if (p[H_METHOD_OFFSET+3] == 's')
 				break;
-			if (p[H_LEVEL_OFFSET] == 0)
-				return (0);
-			if (p[H_LEVEL_OFFSET] <= 3 && p[H_ATTR_OFFSET] == 0x20)
+			if (p[H_LEVEL_OFFSET] <= 3)
 				return (0);
 		}
 		if (p[H_METHOD_OFFSET+2] == 'z') {
@@ -594,6 +592,9 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	if (err < ARCHIVE_WARN)
 		return (err);
 
+	if (!lha->directory && archive_strlen(&lha->filename) == 0)
+		if (memcmp(lha->method, "lh0", 3) == 0 && archive_strlen(&lha->dirname) > 0)
+			lha->directory = 1; /* empty directory entry */
 
 	if (!lha->directory && archive_strlen(&lha->filename) == 0)
 		/* The filename has not been set */
