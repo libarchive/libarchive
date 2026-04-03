@@ -84,6 +84,16 @@
 /* maximum length of Mac metadata in MiB */
 #define ZIP_MAX_METADATA	10U
 
+/* Implode support: */
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
+#include "unimplode6a.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
 struct zip_entry {
 	struct archive_rb_node	node;
 	struct zip_entry	*next;
@@ -2696,6 +2706,102 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 }
 #endif
 
+static size_t zip_read_implode(ui6a_ctx *ui6a, UI6A_UINT8 *buf, size_t size)
+{
+	struct archive_read *a = (struct archive_read *)ui6a->userdata;
+	const UI6A_UINT8 *data = __archive_read_ahead(a, size, NULL);
+	if (data == NULL)
+		return 0;
+	memcpy(buf, data, size);
+	__archive_read_consume(a, size);
+	return size;
+}
+
+static size_t zip_write_implode(ui6a_ctx *ui6a, const UI6A_UINT8 *buf, size_t size)
+{
+	struct archive_read *a = (struct archive_read *)ui6a->userdata;
+	struct zip *zip = (struct zip *)(a->format->data);
+	memcpy(zip->uncompressed_buffer + ui6a->uncmpr_nbytes_written, buf, size);
+	return size;
+}
+
+static int
+zip_read_data_implode(struct archive_read *a, const void **buff,
+    size_t *size, int64_t *offset)
+{
+	struct zip *zip;
+	ssize_t bytes_avail;
+	ui6a_ctx *ui6a;
+	int r;
+
+	(void)offset; /* UNUSED */
+
+	zip = (struct zip *)(a->format->data);
+
+	if (zip->entry_bytes_remaining == 0) {
+		zip->end_of_entry = 1;
+		*buff = NULL;
+		*size = 0;
+		return (ARCHIVE_OK);
+	}
+
+	/* Verify there is data to read. */
+	__archive_read_ahead(a, 1, &bytes_avail);
+	if (bytes_avail < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated ZIP file body");
+		return (ARCHIVE_FATAL);
+	}
+
+	/* Allocate the output buffer sized to hold the full uncompressed entry. */
+	if (zip->uncompressed_buffer == NULL) {
+		zip->uncompressed_buffer_size = zip->entry->uncompressed_size;
+		if (zip->uncompressed_buffer_size == 0)
+			zip->uncompressed_buffer_size = 1;
+		zip->uncompressed_buffer
+		    = malloc(zip->uncompressed_buffer_size);
+		if (zip->uncompressed_buffer == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for ZIP decompression");
+			return (ARCHIVE_FATAL);
+		}
+	}
+
+	ui6a = ui6a_create(/* userdata: */a);
+	if (ui6a == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "ui6a_create() failure");
+		return (ARCHIVE_FATAL);
+	}
+	ui6a->cmpr_size = zip->entry_bytes_remaining;
+	ui6a->uncmpr_size = zip->entry->uncompressed_size;
+	ui6a->bit_flags = zip->entry->zip_flags;
+	ui6a->cb_read = zip_read_implode;
+	ui6a->cb_write = zip_write_implode;
+
+	ui6a_unimplode(ui6a);
+
+	zip->entry_bytes_remaining -= ui6a->cmpr_nbytes_consumed;
+	zip->entry_compressed_bytes_read += ui6a->cmpr_nbytes_consumed;
+	zip->entry_uncompressed_bytes_read += ui6a->uncmpr_nbytes_written;
+
+	*size = ui6a->uncmpr_nbytes_written;
+	*buff = zip->uncompressed_buffer;
+
+	if (ui6a->error_code == UI6A_ERRCODE_OK) {
+		zip->end_of_entry = 1;
+		r = ARCHIVE_OK;
+	} else {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "ZIP implode decompression failed (code %d)",
+		    ui6a->error_code);
+		r = ARCHIVE_FAILED;
+	}
+
+	ui6a_destroy(ui6a);
+
+	return r;
+}
+
 static int
 read_decryption_header(struct archive_read *a)
 {
@@ -3146,6 +3252,10 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		r =  zip_read_data_deflate(a, buff, size, offset);
 		break;
 #endif
+
+	case 6: /* Implode compression. */
+		r = zip_read_data_implode(a, buff, size, offset);
+		break;
 	default: /* Unsupported compression. */
 		/* Return a warning. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,

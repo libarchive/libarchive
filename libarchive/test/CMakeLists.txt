@@ -202,6 +202,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_extra_padding.c
     test_read_format_zip_filename.c
     test_read_format_zip_high_compression.c
+    test_read_format_zip_implode.c
     test_read_format_zip_jar.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_malformed.c

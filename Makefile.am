@@ -562,6 +562,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_extra_padding.c \
 	libarchive/test/test_read_format_zip_filename.c \
 	libarchive/test/test_read_format_zip_high_compression.c \
+	libarchive/test/test_read_format_zip_implode.c \
 	libarchive/test/test_read_format_zip_jar.c \
 	libarchive/test/test_read_format_zip_mac_metadata.c \
 	libarchive/test/test_read_format_zip_malformed.c \
@@ -754,6 +755,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_6.zip.uu \
 	libarchive/test/test_compat_zip_7.xps.uu \
 	libarchive/test/test_compat_zip_8.zip.uu \
+	libarchive/test/test_compat_zip_implode.zip.uu \
 	libarchive/test/test_compat_zstd_1.tar.zst.uu \
 	libarchive/test/test_compat_zstd_2.tar.zst.uu \
 	libarchive/test/test_fuzz.cab.uu \
@@ -1031,6 +1033,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_filename_utf8_ru.zip.uu \
 	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu \
 	libarchive/test/test_read_format_zip_high_compression.zip.uu \
+	libarchive/test/test_read_format_zip_implode.zip.uu \
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu \
 	libarchive/test/test_read_format_zip_lzma.zipx.uu \
 	libarchive/test/test_read_format_zip_lzma_alone_leak.zipx.uu \
