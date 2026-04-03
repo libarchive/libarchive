@@ -89,8 +89,6 @@ struct shrink_desc {
 	uint8_t outstr[8192];
 	unsigned outstr_size;
 	unsigned outstr_start;
-	/* Debug */
-	uint64_t unc_size;
 };
 
 static int lookup(struct shrink_desc *desc, int code);
