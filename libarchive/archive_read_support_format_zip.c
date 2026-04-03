@@ -286,6 +286,10 @@ static int
 zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	size_t *size, int64_t *offset);
 #endif
+#if HAVE_LEGACY
+static int zip_read_wrapup(struct archive_read *a, const void **buff, size_t *size,
+	int r, size_t cmp_size);
+#endif
 
 /* This function is used by Ppmd8_DecodeSymbol during decompression of Ppmd8
  * streams inside ZIP files. It has 2 purposes: one is to fetch the next
@@ -1766,20 +1770,7 @@ zip_read_data_implode(struct archive_read *a, const void **buff,
 
 	r = implode_read(zip->implode, zip->uncompressed_buffer,
 		zip->uncompressed_buffer_size, size, &cmp_size);
-	if ((uintmax_t)*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
-		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
-	}
-	zip->entry_compressed_bytes_read += cmp_size;
-	zip->entry_uncompressed_bytes_read += *size;
-	if (r == ARCHIVE_EOF) {
-		zip->end_of_entry = 1;
-	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, -1, "%s", zip_legacy_error(r));
-		return (ARCHIVE_FATAL);
-	}
-
-	*buff = zip->uncompressed_buffer;
-	return ARCHIVE_OK;
+	return zip_read_wrapup(a, buff, size, r, cmp_size);
 }
 
 static int
@@ -1817,20 +1808,7 @@ zip_read_data_shrink(struct archive_read *a, const void **buff,
 
 	r = shrink_read(zip->shrink, zip->uncompressed_buffer,
 		zip->uncompressed_buffer_size, size, &cmp_size);
-	if ((uintmax_t)*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
-		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
-	}
-	zip->entry_compressed_bytes_read += cmp_size;
-	zip->entry_uncompressed_bytes_read += *size;
-	if (r == ARCHIVE_EOF) {
-		zip->end_of_entry = 1;
-	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, -1, "%s", zip_legacy_error(r));
-		return (ARCHIVE_FATAL);
-	}
-
-	*buff = zip->uncompressed_buffer;
-	return ARCHIVE_OK;
+	return zip_read_wrapup(a, buff, size, r, cmp_size);
 }
 
 static int
@@ -1869,6 +1847,16 @@ zip_read_data_reduce(struct archive_read *a, const void **buff,
 
 	r = reduce_read(zip->reduce, zip->uncompressed_buffer,
 		zip->uncompressed_buffer_size, size, &cmp_size);
+	return zip_read_wrapup(a, buff, size, r, cmp_size);
+}
+
+/* Common elements to legacy zip_read_* functions */
+static int
+zip_read_wrapup(struct archive_read *a, const void **buff, size_t *size,
+	int r, size_t cmp_size)
+{
+	struct zip *zip = (struct zip *)(a->format->data);
+
 	if ((uintmax_t)*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
 		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
 	}
