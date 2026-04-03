@@ -94,6 +94,7 @@ struct shrink_desc {
 static int lookup(struct shrink_desc *desc, int code);
 static void add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte);
 static int read_code_with_escapes(struct shrink_desc *desc, unsigned *code);
+static void clear_dictionary(struct shrink_desc *desc);
 
 /* Initialize the shrink_desc structure */
 int
@@ -307,32 +308,38 @@ read_code_with_escapes(struct shrink_desc *desc, unsigned *code)
 			break;
 
 		case 2: /* Partial clearing */
-			for (unsigned i = 0; i < SIZE(desc->dictionary); ++i) {
-				struct shrink_dictionary const *node = &desc->dictionary[i];
-				if (node->flag != node_free) {
-					unsigned j = node->next;
-					if (j >= 257) {
-						desc->dictionary[j - 257].flag = node_parent;
-					}
-				}
-			}
-			desc->free_list = 0xFFFF;
-			for (unsigned i = SIZE(desc->dictionary); i-- != 0; ) {
-				struct shrink_dictionary *node = &desc->dictionary[i];
-				if (node->flag == node_used) {
-					node->flag = node_free;
-				} else if (node->flag == node_parent) {
-					node->flag = node_used;
-				}
-				if (node->flag == node_free) {
-					node->next = desc->free_list;
-					desc->free_list = i;
-				}
-			}
+			clear_dictionary(desc);
 			break;
 
 		default: /* Invalid code */
 			return file_inconsistent;
+		}
+	}
+}
+
+static void
+clear_dictionary(struct shrink_desc *desc)
+{
+	for (unsigned i = 0; i < SIZE(desc->dictionary); ++i) {
+		struct shrink_dictionary const *node = &desc->dictionary[i];
+		if (node->flag != node_free) {
+			unsigned j = node->next;
+			if (j >= 257) {
+				desc->dictionary[j - 257].flag = node_parent;
+			}
+		}
+	}
+	desc->free_list = 0xFFFF;
+	for (unsigned i = SIZE(desc->dictionary); i-- != 0; ) {
+		struct shrink_dictionary *node = &desc->dictionary[i];
+		if (node->flag == node_used) {
+			node->flag = node_free;
+		} else if (node->flag == node_parent) {
+			node->flag = node_used;
+		}
+		if (node->flag == node_free) {
+			node->next = desc->free_list;
+			desc->free_list = i;
 		}
 	}
 }

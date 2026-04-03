@@ -69,6 +69,20 @@ struct implode_desc {
 };
 
 static int read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tree[]);
+static int set_bit_lengths(
+	unsigned num_values,
+	uint8_t bit_lengths[256],
+	uint8_t const tree_data[256],
+	unsigned tree_bytes);
+static int build_codes(
+	unsigned num_values,
+	uint16_t codes[256],
+	uint8_t const bit_lengths[256]);
+static int build_tree(
+	unsigned num_values,
+	struct implode_tree tree[],
+	uint16_t const codes[256],
+	uint8_t const bit_lengths[256]);
 static int sf_decode(struct implode_desc *desc, struct implode_tree const tree[],
 	unsigned *elem);
 
@@ -237,11 +251,7 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 	uint8_t tree_data[256];
 	uint8_t bit_lengths[256];
 	uint16_t codes[256];
-	unsigned next_code;
-	unsigned bit;
-	unsigned i;
-	unsigned j;
-	unsigned tree_size;
+	int err;
 
 	/* Raw data for the tree (5.3.7): */
 	/* Number of bytes that encode the tree */
@@ -265,8 +275,41 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 	memcpy(tree_data, ptr, tree_bytes);
 
 	/* Set the bit lengths */
-	i = 0;
-	for (j = 0; j < tree_bytes; ++j) {
+	err = set_bit_lengths(num_values, bit_lengths, tree_data, tree_bytes);
+	if (err) {
+		return err;
+	}
+
+	/* Construct the codes */
+	err = build_codes(num_values, codes, bit_lengths);
+	if (err) {
+		return err;
+	}
+
+	/* Build the tree */
+	err = build_tree(num_values, tree, codes, bit_lengths);
+	if (err) {
+		return err;
+	}
+
+	return 0;
+}
+
+/*
+ * Given the raw bytes for the Shannon-Fano tree as read from the compressed
+ * data, produce an array of bit lengths.
+ * The lengths are not sorted as described in APPNOTE.TXT; rather, build_codes
+ * and build_tree will scan the array multiple times to produce the codes.
+ */
+static int
+set_bit_lengths(
+	unsigned num_values,
+	uint8_t bit_lengths[256],
+	uint8_t const tree_data[256],
+	unsigned tree_bytes)
+{
+	unsigned i = 0;
+	for (unsigned j = 0; j < tree_bytes; ++j) {
 		unsigned count = (tree_data[j] >> 4) + 1;
 		unsigned length = (tree_data[j] & 0x0F) + 1;
 		while (count != 0) {
@@ -281,11 +324,23 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 		return file_inconsistent;
 	}
 
-	/* Construct the codes */
-	next_code = 0x10000;
-	bit = 0x8000;
-	for (i = 1; i <= 16; ++i) {
-		for (j = 0; j < num_values; ++j) {
+	return 0;
+}
+
+/*
+ * Given the bit lengths from set_bit_lengths, produce the corresponding codes.
+ * The codes are aligned at the left side of the 16 bit array elements.
+ */
+static int
+build_codes(
+	unsigned num_values,
+	uint16_t codes[256],
+	uint8_t const bit_lengths[256])
+{
+	unsigned next_code = 0x10000;
+	unsigned bit = 0x8000;
+	for (unsigned i = 1; i <= 16; ++i) {
+		for (unsigned j = 0; j < num_values; ++j) {
 			if (bit_lengths[j] == i) {
 				if (next_code < bit) {
 					return file_inconsistent;
@@ -297,17 +352,30 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 		bit >>= 1;
 	}
 
-	/* Build the tree */
-	for (i = 0; i < num_values; ++i) {
+	return 0;
+}
+
+/*
+ * Given the codes from build_codes and the bit lengths from set_bit_lengths,
+ * construct the final tree.
+ */
+static int
+build_tree(unsigned num_values, struct implode_tree tree[],
+	uint16_t const codes[256], uint8_t const bit_lengths[256])
+{
+	unsigned tree_size;
+	unsigned bit;
+
+	for (unsigned i = 0; i < num_values; ++i) {
 		tree[i].next[0] = 0xFFFF;
 		tree[i].next[1] = 0xFFFF;
 	}
 	tree_size = 1;
-	for (i = 0; i < num_values; ++i) {
+	for (unsigned i = 0; i < num_values; ++i) {
 		uint16_t code = codes[i];
 		uint8_t length = bit_lengths[i];
 		unsigned node = 0;
-		for (j = 0; j + 1 < length; ++j) {
+		for (unsigned j = 0; j + 1 < length; ++j) {
 			bit = (code >> (15 - j)) & 1;
 			if (tree[node].next[bit] == 0xFFFF) {
 				if (tree_size >= num_values - 1) {
