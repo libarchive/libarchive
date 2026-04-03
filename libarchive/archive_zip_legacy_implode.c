@@ -145,6 +145,8 @@ implode_free(struct implode_desc **desc)
 	*desc = NULL;
 }
 
+static int read_copy_marker(struct implode_desc *desc);
+
 int
 implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 	size_t *bytes_read, size_t *cmp_bytes_read)
@@ -182,51 +184,16 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 			} else {
 				err = archive_read_bits(&desc->arch, 8, &byte);
 			}
-			if (err) {
-				goto fail;
+			if (!err) {
+				bytes[b_read++] = byte;
+				lz77_add_byte(&desc->lz77, byte);
 			}
-			bytes[b_read++] = byte;
-			lz77_add_byte(&desc->lz77, byte);
 		} else {
 			/* Copy marker found */
-			unsigned dist_low;
-			unsigned dist_high;
-			unsigned length1;
-			unsigned length2;
-			unsigned distance;
-			unsigned length;
-
-			/* Low bits of distance */
-			err = archive_read_bits(&desc->arch, desc->window_8k ? 7 : 6, &dist_low);
-			if (err) {
-				goto fail;
-			}
-			/* High bits of distance */
-			err = sf_decode(desc, desc->distance_tree, &dist_high);
-			if (err) {
-				goto fail;
-			}
-			/* Complete distance */
-			distance = (dist_high << (desc->window_8k ? 7 : 6))
-				 + dist_low + 1;
-
-			/* First part of length */
-			err = sf_decode(desc, desc->length_tree, &length1);
-			if (err) {
-				goto fail;
-			}
-			length = length1;
-			if (length1 == 63) {
-				/* Second part of length */
-				err = archive_read_bits(&desc->arch, 8, &length2);
-				if (err) {
-					goto fail;
-				}
-				length += length2;
-			}
-			length += desc->have_literal_tree ? 3 : 2;
-
-			lz77_set_copy(&desc->lz77, distance, length);
+			err = read_copy_marker(desc);
+		}
+		if (err) {
+			goto fail;
 		}
 	}
 
@@ -240,6 +207,52 @@ fail:
 	*bytes_read = b_read;
 	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
 	return err == end_of_data ? ARCHIVE_EOF : err;
+}
+
+/* Read a copy marker and start the copy */
+static int
+read_copy_marker(struct implode_desc *desc)
+{
+	unsigned dist_low;
+	unsigned dist_high;
+	unsigned length1;
+	unsigned length2;
+	unsigned distance;
+	unsigned length;
+	int err;
+
+	/* Low bits of distance */
+	err = archive_read_bits(&desc->arch, desc->window_8k ? 7 : 6, &dist_low);
+	if (err) {
+		return err;
+	}
+	/* High bits of distance */
+	err = sf_decode(desc, desc->distance_tree, &dist_high);
+	if (err) {
+		return err;
+	}
+	/* Complete distance */
+	distance = (dist_high << (desc->window_8k ? 7 : 6))
+		 + dist_low + 1;
+
+	/* First part of length */
+	err = sf_decode(desc, desc->length_tree, &length1);
+	if (err) {
+		return err;
+	}
+	length = length1;
+	if (length1 == 63) {
+		/* Second part of length */
+		err = archive_read_bits(&desc->arch, 8, &length2);
+		if (err) {
+			return err;
+		}
+		length += length2;
+	}
+	length += desc->have_literal_tree ? 3 : 2;
+
+	lz77_set_copy(&desc->lz77, distance, length);
+	return 0;
 }
 
 /* Read one Shannon-Fano tree from the archive */
