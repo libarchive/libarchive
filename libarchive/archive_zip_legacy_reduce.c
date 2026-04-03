@@ -214,7 +214,7 @@ read_follower_set(struct reduce_desc *desc,
 	folset->size = size;
 
 	/* Size in terms of bits (e.g. 64 -> 6 bits) */
-	for (i = 1; (1U << i) < size; ++i) {}
+	for (i = 1; (1U << i) < size; ++i) { /*nothing needed here*/ }
 	folset->bits = i;
 
 	/* Read the set of bytes */

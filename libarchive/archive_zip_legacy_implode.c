@@ -175,8 +175,10 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 			lz77_add_byte(&desc->lz77, byte);
 		} else {
 			/* Copy marker found */
-			unsigned dist_low, dist_high;
-			unsigned length1, length2;
+			unsigned dist_low;
+			unsigned dist_high;
+			unsigned length1;
+			unsigned length2;
 			unsigned distance;
 			unsigned length;
 
@@ -235,8 +237,10 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 	uint8_t tree_data[256];
 	uint8_t bit_lengths[256];
 	uint16_t codes[256];
-	unsigned next_code, bit;
-	unsigned i, j;
+	unsigned next_code;
+	unsigned bit;
+	unsigned i;
+	unsigned j;
 	unsigned tree_size;
 
 	/* Raw data for the tree (5.3.7): */
@@ -262,7 +266,7 @@ read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tr
 
 	/* Set the bit lengths */
 	i = 0;
-	for (j = 0; j < (unsigned)tree_bytes; ++j) {
+	for (j = 0; j < tree_bytes; ++j) {
 		unsigned count = (tree_data[j] >> 4) + 1;
 		unsigned length = (tree_data[j] & 0x0F) + 1;
 		while (count != 0) {

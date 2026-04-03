@@ -308,7 +308,7 @@ read_code_with_escapes(struct shrink_desc *desc, unsigned *code)
 
 		case 2: /* Partial clearing */
 			for (unsigned i = 0; i < SIZE(desc->dictionary); ++i) {
-				struct shrink_dictionary *node = &desc->dictionary[i];
+				struct shrink_dictionary const *node = &desc->dictionary[i];
 				if (node->flag != node_free) {
 					unsigned j = node->next;
 					if (j >= 257) {

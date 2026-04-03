@@ -1857,7 +1857,7 @@ zip_read_wrapup(struct archive_read *a, const void **buff, size_t *size,
 {
 	struct zip *zip = (struct zip *)(a->format->data);
 
-	if ((uintmax_t)*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
+	if (*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
 		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
 	}
 	zip->entry_compressed_bytes_read += cmp_size;
