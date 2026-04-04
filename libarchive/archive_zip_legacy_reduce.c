@@ -72,7 +72,7 @@ static int reduce_read_byte(struct reduce_desc *desc, unsigned *byte);
 int
 reduce_init(struct reduce_desc **desc, struct archive_read *a,
 	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned level,
-	size_t *cmp_bytes_read)
+	uint64_t *cmp_bytes_read)
 {
 	int err = 0;
 
@@ -123,7 +123,7 @@ reduce_free(struct reduce_desc **desc)
 
 int
 reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, size_t *cmp_bytes_read)
+	size_t *bytes_read, uint64_t *cmp_bytes_read)
 {
 	int err = 0;
 	uint64_t cmp_size = desc->arch.cmp_size;

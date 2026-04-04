@@ -49,29 +49,29 @@ struct implode_desc;
 
 int implode_init(struct implode_desc **desc, struct archive_read *a,
 	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned zip_flags,
-	size_t *cmp_bytes_read);
+	uint64_t *cmp_bytes_read);
 void implode_free(struct implode_desc **desc);
 int implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, size_t *cmp_bytes_read);
+	size_t *bytes_read, uint64_t *cmp_bytes_read);
 
 /* Shrink */
 struct shrink_desc;
 
 int shrink_init(struct shrink_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, struct trad_enc_ctx *decrypt, size_t *cmp_bytes_read);
+	uint64_t cmp_size, struct trad_enc_ctx *decrypt, uint64_t *cmp_bytes_read);
 void shrink_free(struct shrink_desc **desc);
 int shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, size_t *cmp_bytes_read);
+	size_t *bytes_read, uint64_t *cmp_bytes_read);
 
 /* Reduce */
 struct reduce_desc;
 
 int reduce_init(struct reduce_desc **desc, struct archive_read *a,
 	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned level,
-	size_t *cmp_bytes_read);
+	uint64_t *cmp_bytes_read);
 void reduce_free(struct reduce_desc **desc);
 int reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, size_t *cmp_bytes_read);
+	size_t *bytes_read, uint64_t *cmp_bytes_read);
 
 /* Current state of sliding window */
 struct lz77_window {

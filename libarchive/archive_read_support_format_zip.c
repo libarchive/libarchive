@@ -1740,7 +1740,7 @@ zip_read_data_implode(struct archive_read *a, const void **buff,
 {
 	struct zip *zip = (struct zip *)(a->format->data);
 	int r;
-	size_t cmp_size;
+	uint64_t cmp_size;
 
 	(void)offset; /* UNUSED */
 
@@ -1782,7 +1782,7 @@ zip_read_data_shrink(struct archive_read *a, const void **buff,
 {
 	struct zip *zip = (struct zip *)(a->format->data);
 	int r;
-	size_t cmp_size;
+	uint64_t cmp_size;
 
 	(void)offset; /* UNUSED */
 
@@ -1823,7 +1823,7 @@ zip_read_data_reduce(struct archive_read *a, const void **buff,
 {
 	struct zip *zip = (struct zip *)(a->format->data);
 	int r;
-	size_t cmp_size;
+	uint64_t cmp_size;
 
 	(void)offset; /* UNUSED */
 

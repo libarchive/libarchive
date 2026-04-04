@@ -99,7 +99,7 @@ static void clear_dictionary(struct shrink_desc *desc);
 /* Initialize the shrink_desc structure */
 int
 shrink_init(struct shrink_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, struct trad_enc_ctx *decrypt, size_t *cmp_bytes_read)
+	uint64_t cmp_size, struct trad_enc_ctx *decrypt, uint64_t *cmp_bytes_read)
 {
 	if (*desc == NULL) {
 		*desc = calloc(1, sizeof(**desc));
@@ -140,7 +140,7 @@ shrink_free(struct shrink_desc **desc)
 
 int
 shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, size_t *cmp_bytes_read)
+	size_t *bytes_read, uint64_t *cmp_bytes_read)
 {
 	uint64_t cmp_size = desc->arch.cmp_size;
 	int err = 0;

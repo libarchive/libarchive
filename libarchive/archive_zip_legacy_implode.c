@@ -90,7 +90,7 @@ static int sf_decode(struct implode_desc *desc, struct implode_tree const tree[]
 int
 implode_init(struct implode_desc **desc, struct archive_read *a,
 	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned zip_flags,
-	size_t *cmp_bytes_read)
+	uint64_t *cmp_bytes_read)
 {
 	int err = 0;
 
@@ -149,7 +149,7 @@ static int read_copy_marker(struct implode_desc *desc);
 
 int
 implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, size_t *cmp_bytes_read)
+	size_t *bytes_read, uint64_t *cmp_bytes_read)
 {
 	int err = 0;
 	uint64_t cmp_size = desc->arch.cmp_size;
