@@ -259,6 +259,9 @@ reduce_read_byte(struct reduce_desc *desc, unsigned *byte)
 		if (err) {
 			return err;
 		}
+		if (index >= desc->folset[desc->last_ch].size) {
+			return file_inconsistent;
+		}
 		*byte = desc->folset[desc->last_ch].chr[index];
 	}
 	desc->last_ch = *byte;
