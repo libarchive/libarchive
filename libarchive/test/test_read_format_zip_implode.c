@@ -143,3 +143,49 @@ DEFINE_TEST(test_compat_zip_implode)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * Real-world archive (PKZIP 1.10, ~1992) from simtel_0692/MSDOS/TROJANPR/.
+ * Three entries where the second is larger than the first, exercising the
+ * uncompressed_buffer reallocation path.  The second entry also uses
+ * flags=0x06 (8K window, 3 trees) while the others use flags=0x00.
+ *
+ *   VALIDATE.TXT: flags=0x00, 2904 bytes — allocates initial buffer
+ *   VALIDATE.C:   flags=0x06, 7513 bytes — forces reallocation (larger)
+ *   MAKEFILE:     flags=0x00,  603 bytes — reuses existing buffer (smaller)
+ */
+DEFINE_TEST(test_compat_zip_implode_realloc)
+{
+	const char *refname = "test_compat_zip_implode_realloc.zip";
+	struct archive *a;
+	struct archive_entry *ae;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* VALIDATE.TXT: flags=0x00, 4K window, 2 trees */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("VALIDATE.TXT", archive_entry_pathname(ae));
+	assertEqualInt(2904, archive_entry_size(ae));
+	assertEqualIntA(a, 0, extract_one(a, ae, 0xcc881138));
+
+	/* VALIDATE.C: flags=0x06, 8K window, 3 trees — larger than previous */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("VALIDATE.C", archive_entry_pathname(ae));
+	assertEqualInt(7513, archive_entry_size(ae));
+	assertEqualIntA(a, 0, extract_one(a, ae, 0x75f2f92a));
+
+	/* MAKEFILE: flags=0x00 — smaller than previous, reuses buffer */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("MAKEFILE", archive_entry_pathname(ae));
+	assertEqualInt(603, archive_entry_size(ae));
+	assertEqualIntA(a, 0, extract_one(a, ae, 0x5bd51ac6));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}

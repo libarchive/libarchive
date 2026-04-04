@@ -2754,13 +2754,15 @@ zip_read_data_implode(struct archive_read *a, const void **buff,
 	}
 
 	/* Allocate the output buffer sized to hold the full uncompressed entry. */
-	if (zip->uncompressed_buffer == NULL) {
+	if ((uint64_t)zip->entry->uncompressed_size > zip->uncompressed_buffer_size) {
+		free(zip->uncompressed_buffer);
 		zip->uncompressed_buffer_size = zip->entry->uncompressed_size;
 		if (zip->uncompressed_buffer_size == 0)
 			zip->uncompressed_buffer_size = 1;
 		zip->uncompressed_buffer
 		    = malloc(zip->uncompressed_buffer_size);
 		if (zip->uncompressed_buffer == NULL) {
+			zip->uncompressed_buffer_size = 0;
 			archive_set_error(&a->archive, ENOMEM,
 			    "No memory for ZIP decompression");
 			return (ARCHIVE_FATAL);
