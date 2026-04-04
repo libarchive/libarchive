@@ -51,6 +51,7 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_no_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));
@@ -141,6 +142,7 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));
@@ -232,6 +234,7 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_non_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 	char *data = "abcd";
 
 #ifdef ARCHIVE_HAS_MD5
@@ -325,6 +328,7 @@ DEFINE_TEST(test_write_format_mtree_digests_md5_digest_set_no_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.md5, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -418,6 +422,7 @@ DEFINE_TEST(test_write_format_mtree_digests_md5_digest_set_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.md5, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -518,6 +523,7 @@ DEFINE_TEST(test_write_format_mtree_digests_md5_digest_set_non_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.md5, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -618,6 +624,7 @@ DEFINE_TEST(test_write_format_mtree_digests_rmd160_digest_set_no_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));
@@ -709,6 +716,7 @@ DEFINE_TEST(test_write_format_mtree_digests_rmd160_digest_set_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.rmd160, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -809,6 +817,7 @@ DEFINE_TEST(test_write_format_mtree_digests_rmd160_digest_set_non_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.rmd160, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -909,6 +918,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha1_digest_set_no_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha1, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1002,6 +1012,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha1_digest_set_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha1, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1102,6 +1113,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha1_digest_set_non_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha1, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1202,6 +1214,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha256_digest_set_no_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha256, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1297,6 +1310,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha256_digest_set_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha256, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1399,6 +1413,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha256_digest_set_non_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha256, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1501,6 +1516,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha384_digest_set_no_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha384, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1597,6 +1613,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha384_digest_set_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha384, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1700,6 +1717,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha384_digest_set_non_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha384, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1803,6 +1821,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha512_digest_set_no_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha512, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -1902,6 +1921,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha512_digest_set_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha512, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
@@ -2008,6 +2028,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha512_digest_set_non_empty_data)
 	struct archive *a;
 	struct archive_entry *entry;
 	struct expected_digests ed;
+	(void)ed;
 
 	memcpy(ed.sha512, ((unsigned char[]) {
 		0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed, 0xfe, 0xed,
