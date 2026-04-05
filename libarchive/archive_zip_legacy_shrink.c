@@ -91,7 +91,7 @@ struct shrink_desc {
 	unsigned outstr_start;
 };
 
-static int lookup(struct shrink_desc *desc, int code);
+static int lookup(struct shrink_desc *desc, unsigned code);
 static void add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte);
 static int read_code_with_escapes(struct shrink_desc *desc, unsigned *code);
 static void clear_dictionary(struct shrink_desc *desc);
@@ -207,11 +207,11 @@ fail:
 }
 
 static int
-lookup(struct shrink_desc *desc, int code)
+lookup(struct shrink_desc *desc, unsigned code)
 {
 	uint8_t *str = desc->outstr;
 	unsigned length;
-	int index;
+	unsigned index;
 	unsigned i;
 	unsigned depth;
 	int end_byte = -1;
