@@ -585,9 +585,21 @@ bad_string_table:
 	return (ARCHIVE_FATAL);
 }
 
+/* Rust FFI declarations */
+uint64_t rust_ar_atol8(const char *p, size_t char_cnt);
+uint64_t rust_ar_atol10(const char *p, size_t char_cnt);
+
 static uint64_t
 ar_atol8(const char *p, unsigned char_cnt)
 {
+	/* 
+	 * SAFETY: The 'p' pointer is a slice of the archive buffer provided 
+	 * by the libarchive core. The 'char_cnt' is the length of the numeric 
+	 * field as defined by the 'ar' format specification.
+	 */
+#ifdef WITH_RUST
+	return rust_ar_atol8(p, char_cnt);
+#else
 	uint64_t l, limit, last_digit_limit;
 	unsigned int digit, base;
 
@@ -609,11 +621,20 @@ ar_atol8(const char *p, unsigned char_cnt)
 		digit = *++p - '0';
 	}
 	return (l);
+#endif
 }
 
 static uint64_t
 ar_atol10(const char *p, unsigned char_cnt)
 {
+	/* 
+	 * SAFETY: The 'p' pointer is a slice of the archive buffer provided 
+	 * by the libarchive core. The 'char_cnt' is the length of the numeric 
+	 * field as defined by the 'ar' format specification.
+	 */
+#ifdef WITH_RUST
+	return rust_ar_atol10(p, char_cnt);
+#else
 	uint64_t l, limit, last_digit_limit;
 	unsigned int base, digit;
 
@@ -634,4 +655,5 @@ ar_atol10(const char *p, unsigned char_cnt)
 		digit = *++p - '0';
 	}
 	return (l);
+#endif
 }

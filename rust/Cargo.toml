@@ -1,0 +1,18 @@
+[package]
+name = "libarchive-rust"
+version = "0.1.0"
+edition = "2021"
+authors = ["Libarchive Developers"]
+description = "Rust-based core infrastructure for libarchive"
+license = "BSD-2-Clause"
+
+[lib]
+name = "archive_rust"
+crate-type = ["staticlib"]
+
+[dependencies]
+# nom = "7" 
+# bitreader = "0.3"
+
+[dev-dependencies]
+# For testing

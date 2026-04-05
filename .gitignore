@@ -96,3 +96,5 @@ test-suite.log
 .*.sw?
 
 *.pdb
+
+rust/target/

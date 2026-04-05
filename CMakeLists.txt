@@ -259,6 +259,7 @@ OPTION(ENABLE_ICONV "Enable iconv support" ON)
 OPTION(ENABLE_TEST "Enable unit and regression tests" ON)
 OPTION(ENABLE_COVERAGE "Enable code coverage (GCC only, automatically sets ENABLE_TEST to ON)" FALSE)
 OPTION(ENABLE_INSTALL "Enable installing of libraries" ON)
+OPTION(WITH_RUST "Enable Rust-based core infrastructure" OFF)
 
 IF(WIN32 AND MSVC)
   OPTION(MSVC_USE_STATIC_CRT "Use static CRT" OFF)
@@ -300,6 +301,37 @@ IF(WIN32)
     SET(WINVER 0x0502)
   ENDIF(WINDOWS_VERSION STREQUAL "WIN10")
 ENDIF(WIN32)
+
+# Rust support
+IF(WITH_RUST)
+  FIND_PROGRAM(CARGO_EXECUTABLE cargo REQUIRED)
+  IF(CARGO_EXECUTABLE)
+    MESSAGE(STATUS "Found Cargo: ${CARGO_EXECUTABLE}")
+    
+    # Determine build type (Release vs Debug)
+    IF(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+      SET(CARGO_BUILD_ARGS "--release")
+      SET(RUST_OUTPUT_SUBDIR "release")
+    ELSE()
+      SET(CARGO_BUILD_ARGS "")
+      SET(RUST_OUTPUT_SUBDIR "debug")
+    ENDIF()
+
+    IF(MSVC)
+      SET(RUST_LIB_NAME "archive_rust.lib")
+    ELSE()
+      SET(RUST_LIB_NAME "libarchive_rust.a")
+    ENDIF()
+
+    SET(RUST_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/rust/target/${RUST_OUTPUT_SUBDIR}/${RUST_LIB_NAME}")
+
+    ADD_CUSTOM_TARGET(archive_rust_target
+      COMMAND ${CARGO_EXECUTABLE} build ${CARGO_BUILD_ARGS} --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/rust/Cargo.toml"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/rust"
+      COMMENT "Building Rust library with Cargo"
+    )
+  ENDIF()
+ENDIF(WITH_RUST)
 
 IF(MSVC)
   IF(ENABLE_SAFESEH STREQUAL "YES")
