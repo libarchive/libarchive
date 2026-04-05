@@ -288,7 +288,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 #endif
 #if HAVE_LEGACY
 static int zip_read_wrapup(struct archive_read *a, const void **buff, size_t *size,
-	int r, size_t cmp_size);
+	int r, uint64_t cmp_size);
 #endif
 
 /* This function is used by Ppmd8_DecodeSymbol during decompression of Ppmd8
@@ -1862,7 +1862,7 @@ zip_read_data_reduce(struct archive_read *a, const void **buff,
 /* Common elements to legacy zip_read_* functions */
 static int
 zip_read_wrapup(struct archive_read *a, const void **buff, size_t *size,
-	int r, size_t cmp_size)
+	int r, uint64_t cmp_size)
 {
 	struct zip *zip = (struct zip *)(a->format->data);
 
