@@ -69,7 +69,7 @@ struct reduce_desc {
 
 static int read_follower_set(struct reduce_desc *desc,
 	struct follower_set *folset);
-static int reduce_read_byte(struct reduce_desc *desc, unsigned *byte);
+static int reduce_read_byte(struct reduce_desc *desc, uint8_t *byte);
 
 int
 reduce_init(struct reduce_desc **desc, struct archive_read *a,
@@ -135,7 +135,7 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 
 	b_read = 0;
 	while (b_read < num_bytes) {
-		unsigned byte;
+		uint8_t byte;
 		size_t count;
 
 		/* Fulfill any pending copy */
@@ -236,7 +236,7 @@ read_follower_set(struct reduce_desc *desc,
 
 /* Read one byte from the follower set encoding */
 static int
-reduce_read_byte(struct reduce_desc *desc, unsigned *byte)
+reduce_read_byte(struct reduce_desc *desc, uint8_t *byte)
 {
 	unsigned literal;
 	int err;
@@ -253,10 +253,13 @@ reduce_read_byte(struct reduce_desc *desc, unsigned *byte)
 		}
 	}
 	if (literal) {
-		err = archive_read_bits(&desc->arch, 8, byte);
+		unsigned bits;
+		err = archive_read_bits(&desc->arch, 8, &bits);
 		if (err) {
 			return err;
 		}
+		assert(bits <= 255);
+		*byte = (uint8_t)bits;
 	} else {
 		unsigned index;
 		err = archive_read_bits(&desc->arch, desc->folset[desc->last_ch].bits, &index);
