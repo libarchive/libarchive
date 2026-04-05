@@ -27,6 +27,8 @@
 
 #if HAVE_LEGACY
 
+#include <assert.h>
+
 #if HAVE_ERRNO_H
 #  include <errno.h>
 #endif
@@ -57,7 +59,7 @@ struct reduce_desc {
 	struct lz77_window lz77;
 
 	/* Compression level */
-	uint8_t level;
+	unsigned level:2; /* 0-3 for level 1-4 */
 	uint8_t length_mask;
 
 	/* Follower set encoding */
@@ -76,6 +78,8 @@ reduce_init(struct reduce_desc **desc, struct archive_read *a,
 {
 	int err = 0;
 
+	assert(1 <= level && level <= 4);
+
 	if (*desc == NULL) {
 		*desc = calloc(1, sizeof(**desc));
 		if (*desc == NULL) {
@@ -88,7 +92,7 @@ reduce_init(struct reduce_desc **desc, struct archive_read *a,
 	(*desc)->arch.decrypt = decrypt;
 	(*desc)->arch.bits = 0;
 	(*desc)->arch.num_bits = 0;
-	(*desc)->level = level;
+	(*desc)->level = level - 1;
 	(*desc)->length_mask = 255 >> level;
 	(*desc)->last_ch = 0;
 	err = lz77_init(&(*desc)->lz77, 0x100 << level);
@@ -165,7 +169,7 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 				lz77_add_byte(&desc->lz77, 0x90);
 			} else {
 				/* Copy marker */
-				unsigned distance = byte >> (8 - desc->level);
+				unsigned distance = byte >> (7 - desc->level);
 				unsigned length = byte & desc->length_mask;
 				if (length == desc->length_mask) {
 					/* Need another length byte */
