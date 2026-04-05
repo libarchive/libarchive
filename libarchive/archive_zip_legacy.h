@@ -75,11 +75,10 @@ int reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 
 /* Current state of sliding window */
 struct lz77_window {
-	uint8_t *window;
+	uint8_t window[8192*2];
 	unsigned window_pos;
 	unsigned copy_pos;
-	unsigned copy_size;
-	unsigned window_mask;
+	unsigned window_size;
 };
 
 int lz77_init(struct lz77_window *lz77, unsigned window_size);

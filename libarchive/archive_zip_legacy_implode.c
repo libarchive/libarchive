@@ -185,7 +185,6 @@ implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
 				err = archive_read_bits(&desc->arch, 8, &byte);
 			}
 			if (!err) {
-				bytes[b_read++] = byte;
 				lz77_add_byte(&desc->lz77, byte);
 			}
 		} else {

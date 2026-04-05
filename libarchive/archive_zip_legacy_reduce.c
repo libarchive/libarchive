@@ -155,7 +155,6 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 
 		if (byte != 0x90) {
 			/* Literal byte */
-			bytes[b_read++] = byte;
 			lz77_add_byte(&desc->lz77, byte);
 		} else {
 			/* May be a copy marker or a literal 0x90 */
@@ -165,7 +164,6 @@ reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
 			}
 			if (byte == 0x00) {
 				/* Literal 0x90 */
-				bytes[b_read++] = 0x90;
 				lz77_add_byte(&desc->lz77, 0x90);
 			} else {
 				/* Copy marker */

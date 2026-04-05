@@ -27,6 +27,8 @@
 
 #if HAVE_LEGACY
 
+#include <assert.h>
+
 #if HAVE_ERRNO_H
 #  include <errno.h>
 #endif
@@ -42,6 +44,8 @@
 
 #include "archive_read_private.h"
 #include "archive_zip_legacy.h"
+
+static void lz77_copy_window(struct lz77_window *lz77);
 
 const char *
 zip_legacy_error(int err)
@@ -64,38 +68,37 @@ zip_legacy_error(int err)
 int
 lz77_init(struct lz77_window *lz77, unsigned window_size)
 {
-	free(lz77->window);
-	lz77->window = calloc(1, window_size);
-	if (lz77->window == NULL) {
-		return errno;
-	}
-	lz77->window_pos = 0;
-	lz77->copy_pos = 0;
-	lz77->copy_size = 0;
-	lz77->window_mask = window_size - 1;
+	assert(window_size * 2 <= sizeof(lz77->window));
+
+	/* A copy from before the start of the uncompressed data is supposed
+	   to copy zero bytes */
+	memset(lz77->window, 0, window_size);
+	lz77->window_pos = window_size;
+	lz77->copy_pos = window_size;
+	lz77->window_size = window_size;
 	return 0;
 }
 
 void
 lz77_free(struct lz77_window *lz77)
 {
-	free(lz77->window);
-	lz77->window = NULL;
+	/* no op */
+	(void)lz77;
 }
 
 /* Fulfill any pending copy */
 size_t
 lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes)
 {
-	size_t b_read = 0;
+	unsigned pending = lz77->window_pos - lz77->copy_pos;
+	size_t b_read = num_bytes;
 
-	while (lz77->copy_size != 0 && b_read < num_bytes) {
-		uint8_t byte = lz77->window[lz77->copy_pos];
-		bytes[b_read++] = byte;
-		lz77_add_byte(lz77, byte);
-		lz77->copy_pos = (lz77->copy_pos + 1) & lz77->window_mask;
-		--lz77->copy_size;
+	if (b_read > pending) {
+		b_read = pending;
 	}
+
+	memcpy(bytes, lz77->window + lz77->copy_pos, b_read);
+	lz77->copy_pos += b_read;
 
 	return b_read;
 }
@@ -104,16 +107,50 @@ lz77_copy(struct lz77_window *lz77, uint8_t bytes[], size_t num_bytes)
 void
 lz77_add_byte(struct lz77_window *lz77, uint8_t byte)
 {
-	lz77->window[lz77->window_pos] = byte;
-	lz77->window_pos = (lz77->window_pos + 1) & lz77->window_mask;
+	if (lz77->window_pos >= sizeof(lz77->window)) {
+		lz77_copy_window(lz77);
+	}
+	lz77->window[lz77->window_pos++] = byte;
+	/* lz77_copy will copy the byte to the final output */
 }
 
 /* Begin a copy */
 void
 lz77_set_copy(struct lz77_window *lz77, unsigned distance, unsigned length)
 {
-	lz77->copy_size = length;
-	lz77->copy_pos = (lz77->window_pos - distance) & lz77->window_mask;
+	/*
+	 * The source and destination are allowed to overlap. The desired
+	 * output is a repeating pattern. memmove does the wrong thing in this
+	 * case, and memcpy invokes undefined behavior.
+	 * Implement the repeating pattern with repeated calls to memcpy.
+	 */
+	while (length != 0) {
+		unsigned block = (length < distance) ? length : distance;
+
+		if (lz77->window_pos + block > sizeof(lz77->window)) {
+			lz77_copy_window(lz77);
+		}
+
+		assert(lz77->window_pos + block <= sizeof(lz77->window));
+		memcpy(lz77->window + lz77->window_pos,
+		       lz77->window + lz77->window_pos - distance,
+		       block);
+		lz77->window_pos += block;
+
+		length -= block;
+	}
+}
+
+/* Copy the sliding window back to the start */
+static void
+lz77_copy_window(struct lz77_window *lz77)
+{
+    assert(lz77->window_pos >= lz77->window_size);
+
+    unsigned start = lz77->window_pos - lz77->window_size;
+    memmove(lz77->window, lz77->window + start, lz77->window_size);
+    lz77->window_pos -= start;
+    lz77->copy_pos -= start;
 }
 
 /* Read one or more bits from the archive */
