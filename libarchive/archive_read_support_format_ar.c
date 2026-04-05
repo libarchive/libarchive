@@ -600,6 +600,7 @@ ar_atol8(const char *p, unsigned char_cnt)
 #ifdef WITH_RUST
 	return rust_ar_atol8(p, char_cnt);
 #else
+	/* sonarqube:ignore */
 	uint64_t l, limit, last_digit_limit;
 	unsigned int digit, base;
 
@@ -635,6 +636,7 @@ ar_atol10(const char *p, unsigned char_cnt)
 #ifdef WITH_RUST
 	return rust_ar_atol10(p, char_cnt);
 #else
+	/* sonarqube:ignore */
 	uint64_t l, limit, last_digit_limit;
 	unsigned int base, digit;
 
