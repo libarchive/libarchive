@@ -213,6 +213,7 @@ lookup(struct shrink_desc *desc, int code)
 	unsigned length;
 	int index;
 	unsigned i;
+	unsigned depth;
 	int end_byte = -1;
 
 	// If code equals the next node, issue last_byte at the end
@@ -227,13 +228,22 @@ lookup(struct shrink_desc *desc, int code)
 	// Determine the length of the output string
 	length = 1;
 	index = code;
+	depth = 0;
 	while (index >= 257) {
 		if (desc->dictionary[index - 257].flag == node_free) {
 			end_byte = desc->last_byte;
+			if (index == desc->old_code) {
+				return file_inconsistent;
+			}
 			index = desc->old_code;
 		} else {
 			index = desc->dictionary[index - 257].next;
 			++length;
+		}
+		++depth;
+		if (depth >= SIZE(desc->dictionary)) {
+			// Can't happen unless the tree contains cycles
+			return file_inconsistent;
 		}
 	}
 
