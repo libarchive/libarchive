@@ -161,7 +161,7 @@ archive_read_bits(struct arch_data *arch, unsigned num_bits, unsigned *bits)
 		unsigned num_bytes = (num_bits - arch->num_bits + 7) / 8;
 		const uint8_t *ptr;
 
-		if (arch->cmp_size == 0) {
+		if (arch->cmp_size < num_bytes) {
 			return end_of_data;
 		}
 		ptr = archive_read_bytes(arch, num_bytes);
