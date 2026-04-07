@@ -27,6 +27,8 @@
 
 #if HAVE_LEGACY
 
+#include <assert.h>
+
 #if HAVE_ERRNO_H
 #  include <errno.h>
 #endif
@@ -42,6 +44,8 @@
 
 #include "archive_zip_legacy.h"
 
+#define SIZE(x) (sizeof(x)/sizeof((x)[0]))
+
 /* 5.3.7 and 5.3.8 */
 struct implode_tree {
 	/*
@@ -54,9 +58,28 @@ struct implode_tree {
 	uint16_t next[2];
 };
 
+/* State of the decoder */
+enum implode_state {
+	LITERAL_SIZE,  /* Expecting size of literal tree */
+	LITERAL_DATA,  /* Expecting bytes of literal tree */
+	LENGTH_SIZE,   /* Expecting size of length tree */
+	LENGTH_DATA,   /* Expecting bytes of length tree */
+	DISTANCE_SIZE, /* Expecting size of distance tree */
+	DISTANCE_DATA, /* Expecting bytes of distance tree */
+	/* Once we get to the UNIMPLODE state, we don't go back to
+	   the above states */
+	UNIMPLODE,          /* Expecting literal flag */
+	READ_LITERAL,       /* Expecting literal */
+	READ_DISTANCE_LOW,  /* Expecting low part of copy distance */
+	READ_DISTANCE_HIGH, /* Expecting high part of copy distance */
+	READ_LENGTH_FIRST,  /* Expecting first part of copy length */
+	READ_LENGTH_SECOND  /* Expecting second part of copy length */
+};
+
 struct implode_desc {
-	/* Source of bytes */
-	struct arch_data arch;
+	/* To read bits not on a byte boundary */
+	uint64_t bits;
+	uint8_t num_bits;
 	/* Current state of sliding window */
 	struct lz77_window lz77;
 	/* Flags set in the Zip structure */
@@ -66,9 +89,23 @@ struct implode_desc {
 	struct implode_tree literal_tree[256];
 	struct implode_tree length_tree[64];
 	struct implode_tree distance_tree[64];
+	/* State of the decoder */
+	enum implode_state state;
+	/* For reading the Shannon-Fano trees */
+	unsigned tree_size;
+	unsigned tree_read;
+	uint8_t tree_data[256];
+	/* For reading literals and copy markers */
+	unsigned tree_index;
+	/* A copy marker */
+	unsigned distance;
+	unsigned length;
 };
 
-static int read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tree[]);
+static int implode_setup(struct implode_desc *desc, struct zip_legacy_io *io);
+static int read_tree(
+	struct implode_tree tree[], unsigned num_values,
+	uint8_t const tree_data[], unsigned tree_bytes);
 static int set_bit_lengths(
 	unsigned num_values,
 	uint8_t bit_lengths[256],
@@ -83,14 +120,20 @@ static int build_tree(
 	struct implode_tree tree[],
 	uint16_t const codes[256],
 	uint8_t const bit_lengths[256]);
-static int sf_decode(struct implode_desc *desc, struct implode_tree const tree[],
-	unsigned *elem);
+static int read_literal_flag(struct implode_desc *desc, struct zip_legacy_io *io);
+static int read_literal(struct implode_desc *desc, struct zip_legacy_io *io);
+static int read_distance_low(struct implode_desc *desc, struct zip_legacy_io *io);
+static int read_distance_high(struct implode_desc *desc, struct zip_legacy_io *io);
+static int read_length_first(struct implode_desc *desc, struct zip_legacy_io *io);
+static int read_length_second(struct implode_desc *desc, struct zip_legacy_io *io);
+static int sf_decode(struct implode_desc *desc, struct zip_legacy_io *io,
+	struct implode_tree const tree[], unsigned *elem);
+static int archive_read_bits_2(struct implode_desc *desc, struct zip_legacy_io *io,
+	unsigned num_bits, unsigned *bits);
 
 /* Initialize the implode_desc structure and read the Shannon-Fano trees */
 int
-implode_init(struct implode_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned zip_flags,
-	uint64_t *cmp_bytes_read)
+implode_init(struct implode_desc **desc, unsigned zip_flags)
 {
 	int err = 0;
 
@@ -101,11 +144,8 @@ implode_init(struct implode_desc **desc, struct archive_read *a,
 		}
 	}
 
-	(*desc)->arch.arch = a;
-	(*desc)->arch.cmp_size = cmp_size;
-	(*desc)->arch.decrypt = decrypt;
-	(*desc)->arch.bits = 0;
-	(*desc)->arch.num_bits = 0;
+	(*desc)->bits = 0;
+	(*desc)->num_bits = 0;
 	(*desc)->window_8k = (zip_flags & 0x02) != 0;
 	(*desc)->have_literal_tree = (zip_flags & 0x04) != 0;
 	err = lz77_init(&(*desc)->lz77, (*desc)->window_8k ? 0x2000 : 0x1000);
@@ -113,28 +153,9 @@ implode_init(struct implode_desc **desc, struct archive_read *a,
 		implode_free(desc);
 		return err;
 	}
+	(*desc)->state = (*desc)->have_literal_tree ? LITERAL_SIZE : LENGTH_SIZE;
 
-	if ((*desc)->have_literal_tree) {
-		err = read_tree((*desc), 256, (*desc)->literal_tree);
-		if (err) {
-			goto fail;
-		}
-	}
-	err = read_tree((*desc), 64, (*desc)->length_tree);
-	if (err) {
-		goto fail;
-	}
-	err = read_tree((*desc), 64, (*desc)->distance_tree);
-	if (err) {
-		goto fail;
-	}
-
-	*cmp_bytes_read = cmp_size - (*desc)->arch.cmp_size;
 	return 0;
-
-fail:
-	*cmp_bytes_read = cmp_size - (*desc)->arch.cmp_size;
-	return err;
 }
 
 void
@@ -145,146 +166,193 @@ implode_free(struct implode_desc **desc)
 	*desc = NULL;
 }
 
-static int read_copy_marker(struct implode_desc *desc);
-
 int
-implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, uint64_t *cmp_bytes_read)
+implode_read(struct implode_desc *desc, struct zip_legacy_io *io)
 {
-	int err = 0;
-	uint64_t cmp_size = desc->arch.cmp_size;
-	size_t b_read;
+	int eodata = 0;
+	size_t total_in = io->total_in;
+	size_t total_out = io->total_out;
+	size_t num_bits = desc->num_bits;
 
-	b_read = 0;
-	while (b_read < num_bytes) {
-		unsigned literal;
-		size_t count;
-
-		/* Fulfill any pending copy */
-		count = lz77_copy(&desc->lz77, bytes + b_read, num_bytes - b_read);
-		b_read += count;
-
-		if (b_read >= num_bytes) {
-			break;
-		}
-
-		/* desc->copy_size is 0 at this point */
-		/* Read one bit: literal or copy marker? */
-		err = archive_read_bits(&desc->arch, 1, &literal);
-		if (err) {
-			goto fail;
-		}
-
-		if (literal) {
-			/* Literal byte found */
-			unsigned byte;
-
-			if (desc->have_literal_tree) {
-				err = sf_decode(desc, desc->literal_tree, &byte);
-			} else {
-				err = archive_read_bits(&desc->arch, 8, &byte);
-			}
-			if (!err) {
-				lz77_add_byte(&desc->lz77, byte);
-			}
-		} else {
-			/* Copy marker found */
-			err = read_copy_marker(desc);
-		}
-		if (err) {
-			goto fail;
-		}
-	}
-
-	*bytes_read = b_read;
-	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
-	return 0;
-
-fail:
-	/* If we reach the end of the compressed data, return success with the
-	   number of bytes read so far */
-	*bytes_read = b_read;
-	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
-	return err == end_of_data ? ARCHIVE_EOF : err;
-}
-
-/* Read a copy marker and start the copy */
-static int
-read_copy_marker(struct implode_desc *desc)
-{
-	unsigned dist_low;
-	unsigned dist_high;
-	unsigned length1;
-	unsigned length2;
-	unsigned distance;
-	unsigned length;
-	int err;
-
-	/* Low bits of distance */
-	err = archive_read_bits(&desc->arch, desc->window_8k ? 7 : 6, &dist_low);
-	if (err) {
-		return err;
-	}
-	/* High bits of distance */
-	err = sf_decode(desc, desc->distance_tree, &dist_high);
-	if (err) {
-		return err;
-	}
-	/* Complete distance */
-	distance = (dist_high << (desc->window_8k ? 7 : 6))
-		 + dist_low + 1;
-
-	/* First part of length */
-	err = sf_decode(desc, desc->length_tree, &length1);
-	if (err) {
-		return err;
-	}
-	length = length1;
-	if (length1 == 63) {
-		/* Second part of length */
-		err = archive_read_bits(&desc->arch, 8, &length2);
+	/* Set up the Shannon-Fano trees at the start */
+	if (desc->state < UNIMPLODE) {
+		int err = implode_setup(desc, io);
 		if (err) {
 			return err;
 		}
-		length += length2;
 	}
-	length += desc->have_literal_tree ? 3 : 2;
+	if (desc->state < UNIMPLODE) {
+		/* We're out of input but the trees are not complete */
+		eodata = 1;
+	}
 
-	lz77_set_copy(&desc->lz77, distance, length);
+	/* If we get here with eodata = 0, the Shannon-Fano trees are read and
+	   we are ready to decompress */
+
+	while (!eodata && io->total_out < io->avail_out) {
+		size_t count;
+
+		/* Fulfill any pending copy */
+		count = lz77_copy(&desc->lz77, io->next_out + io->total_out,
+			io->avail_out - io->total_out);
+		io->total_out += count;
+
+		if (io->total_out >= io->avail_out) {
+			break;
+		}
+
+		switch (desc->state) {
+		/* "Ground state" of the decoder */
+		/* Read a single bit: 1 indicates a literal, 0 a copy marker */
+		case UNIMPLODE:
+			eodata = read_literal_flag(desc, io);
+			/* May go to READ_LITERAL or READ_DISTANCE_LOW */
+			break;
+
+		/* Read a literal */
+		case READ_LITERAL:
+			eodata = read_literal(desc, io);
+			/* Produces output and returns to UNIMPLODE */
+			break;
+
+		/* The remaining states read a copy marker */
+		/* Read the low bits of the distance */
+		case READ_DISTANCE_LOW:
+			eodata = read_distance_low(desc, io);
+			/* Goes to READ_DISTANCE_HIGH */
+			break;
+
+		/* Read the high bits of the distance */
+		case READ_DISTANCE_HIGH:
+			eodata = read_distance_high(desc, io);
+			/* Goes to READ_LENGTH_FIRST */
+			break;
+
+		/* Read the first part of the distance */
+		case READ_LENGTH_FIRST:
+			eodata = read_length_first(desc, io);
+			/* Goes to READ_LENGTH_SECOND */
+			break;
+
+		/* Read the second part of the distance */
+		case READ_LENGTH_SECOND:
+			eodata = read_length_second(desc, io);
+			/* Produces output and returns to UNIMPLODE */
+			break;
+
+		default:
+			assert(0);
+			break;
+		}
+	}
+
+	if (total_in == io->total_in && total_out == io->total_out
+	&&  num_bits == desc->num_bits) {
+		return ARCHIVE_EOF;
+	}
+	return ARCHIVE_OK;
+}
+
+/* All states less than UNIMPLODE: Read the Shannon-Fano trees */
+static int
+implode_setup(struct implode_desc *desc, struct zip_legacy_io *io)
+{
+	while (desc->state < UNIMPLODE && io->total_in < io->avail_in) {
+		size_t avail;
+		int err = 0;
+
+		/* Read the tree data */
+		switch (desc->state) {
+		case LITERAL_SIZE:
+		case LENGTH_SIZE:
+		case DISTANCE_SIZE:
+			/* Read byte count for current tree */
+			desc->tree_size = io->next_in[io->total_in++] + 1;
+			desc->tree_read = 0;
+			break;
+
+		case LITERAL_DATA:
+		case LENGTH_DATA:
+		case DISTANCE_DATA:
+			/* Read bytes for current tree */
+			avail = io->avail_in - io->total_in;
+			if (avail > desc->tree_size - desc->tree_read) {
+				avail = desc->tree_size - desc->tree_read;
+			}
+			memcpy(desc->tree_data + desc->tree_read,
+			       io->next_in + io->total_in,
+			       avail);
+			io->total_in += avail;
+			desc->tree_read += avail;
+			break;
+
+		default:
+			assert(0);
+			break;
+		}
+
+		/* Change the state if warranted */
+		switch (desc->state) {
+		case LITERAL_SIZE:
+			desc->state = LITERAL_DATA;
+			break;
+
+		case LITERAL_DATA:
+			if (desc->tree_read >= desc->tree_size) {
+				err = read_tree(
+					desc->literal_tree, SIZE(desc->literal_tree),
+					desc->tree_data, desc->tree_size);
+				desc->state = LENGTH_SIZE;
+			}
+			break;
+
+		case LENGTH_SIZE:
+			desc->state = LENGTH_DATA;
+			break;
+
+		case LENGTH_DATA:
+			if (desc->tree_read >= desc->tree_size) {
+				err = read_tree(
+					desc->length_tree, SIZE(desc->length_tree),
+					desc->tree_data, desc->tree_size);
+				desc->state = DISTANCE_SIZE;
+			}
+			break;
+
+		case DISTANCE_SIZE:
+			desc->state = DISTANCE_DATA;
+			break;
+
+		case DISTANCE_DATA:
+			if (desc->tree_read >= desc->tree_size) {
+				err = read_tree(
+					desc->distance_tree, SIZE(desc->distance_tree),
+					desc->tree_data, desc->tree_size);
+				desc->state = UNIMPLODE;
+			}
+			break;
+
+		default:
+			assert(0);
+			break;
+		};
+
+		if (err) {
+			return err;
+		}
+	}
+
 	return 0;
 }
 
 /* Read one Shannon-Fano tree from the archive */
 static int
-read_tree(struct implode_desc *desc, unsigned num_values, struct implode_tree tree[])
+read_tree(struct implode_tree tree[], unsigned num_values,
+	  uint8_t const tree_data[], unsigned tree_bytes)
 {
-	const uint8_t *ptr;
-	unsigned tree_bytes;
-	uint8_t tree_data[256];
 	uint8_t bit_lengths[256];
 	uint16_t codes[256];
 	int err;
-
-	/* Raw data for the tree (5.3.7): */
-	/* Number of bytes that encode the tree */
-	if (desc->arch.cmp_size == 0) {
-		return file_inconsistent;
-	}
-	ptr = archive_read_bytes(&desc->arch, 1);
-	if (ptr == NULL) {
-		return file_truncated;
-	}
-	tree_bytes = ptr[0] + 1;
-
-	/* The code counts and bit lengths */
-	if (desc->arch.cmp_size < tree_bytes) {
-		return file_inconsistent;
-	}
-	ptr = archive_read_bytes(&desc->arch, tree_bytes);
-	if (ptr == NULL) {
-		return file_truncated;
-	}
-	memcpy(tree_data, ptr, tree_bytes);
 
 	/* Set the bit lengths */
 	err = set_bit_lengths(num_values, bit_lengths, tree_data, tree_bytes);
@@ -408,23 +476,123 @@ build_tree(unsigned num_values, struct implode_tree tree[],
 	return 0;
 }
 
+/* UNIMPLODE state: read the literal flag */
+static int
+read_literal_flag(struct implode_desc *desc, struct zip_legacy_io *io)
+{
+	unsigned literal;
+
+	int eodata = archive_read_bits_2(desc, io, 1, &literal);
+	if (!eodata) {
+		if (literal) {
+			/* Read a literal */
+			desc->state = READ_LITERAL;
+		} else {
+			/* Read a copy marker */
+			desc->state = READ_DISTANCE_LOW;
+		}
+		/* Either way, we may need to use a Shannon-Fano tree */
+		desc->tree_index = 0;
+	}
+
+	return eodata;
+}
+
+/* READ_LITERAL state: read a literal */
+static int
+read_literal(struct implode_desc *desc, struct zip_legacy_io *io)
+{
+	int eodata;
+	unsigned byte;
+
+	if (desc->have_literal_tree) {
+		eodata = sf_decode(desc, io, desc->literal_tree, &byte);
+	} else {
+		eodata = archive_read_bits_2(desc, io, 8, &byte);
+	}
+	if (!eodata) {
+		lz77_add_byte(&desc->lz77, byte);
+		desc->state = UNIMPLODE;
+	}
+	return eodata;
+}
+
+/* READ_DISTANCE_LOW state: read the low bits of the distance */
+static int
+read_distance_low(struct implode_desc *desc, struct zip_legacy_io *io)
+{
+	int eodata = archive_read_bits_2(desc, io, desc->window_8k ? 7 : 6, &desc->distance);
+	if (!eodata) {
+		desc->state = READ_DISTANCE_HIGH;
+		/* Next state will use the Shannon-Fano tree for distance */
+		desc->tree_index = 0;
+	}
+	return eodata;
+}
+
+/* READ_DISTANCE_HIGH state: read the high bits of the distance */
+static int
+read_distance_high(struct implode_desc *desc, struct zip_legacy_io *io)
+{
+	unsigned dist_high;
+	int eodata = sf_decode(desc, io, desc->distance_tree, &dist_high);
+	if (!eodata) {
+		/* Complete distance */
+		desc->distance = (dist_high << (desc->window_8k ? 7 : 6))
+			       + desc->distance + 1;
+		desc->state = READ_LENGTH_FIRST;
+		/* Next state will use the Shannon-Fano tree for length */
+		desc->tree_index = 0;
+	}
+	return eodata;
+}
+
+/* READ_LENGTH_FIRST state: read the first part of the length */
+static int
+read_length_first(struct implode_desc *desc, struct zip_legacy_io *io)
+{
+	int eodata = sf_decode(desc, io, desc->length_tree, &desc->length);
+	if (!eodata) {
+		desc->state = READ_LENGTH_SECOND;
+	}
+	return eodata;
+}
+
+/* READ_LENGTH_SECOND state: read the second part of the length, and set the copy */
+static int
+read_length_second(struct implode_desc *desc, struct zip_legacy_io *io)
+{
+	if (desc->length == 63) {
+		unsigned length2;
+		int eodata = archive_read_bits_2(desc, io, 8, &length2);
+		if (eodata) {
+			return eodata;
+		}
+		desc->length += length2;
+	}
+	/* otherwise consumes no input */
+
+	desc->length += desc->have_literal_tree ? 3 : 2;
+	lz77_set_copy(&desc->lz77, desc->distance, desc->length);
+	desc->state = UNIMPLODE;
+	return 0;
+}
+
 /* Decode an element through a Shannon-Fano tree */
 /* Return 0 on success, -1 on end of data, positive on file error */
 static int
-sf_decode(struct implode_desc *desc, struct implode_tree const tree[],
-	unsigned *elem)
+sf_decode(struct implode_desc *desc, struct zip_legacy_io *io,
+	struct implode_tree const tree[], unsigned *elem)
 {
-	unsigned node = 0;
 	unsigned bit;
-	int err;
 
 	while (1) {
 		unsigned node2;
-		err = archive_read_bits(&desc->arch, 1, &bit);
-		if (err) {
-			return err;
+		int eodata = archive_read_bits_2(desc, io, 1, &bit);
+		if (eodata) {
+			return eodata;
 		}
-		node2 = tree[node].next[bit];
+		node2 = tree[desc->tree_index].next[bit];
 		if (node2 < 0x100) {
 			*elem = node2;
 			return 0;
@@ -432,8 +600,34 @@ sf_decode(struct implode_desc *desc, struct implode_tree const tree[],
 		if (node2 == 0xFFFF) {
 			return file_inconsistent;
 		}
-		node = node2 - 0x100;
+		desc->tree_index = node2 - 0x100;
 	}
+}
+
+/* Read the given number of bits, possibly not byte aligned */
+/* Return -1 if end of data reached, else 0 */
+static int
+archive_read_bits_2(struct implode_desc *desc, struct zip_legacy_io *io,
+	unsigned num_bits, unsigned *bits)
+{
+	if (desc->num_bits < num_bits) {
+		unsigned num_bytes = (num_bits - desc->num_bits + 7) / 8;
+
+		if (io->total_in + num_bytes > io->avail_in) {
+			return -1;
+		}
+		for (unsigned i = 0; i < num_bytes; ++i) {
+			desc->bits |= io->next_in[io->total_in++] << desc->num_bits;
+			desc->num_bits += 8;
+		}
+	}
+
+	*bits = desc->bits;
+	desc->bits >>= num_bits;
+	desc->num_bits -= num_bits;
+	*bits &= (1 << num_bits) - 1;
+
+	return 0;
 }
 
 #endif /* HAVE_LEGACY */

@@ -39,6 +39,16 @@ enum {
 
 const char *zip_legacy_error(int err);
 
+/* Input and output to decoders */
+struct zip_legacy_io {
+	const uint8_t *next_in;
+	size_t avail_in;
+	size_t total_in;
+	uint8_t *next_out;
+	size_t avail_out;
+	size_t total_out;
+};
+
 /* To decrypt compressed data */
 struct trad_enc_ctx;
 void trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
@@ -47,12 +57,9 @@ void trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
 /* Implode */
 struct implode_desc;
 
-int implode_init(struct implode_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned zip_flags,
-	uint64_t *cmp_bytes_read);
+int implode_init(struct implode_desc **desc, unsigned zip_flags);
 void implode_free(struct implode_desc **desc);
-int implode_read(struct implode_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, uint64_t *cmp_bytes_read);
+int implode_read(struct implode_desc *desc, struct zip_legacy_io *io);
 
 /* Shrink */
 struct shrink_desc;
