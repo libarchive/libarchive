@@ -335,7 +335,7 @@ implode_setup(struct implode_desc *desc, struct zip_legacy_io *io)
 		default:
 			assert(0);
 			break;
-		};
+		}
 
 		if (err) {
 			return err;
