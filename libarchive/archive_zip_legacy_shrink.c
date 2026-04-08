@@ -77,29 +77,33 @@ enum {
 };
 
 struct shrink_desc {
-	/* Source of bytes */
-	struct arch_data arch;
+	/* To read bits not on a byte boundary */
+	uint64_t bits;
+	uint8_t num_bits;
 	/* Decompressor state */
 	unsigned code_size;
 	unsigned old_code;
 	struct shrink_dictionary dictionary[8192 - 257];
 	uint16_t free_list;
 	uint8_t last_byte;
+	uint8_t shifted;
 	/* Output string */
 	uint8_t outstr[8192];
 	unsigned outstr_size;
 	unsigned outstr_start;
 };
 
+static int process_unshifted(struct shrink_desc *desc, struct zip_legacy_io *io);
+static int process_shifted(struct shrink_desc *desc, struct zip_legacy_io *io);
 static int lookup(struct shrink_desc *desc, unsigned code);
 static void add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte);
-static int read_code_with_escapes(struct shrink_desc *desc, unsigned *code);
 static void clear_dictionary(struct shrink_desc *desc);
+static int archive_read_bits_2(struct shrink_desc *desc, struct zip_legacy_io *io,
+	unsigned num_bits, unsigned *bits);
 
 /* Initialize the shrink_desc structure */
 int
-shrink_init(struct shrink_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, struct trad_enc_ctx *decrypt, uint64_t *cmp_bytes_read)
+shrink_init(struct shrink_desc **desc)
 {
 	if (*desc == NULL) {
 		*desc = calloc(1, sizeof(**desc));
@@ -108,14 +112,12 @@ shrink_init(struct shrink_desc **desc, struct archive_read *a,
 		}
 	}
 
-	(*desc)->arch.arch = a;
-	(*desc)->arch.cmp_size = cmp_size;
-	(*desc)->arch.decrypt = decrypt;
-	(*desc)->arch.bits = 0;
-	(*desc)->arch.num_bits = 0;
+	(*desc)->bits = 0;
+	(*desc)->num_bits = 0;
 	(*desc)->code_size = 9;
 	(*desc)->old_code = 0xFFFF;
 	(*desc)->last_byte = 0;
+	(*desc)->shifted = 0;
 	(*desc)->outstr_size = 0;
 	(*desc)->outstr_start = 0;
 
@@ -127,7 +129,6 @@ shrink_init(struct shrink_desc **desc, struct archive_read *a,
 	}
 	(*desc)->dictionary[SIZE((*desc)->dictionary) - 1].next = 0xFFFF;
 
-	*cmp_bytes_read = 0;
 	return ARCHIVE_OK;
 }
 
@@ -139,26 +140,27 @@ shrink_free(struct shrink_desc **desc)
 }
 
 int
-shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, uint64_t *cmp_bytes_read)
+shrink_read(struct shrink_desc *desc, struct zip_legacy_io *io)
 {
-	uint64_t cmp_size = desc->arch.cmp_size;
 	int err = 0;
+	size_t total_in = io->total_in;
+	size_t total_out = io->total_out;
+	unsigned num_bits = desc->num_bits;
 
-	*bytes_read = 0;
-	while (1) {
+	while (!err && io->total_out < io->avail_out) {
 		/* Return any partial string still pending */
 		if (desc->outstr_size > desc->outstr_start) {
+			size_t num_bytes = io->avail_out - io->total_out;
 			unsigned outstr_size = desc->outstr_size - desc->outstr_start;
 			if (outstr_size > num_bytes) {
 				outstr_size = num_bytes;
 			}
-			memcpy(bytes, desc->outstr + desc->outstr_start, outstr_size);
-			*bytes_read += outstr_size;
+			memcpy(io->next_out + io->total_out,
+			       desc->outstr + desc->outstr_start,
+			       outstr_size);
+			io->total_out += outstr_size;
 			desc->outstr_start += outstr_size;
-			bytes += outstr_size;
-			num_bytes -= outstr_size;
-			if (num_bytes == 0) {
+			if (io->total_out >= io->avail_out) {
 				break;
 			}
 		}
@@ -167,43 +169,91 @@ shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
 		desc->outstr_size = 0;
 
 		/* Read and decode */
-		if (desc->old_code == 0xFFFF) {
-			/* First time through */
-			err = read_code_with_escapes(desc, &desc->old_code);
-			if (err != 0) {
-				goto fail;
-			}
-			if (desc->old_code >= 256) {
-				err = file_inconsistent;
-				goto fail;
-			}
-			desc->outstr[0] = desc->old_code;
-			desc->outstr_size = 1;
-			desc->last_byte = desc->old_code;
+		if (desc->shifted) {
+			err = process_shifted(desc, io);
+			/* Proceeds to unshifted state */
 		} else {
-			unsigned new_code;
-
-			err = read_code_with_escapes(desc, &new_code);
-			if (err != 0) {
-				goto fail;
-			}
-			err = lookup(desc, new_code);
-			if (err != 0) {
-				goto fail;
-			}
-			add_string(desc, desc->old_code, desc->outstr[0]);
-			desc->old_code = new_code;
+			err = process_unshifted(desc, io);
+			/* May go to shifted or unshifted state */
 		}
 	}
 
-	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
+	if (err != 0 && err != end_of_data) {
+		return err;
+	}
+	if (total_in == io->total_in && total_out == io->total_out
+	&&  num_bits == desc->num_bits) {
+		return ARCHIVE_EOF;
+	}
 	return ARCHIVE_OK;
+}
 
-fail:
-	/* If we reach the end of the compressed data, return success with the
-	   number of bytes read so far */
-	*cmp_bytes_read = cmp_size - desc->arch.cmp_size;
-	return err == end_of_data ? ARCHIVE_EOF : err;
+/* Read one code while in the unshifted state */
+static int
+process_unshifted(struct shrink_desc *desc, struct zip_legacy_io *io)
+{
+	unsigned new_code;
+	int eodata = archive_read_bits_2(desc, io, desc->code_size, &new_code);
+	if (eodata) {
+		return end_of_data;
+	}
+
+	if (new_code == 256) {
+		/* Go to shifted state */
+		desc->shifted = 1;
+		return 0;
+	}
+
+	if (desc->old_code == 0xFFFF) {
+		/* First time through */
+		desc->old_code = new_code;
+		if (new_code >= 256) {
+			return file_inconsistent;
+		}
+		desc->outstr[0] = new_code;
+		desc->outstr_size = 1;
+		desc->last_byte = new_code;
+	} else {
+		/* Look up string in dictionary */
+		int err = lookup(desc, new_code);
+		if (err != 0) {
+			return err;
+		}
+		add_string(desc, desc->old_code, desc->outstr[0]);
+		desc->old_code = new_code;
+	}
+
+	return 0;
+}
+
+/* Read one code while in the shifted state */
+static int
+process_shifted(struct shrink_desc *desc, struct zip_legacy_io *io)
+{
+	unsigned new_code;
+	int eodata = archive_read_bits_2(desc, io, desc->code_size, &new_code);
+	if (eodata) {
+		return end_of_data;
+	}
+
+	switch (new_code) {
+	case 1: /* Change the code size */
+		if (desc->code_size >= 13) {
+			return file_inconsistent;
+		}
+		++desc->code_size;
+		break;
+
+	case 2: /* Partial clearing */
+		clear_dictionary(desc);
+		break;
+
+	default: /* Invalid code */
+		return file_inconsistent;
+	}
+
+	desc->shifted = 0;
+	return 0;
 }
 
 static int
@@ -292,41 +342,6 @@ add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte)
 	desc->dictionary[empty].flag = node_used;
 }
 
-/* Read a code from the file, and process any 256 escapes */
-static int
-read_code_with_escapes(struct shrink_desc *desc, unsigned *code)
-{
-	while (1) {
-		unsigned code2;
-		int err = archive_read_bits(&desc->arch, desc->code_size, code);
-		if (err != 0 || *code != 256) {
-			/* Not an escape code */
-			return err;
-		}
-
-		err = archive_read_bits(&desc->arch, desc->code_size, &code2);
-		if (err != 0) {
-			return err;
-		}
-
-		switch (code2) {
-		case 1: /* Change the code size */
-			if (desc->code_size >= 13) {
-				return file_inconsistent;
-			}
-			++desc->code_size;
-			break;
-
-		case 2: /* Partial clearing */
-			clear_dictionary(desc);
-			break;
-
-		default: /* Invalid code */
-			return file_inconsistent;
-		}
-	}
-}
-
 static void
 clear_dictionary(struct shrink_desc *desc)
 {
@@ -352,6 +367,35 @@ clear_dictionary(struct shrink_desc *desc)
 			desc->free_list = i;
 		}
 	}
+}
+
+/* Read the given number of bits, possibly not byte aligned */
+/* Return -1 if end of data reached, else 0 */
+static int
+archive_read_bits_2(struct shrink_desc *desc, struct zip_legacy_io *io,
+	unsigned num_bits, unsigned *bits)
+{
+	if (desc->num_bits < num_bits) {
+		unsigned num_bytes = (num_bits - desc->num_bits + 7) / 8;
+
+		if (io->total_in + num_bytes > io->avail_in) {
+			num_bytes = (unsigned)(io->avail_in - io->total_in);
+		}
+		for (unsigned i = 0; i < num_bytes; ++i) {
+			desc->bits |= io->next_in[io->total_in++] << desc->num_bits;
+			desc->num_bits += 8;
+		}
+	}
+	if (desc->num_bits < num_bits) {
+		return -1;
+	}
+
+	*bits = desc->bits;
+	desc->bits >>= num_bits;
+	desc->num_bits -= num_bits;
+	*bits &= (1 << num_bits) - 1;
+
+	return 0;
 }
 
 #endif /* HAVE_LEGACY */

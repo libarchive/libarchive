@@ -64,11 +64,9 @@ int implode_read(struct implode_desc *desc, struct zip_legacy_io *io);
 /* Shrink */
 struct shrink_desc;
 
-int shrink_init(struct shrink_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, struct trad_enc_ctx *decrypt, uint64_t *cmp_bytes_read);
+int shrink_init(struct shrink_desc **desc);
 void shrink_free(struct shrink_desc **desc);
-int shrink_read(struct shrink_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, uint64_t *cmp_bytes_read);
+int shrink_read(struct shrink_desc *desc, struct zip_legacy_io *io);
 
 /* Reduce */
 struct reduce_desc;

@@ -42,6 +42,8 @@
  * refactoring) was added in 2014.
  */
 
+#include <assert.h>
+
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -1750,11 +1752,25 @@ zip_read_data_legacy(struct archive_read *a, const void **buff,
 	const void *sp;
 	ssize_t bytes_avail;
 	ssize_t to_consume;
-	const char *encoding = "implode";
+	const char *encoding = "";
 
 	(void)offset; /* UNUSED */
 
 	zip = (struct zip *)(a->format->data);
+
+	/* Name the compression method, for messages */
+	switch(zip->entry->compression) {
+	case 1:
+		encoding = "shrink";
+		break;
+
+	case 6:
+		encoding = "implode";
+		break;
+
+	default:
+		assert(0);
+	}
 
 	if (zip->entry->zip_flags & ZIP_LENGTH_AT_END) {
 		/* The legacy encodings don't have an end of file marker */
@@ -1777,7 +1793,18 @@ zip_read_data_legacy(struct archive_read *a, const void **buff,
 
 	/* Initialize decompression context if we're here for the first time. */
 	if (!zip->decompress_init) {
-		r = implode_init(&zip->implode, zip->entry->zip_flags);
+		switch(zip->entry->compression) {
+		case 1:
+			r = shrink_init(&zip->shrink);
+			break;
+
+		case 6:
+			r = implode_init(&zip->implode, zip->entry->zip_flags);
+			break;
+
+		default:
+			assert(0);
+		}
 		if(r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, -1, "%s",
 				zip_legacy_error(r));
@@ -1816,7 +1843,18 @@ zip_read_data_legacy(struct archive_read *a, const void **buff,
 		io.avail_out = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
 	}
 
-	r = implode_read(zip->implode, &io);
+	switch(zip->entry->compression) {
+	case 1:
+		r = shrink_read(zip->shrink, &io);
+		break;
+
+	case 6:
+		r = implode_read(zip->implode, &io);
+		break;
+
+	default:
+		assert(0);
+	}
 
 	/* Consume as much as the compressor actually used */
 	to_consume = io.total_in;
@@ -1843,47 +1881,6 @@ zip_read_data_legacy(struct archive_read *a, const void **buff,
 	*size = io.total_out;
 	*buff = zip->uncompressed_buffer;
 	return ARCHIVE_OK;
-}
-
-static int
-zip_read_data_shrink(struct archive_read *a, const void **buff,
-    size_t *size, int64_t *offset)
-{
-	struct zip *zip = (struct zip *)(a->format->data);
-	int r;
-	uint64_t cmp_size;
-
-	(void)offset; /* UNUSED */
-
-	/* Initialize decompression context if we're here for the first time. */
-	if (!zip->decompress_init) {
-		r = shrink_init(&zip->shrink, a,
-			zip->entry->compressed_size - zip->entry_compressed_bytes_read,
-			zip->tctx_valid ? &zip->tctx : NULL,
-			&cmp_size);
-		zip->entry_compressed_bytes_read += cmp_size;
-		if(r != ARCHIVE_OK) {
-			archive_set_error(&a->archive, -1, "%s",
-				zip_legacy_error(r));
-			return ARCHIVE_FATAL;
-		}
-		zip->decompress_init = 1;
-		zip->shrink_valid = 1;
-
-		if (zip->uncompressed_buffer == NULL) {
-			zip->uncompressed_buffer_size = 256 * 1024;
-			zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
-			if (zip->uncompressed_buffer == NULL) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "No memory for shrink decompression");
-				return (ARCHIVE_FATAL);
-			}
-		}
-	}
-
-	r = shrink_read(zip->shrink, zip->uncompressed_buffer,
-		zip->uncompressed_buffer_size, size, &cmp_size);
-	return zip_read_wrapup(a, buff, size, r, cmp_size);
 }
 
 static int
@@ -3383,7 +3380,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		break;
 #if HAVE_LEGACY
 	case 1:	 /* Shrink */
-		r = zip_read_data_shrink(a, buff, size, offset);
+		r = zip_read_data_legacy(a, buff, size, offset);
 		break;
 	case 2:  /* Reduce */
 	case 3:
