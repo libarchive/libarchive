@@ -614,12 +614,15 @@ archive_read_bits_2(struct implode_desc *desc, struct zip_legacy_io *io,
 		unsigned num_bytes = (num_bits - desc->num_bits + 7) / 8;
 
 		if (io->total_in + num_bytes > io->avail_in) {
-			return -1;
+			num_bytes = (unsigned)(io->avail_in - io->total_in);
 		}
 		for (unsigned i = 0; i < num_bytes; ++i) {
 			desc->bits |= io->next_in[io->total_in++] << desc->num_bits;
 			desc->num_bits += 8;
 		}
+	}
+	if (desc->num_bits < num_bits) {
+		return -1;
 	}
 
 	*bits = desc->bits;
