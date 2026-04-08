@@ -172,7 +172,7 @@ implode_read(struct implode_desc *desc, struct zip_legacy_io *io)
 	int eodata = 0;
 	size_t total_in = io->total_in;
 	size_t total_out = io->total_out;
-	size_t num_bits = desc->num_bits;
+	unsigned num_bits = desc->num_bits;
 
 	/* Set up the Shannon-Fano trees at the start */
 	if (desc->state < UNIMPLODE) {
