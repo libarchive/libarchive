@@ -347,10 +347,7 @@ trad_enc_decrypt_byte(struct trad_enc_ctx *ctx)
 	return (uint8_t)((temp * (temp ^ 1)) >> 8) & 0xff;
 }
 
-#ifndef HAVE_LEGACY
-static
-#endif
-void
+static void
 trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
     size_t in_len, uint8_t *out, size_t out_len)
 {

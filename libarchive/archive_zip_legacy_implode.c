@@ -78,8 +78,7 @@ enum implode_state {
 
 struct implode_desc {
 	/* To read bits not on a byte boundary */
-	uint64_t bits;
-	uint8_t num_bits;
+	struct arch_bits bits;
 	/* Current state of sliding window */
 	struct lz77_window lz77;
 	/* Flags set in the Zip structure */
@@ -128,8 +127,6 @@ static int read_length_first(struct implode_desc *desc, struct zip_legacy_io *io
 static int read_length_second(struct implode_desc *desc, struct zip_legacy_io *io);
 static int sf_decode(struct implode_desc *desc, struct zip_legacy_io *io,
 	struct implode_tree const tree[], unsigned *elem);
-static int archive_read_bits_2(struct implode_desc *desc, struct zip_legacy_io *io,
-	unsigned num_bits, unsigned *bits);
 
 /* Initialize the implode_desc structure and read the Shannon-Fano trees */
 int
@@ -144,8 +141,8 @@ implode_init(struct implode_desc **desc, unsigned zip_flags)
 		}
 	}
 
-	(*desc)->bits = 0;
-	(*desc)->num_bits = 0;
+	(*desc)->bits.bits = 0;
+	(*desc)->bits.num_bits = 0;
 	(*desc)->window_8k = (zip_flags & 0x02) != 0;
 	(*desc)->have_literal_tree = (zip_flags & 0x04) != 0;
 	err = lz77_init(&(*desc)->lz77, (*desc)->window_8k ? 0x2000 : 0x1000);
@@ -172,7 +169,7 @@ implode_read(struct implode_desc *desc, struct zip_legacy_io *io)
 	int eodata = 0;
 	size_t total_in = io->total_in;
 	size_t total_out = io->total_out;
-	unsigned num_bits = desc->num_bits;
+	unsigned num_bits = desc->bits.num_bits;
 
 	/* Set up the Shannon-Fano trees at the start */
 	if (desc->state < UNIMPLODE) {
@@ -247,7 +244,7 @@ implode_read(struct implode_desc *desc, struct zip_legacy_io *io)
 	}
 
 	if (total_in == io->total_in && total_out == io->total_out
-	&&  num_bits == desc->num_bits) {
+	&&  num_bits == desc->bits.num_bits) {
 		return ARCHIVE_EOF;
 	}
 	return ARCHIVE_OK;
@@ -482,7 +479,7 @@ read_literal_flag(struct implode_desc *desc, struct zip_legacy_io *io)
 {
 	unsigned literal;
 
-	int eodata = archive_read_bits_2(desc, io, 1, &literal);
+	int eodata = archive_read_bits(&desc->bits, io, 1, &literal);
 	if (!eodata) {
 		if (literal) {
 			/* Read a literal */
@@ -508,7 +505,7 @@ read_literal(struct implode_desc *desc, struct zip_legacy_io *io)
 	if (desc->have_literal_tree) {
 		eodata = sf_decode(desc, io, desc->literal_tree, &byte);
 	} else {
-		eodata = archive_read_bits_2(desc, io, 8, &byte);
+		eodata = archive_read_bits(&desc->bits, io, 8, &byte);
 	}
 	if (!eodata) {
 		lz77_add_byte(&desc->lz77, byte);
@@ -521,7 +518,7 @@ read_literal(struct implode_desc *desc, struct zip_legacy_io *io)
 static int
 read_distance_low(struct implode_desc *desc, struct zip_legacy_io *io)
 {
-	int eodata = archive_read_bits_2(desc, io, desc->window_8k ? 7 : 6, &desc->distance);
+	int eodata = archive_read_bits(&desc->bits, io, desc->window_8k ? 7 : 6, &desc->distance);
 	if (!eodata) {
 		desc->state = READ_DISTANCE_HIGH;
 		/* Next state will use the Shannon-Fano tree for distance */
@@ -564,7 +561,7 @@ read_length_second(struct implode_desc *desc, struct zip_legacy_io *io)
 {
 	if (desc->length == 63) {
 		unsigned length2;
-		int eodata = archive_read_bits_2(desc, io, 8, &length2);
+		int eodata = archive_read_bits(&desc->bits, io, 8, &length2);
 		if (eodata) {
 			return eodata;
 		}
@@ -588,7 +585,7 @@ sf_decode(struct implode_desc *desc, struct zip_legacy_io *io,
 
 	while (1) {
 		unsigned node2;
-		int eodata = archive_read_bits_2(desc, io, 1, &bit);
+		int eodata = archive_read_bits(&desc->bits, io, 1, &bit);
 		if (eodata) {
 			return eodata;
 		}
@@ -602,35 +599,6 @@ sf_decode(struct implode_desc *desc, struct zip_legacy_io *io,
 		}
 		desc->tree_index = node2 - 0x100;
 	}
-}
-
-/* Read the given number of bits, possibly not byte aligned */
-/* Return -1 if end of data reached, else 0 */
-static int
-archive_read_bits_2(struct implode_desc *desc, struct zip_legacy_io *io,
-	unsigned num_bits, unsigned *bits)
-{
-	if (desc->num_bits < num_bits) {
-		unsigned num_bytes = (num_bits - desc->num_bits + 7) / 8;
-
-		if (io->total_in + num_bytes > io->avail_in) {
-			num_bytes = (unsigned)(io->avail_in - io->total_in);
-		}
-		for (unsigned i = 0; i < num_bytes; ++i) {
-			desc->bits |= io->next_in[io->total_in++] << desc->num_bits;
-			desc->num_bits += 8;
-		}
-	}
-	if (desc->num_bits < num_bits) {
-		return -1;
-	}
-
-	*bits = desc->bits;
-	desc->bits >>= num_bits;
-	desc->num_bits -= num_bits;
-	*bits &= (1 << num_bits) - 1;
-
-	return 0;
 }
 
 #endif /* HAVE_LEGACY */

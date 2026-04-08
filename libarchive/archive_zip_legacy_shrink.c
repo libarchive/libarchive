@@ -78,8 +78,7 @@ enum {
 
 struct shrink_desc {
 	/* To read bits not on a byte boundary */
-	uint64_t bits;
-	uint8_t num_bits;
+	struct arch_bits bits;
 	/* Decompressor state */
 	unsigned code_size;
 	unsigned old_code;
@@ -98,8 +97,6 @@ static int process_shifted(struct shrink_desc *desc, struct zip_legacy_io *io);
 static int lookup(struct shrink_desc *desc, unsigned code);
 static void add_string(struct shrink_desc *desc, uint16_t code, uint8_t byte);
 static void clear_dictionary(struct shrink_desc *desc);
-static int archive_read_bits_2(struct shrink_desc *desc, struct zip_legacy_io *io,
-	unsigned num_bits, unsigned *bits);
 
 /* Initialize the shrink_desc structure */
 int
@@ -112,8 +109,8 @@ shrink_init(struct shrink_desc **desc)
 		}
 	}
 
-	(*desc)->bits = 0;
-	(*desc)->num_bits = 0;
+	(*desc)->bits.bits = 0;
+	(*desc)->bits.num_bits = 0;
 	(*desc)->code_size = 9;
 	(*desc)->old_code = 0xFFFF;
 	(*desc)->last_byte = 0;
@@ -145,7 +142,7 @@ shrink_read(struct shrink_desc *desc, struct zip_legacy_io *io)
 	int err = 0;
 	size_t total_in = io->total_in;
 	size_t total_out = io->total_out;
-	unsigned num_bits = desc->num_bits;
+	unsigned num_bits = desc->bits.num_bits;
 
 	while (!err && io->total_out < io->avail_out) {
 		/* Return any partial string still pending */
@@ -182,7 +179,7 @@ shrink_read(struct shrink_desc *desc, struct zip_legacy_io *io)
 		return err;
 	}
 	if (total_in == io->total_in && total_out == io->total_out
-	&&  num_bits == desc->num_bits) {
+	&&  num_bits == desc->bits.num_bits) {
 		return ARCHIVE_EOF;
 	}
 	return ARCHIVE_OK;
@@ -193,7 +190,7 @@ static int
 process_unshifted(struct shrink_desc *desc, struct zip_legacy_io *io)
 {
 	unsigned new_code;
-	int eodata = archive_read_bits_2(desc, io, desc->code_size, &new_code);
+	int eodata = archive_read_bits(&desc->bits, io, desc->code_size, &new_code);
 	if (eodata) {
 		return end_of_data;
 	}
@@ -231,7 +228,7 @@ static int
 process_shifted(struct shrink_desc *desc, struct zip_legacy_io *io)
 {
 	unsigned new_code;
-	int eodata = archive_read_bits_2(desc, io, desc->code_size, &new_code);
+	int eodata = archive_read_bits(&desc->bits, io, desc->code_size, &new_code);
 	if (eodata) {
 		return end_of_data;
 	}
@@ -367,35 +364,6 @@ clear_dictionary(struct shrink_desc *desc)
 			desc->free_list = i;
 		}
 	}
-}
-
-/* Read the given number of bits, possibly not byte aligned */
-/* Return -1 if end of data reached, else 0 */
-static int
-archive_read_bits_2(struct shrink_desc *desc, struct zip_legacy_io *io,
-	unsigned num_bits, unsigned *bits)
-{
-	if (desc->num_bits < num_bits) {
-		unsigned num_bytes = (num_bits - desc->num_bits + 7) / 8;
-
-		if (io->total_in + num_bytes > io->avail_in) {
-			num_bytes = (unsigned)(io->avail_in - io->total_in);
-		}
-		for (unsigned i = 0; i < num_bytes; ++i) {
-			desc->bits |= io->next_in[io->total_in++] << desc->num_bits;
-			desc->num_bits += 8;
-		}
-	}
-	if (desc->num_bits < num_bits) {
-		return -1;
-	}
-
-	*bits = desc->bits;
-	desc->bits >>= num_bits;
-	desc->num_bits -= num_bits;
-	*bits &= (1 << num_bits) - 1;
-
-	return 0;
 }
 
 #endif /* HAVE_LEGACY */

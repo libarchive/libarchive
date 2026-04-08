@@ -153,57 +153,39 @@ lz77_copy_window(struct lz77_window *lz77)
     lz77->copy_pos -= start;
 }
 
-/* Read one or more bits from the archive */
+/* Read the given number of bits, possibly not byte aligned */
+/* Return -1 if end of data reached, else 0 */
 int
-archive_read_bits(struct arch_data *arch, unsigned num_bits, unsigned *bits)
+archive_read_bits(struct arch_bits *desc, struct zip_legacy_io *io,
+	unsigned num_bits, unsigned *bits)
 {
-	if (arch->num_bits < num_bits) {
-		unsigned num_bytes = (num_bits - arch->num_bits + 7) / 8;
-		const uint8_t *ptr;
+	if (desc->num_bits < num_bits) {
+		unsigned num_bytes = (num_bits - desc->num_bits + 7) / 8;
 
-		if (arch->cmp_size < num_bytes) {
-			return end_of_data;
-		}
-		ptr = archive_read_bytes(arch, num_bytes);
-		if (ptr == NULL) {
-			return file_truncated;
+		/*
+		 * If whole bytes are available, add them to desc->bits even if
+		 * we can't fulfill the request, so that the decoders don't
+		 * wrongly report end of data
+		 */
+		if (io->total_in + num_bytes > io->avail_in) {
+			num_bytes = (unsigned)(io->avail_in - io->total_in);
 		}
 		for (unsigned i = 0; i < num_bytes; ++i) {
-			arch->bits |= ptr[i] << arch->num_bits;
-			arch->num_bits += 8;
+			desc->bits |= io->next_in[io->total_in++] << desc->num_bits;
+			desc->num_bits += 8;
 		}
 	}
+	if (desc->num_bits < num_bits) {
+		/* End of data */
+		return -1;
+	}
 
-	*bits = arch->bits;
-	arch->bits >>= num_bits;
-	arch->num_bits -= num_bits;
+	*bits = desc->bits;
+	desc->bits >>= num_bits;
+	desc->num_bits -= num_bits;
 	*bits &= (1 << num_bits) - 1;
 
 	return 0;
-}
-
-/* Read and possibly decrypt one or more bytes */
-void const *
-archive_read_bytes(struct arch_data *arch, unsigned num_bytes)
-{
-	void const *ptr;
-	ssize_t avail;
-
-	ptr = __archive_read_ahead(arch->arch, num_bytes, &avail);
-	if (ptr == NULL) {
-		return NULL;
-	}
-	__archive_read_consume(arch->arch, num_bytes);
-	arch->cmp_size -= num_bytes;
-
-	if (arch->decrypt) {
-		trad_enc_decrypt_update(arch->decrypt,
-			ptr, num_bytes,
-			arch->decrypt_buf, num_bytes);
-		ptr = arch->decrypt_buf;
-	}
-
-	return ptr;
 }
 
 #endif /* HAVE_LEGACY */

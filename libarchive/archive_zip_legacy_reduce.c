@@ -71,8 +71,7 @@ enum byte_state {
 
 struct reduce_desc {
 	/* To read bits not on a byte boundary */
-	uint64_t bits;
-	uint8_t num_bits;
+	struct arch_bits bits;
 
 	/* Current state of sliding window */
 	struct lz77_window lz77;
@@ -94,8 +93,6 @@ struct reduce_desc {
 
 static int reduce_setup(struct reduce_desc *desc, struct zip_legacy_io *io);
 static void process_byte(struct reduce_desc *desc);
-static int archive_read_bits_2(struct reduce_desc *desc, struct zip_legacy_io *io,
-	unsigned num_bits, unsigned *bits);
 
 int
 reduce_init(struct reduce_desc **desc, unsigned level)
@@ -111,8 +108,8 @@ reduce_init(struct reduce_desc **desc, unsigned level)
 		}
 	}
 
-	(*desc)->bits = 0;
-	(*desc)->num_bits = 0;
+	(*desc)->bits.bits = 0;
+	(*desc)->bits.num_bits = 0;
 	(*desc)->level = level - 1;
 	(*desc)->length_mask = 255 >> level;
 	(*desc)->last_ch = 0xFF;
@@ -142,7 +139,7 @@ reduce_read(struct reduce_desc *desc, struct zip_legacy_io *io)
 	int eodata = 0;
 	size_t total_in = io->total_in;
 	size_t total_out = io->total_out;
-	unsigned num_bits = desc->num_bits;
+	unsigned num_bits = desc->bits.num_bits;
 
 	/* Set up the follower sets at the start */
 	if (desc->f_state < READ_LITERAL_FLAG) {
@@ -180,7 +177,7 @@ reduce_read(struct reduce_desc *desc, struct zip_legacy_io *io)
 			} else {
 				unsigned literal;
 
-				eodata = archive_read_bits_2(desc, io, 1, &literal);
+				eodata = archive_read_bits(&desc->bits, io, 1, &literal);
 				if (eodata) {
 					break;
 				}
@@ -197,7 +194,7 @@ reduce_read(struct reduce_desc *desc, struct zip_legacy_io *io)
 			{
 				unsigned byte;
 
-				eodata = archive_read_bits_2(desc, io, 8, &byte);
+				eodata = archive_read_bits(&desc->bits, io, 8, &byte);
 				if (eodata) {
 					break;
 				}
@@ -210,7 +207,7 @@ reduce_read(struct reduce_desc *desc, struct zip_legacy_io *io)
 			{
 				unsigned byte;
 
-				eodata = archive_read_bits_2(desc, io, desc->folset[desc->last_ch].bits, &byte);
+				eodata = archive_read_bits(&desc->bits, io, desc->folset[desc->last_ch].bits, &byte);
 				if (eodata) {
 					break;
 				}
@@ -233,7 +230,7 @@ reduce_read(struct reduce_desc *desc, struct zip_legacy_io *io)
 	}
 
 	if (total_in == io->total_in && total_out == io->total_out
-	&&  num_bits == desc->num_bits) {
+	&&  num_bits == desc->bits.num_bits) {
 		return ARCHIVE_EOF;
 	}
 	return ARCHIVE_OK;
@@ -251,7 +248,7 @@ reduce_setup(struct reduce_desc *desc, struct zip_legacy_io *io)
 				unsigned i;
 				unsigned size;
 
-				eodata = archive_read_bits_2(desc, io, 6, &size);
+				eodata = archive_read_bits(&desc->bits, io, 6, &size);
 				if (eodata) {
 					return eodata;
 				}
@@ -267,7 +264,7 @@ reduce_setup(struct reduce_desc *desc, struct zip_legacy_io *io)
 			if (desc->folset[desc->last_ch].size != 0) {
 				unsigned byte;
 
-				eodata = archive_read_bits_2(desc, io, 8, &byte);
+				eodata = archive_read_bits(&desc->bits, io, 8, &byte);
 				if (eodata) {
 					return eodata;
 				}
@@ -338,35 +335,6 @@ process_byte(struct reduce_desc *desc)
 		desc->b_state = BYTE_LITERAL;
 		break;
 	}
-}
-
-/* Read the given number of bits, possibly not byte aligned */
-/* Return -1 if end of data reached, else 0 */
-static int
-archive_read_bits_2(struct reduce_desc *desc, struct zip_legacy_io *io,
-	unsigned num_bits, unsigned *bits)
-{
-	if (desc->num_bits < num_bits) {
-		unsigned num_bytes = (num_bits - desc->num_bits + 7) / 8;
-
-		if (io->total_in + num_bytes > io->avail_in) {
-			num_bytes = (unsigned)(io->avail_in - io->total_in);
-		}
-		for (unsigned i = 0; i < num_bytes; ++i) {
-			desc->bits |= io->next_in[io->total_in++] << desc->num_bits;
-			desc->num_bits += 8;
-		}
-	}
-	if (desc->num_bits < num_bits) {
-		return -1;
-	}
-
-	*bits = desc->bits;
-	desc->bits >>= num_bits;
-	desc->num_bits -= num_bits;
-	*bits &= (1 << num_bits) - 1;
-
-	return 0;
 }
 
 #endif /* HAVE_LEGACY */
