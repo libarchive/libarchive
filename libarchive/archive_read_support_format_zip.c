@@ -293,10 +293,6 @@ static void zip_decrypt_data(struct zip *zip, ssize_t *bytes_avail,
 	const void **compressed_buff);
 static int zip_decrypt_update(struct archive_read *a, const void *sp, ssize_t to_consume);
 #endif
-#if HAVE_LEGACY
-static int zip_read_wrapup(struct archive_read *a, const void **buff, size_t *size,
-	int r, uint64_t cmp_size);
-#endif
 
 /* This function is used by Ppmd8_DecodeSymbol during decompression of Ppmd8
  * streams inside ZIP files. It has 2 purposes: one is to fetch the next
@@ -1764,6 +1760,13 @@ zip_read_data_legacy(struct archive_read *a, const void **buff,
 		encoding = "shrink";
 		break;
 
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		encoding = "reduce";
+		break;
+
 	case 6:
 		encoding = "implode";
 		break;
@@ -1796,6 +1799,13 @@ zip_read_data_legacy(struct archive_read *a, const void **buff,
 		switch(zip->entry->compression) {
 		case 1:
 			r = shrink_init(&zip->shrink);
+			break;
+
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+			r = reduce_init(&zip->reduce, zip->entry->compression - 1);
 			break;
 
 		case 6:
@@ -1848,6 +1858,13 @@ zip_read_data_legacy(struct archive_read *a, const void **buff,
 		r = shrink_read(zip->shrink, &io);
 		break;
 
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		r = reduce_read(zip->reduce, &io);
+		break;
+
 	case 6:
 		r = implode_read(zip->implode, &io);
 		break;
@@ -1879,71 +1896,6 @@ zip_read_data_legacy(struct archive_read *a, const void **buff,
 	}
 
 	*size = io.total_out;
-	*buff = zip->uncompressed_buffer;
-	return ARCHIVE_OK;
-}
-
-static int
-zip_read_data_reduce(struct archive_read *a, const void **buff,
-    size_t *size, int64_t *offset)
-{
-	struct zip *zip = (struct zip *)(a->format->data);
-	int r;
-	uint64_t cmp_size;
-
-	(void)offset; /* UNUSED */
-
-	/* Initialize decompression context if we're here for the first time. */
-	if (!zip->decompress_init) {
-		r = reduce_init(&zip->reduce, a,
-			zip->entry->compressed_size - zip->entry_compressed_bytes_read,
-			zip->tctx_valid ? &zip->tctx : NULL,
-			zip->entry->compression - 1, /* level: 1, 2, 3, 4 */
-			&cmp_size);
-		zip->entry_compressed_bytes_read += cmp_size;
-		if(r != ARCHIVE_OK) {
-			archive_set_error(&a->archive, -1, "%s",
-				zip_legacy_error(r));
-			return ARCHIVE_FATAL;
-		}
-		zip->decompress_init = 1;
-		zip->reduce_valid = 1;
-
-		if (zip->uncompressed_buffer == NULL) {
-			zip->uncompressed_buffer_size = 256 * 1024;
-			zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
-			if (zip->uncompressed_buffer == NULL) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "No memory for reduce decompression");
-				return (ARCHIVE_FATAL);
-			}
-		}
-	}
-
-	r = reduce_read(zip->reduce, zip->uncompressed_buffer,
-		zip->uncompressed_buffer_size, size, &cmp_size);
-	return zip_read_wrapup(a, buff, size, r, cmp_size);
-}
-
-/* Common elements to legacy zip_read_* functions */
-static int
-zip_read_wrapup(struct archive_read *a, const void **buff, size_t *size,
-	int r, uint64_t cmp_size)
-{
-	struct zip *zip = (struct zip *)(a->format->data);
-
-	if (*size > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
-		*size = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
-	}
-	zip->entry_compressed_bytes_read += cmp_size;
-	zip->entry_uncompressed_bytes_read += *size;
-	if (r == ARCHIVE_EOF) {
-		zip->end_of_entry = 1;
-	} else if (r != ARCHIVE_OK) {
-		archive_set_error(&a->archive, -1, "%s", zip_legacy_error(r));
-		return (ARCHIVE_FATAL);
-	}
-
 	*buff = zip->uncompressed_buffer;
 	return ARCHIVE_OK;
 }
@@ -3380,14 +3332,10 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		break;
 #if HAVE_LEGACY
 	case 1:	 /* Shrink */
-		r = zip_read_data_legacy(a, buff, size, offset);
-		break;
 	case 2:  /* Reduce */
 	case 3:
 	case 4:
 	case 5:
-		r = zip_read_data_reduce(a, buff, size, offset);
-		break;
 	case 6:	 /* Implode */
 		r = zip_read_data_legacy(a, buff, size, offset);
 		break;

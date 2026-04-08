@@ -71,12 +71,9 @@ int shrink_read(struct shrink_desc *desc, struct zip_legacy_io *io);
 /* Reduce */
 struct reduce_desc;
 
-int reduce_init(struct reduce_desc **desc, struct archive_read *a,
-	uint64_t cmp_size, struct trad_enc_ctx *decrypt, unsigned level,
-	uint64_t *cmp_bytes_read);
+int reduce_init(struct reduce_desc **desc, unsigned level);
 void reduce_free(struct reduce_desc **desc);
-int reduce_read(struct reduce_desc *desc, uint8_t bytes[], size_t num_bytes,
-	size_t *bytes_read, uint64_t *cmp_bytes_read);
+int reduce_read(struct reduce_desc *desc, struct zip_legacy_io *io);
 
 /* Current state of sliding window */
 struct lz77_window {
