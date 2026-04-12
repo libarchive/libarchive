@@ -1691,7 +1691,7 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 		default:
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
-			    "%s decompression failed(%d)",
+			    "%s decompression failed (%d)",
 			    (xar->entry_encoding == XZ)?"xz":"lzma",
 			    r);
 			return (ARCHIVE_FATAL);

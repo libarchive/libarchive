@@ -148,7 +148,7 @@ __archive_check_magic(struct archive *a, unsigned int magic,
 	if (!handle_type) {
 		errmsg("PROGRAMMER ERROR: Function ");
 		errmsg(function);
-		errmsg(" invoked with invalid archive handle.\n");
+		errmsg(" invoked with invalid archive handle\n");
 		diediedie();
 	}
 

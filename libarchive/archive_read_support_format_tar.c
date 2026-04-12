@@ -2255,12 +2255,12 @@ pax_attribute_SCHILY_acl(struct archive_read *a, struct tar *tar,
 	if (r != ARCHIVE_OK) {
 		if (r == ARCHIVE_FATAL) {
 			archive_set_error(&a->archive, ENOMEM,
-			    "%s %s", "Can't allocate memory for ",
+			    "%s %s", "Can't allocate memory for",
 			    errstr);
 			return (r);
 		}
 		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_MISC, "%s %s", "Parse error: ", errstr);
+		    ARCHIVE_ERRNO_MISC, "%s %s", "Parse error:", errstr);
 	}
 	return (r);
 }
