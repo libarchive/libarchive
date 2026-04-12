@@ -475,6 +475,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_ar.c \
 	libarchive/test/test_read_format_cab.c \
 	libarchive/test/test_read_format_cab_filename.c \
+	libarchive/test/test_read_format_cab_lzx_oob.c \
 	libarchive/test/test_read_format_cpio_afio.c \
 	libarchive/test/test_read_format_cpio_bin.c \
 	libarchive/test/test_read_format_cpio_bin_Z.c \
@@ -530,6 +531,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar_invalid1.c \
 	libarchive/test/test_read_format_rar_overflow.c \
 	libarchive/test/test_read_format_rar5.c \
+	libarchive/test/test_read_format_rar5_loop_bug.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
 	libarchive/test/test_read_format_tar_V_negative_size.c \
@@ -590,6 +592,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_tar_large.c \
 	libarchive/test/test_ustar_filenames.c \
 	libarchive/test/test_ustar_filename_encoding.c \
+	libarchive/test/test_v7tar_filename_encoding.c \
 	libarchive/test/test_warn_missing_hardlink_target.c \
 	libarchive/test/test_write_disk.c \
 	libarchive/test/test_write_disk_appledouble.c \
@@ -851,6 +854,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_2.cab.uu \
 	libarchive/test/test_read_format_cab_3.cab.uu \
 	libarchive/test/test_read_format_cab_filename_cp932.cab.uu \
+	libarchive/test/test_read_format_cab_lzx_oob.cab.uu \
 	libarchive/test/test_read_format_cpio_bin_be.cpio.uu \
 	libarchive/test/test_read_format_cpio_bin_le.cpio.uu \
 	libarchive/test/test_read_format_cpio_filename_cp866.cpio.uu \
@@ -953,6 +957,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_invalid_dict_reference.rar.uu \
 	libarchive/test/test_read_format_rar5_leftshift1.rar.uu \
 	libarchive/test/test_read_format_rar5_leftshift2.rar.uu \
+	libarchive/test/test_read_format_rar5_loop_bug.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part01.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part02.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part03.rar.uu \
@@ -1089,11 +1094,13 @@ libarchive_test_EXTRA_DIST=\
 #
 noinst_HEADERS+= \
 	libarchive_fe/lafe_err.h \
+	libarchive_fe/lafe_getline.h \
 	libarchive_fe/lafe_platform.h \
 	libarchive_fe/line_reader.h \
 	libarchive_fe/passphrase.h
 libarchive_fe_la_SOURCES= \
 	libarchive_fe/lafe_err.c \
+	libarchive_fe/lafe_getline.c \
 	libarchive_fe/line_reader.c \
 	libarchive_fe/passphrase.c
 
@@ -1557,12 +1564,10 @@ bsdcat_test_EXTRA_DIST= \
 noinst_HEADERS+= \
 	unzip/bsdunzip.h \
 	unzip/bsdunzip_platform.h \
-	unzip/la_getline.h \
 	unzip/la_queue.h
 bsdunzip_SOURCES= \
 	unzip/bsdunzip.c \
-	unzip/cmdline.c \
-	unzip/la_getline.c
+	unzip/cmdline.c
 
 if INC_WINDOWS_FILES
 noinst_HEADERS+=
