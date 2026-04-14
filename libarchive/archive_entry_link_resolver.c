@@ -158,8 +158,6 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 void
 archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 {
-	const struct links_entry *le;
-
 	if (res == NULL)
 		return;
 
