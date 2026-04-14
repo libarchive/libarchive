@@ -163,8 +163,10 @@ archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 	if (res == NULL)
 		return;
 
-	while ((le = next_entry(res, NEXT_ENTRY_ALL)) != NULL)
-		archive_entry_free(le->entry);
+	/* Finish walking the entries; next_entry() frees each
+	 * entry after it is visited. */
+	while ((le = next_entry(res, NEXT_ENTRY_ALL)) != NULL) {
+	}
 	free(res->buckets);
 	free(res);
 }
