@@ -158,13 +158,12 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 void
 archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 {
-	struct links_entry *le;
-
 	if (res == NULL)
 		return;
 
-	while ((le = next_entry(res, NEXT_ENTRY_ALL)) != NULL)
-		archive_entry_free(le->entry);
+	while (next_entry(res, NEXT_ENTRY_ALL) != NULL) {
+		/* Actual freeing done by next_entry() */
+	}
 	free(res->buckets);
 	free(res);
 }
