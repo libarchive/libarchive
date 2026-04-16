@@ -476,6 +476,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_cab.c \
 	libarchive/test/test_read_format_cab_filename.c \
 	libarchive/test/test_read_format_cab_lzx_oob.c \
+	libarchive/test/test_read_format_cab_skip_malformed.c \
 	libarchive/test/test_read_format_cpio_afio.c \
 	libarchive/test/test_read_format_cpio_bin.c \
 	libarchive/test/test_read_format_cpio_bin_Z.c \
@@ -855,6 +856,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_3.cab.uu \
 	libarchive/test/test_read_format_cab_filename_cp932.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_oob.cab.uu \
+	libarchive/test/test_read_format_cab_skip_malformed.cab.uu \
 	libarchive/test/test_read_format_cpio_bin_be.cpio.uu \
 	libarchive/test/test_read_format_cpio_bin_le.cpio.uu \
 	libarchive/test/test_read_format_cpio_filename_cp866.cpio.uu \
