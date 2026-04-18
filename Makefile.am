@@ -698,7 +698,7 @@ libarchive/test/list.h: $(libarchive_test_SOURCES)
 	$(MKDIR_P) libarchive/test
 	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
-libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
+libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG DFLTCC=0
 
 libarchive_test_EXTRA_DIST=\
 	libarchive/test/list.h \

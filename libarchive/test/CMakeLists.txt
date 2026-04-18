@@ -349,7 +349,9 @@ IF(ENABLE_TEST)
                               -r ${CMAKE_CURRENT_SOURCE_DIR}
                               -s
                               ${_testname})
-    SET_TESTS_PROPERTIES(libarchive_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
+    SET_TESTS_PROPERTIES(libarchive_${_testname} PROPERTIES
+                         SKIP_RETURN_CODE 2
+                         ENVIRONMENT "LRZIP=NOCONFIG;DFLTCC=0")
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
