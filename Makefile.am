@@ -64,6 +64,11 @@ dist-hook:
 	-rm -f $(distdir)/*/Makefile $(distdir)/*/*/Makefile
 	cd $(distdir)/doc && /bin/sh update.sh
 
+# Verify dist includes all files needed by CMake
+distcheck-hook:
+	mkdir $(distdir)/_build/cmake
+	cd $(distdir)/_build/cmake && cmake ../.. && make && make test
+
 #
 # Extra rules for cleanup
 #
