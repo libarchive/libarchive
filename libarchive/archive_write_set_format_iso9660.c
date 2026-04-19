@@ -4916,10 +4916,10 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 					--rp;
 				}
 				if (rp > dirname) {
-					strcpy(rp, p+3);
+					memmove(rp, p + 3, strlen(p + 3) + 1);
 					p = rp;
 				} else {
-					strcpy(dirname, p+4);
+					memmove(dirname, p + 4, strlen(p + 4) + 1);
 					p = dirname;
 				}
 			} else
