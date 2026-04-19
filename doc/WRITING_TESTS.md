@@ -34,54 +34,54 @@ Many tests also involve an associated reference or sample input file, which is t
 /* The test name typically matches the name of the `.c` source file. */
 DEFINE_TEST(test_foo)
 {
-    /* The file in the repository is named "test_foo.tar.uu". */
-    /* The `refname` here omits the `.uu` suffix. */
-    /* The base filename should match the test name. */
-    const char *refname = "test_foo.tar";
+	/* The file in the repository is named "test_foo.tar.uu". */
+	/* The `refname` here omits the `.uu` suffix. */
+	/* The base filename should match the test name. */
+	const char *refname = "test_foo.tar";
 
-    struct archive *a;
-    struct archive_entry *ae;
-    int r;
+	struct archive *a;
+	struct archive_entry *ae;
+	int r;
 
-    /* Each test runs in a private temporary directory. */
+	/* Each test runs in a private temporary directory. */
 
-    /* If you have a binary archive sample, extract it first. */
-    extract_reference_file(refname);
+	/* If you have a binary archive sample, extract it first. */
+	extract_reference_file(refname);
 
-    /* Create and configure a suitable archive handle. */
-    assert((a = archive_read_new()) != NULL);
-    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	/* Create and configure a suitable archive handle. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 
-    /* Open the extracted reference file. */
-    assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+	/* Open the extracted reference file. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
 
-    /* Perform whatever tests are appropriate. */
+	/* Perform whatever tests are appropriate. */
 
-    /* For example, when fixing a crash in libarchive, it
-     * may suffice for a test to simply read all the entries and
-     * their contents, as shown below.
-     * If errors are expected, you may need to unroll the following
-     * in order to perform specific checks for each entry. */
-    while ((r = archive_read_next_header(a, &ae)) == ARCHIVE_OK) {
-        const void *pv;
-	size_t s;
-	int64_t o;
+	/* For example, when fixing a crash in libarchive, it
+	 * may suffice for a test to simply read all the entries and
+	 * their contents, as shown below.
+	 * If errors are expected, you may need to unroll the following
+	 * in order to perform specific checks for each entry. */
+	while ((r = archive_read_next_header(a, &ae)) == ARCHIVE_OK) {
+		const void *pv;
+		size_t s;
+		int64_t o;
 
-        while ((r == archive_read_data_block(a, &pv, &s, &o)) == ARCHIVE_OK) {
-	  /* Verify the data contents if appropriate. */
+		 while ((r == archive_read_data_block(a, &pv, &s, &o)) == ARCHIVE_OK) {
+			/* Verify the data contents if appropriate. */
+		}
+		/* Verify that we exited the loop above on EOF, not on error. */
+		assertEqualIntA(a, ARCHIVE_EOF, r);
 	}
-        /* Verify that we exited the loop above on EOF, not on error. */
+
+	/* We exited the loop above, verify that it's EOF and not an error. */
 	assertEqualIntA(a, ARCHIVE_EOF, r);
-    }
 
-    /* We exited the loop above, verify that it's EOF and not an error. */
-    assertEqualIntA(a, ARCHIVE_EOF, r);
-
-    /* Best practice: Close and free separately to get better
-     * error reporting if close fails. */
-    assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-    assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	/* Best practice: Close and free separately to get better
+	 * error reporting if close fails. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 ```
 
@@ -135,15 +135,15 @@ The full list of available macros is defined in `test_utils/test_common.h`.
 
 **Example usage:**
 ```c
-    /* Read first entry and verify metadata. */
-    assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
-    if (r != ARCHIVE_OK) { ... end the test ... }
+/* Read first entry and verify metadata. */
+assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
+if (r != ARCHIVE_OK) { ... end the test ... }
 
-    assertEqualString("test_file.txt", archive_entry_pathname(ae));
-    assertEqualInt(1197179003, archive_entry_mtime(ae));
-    assertEqualInt(1000, archive_entry_uid(ae));
-    assertEqualString("tim", archive_entry_uname(ae));
-    assertEqualInt(0100644, archive_entry_mode(ae));
+assertEqualString("test_file.txt", archive_entry_pathname(ae));
+assertEqualInt(1197179003, archive_entry_mtime(ae));
+assertEqualInt(1000, archive_entry_uid(ae));
+assertEqualString("tim", archive_entry_uname(ae));
+assertEqualInt(0100644, archive_entry_mode(ae));
 ```
 
 ---
@@ -192,8 +192,8 @@ if (canSymlink()) {
 Or to abort an entire test:
 ```c
 if (!canSymlink()) {
-    skipping("Symlinks not supported on this platform");
-    return;
+	skipping("Symlinks not supported on this platform");
+	return;
 }
 ```
 
