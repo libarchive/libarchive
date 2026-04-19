@@ -4910,16 +4910,19 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 				 *     --> 'dir/dir2/'
 				 */
 				char *rp = p -1;
+				size_t off;
+				for (off = 4; p[off] == '/'; off++)
+					;
 				while (rp >= dirname) {
 					if (*rp == '/')
 						break;
 					--rp;
 				}
 				if (rp > dirname) {
-					memmove(rp, p + 3, strlen(p + 3) + 1);
+					memmove(rp + 1, p + off, strlen(p + off) + 1);
 					p = rp;
 				} else {
-					memmove(dirname, p + 4, strlen(p + 4) + 1);
+					memmove(dirname, p + off, strlen(p + off) + 1);
 					p = dirname;
 				}
 			} else
