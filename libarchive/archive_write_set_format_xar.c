@@ -2272,7 +2272,7 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 static int
 get_path_component(char *name, int n, const char *fn)
 {
-	char *p;
+	const char *p;
 	int l;
 
 	p = strchr(fn, '/');
