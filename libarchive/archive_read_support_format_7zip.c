@@ -174,7 +174,7 @@ struct _7z_digests {
 struct _7z_folder {
 	uint64_t		 numCoders;
 	struct _7z_coder {
-		unsigned long	 codec;
+		uint64_t	 codec;
 		uint64_t	 numInStreams;
 		uint64_t	 numOutStreams;
 		uint64_t	 propertiesSize;
@@ -408,7 +408,7 @@ static int	archive_read_format_7zip_read_data_skip(struct archive_read *);
 static int	archive_read_format_7zip_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	check_7zip_header_in_sfx(const char *);
-static unsigned long decode_codec_id(const unsigned char *, size_t);
+static int  decode_codec_id(const unsigned char *, size_t, uint64_t *);
 static int	decode_encoded_header_info(struct archive_read *,
 		    struct _7z_stream_info *);
 static int	decompress(struct archive_read *, struct _7zip *,
@@ -1281,17 +1281,20 @@ set_error(struct archive_read *a, int ret)
 
 #endif
 
-static unsigned long
-decode_codec_id(const unsigned char *codecId, size_t id_size)
+static int
+decode_codec_id(const unsigned char *codecId, size_t id_size, uint64_t *id)
 {
 	unsigned i;
-	unsigned long id = 0;
+	uint64_t v = 0;
 
 	for (i = 0; i < id_size; i++) {
-		id <<= 8;
-		id += codecId[i];
+		if (v > (uint64_t)INT64_MAX / 256)
+			return (-1);
+		v <<= 8;
+		v += codecId[i];
 	}
-	return (id);
+	*id = v;
+	return (0);
 }
 
 static Byte
@@ -2279,7 +2282,8 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 		if ((p = header_bytes(a, codec_size)) == NULL)
 			return (-1);
 
-		f->coders[i].codec = decode_codec_id(p, codec_size);
+		if (decode_codec_id(p, codec_size, &f->coders[i].codec) < 0)
+			return (-1);
 
 		if (simple) {
 			f->coders[i].numInStreams = 1;
