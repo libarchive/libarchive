@@ -6736,7 +6736,12 @@ isoent_rr_move_dir(struct archive_write *a, struct isoent **rr_moved,
 	/*
 	 * The mvent becomes a child of the rr_moved entry.
 	 */
-	isoent_add_child_tail(rrmoved, mvent);
+	if (!isoent_add_child_tail(rrmoved, mvent)) {
+		_isoent_free(mvent);
+		archive_set_error((struct archive *)a, ARCHIVE_ERRNO_MISC,
+		    "unable to add rr_moved rockridge entry");
+		return (ARCHIVE_FATAL);
+	}
 	archive_entry_set_nlink(rrmoved->file->entry,
 	    archive_entry_nlink(rrmoved->file->entry) + 1);
 	/*
