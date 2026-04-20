@@ -70,8 +70,6 @@
 #endif
 #endif
 
-#define _PATH_STDIO "-"
-
 #ifdef __MINGW32__
 int _CRT_glob = 0; /* Disable broken CRT globbing. */
 #endif
@@ -220,9 +218,6 @@ main(int argc, char **argv)
 		}
 	}
 #endif
-	if (bsdtar->filename == NULL) {
-		bsdtar->filename = _PATH_STDIO;
-	}
 
 	/* Default block size settings. */
 	bsdtar->bytes_per_block = DEFAULT_BYTES_PER_BLOCK;
@@ -940,6 +935,7 @@ main(int argc, char **argv)
 		only_mode(bsdtar, "--check-links", "cr");
 
 	if ((bsdtar->flags & OPTFLAG_AUTO_COMPRESS) &&
+	    bsdtar->filename != NULL && *bsdtar->filename != '\0' &&
 	    cset_auto_compress(bsdtar->cset, bsdtar->filename)) {
 		/* Ignore specified compressions if auto-compress works. */
 		compression = '\0';
@@ -993,13 +989,14 @@ main(int argc, char **argv)
 	 * It is relevant for extraction or listing.
 	 */
 	archive_match_set_inclusion_recursion(bsdtar->matching,
-					      !(bsdtar->flags & OPTFLAG_NO_SUBDIRS));
+	    !(bsdtar->flags & OPTFLAG_NO_SUBDIRS));
 
 	/* Filename "-" implies stdio. */
-	if (strcmp(bsdtar->filename, "-") == 0)
+	if (bsdtar->filename != NULL &&
+	    (*bsdtar->filename == '\0' || strcmp(bsdtar->filename, "-") == 0))
 		bsdtar->filename = NULL;
 
-	switch(bsdtar->mode) {
+	switch (bsdtar->mode) {
 	case 'c':
 		tar_mode_c(bsdtar);
 		break;

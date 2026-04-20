@@ -658,9 +658,6 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	const char *filename = raw_filename;
 	int rc;
 
-	if (strcmp(filename, "-") == 0)
-		filename = NULL; /* Library uses NULL for stdio. */
-
 	ina = archive_read_new();
 	archive_read_support_format_all(ina);
 	archive_read_support_filter_all(ina);
