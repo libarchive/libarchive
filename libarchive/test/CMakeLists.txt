@@ -280,6 +280,7 @@ IF(ENABLE_TEST)
     test_write_format_iso9660_boot.c
     test_write_format_iso9660_empty.c
     test_write_format_iso9660_filename.c
+    test_write_format_iso9660_joliet_id.c
     test_write_format_iso9660_zisofs.c
     test_write_format_mtree.c
     test_write_format_mtree_absolute_path.c
