@@ -2009,6 +2009,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		/* Consume size, name, and `=` */
 		*unconsumed += p - attr_start;
 		if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+			archive_string_free(&attr_name);
 			return (ARCHIVE_FATAL);
 		}
 
@@ -2016,6 +2017,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			archive_set_error(&a->archive, EINVAL,
 					  "Malformed pax attributes");
 			*unconsumed += ext_size + ext_padding;
+			archive_string_free(&attr_name);
 			return (ARCHIVE_WARN);
 		}
 
