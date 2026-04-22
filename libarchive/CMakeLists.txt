@@ -170,6 +170,11 @@ SET(libarchive_SOURCES
   archive_write_set_options.c
   archive_write_set_passphrase.c
   archive_xxhash.h
+  archive_zip_legacy_implode.c
+  archive_zip_legacy_reduce.c
+  archive_zip_legacy_shrink.c
+  archive_zip_legacy_common.c
+  archive_zip_legacy.h
   filter_fork_posix.c
   filter_fork.h
   xxhash.c

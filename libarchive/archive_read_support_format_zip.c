@@ -42,6 +42,8 @@
  * refactoring) was added in 2014.
  */
 
+#include <assert.h>
+
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -73,6 +75,10 @@
 #include "archive_read_private.h"
 #include "archive_time_private.h"
 #include "archive_ppmd8_private.h"
+
+#if HAVE_LEGACY
+#include "archive_zip_legacy.h"
+#endif
 
 #ifndef HAVE_ZLIB_H
 #include "archive_crc32.h"
@@ -205,6 +211,17 @@ struct zip {
 	char            zstdstream_valid;
 #endif
 
+#if HAVE_LEGACY
+	struct implode_desc *implode;
+	char                implode_valid;
+
+	struct shrink_desc *shrink;
+	char                shrink_valid;
+
+	struct reduce_desc *reduce;
+	char                reduce_valid;
+#endif
+
 	IByteIn			zipx_ppmd_stream;
 	ssize_t			zipx_ppmd_read_compressed;
 	CPpmd8			ppmd8;
@@ -270,6 +287,11 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 static int
 zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	size_t *size, int64_t *offset);
+#endif
+#if defined(HAVE_ZLIB_H) || defined(HAVE_LEGACY)
+static void zip_decrypt_data(struct zip *zip, ssize_t *bytes_avail,
+	const void **compressed_buff);
+static int zip_decrypt_update(struct archive_read *a, const void *sp, ssize_t to_consume);
 #endif
 
 /* This function is used by Ppmd8_DecodeSymbol during decompression of Ppmd8
@@ -1711,6 +1733,171 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 	return (ARCHIVE_OK);
 }
 
+#if HAVE_LEGACY
+static int
+zip_read_data_legacy(struct archive_read *a, const void **buff,
+    size_t *size, int64_t *offset)
+{
+	struct zip *zip;
+	int r;
+	struct zip_legacy_io io;
+	const void *compressed_buff;
+	const void *sp;
+	ssize_t bytes_avail;
+	ssize_t to_consume;
+	const char *encoding = "";
+
+	(void)offset; /* UNUSED */
+
+	zip = (struct zip *)(a->format->data);
+
+	/* Name the compression method, for messages */
+	switch(zip->entry->compression) {
+	case 1:
+		encoding = "shrink";
+		break;
+
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		encoding = "reduce";
+		break;
+
+	case 6:
+		encoding = "implode";
+		break;
+
+	default:
+		assert(0);
+	}
+
+	if (zip->entry->zip_flags & ZIP_LENGTH_AT_END) {
+		/* The legacy encodings don't have an end of file marker */
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			"Invalid options flags set for %s", encoding);
+		return (ARCHIVE_FATAL);
+	}
+
+	/* If the buffer hasn't been allocated, allocate it now. */
+	if (zip->uncompressed_buffer == NULL) {
+		zip->uncompressed_buffer_size = 256 * 1024;
+		zip->uncompressed_buffer
+		    = malloc(zip->uncompressed_buffer_size);
+		if (zip->uncompressed_buffer == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for %s decompression", encoding);
+			return (ARCHIVE_FATAL);
+		}
+	}
+
+	/* Initialize decompression context if we're here for the first time. */
+	if (!zip->decompress_init) {
+		switch(zip->entry->compression) {
+		case 1:
+			r = shrink_init(&zip->shrink);
+			break;
+
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+			r = reduce_init(&zip->reduce, zip->entry->compression - 1);
+			break;
+
+		case 6:
+			r = implode_init(&zip->implode, zip->entry->zip_flags);
+			break;
+
+		default:
+			assert(0);
+		}
+		if(r != ARCHIVE_OK) {
+			archive_set_error(&a->archive, -1, "%s",
+				zip_legacy_error(r));
+			return ARCHIVE_FATAL;
+		}
+		zip->decompress_init = 1;
+		zip->implode_valid = 1;
+	}
+
+	/*
+	 * Note: '1' here is a performance optimization.
+	 * Recall that the decompression layer returns a count of
+	 * available bytes; asking for more than that forces the
+	 * decompressor to combine reads by copying data.
+	 */
+	compressed_buff = sp = __archive_read_ahead(a, 1, &bytes_avail);
+	if (bytes_avail < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated ZIP file body");
+		return (ARCHIVE_FATAL);
+	}
+	if (bytes_avail > zip->entry_bytes_remaining) {
+		bytes_avail = (ssize_t)zip->entry_bytes_remaining;
+	}
+
+	/* Decrypt if indicated */
+	zip_decrypt_data(zip, &bytes_avail, &compressed_buff);
+
+	io.next_in = compressed_buff;
+	io.avail_in = bytes_avail;
+	io.total_in = 0;
+	io.next_out = zip->uncompressed_buffer;
+	io.avail_out = zip->uncompressed_buffer_size;
+	io.total_out = 0;
+	if (io.avail_out > (uintmax_t)(zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read)) {
+		io.avail_out = zip->entry->uncompressed_size - zip->entry_uncompressed_bytes_read;
+	}
+
+	switch(zip->entry->compression) {
+	case 1:
+		r = shrink_read(zip->shrink, &io);
+		break;
+
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		r = reduce_read(zip->reduce, &io);
+		break;
+
+	case 6:
+		r = implode_read(zip->implode, &io);
+		break;
+
+	default:
+		assert(0);
+	}
+
+	/* Consume as much as the compressor actually used */
+	to_consume = io.total_in;
+	__archive_read_consume(a, to_consume);
+	zip->entry_bytes_remaining -= to_consume;
+	zip->entry_compressed_bytes_read += to_consume;
+	zip->entry_uncompressed_bytes_read += io.total_out;
+
+	if (r == ARCHIVE_EOF) {
+		zip->end_of_entry = 1;
+	} else if (r != ARCHIVE_OK) {
+		archive_set_error(&a->archive, -1, "%s", zip_legacy_error(r));
+		return (ARCHIVE_FATAL);
+	} else if (zip->entry_uncompressed_bytes_read >= zip->entry->uncompressed_size) {
+		zip->end_of_entry = 1;
+	}
+
+	/* Update decryption state */
+	r = zip_decrypt_update(a, sp, to_consume);
+	if (r != ARCHIVE_OK) {
+		return (r);
+	}
+
+	*size = io.total_out;
+	*buff = zip->uncompressed_buffer;
+	return ARCHIVE_OK;
+}
+#endif /* HAVE_LEGACY */
+
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 static int
 zipx_xz_init(struct archive_read *a, struct zip *zip)
@@ -2584,54 +2771,8 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 		return (ARCHIVE_FATAL);
 	}
 
-	if (zip->tctx_valid || zip->cctx_valid) {
-		if (zip->decrypted_bytes_remaining < (size_t)bytes_avail) {
-			size_t buff_remaining =
-			    (zip->decrypted_buffer +
-			    zip->decrypted_buffer_size)
-			    - (zip->decrypted_ptr +
-			    zip->decrypted_bytes_remaining);
-
-			if (buff_remaining > (size_t)bytes_avail)
-				buff_remaining = (size_t)bytes_avail;
-
-			if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END) &&
-			      zip->entry_bytes_remaining > 0) {
-				if ((int64_t)(zip->decrypted_bytes_remaining
-				    + buff_remaining)
-				      > zip->entry_bytes_remaining) {
-					if (zip->entry_bytes_remaining <
-					    (int64_t)zip->decrypted_bytes_remaining)
-						buff_remaining = 0;
-					else
-						buff_remaining =
-						    (size_t)zip->entry_bytes_remaining
-						    - zip->decrypted_bytes_remaining;
-				}
-			}
-			if (buff_remaining > 0) {
-				if (zip->tctx_valid) {
-					trad_enc_decrypt_update(&zip->tctx,
-					    compressed_buff, buff_remaining,
-					    zip->decrypted_ptr
-					      + zip->decrypted_bytes_remaining,
-					    buff_remaining);
-				} else {
-					size_t dsize = buff_remaining;
-					archive_decrypto_aes_ctr_update(
-					    &zip->cctx,
-					    compressed_buff, buff_remaining,
-					    zip->decrypted_ptr
-					      + zip->decrypted_bytes_remaining,
-					    &dsize);
-				}
-				zip->decrypted_bytes_remaining +=
-				    buff_remaining;
-			}
-		}
-		bytes_avail = zip->decrypted_bytes_remaining;
-		compressed_buff = (const char *)zip->decrypted_ptr;
-	}
+	/* Decrypt if indicated */
+	zip_decrypt_data(zip, &bytes_avail, &compressed_buff);
 
 	/*
 	 * A bug in zlib.h: stream.next_in should be marked 'const'
@@ -2670,6 +2811,80 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	zip->entry_compressed_bytes_read += to_consume;
 	zip->entry_uncompressed_bytes_read += zip->stream.total_out;
 
+	/* Update decryption state */
+	r = zip_decrypt_update(a, sp, to_consume);
+	if (r != ARCHIVE_OK) {
+		return (r);
+	}
+
+	*size = zip->stream.total_out;
+	*buff = zip->uncompressed_buffer;
+
+	return (ARCHIVE_OK);
+}
+#endif
+
+#if defined(HAVE_ZLIB_H) || defined(HAVE_LEGACY)
+static void
+zip_decrypt_data(struct zip *zip, ssize_t *bytes_avail,
+	const void **compressed_buff)
+{
+	if (zip->tctx_valid || zip->cctx_valid) {
+		if (zip->decrypted_bytes_remaining < (size_t)*bytes_avail) {
+			size_t buff_remaining =
+			    (zip->decrypted_buffer +
+			    zip->decrypted_buffer_size)
+			    - (zip->decrypted_ptr +
+			    zip->decrypted_bytes_remaining);
+
+			if (buff_remaining > (size_t)*bytes_avail)
+				buff_remaining = (size_t)*bytes_avail;
+
+			if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END) &&
+			      zip->entry_bytes_remaining > 0) {
+				if ((int64_t)(zip->decrypted_bytes_remaining
+				    + buff_remaining)
+				      > zip->entry_bytes_remaining) {
+					if (zip->entry_bytes_remaining <
+					    (int64_t)zip->decrypted_bytes_remaining)
+						buff_remaining = 0;
+					else
+						buff_remaining =
+						    (size_t)zip->entry_bytes_remaining
+						    - zip->decrypted_bytes_remaining;
+				}
+			}
+			if (buff_remaining > 0) {
+				if (zip->tctx_valid) {
+					trad_enc_decrypt_update(&zip->tctx,
+					    *compressed_buff, buff_remaining,
+					    zip->decrypted_ptr
+					      + zip->decrypted_bytes_remaining,
+					    buff_remaining);
+				} else {
+					size_t dsize = buff_remaining;
+					archive_decrypto_aes_ctr_update(
+					    &zip->cctx,
+					    *compressed_buff, buff_remaining,
+					    zip->decrypted_ptr
+					      + zip->decrypted_bytes_remaining,
+					    &dsize);
+				}
+				zip->decrypted_bytes_remaining +=
+				    buff_remaining;
+			}
+		}
+		*bytes_avail = zip->decrypted_bytes_remaining;
+		*compressed_buff = (const char *)zip->decrypted_ptr;
+	}
+}
+
+static int
+zip_decrypt_update(struct archive_read *a, const void *sp, ssize_t to_consume)
+{
+	struct zip *zip = (struct zip *)(a->format->data);
+	int r = 0;
+
 	if (zip->tctx_valid || zip->cctx_valid) {
 		zip->decrypted_bytes_remaining -= to_consume;
 		if (zip->decrypted_bytes_remaining == 0)
@@ -2683,18 +2898,12 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	if (zip->end_of_entry) {
 		if (zip->hctx_valid) {
 			r = check_authentication_code(a, NULL);
-			if (r != ARCHIVE_OK) {
-				return (r);
-			}
 		}
 	}
 
-	*size = zip->stream.total_out;
-	*buff = zip->uncompressed_buffer;
-
-	return (ARCHIVE_OK);
+	return r;
 }
-#endif
+#endif /* defined(HAVE_ZLIB_H) || defined(HAVE_LEGACY) */
 
 static int
 read_decryption_header(struct archive_read *a)
@@ -3118,6 +3327,16 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	case 0:  /* No compression. */
 		r =  zip_read_data_none(a, buff, size, offset);
 		break;
+#if HAVE_LEGACY
+	case 1:	 /* Shrink */
+	case 2:  /* Reduce */
+	case 3:
+	case 4:
+	case 5:
+	case 6:	 /* Implode */
+		r = zip_read_data_legacy(a, buff, size, offset);
+		break;
+#endif
 #ifdef HAVE_BZLIB_H
 	case 12: /* ZIPx bzip2 compression. */
 		r = zip_read_data_zipx_bzip2(a, buff, size, offset);
@@ -3210,6 +3429,15 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 	struct zip_entry *zip_entry, *next_zip_entry;
 
 	zip = (struct zip *)(a->format->data);
+
+#if HAVE_LEGACY
+	if (zip->implode_valid)
+		implode_free(&zip->implode);
+	if (zip->shrink_valid)
+		shrink_free(&zip->shrink);
+	if (zip->reduce_valid)
+		reduce_free(&zip->reduce);
+#endif
 
 #ifdef HAVE_ZLIB_H
 	if (zip->stream_valid)
