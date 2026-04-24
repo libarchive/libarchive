@@ -1755,13 +1755,14 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 
 			tag = 0;
 			s = field[n].start;
-			st = field[n].start + 1;
 			len = field[n].end - field[n].start;
 
 			if (len == 0) {
 				ret = ARCHIVE_WARN;
 				continue;
 			}
+
+			st = s + 1; 
 
 			switch (*s) {
 			case 'u':

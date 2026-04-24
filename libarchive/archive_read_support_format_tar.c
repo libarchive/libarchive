@@ -1202,7 +1202,7 @@ set_conversion_failed_error(struct archive_read *a,
 		return (ARCHIVE_FATAL);
 	}
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-	    "%s can't be converted from %s to current locale.",
+	    "%s can't be converted from %s to current locale",
 	    name, archive_string_conversion_charset_name(sconv));
 	return (ARCHIVE_WARN);
 }
@@ -2009,6 +2009,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		/* Consume size, name, and `=` */
 		*unconsumed += p - attr_start;
 		if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
+			archive_string_free(&attr_name);
 			return (ARCHIVE_FATAL);
 		}
 
@@ -2016,6 +2017,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			archive_set_error(&a->archive, EINVAL,
 					  "Malformed pax attributes");
 			*unconsumed += ext_size + ext_padding;
+			archive_string_free(&attr_name);
 			return (ARCHIVE_WARN);
 		}
 
@@ -2255,12 +2257,12 @@ pax_attribute_SCHILY_acl(struct archive_read *a, struct tar *tar,
 	if (r != ARCHIVE_OK) {
 		if (r == ARCHIVE_FATAL) {
 			archive_set_error(&a->archive, ENOMEM,
-			    "%s %s", "Can't allocate memory for ",
+			    "%s %s", "Can't allocate memory for",
 			    errstr);
 			return (r);
 		}
 		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_MISC, "%s %s", "Parse error: ", errstr);
+		    ARCHIVE_ERRNO_MISC, "%s %s", "Parse error:", errstr);
 	}
 	return (r);
 }

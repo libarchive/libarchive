@@ -114,6 +114,7 @@ IF(ENABLE_TEST)
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c
+    test_read_format_cab_lzx_oob.c
     test_read_format_cab_skip_malformed.c
     test_read_format_cpio_afio.c
     test_read_format_cpio_bin.c
@@ -152,6 +153,7 @@ IF(ENABLE_TEST)
     test_read_format_isorr_new_bz2.c
     test_read_format_isorr_rr_moved.c
     test_read_format_isozisofs_bz2.c
+    test_read_format_iso_zisofs_overflow.c
     test_read_format_lha.c
     test_read_format_lha_bugfix_0.c
     test_read_format_lha_filename.c

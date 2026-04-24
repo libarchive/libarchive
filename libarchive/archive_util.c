@@ -42,13 +42,11 @@
 #include <string.h>
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#if defined(HAVE_BCRYPT_H)
 #include <bcrypt.h>
 
 /* Common in other bcrypt implementations, but missing from VS2008. */
 #ifndef BCRYPT_SUCCESS
 #define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
-#endif
 #endif
 #endif
 #ifdef HAVE_ZLIB_H

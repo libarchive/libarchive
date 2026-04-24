@@ -9,6 +9,7 @@
 *.lo
 *.recipe
 *.sln
+*.slnx
 *.tlog
 *.cmake
 *.vcxproj
@@ -27,6 +28,8 @@ bsdcat
 bsdcpio
 bsdtar
 bsdunzip
+build/.ninja_deps
+build/.ninja_log
 build/autoconf/compile
 build/autoconf/config.guess
 build/autoconf/config.sub
@@ -39,8 +42,10 @@ build/autoconf/ltsugar.m4
 build/autoconf/ltversion.m4
 build/autoconf/lt~obsolete.m4
 build/autoconf/missing
+build/build.ninja
 build/build/pkgconfig/libarchive.pc
 build/cat/test/list.h
+build/compile_commands.json
 build/cpio/test/list.h
 build/libarchive/test/list.h
 build/pkgconfig/libarchive.pc
@@ -80,9 +85,9 @@ libarchive-*.tar.gz
 libarchive-*.zip
 
 Testing/
-libarchive/libarchive.a
-libarchive/libarchive.so
-libarchive/libarchive.so.*
+**/libarchive/libarchive.a
+**/libarchive/libarchive.so
+**/libarchive/libarchive.so.*
 
 .DS_Store
 

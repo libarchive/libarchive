@@ -154,7 +154,7 @@ DEFINE_TEST(test_write_format_iso9660)
 	archive_entry_set_birthtime(ae, 3, 30);
 	archive_entry_set_ctime(ae, 4, 40);
 	archive_entry_set_mtime(ae, 5, 50);
-	archive_entry_copy_pathname(ae, "dir0/dir1/file1");
+	archive_entry_copy_pathname(ae, "dir0/../../dir0/dir1/file1");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
 	archive_entry_set_nlink(ae, 1);
@@ -170,7 +170,7 @@ DEFINE_TEST(test_write_format_iso9660)
 	archive_entry_set_birthtime(ae, 3, 30);
 	archive_entry_set_ctime(ae, 4, 40);
 	archive_entry_set_mtime(ae, 5, 50);
-	archive_entry_copy_pathname(ae, "dir0/dir1/file2");
+	archive_entry_copy_pathname(ae, "dir0/..//dir0/dir1/file2");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
 	archive_entry_set_nlink(ae, 1);
