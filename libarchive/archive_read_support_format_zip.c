@@ -1775,7 +1775,7 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	 * "lzma alone" decoder from XZ Utils. */
 
 	memset(&zip->zipx_lzma_stream, 0, sizeof(zip->zipx_lzma_stream));
-	r = lzma_alone_decoder(&zip->zipx_lzma_stream, UINT64_MAX);
+	r = lzma_alone_decoder(&zip->zipx_lzma_stream, 576 * ((uint64_t)1 << 20));
 	if (r != LZMA_OK) {
 		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
 		    "lzma initialization failed (%d)", r);
@@ -1868,8 +1868,12 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	 * output bytes yet. */
 	r = lzma_code(&zip->zipx_lzma_stream, LZMA_RUN);
 	if (r != LZMA_OK) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "lzma stream initialization error");
+		if (r == LZMA_MEMLIMIT_ERROR)
+			archive_set_error(&a->archive, ENOMEM,
+			    "lzma stream requires too much memory");
+		else
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+			    "lzma stream initialization error");
 		return ARCHIVE_FATAL;
 	}
 
