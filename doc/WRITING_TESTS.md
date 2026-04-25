@@ -11,13 +11,15 @@ These are located in the `test` directory underneath the component directory
 
 The most common reason that we fail to accept patches to libarchive
 is because the patch lacks suitable new tests.
-Almost all changes should be accompanied with a new test case,
+Almost all changes should be accompanied with a new or updated test case,
 and if the change is non-trivial it will likely require several
 tests to verify the full range of new behavior.
-A new format or filter will likely require dozens of new tests.
+A new format or filter may require dozens of new tests.
 
 The rest of this file explains how to write a new test case and
 add it to the existing test suite.
+Understanding the structure of tests will also help when updating
+or modifying existing tests.
 The RUNNING_TESTS documentation corresponding to your platform
 describes how to build and run the test suite.
 
@@ -217,6 +219,10 @@ Some pointers for making more effective tests:
   Run your new test against the code before and after any
   other changes to ensure the test reproduces the issue and that
   your fix addresses it.
+- **Test, then Fix:**
+  Pull requests should have one or more commits with
+  new or updated unit tests, followed by commits that
+  change functionality.
 - **Verify Error Details:**
   When an API returns `ARCHIVE_WARN` or `ARCHIVE_FATAL`,
   verify the specific error code from `archive_errno()`.
