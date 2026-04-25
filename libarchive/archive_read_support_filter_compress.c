@@ -104,6 +104,7 @@ struct private_data {
 	void			*out_block;
 
 	/* Decompression status variables. */
+	int			 initialized;
 	int			 use_reset_code;
 	int			 end_of_stream;	/* EOF status. */
 	int			 maxcode;	/* Largest code. */
@@ -212,7 +213,6 @@ compress_bidder_init(struct archive_read_filter *self)
 	struct private_data *state;
 	static const size_t out_block_size = 64 * 1024;
 	void *out_block;
-	int code;
 
 	self->code = ARCHIVE_FILTER_COMPRESS;
 	self->name = "compress (.Z)";
@@ -233,14 +233,23 @@ compress_bidder_init(struct archive_read_filter *self)
 	state->out_block = out_block;
 	self->vtable = &compress_reader_vtable;
 
-	/* XXX MOVE THE FOLLOWING OUT OF INIT() XXX */
+	return (ARCHIVE_OK);
+}
+
+static int
+compress_filter_init(struct archive_read_filter *self)
+{
+	struct private_data *state = (struct private_data *)self->data;
+	int code;
+
+	state->initialized = 1;
 
 	(void)getbits(self, 8); /* Skip first signature byte. */
 	(void)getbits(self, 8); /* Skip second signature byte. */
 
 	/* Get compression parameters. */
 	code = getbits(self, 8);
-	if ((code & 0x1f) > 16) {
+	if (code < 0 || (code & 0x1f) > 16) {
 		archive_set_error(&self->archive->archive, -1,
 		    "Invalid compressed data");
 		return (ARCHIVE_FATAL);
@@ -278,6 +287,11 @@ compress_filter_read(struct archive_read_filter *self, const void **pblock)
 	int ret;
 
 	state = (struct private_data *)self->data;
+	if (!state->initialized) {
+		ret = compress_filter_init(self);
+		if (ret != ARCHIVE_OK)
+			return (ret);
+	}
 	if (state->end_of_stream) {
 		*pblock = NULL;
 		return (0);
