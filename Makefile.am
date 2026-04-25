@@ -474,6 +474,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
 	libarchive/test/test_read_format_7zip_encryption_partially.c \
 	libarchive/test/test_read_format_7zip_encryption_header.c \
+	libarchive/test/test_read_format_7zip_entries_oom.c \
 	libarchive/test/test_read_format_7zip_issue2765.c \
 	libarchive/test/test_read_format_7zip_malformed.c \
 	libarchive/test/test_read_format_7zip_packinfo_digests.c \
@@ -828,6 +829,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_encryption.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_header.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_partially.7z.uu \
+	libarchive/test/test_read_format_7zip_entries_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_extract_second.7z.uu \
 	libarchive/test/test_read_format_7zip_issue2765.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1.7z.uu \
