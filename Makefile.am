@@ -508,6 +508,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_gtar_sparse_skip_entry.c \
 	libarchive/test/test_read_format_huge_rpm.c \
 	libarchive/test/test_read_format_iso_Z.c \
+	libarchive/test/test_read_format_iso_joliet_utf16be_overflow.c \
 	libarchive/test/test_read_format_iso_multi_extent.c \
 	libarchive/test/test_read_format_iso_xorriso.c \
 	libarchive/test/test_read_format_isojoliet_bz2.c \
@@ -892,6 +893,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_joliet_by_nero.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet_long.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet_rockridge.iso.Z.uu \
+	libarchive/test/test_read_format_iso_joliet_utf16be_overflow.iso.uu \
 	libarchive/test/test_read_format_iso_multi_extent.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_ce.iso.Z.uu \
