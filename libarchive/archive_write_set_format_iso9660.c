@@ -6343,6 +6343,8 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 			noff = ext_off - 2;
 		else
 			noff = ext_off;
+		if (noff < 0)
+			noff = 0;
 		/* Register entry to the identifier resolver. */
 		idr_register(idr, np, weight, noff);
 	}
