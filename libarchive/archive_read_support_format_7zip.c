@@ -449,7 +449,6 @@ static ssize_t	read_stream(struct archive_read *, const void **, size_t,
 		    size_t);
 static int	seek_pack(struct archive_read *);
 static int64_t	skip_stream(struct archive_read *, size_t);
-static int	skip_sfx(struct archive_read *, const ssize_t);
 static int	get_data_offset(struct archive_read *, int64_t *);
 static ssize_t	find_pe_overlay(struct archive_read *);
 static ssize_t	find_elf_data_sec(struct archive_read *);
@@ -539,7 +538,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 	ssize_t window;
 
 	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL)
-		return (ARCHIVE_FATAL);
+		goto fail;
 
 	/* If first six bytes are the 7-Zip signature,
 	 * return the offset right now. */
@@ -561,7 +560,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 	else if (memcmp(p, "\x7F\x45LF", 4) == 0)
 		min_addr = find_elf_data_sec(a);
 	else
-		return (ARCHIVE_FATAL);
+		goto fail;
 
 	offset = min_addr;
 	window = 4096;
@@ -573,7 +572,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 			/* Remaining bytes are less than window. */
 			window >>= 1;
 			if (window < 0x40)
-				return (ARCHIVE_FATAL);
+				goto fail;
 			continue;
 		}
 		p = buff + offset;
@@ -587,6 +586,9 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 		}
 		offset = p - buff;
 	}
+fail:
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	    "Couldn't find out 7-Zip header");
 	return (ARCHIVE_FATAL);
 }
 
@@ -629,63 +631,6 @@ check_7zip_header_in_sfx(const unsigned char *p)
 	case 0x27: return (1);
 	default: return (6);
 	}
-}
-
-static int
-skip_sfx(struct archive_read *a, const ssize_t min_addr)
-{
-	const unsigned char *h, *p, *q;
-	size_t skip, offset;
-	ssize_t bytes, window;
-
-	if (__archive_read_seek(a, min_addr, SEEK_SET) < 0)
-		return (ARCHIVE_FATAL);
-
-	offset = 0;
-	window = 1;
-	while (offset + window <= SFX_MAX_ADDR - SFX_MIN_ADDR) {
-		h = __archive_read_ahead(a, window, &bytes);
-		if (h == NULL) {
-			/* Remaining bytes are less than window. */
-			window >>= 1;
-			if (window < 0x40)
-				goto fatal;
-			continue;
-		}
-		if (bytes < 6) {
-			/* This case might happen when window == 1. */
-			window = 4096;
-			continue;
-		}
-		p = h;
-		q = p + bytes;
-
-		/*
-		 * Scan ahead until we find something that looks
-		 * like the 7-Zip header.
-		 */
-		while (p + 32 < q) {
-			int step = check_7zip_header_in_sfx(p);
-			if (step == 0) {
-				struct _7zip *zip =
-				    (struct _7zip *)a->format->data;
-				skip = p - h;
-				__archive_read_consume(a, skip);
-				zip->seek_base = min_addr + offset + skip;
-				return (ARCHIVE_OK);
-			}
-			p += step;
-		}
-		skip = p - h;
-		__archive_read_consume(a, skip);
-		offset += skip;
-		if (window == 1)
-			window = 4096;
-	}
-fatal:
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-	    "Couldn't find out 7-Zip header");
-	return (ARCHIVE_FATAL);
 }
 
 static ssize_t
@@ -3255,22 +3200,17 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	uint64_t next_header_size;
 	uint32_t next_header_crc;
 	ssize_t bytes_avail;
+	int64_t data_offset;
 	int check_header_crc, r;
 
+	if (get_data_offset(a, &data_offset) < 0)
+		return (ARCHIVE_FATAL);
+	if (__archive_read_seek(a, data_offset, SEEK_SET) < 0)
+		return (ARCHIVE_FATAL);
 	if ((p = __archive_read_ahead(a, 32, &bytes_avail)) == NULL)
 		return (ARCHIVE_FATAL);
 
-	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
-		/* This is an executable ? Must be self-extracting... */
-		const ssize_t min_addr = p[0] == 'M' ? find_pe_overlay(a) :
-						       find_elf_data_sec(a);
-		r = skip_sfx(a, min_addr);
-		if (r < ARCHIVE_WARN)
-			return (r);
-		if ((p = __archive_read_ahead(a, 32, &bytes_avail)) == NULL)
-			return (ARCHIVE_FATAL);
-	}
-	zip->seek_base += 32;
+	zip->seek_base = data_offset + 32;
 
 	if (memcmp(p, _7ZIP_SIGNATURE, 6) != 0) {
 		archive_set_error(&a->archive, -1, "Not 7-Zip archive file");
