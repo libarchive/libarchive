@@ -67,6 +67,7 @@
 #define SFX_MIN_ADDR	0x27000
 #define SFX_MAX_ADDR	0x60000
 #define SFX_MAX_OFFSET	(SFX_MAX_ADDR - SFX_MIN_ADDR)
+#define SFX_MAX_SEEK	0x800000
 
 /*
  * PE format
@@ -560,7 +561,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 		r = get_elf_sfx_offset(a, &sfx_offset);
 	else
 		r = ARCHIVE_FATAL;
-	if (r < ARCHIVE_WARN)
+	if (r < ARCHIVE_WARN || sfx_offset > SFX_MAX_SEEK)
 		goto fail;
 
 	offset = sfx_offset;
@@ -659,6 +660,9 @@ get_pe_sfx_offset(struct archive_read *a, int64_t *sfx_offset)
 			break;
 		}
 		offset = archive_le32dec(h + PE_DOS_HDR_ELFANEW_OFFSET);
+		if (offset > SFX_MAX_SEEK) {
+			return (ARCHIVE_FATAL);
+		}
 
 		/*
 		 * Read COFF header to find opt header size and sec cnt
@@ -685,6 +689,10 @@ get_pe_sfx_offset(struct archive_read *a, int64_t *sfx_offset)
 			offset += PE_COFF_HDR_LEN + opt_hdr_sz;
 		} else {
 			break;
+		}
+
+		if (offset + sec_cnt * PE_SEC_HDR_LEN > SFX_MAX_SEEK) {
+			return (ARCHIVE_FATAL);
 		}
 
 		/*
@@ -779,6 +787,10 @@ get_elf_sfx_offset(struct archive_read *a, int64_t *sfx_offset)
 				break;
 		}
 
+		if ((int64_t)e_shoff < 0) {
+			return (ARCHIVE_FATAL);
+		}
+
 		/*
 		 * Reading the section table to find strtab section
 		 */
@@ -789,6 +801,9 @@ get_elf_sfx_offset(struct archive_read *a, int64_t *sfx_offset)
 			request = (size_t)e_shnum * e_shentsize + 0x28;
 		} else {
 			request = (size_t)e_shnum * e_shentsize + 0x18;
+		}
+		if (request > SFX_MAX_SEEK) {
+			return (ARCHIVE_FATAL);
 		}
 		h = __archive_read_ahead(a, request, &bytes);
 		if (h == NULL) {
@@ -805,8 +820,9 @@ get_elf_sfx_offset(struct archive_read *a, int64_t *sfx_offset)
 			strtab_size = (*dec32)(
 			    h + e_shstrndx * e_shentsize + 0x14);
 		}
-		if (strtab_size < 6 || strtab_size > SIZE_MAX)
-			break;
+		if ((int64_t)strtab_offset < 0 || strtab_size < 6 ||
+		    strtab_size > SFX_MAX_SEEK)
+			return (ARCHIVE_FATAL);
 
 		/*
 		 * Read the STRTAB section to find the .data offset
