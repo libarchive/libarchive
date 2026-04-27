@@ -407,7 +407,7 @@ static int	archive_read_format_7zip_read_data(struct archive_read *,
 static int	archive_read_format_7zip_read_data_skip(struct archive_read *);
 static int	archive_read_format_7zip_read_header(struct archive_read *,
 		    struct archive_entry *);
-static int	check_7zip_header_in_sfx(const char *);
+static int	check_7zip_header_in_sfx(const unsigned char *);
 static unsigned long decode_codec_id(const unsigned char *, size_t);
 static int	decode_encoded_header_info(struct archive_read *,
 		    struct _7z_stream_info *);
@@ -532,7 +532,7 @@ archive_read_format_7zip_has_encrypted_entries(struct archive_read *_a)
 static int
 archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 {
-	const char *p;
+	const unsigned char *p;
 
 	/* If someone has already bid more than 32, then avoid
 	   trashing the look-ahead buffers with a seek. */
@@ -562,7 +562,7 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 		ssize_t window = 4096;
 		ssize_t bytes_avail;
 		while (offset + window <= (min_addr + SFX_MAX_OFFSET)) {
-			const char *buff = __archive_read_ahead(a,
+			const unsigned char *buff = __archive_read_ahead(a,
 					offset + window, &bytes_avail);
 			if (buff == NULL) {
 				/* Remaining bytes are less than window. */
@@ -585,9 +585,9 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 }
 
 static int
-check_7zip_header_in_sfx(const char *p)
+check_7zip_header_in_sfx(const unsigned char *p)
 {
-	switch ((unsigned char)p[5]) {
+	switch (p[5]) {
 	case 0x1C:
 		if (memcmp(p, _7ZIP_SIGNATURE, 6) != 0)
 			return (6);
@@ -596,8 +596,7 @@ check_7zip_header_in_sfx(const char *p)
 		 * Magic Code, so we should do this in order not to
 		 * make a mis-detection.
 		 */
-		if (crc32(0, (const unsigned char *)p + 12, 20)
-			!= archive_le32dec(p + 8))
+		if (crc32(0, p + 12, 20) != archive_le32dec(p + 8))
 			return (6);
 		/* Hit the header! */
 		return (0);
@@ -613,8 +612,7 @@ check_7zip_header_in_sfx(const char *p)
 static int
 skip_sfx(struct archive_read *a, const ssize_t min_addr)
 {
-	const void *h;
-	const char *p, *q;
+	const unsigned char *h, *p, *q;
 	size_t skip, offset;
 	ssize_t bytes, window;
 
@@ -637,7 +635,7 @@ skip_sfx(struct archive_read *a, const ssize_t min_addr)
 			window = 4096;
 			continue;
 		}
-		p = (const char *)h;
+		p = h;
 		q = p + bytes;
 
 		/*
@@ -649,14 +647,14 @@ skip_sfx(struct archive_read *a, const ssize_t min_addr)
 			if (step == 0) {
 				struct _7zip *zip =
 				    (struct _7zip *)a->format->data;
-				skip = p - (const char *)h;
+				skip = p - h;
 				__archive_read_consume(a, skip);
 				zip->seek_base = min_addr + offset + skip;
 				return (ARCHIVE_OK);
 			}
 			p += step;
 		}
-		skip = p - (const char *)h;
+		skip = p - h;
 		__archive_read_consume(a, skip);
 		offset += skip;
 		if (window == 1)
@@ -3258,7 +3256,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	}
 
 	/* CRC check. */
-	if (crc32(0, (const unsigned char *)p + 12, 20)
+	if (crc32(0, p + 12, 20)
 	    != archive_le32dec(p + 8)) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, -1, "Header CRC error");
