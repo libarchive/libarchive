@@ -548,9 +548,9 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 	}
 
 	/*
-	 * It may a 7-Zip SFX archive file. If first two bytes are
-	 * 'M' and 'Z' available on Windows or first four bytes are
-	 * "\x7F\x45LF" available on posix like system, seek the 7-Zip
+	 * It may be a 7-Zip SFX archive file. If first two bytes are
+	 * 'M' and 'Z' (PE, Windows) or first four bytes are
+	 * "\x7F\x45LF" (ELF, Posix-like systems), seek the 7-Zip
 	 * signature. While get_pe_sfx_offset can be performed without
 	 * performing a seek, get_elf_sfx_offset requires one,
 	 * thus a performance difference between the two is expected. 
