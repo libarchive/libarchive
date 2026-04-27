@@ -450,8 +450,8 @@ static ssize_t	read_stream(struct archive_read *, const void **, size_t,
 static int	seek_pack(struct archive_read *);
 static int64_t	skip_stream(struct archive_read *, size_t);
 static int	get_data_offset(struct archive_read *, int64_t *);
-static int	get_pe_sfx_offset(struct archive_read *, ssize_t *);
-static int	get_elf_sfx_offset(struct archive_read *, ssize_t *);
+static int	get_pe_sfx_offset(struct archive_read *, int64_t *);
+static int	get_elf_sfx_offset(struct archive_read *, int64_t *);
 static int	slurp_central_directory(struct archive_read *, struct _7zip *,
 		    struct _7z_header_info *);
 static int	setup_decode_folder(struct archive_read *, struct _7z_folder *,
@@ -533,10 +533,8 @@ static int
 get_data_offset(struct archive_read *a, int64_t *data_offset)
 {
 	const unsigned char *p;
-	ssize_t min_addr;
-	ssize_t offset;
-	ssize_t window;
-	int r;
+	int64_t offset, sfx_offset;
+	int r, window;
 
 	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL)
 		goto fail;
@@ -557,17 +555,17 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 	 * thus a performance difference between the two is expected. 
 	 */
 	if ((p[0] == 'M' && p[1] == 'Z'))
-		r = get_pe_sfx_offset(a, &min_addr);
+		r = get_pe_sfx_offset(a, &sfx_offset);
 	else if (memcmp(p, "\x7F\x45LF", 4) == 0)
-		r = get_elf_sfx_offset(a, &min_addr);
+		r = get_elf_sfx_offset(a, &sfx_offset);
 	else
 		r = ARCHIVE_FATAL;
 	if (r < ARCHIVE_WARN)
 		goto fail;
 
-	offset = min_addr;
+	offset = sfx_offset;
 	window = 4096;
-	while (offset + window <= (min_addr + SFX_MAX_OFFSET)) {
+	while (offset + window <= (sfx_offset + SFX_MAX_OFFSET)) {
 		ssize_t bytes_avail;
 		const unsigned char *buff = __archive_read_ahead(a,
 				offset + window, &bytes_avail);
@@ -637,16 +635,17 @@ check_7zip_header_in_sfx(const unsigned char *p)
 }
 
 static int
-get_pe_sfx_offset(struct archive_read *a, ssize_t *minaddr)
+get_pe_sfx_offset(struct archive_read *a, int64_t *sfx_offset)
 {
 	const char *h;
-	ssize_t bytes, max_offset, offset, sec_end;
-	ssize_t opt_hdr_sz, sec_cnt;
+	int64_t max_offset, offset;
+	ssize_t bytes;
+	uint16_t opt_hdr_sz, sec_cnt;
 
 	/*
 	 * If encounter any weirdness, revert to old brute-force style search
 	 */
-	*minaddr = SFX_MIN_ADDR;
+	*sfx_offset = SFX_MIN_ADDR;
 
 	for (;;) {
 		/*
@@ -700,6 +699,8 @@ get_pe_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 		}
 		max_offset = offset;
 		while (sec_cnt > 0) {
+			uint32_t sec_end;
+
 			sec_end = archive_le32dec(
 				      h + offset + PE_SEC_HDR_RAW_SZ_OFFSET) +
 			    archive_le32dec(
@@ -710,7 +711,7 @@ get_pe_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 			offset += PE_SEC_HDR_LEN;
 			sec_cnt--;
 		}
-		*minaddr = max_offset;
+		*sfx_offset = max_offset;
 		break;
 	}
 
@@ -718,12 +719,12 @@ get_pe_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 }
 
 static int
-get_elf_sfx_offset(struct archive_read *a, ssize_t *minaddr)
+get_elf_sfx_offset(struct archive_read *a, int64_t *sfx_offset)
 {
 	const char *h;
 	char big_endian, format_64;
 	ssize_t bytes;
-	ssize_t request;
+	size_t request;
 	uint64_t e_shoff, strtab_offset, strtab_size;
 	uint16_t e_shentsize, e_shnum, e_shstrndx;
 	uint16_t (*dec16)(const void *);
@@ -733,7 +734,7 @@ get_elf_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 	/*
 	 * If encounter any weirdness, revert to old brute-force style search
 	 */
-	*minaddr = SFX_MIN_ADDR;
+	*sfx_offset = SFX_MIN_ADDR;
 
 	for (;;) {
 		/*
@@ -785,9 +786,9 @@ get_elf_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 			return (ARCHIVE_FATAL);
 		}
 		if (format_64) {
-		  request = (size_t)e_shnum * (size_t)e_shentsize + 0x28;
+			request = (size_t)e_shnum * e_shentsize + 0x28;
 		} else {
-		  request = (size_t)e_shnum * (size_t)e_shentsize + 0x18;
+			request = (size_t)e_shnum * e_shentsize + 0x18;
 		}
 		h = __archive_read_ahead(a, request, &bytes);
 		if (h == NULL) {
@@ -817,14 +818,14 @@ get_elf_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 		if (h == NULL) {
 			return (ARCHIVE_FATAL);
 		}
-		ssize_t data_sym_offset = -1;
+		size_t data_sym_offset = strtab_size;
 		for (size_t offset = 0; offset < strtab_size - 6; offset++) {
 			if (memcmp(h + offset, ".data\00", 6) == 0) {
 				data_sym_offset = offset;
 				break;
 			}
 		}
-		if (data_sym_offset == -1) {
+		if (data_sym_offset == strtab_size) {
 			break;
 		}
 
@@ -834,15 +835,17 @@ get_elf_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 		if (__archive_read_seek(a, e_shoff, SEEK_SET) < 0) {
 			return (ARCHIVE_FATAL);
 		}
-		h = __archive_read_ahead(a, (size_t)e_shnum * (size_t)e_shentsize, NULL);
+		h = __archive_read_ahead(a, (size_t)e_shnum * e_shentsize, NULL);
 		if (h == NULL) {
 			return (ARCHIVE_FATAL);
 		}
-		ssize_t sec_tbl_offset = 0, name_offset;
+		size_t sec_tbl_offset = 0;
 		while (e_shnum > 0) {
+			uint32_t name_offset;
+
 			name_offset = (*dec32)(h + sec_tbl_offset);
 			if (name_offset == data_sym_offset) {
-				uint64_t sel_offset;
+				int64_t sel_offset;
 
 				if (format_64) {
 					sel_offset = (*dec64)(
@@ -851,9 +854,8 @@ get_elf_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 					sel_offset = (*dec32)(
 					    h + sec_tbl_offset + 0x10);
 				}
-				if (sel_offset > SSIZE_MAX)
-					break;
-				*minaddr = (ssize_t)sel_offset;
+				if (sel_offset >= 0)
+					*sfx_offset = sel_offset;
 				break;
 			}
 			sec_tbl_offset += e_shentsize;
@@ -3228,7 +3230,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	if ((p = __archive_read_ahead(a, 32, &bytes_avail)) == NULL)
 		return (ARCHIVE_FATAL);
 
-	zip->seek_base = data_offset + 32;
+	zip->seek_base = (uint64_t)data_offset + 32;
 
 	if (memcmp(p, _7ZIP_SIGNATURE, 6) != 0) {
 		archive_set_error(&a->archive, -1, "Not 7-Zip archive file");
