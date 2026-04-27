@@ -450,8 +450,8 @@ static ssize_t	read_stream(struct archive_read *, const void **, size_t,
 static int	seek_pack(struct archive_read *);
 static int64_t	skip_stream(struct archive_read *, size_t);
 static int	get_data_offset(struct archive_read *, int64_t *);
-static ssize_t	find_pe_overlay(struct archive_read *);
-static ssize_t	find_elf_data_sec(struct archive_read *);
+static int	get_pe_sfx_offset(struct archive_read *, ssize_t *);
+static int	get_elf_sfx_offset(struct archive_read *, ssize_t *);
 static int	slurp_central_directory(struct archive_read *, struct _7zip *,
 		    struct _7z_header_info *);
 static int	setup_decode_folder(struct archive_read *, struct _7z_folder *,
@@ -536,6 +536,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 	ssize_t min_addr;
 	ssize_t offset;
 	ssize_t window;
+	int r;
 
 	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL)
 		goto fail;
@@ -551,15 +552,17 @@ get_data_offset(struct archive_read *a, int64_t *data_offset)
 	 * It may a 7-Zip SFX archive file. If first two bytes are
 	 * 'M' and 'Z' available on Windows or first four bytes are
 	 * "\x7F\x45LF" available on posix like system, seek the 7-Zip
-	 * signature. While find_pe_overlay can be performed without
-	 * performing a seek, find_elf_data_sec requires one,
+	 * signature. While get_pe_sfx_offset can be performed without
+	 * performing a seek, get_elf_sfx_offset requires one,
 	 * thus a performance difference between the two is expected. 
 	 */
 	if ((p[0] == 'M' && p[1] == 'Z'))
-		min_addr = find_pe_overlay(a);
+		r = get_pe_sfx_offset(a, &min_addr);
 	else if (memcmp(p, "\x7F\x45LF", 4) == 0)
-		min_addr = find_elf_data_sec(a);
+		r = get_elf_sfx_offset(a, &min_addr);
 	else
+		r = ARCHIVE_FATAL;
+	if (r < ARCHIVE_WARN)
 		goto fail;
 
 	offset = min_addr;
@@ -633,19 +636,27 @@ check_7zip_header_in_sfx(const unsigned char *p)
 	}
 }
 
-static ssize_t
-find_pe_overlay(struct archive_read *a)
+static int
+get_pe_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 {
 	const char *h;
 	ssize_t bytes, max_offset, offset, sec_end;
 	ssize_t opt_hdr_sz, sec_cnt;
+
+	/*
+	 * If encounter any weirdness, revert to old brute-force style search
+	 */
+	*minaddr = SFX_MIN_ADDR;
 
 	for (;;) {
 		/*
 		 * Read Dos header to find e_lfanew
 		 */
 		h = __archive_read_ahead(a, PE_DOS_HDR_LEN, &bytes);
-		if (h == NULL || h[0] != 'M' || h[1] != 'Z') {
+		if (h == NULL) {
+			return (ARCHIVE_FATAL);
+		}
+		if (h[0] != 'M' || h[1] != 'Z') {
 			break;
 		}
 		offset = archive_le32dec(h + PE_DOS_HDR_ELFANEW_OFFSET);
@@ -656,8 +667,10 @@ find_pe_overlay(struct archive_read *a)
 		if (bytes < offset + PE_COFF_HDR_LEN) {
 			h = __archive_read_ahead(a, offset + PE_COFF_HDR_LEN,
 			    &bytes);
-			if (h == NULL || h[offset] != 'P' ||
-			    h[offset + 1] != 'E') {
+			if (h == NULL) {
+				return (ARCHIVE_FATAL);
+			}
+			if (h[offset] != 'P' || h[offset + 1] != 'E') {
 				break;
 			}
 		}
@@ -682,7 +695,7 @@ find_pe_overlay(struct archive_read *a)
 			h = __archive_read_ahead(a,
 			    offset + sec_cnt * PE_SEC_HDR_LEN, NULL);
 			if (h == NULL) {
-				break;
+				return (ARCHIVE_FATAL);
 			}
 		}
 		max_offset = offset;
@@ -697,21 +710,19 @@ find_pe_overlay(struct archive_read *a)
 			offset += PE_SEC_HDR_LEN;
 			sec_cnt--;
 		}
-		return (max_offset);
+		*minaddr = max_offset;
+		break;
 	}
 
-	/*
-	 * If encounter any weirdness, revert to old brute-force style search
-	 */
-	return (SFX_MIN_ADDR);
+	return (ARCHIVE_OK);
 }
 
-static ssize_t
-find_elf_data_sec(struct archive_read *a)
+static int
+get_elf_sfx_offset(struct archive_read *a, ssize_t *minaddr)
 {
 	const char *h;
 	char big_endian, format_64;
-	ssize_t bytes, min_addr = SFX_MIN_ADDR;
+	ssize_t bytes;
 	ssize_t request;
 	uint64_t e_shoff, strtab_offset, strtab_size;
 	uint16_t e_shentsize, e_shnum, e_shstrndx;
@@ -719,12 +730,20 @@ find_elf_data_sec(struct archive_read *a)
 	uint32_t (*dec32)(const void *);
 	uint64_t (*dec64)(const void *);
 
+	/*
+	 * If encounter any weirdness, revert to old brute-force style search
+	 */
+	*minaddr = SFX_MIN_ADDR;
+
 	for (;;) {
 		/*
 		 * Read Elf header to find bitness & endianness
 		 */
 		h = __archive_read_ahead(a, ELF_HDR_MIN_LEN, &bytes);
-		if (h == NULL || memcmp(h, "\x7F\x45LF", 4) != 0) {
+		if (h == NULL) {
+			return (ARCHIVE_FATAL);
+		}
+		if (memcmp(h, "\x7F\x45LF", 4) != 0) {
 			break;
 		}
 		format_64 = h[ELF_HDR_EI_CLASS_OFFSET] == 0x2;
@@ -763,7 +782,7 @@ find_elf_data_sec(struct archive_read *a)
 		 * Reading the section table to find strtab section
 		 */
 		if (__archive_read_seek(a, e_shoff, SEEK_SET) < 0) {
-			break;
+			return (ARCHIVE_FATAL);
 		}
 		if (format_64) {
 		  request = (size_t)e_shnum * (size_t)e_shentsize + 0x28;
@@ -772,7 +791,7 @@ find_elf_data_sec(struct archive_read *a)
 		}
 		h = __archive_read_ahead(a, request, &bytes);
 		if (h == NULL) {
-			break;
+			return (ARCHIVE_FATAL);
 		}
 		if (format_64) {
 			strtab_offset = (*dec64)(
@@ -792,11 +811,11 @@ find_elf_data_sec(struct archive_read *a)
 		 * Read the STRTAB section to find the .data offset
 		 */
 		if (__archive_read_seek(a, strtab_offset, SEEK_SET) < 0) {
-			break;
+			return (ARCHIVE_FATAL);
 		}
 		h = __archive_read_ahead(a, strtab_size, NULL);
 		if (h == NULL) {
-			break;
+			return (ARCHIVE_FATAL);
 		}
 		ssize_t data_sym_offset = -1;
 		for (size_t offset = 0; offset < strtab_size - 6; offset++) {
@@ -813,11 +832,11 @@ find_elf_data_sec(struct archive_read *a)
 		 * Find the section with the .data name
 		 */
 		if (__archive_read_seek(a, e_shoff, SEEK_SET) < 0) {
-			break;
+			return (ARCHIVE_FATAL);
 		}
 		h = __archive_read_ahead(a, (size_t)e_shnum * (size_t)e_shentsize, NULL);
 		if (h == NULL) {
-			break;
+			return (ARCHIVE_FATAL);
 		}
 		ssize_t sec_tbl_offset = 0, name_offset;
 		while (e_shnum > 0) {
@@ -834,7 +853,7 @@ find_elf_data_sec(struct archive_read *a)
 				}
 				if (sel_offset > SSIZE_MAX)
 					break;
-				min_addr = (ssize_t)sel_offset;
+				*minaddr = (ssize_t)sel_offset;
 				break;
 			}
 			sec_tbl_offset += e_shentsize;
@@ -843,8 +862,7 @@ find_elf_data_sec(struct archive_read *a)
 		break;
 	}
 
-	__archive_read_seek(a, 0, SEEK_SET);
-	return (min_addr);
+	return __archive_read_seek(a, 0, SEEK_SET);
 }
 
 static int
