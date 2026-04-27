@@ -533,6 +533,9 @@ static int
 archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 {
 	const unsigned char *p;
+	ssize_t min_addr;
+	ssize_t offset;
+	ssize_t window;
 
 	/* If someone has already bid more than 32, then avoid
 	   trashing the look-ahead buffers with a seek. */
@@ -555,31 +558,34 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 	 * performing a seek, find_elf_data_sec requires one,
 	 * thus a performance difference between the two is expected. 
 	 */
-	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
-		const ssize_t min_addr = p[0] == 'M' ? find_pe_overlay(a) :
-						       find_elf_data_sec(a);
-		ssize_t offset = min_addr;
-		ssize_t window = 4096;
+	if ((p[0] == 'M' && p[1] == 'Z'))
+		min_addr = find_pe_overlay(a);
+	else if (memcmp(p, "\x7F\x45LF", 4) == 0)
+		min_addr = find_elf_data_sec(a);
+	else
+		return (0);
+
+	offset = min_addr;
+	window = 4096;
+	while (offset + window <= (min_addr + SFX_MAX_OFFSET)) {
 		ssize_t bytes_avail;
-		while (offset + window <= (min_addr + SFX_MAX_OFFSET)) {
-			const unsigned char *buff = __archive_read_ahead(a,
-					offset + window, &bytes_avail);
-			if (buff == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < 0x40)
-					return (0);
-				continue;
-			}
-			p = buff + offset;
-			while (p + 32 < buff + bytes_avail) {
-				int step = check_7zip_header_in_sfx(p);
-				if (step == 0)
-					return (48);
-				p += step;
-			}
-			offset = p - buff;
+		const unsigned char *buff = __archive_read_ahead(a,
+				offset + window, &bytes_avail);
+		if (buff == NULL) {
+			/* Remaining bytes are less than window. */
+			window >>= 1;
+			if (window < 0x40)
+				return (0);
+			continue;
 		}
+		p = buff + offset;
+		while (p + 32 < buff + bytes_avail) {
+			int step = check_7zip_header_in_sfx(p);
+			if (step == 0)
+				return (48);
+			p += step;
+		}
+		offset = p - buff;
 	}
 	return (0);
 }
