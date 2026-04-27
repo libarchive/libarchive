@@ -450,6 +450,7 @@ static ssize_t	read_stream(struct archive_read *, const void **, size_t,
 static int	seek_pack(struct archive_read *);
 static int64_t	skip_stream(struct archive_read *, size_t);
 static int	skip_sfx(struct archive_read *, const ssize_t);
+static int	get_data_offset(struct archive_read *, int64_t *);
 static ssize_t	find_pe_overlay(struct archive_read *);
 static ssize_t	find_elf_data_sec(struct archive_read *);
 static int	slurp_central_directory(struct archive_read *, struct _7zip *,
@@ -530,25 +531,22 @@ archive_read_format_7zip_has_encrypted_entries(struct archive_read *_a)
 }
 
 static int
-archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
+get_data_offset(struct archive_read *a, int64_t *data_offset)
 {
 	const unsigned char *p;
 	ssize_t min_addr;
 	ssize_t offset;
 	ssize_t window;
 
-	/* If someone has already bid more than 32, then avoid
-	   trashing the look-ahead buffers with a seek. */
-	if (best_bid > 32)
-		return (-1);
-
 	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL)
-		return (0);
+		return (ARCHIVE_FATAL);
 
 	/* If first six bytes are the 7-Zip signature,
-	 * return the bid right now. */
-	if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0)
-		return (48);
+	 * return the offset right now. */
+	if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0) {
+		*data_offset = 0;
+		return (ARCHIVE_OK);
+	}
 
 	/*
 	 * It may a 7-Zip SFX archive file. If first two bytes are
@@ -563,7 +561,7 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 	else if (memcmp(p, "\x7F\x45LF", 4) == 0)
 		min_addr = find_elf_data_sec(a);
 	else
-		return (0);
+		return (ARCHIVE_FATAL);
 
 	offset = min_addr;
 	window = 4096;
@@ -575,19 +573,37 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 			/* Remaining bytes are less than window. */
 			window >>= 1;
 			if (window < 0x40)
-				return (0);
+				return (ARCHIVE_FATAL);
 			continue;
 		}
 		p = buff + offset;
 		while (p + 32 < buff + bytes_avail) {
 			int step = check_7zip_header_in_sfx(p);
-			if (step == 0)
-				return (48);
+			if (step == 0) {
+				*data_offset = p - buff;
+				return (ARCHIVE_OK);
+			}
 			p += step;
 		}
 		offset = p - buff;
 	}
-	return (0);
+	return (ARCHIVE_FATAL);
+}
+
+static int
+archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
+{
+	int64_t data_offset;
+
+	/* If someone has already bid more than 32, then avoid
+	   trashing the look-ahead buffers with a seek. */
+	if (best_bid > 32)
+		return (-1);
+
+	if (get_data_offset(a, &data_offset) < 0)
+		return (0);
+
+	return (48);
 }
 
 static int
