@@ -675,7 +675,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 	rar->cstate.filtered_buf = malloc(flt->block_length);
 	if(!rar->cstate.filtered_buf) {
 		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory for filter data");
+		    "Can't allocate memory for filter data.");
 		return ARCHIVE_FATAL;
 	}
 
@@ -1790,6 +1790,18 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		if(!read_var_sized(a, &data_size, NULL))
 			return ARCHIVE_EOF;
 
+		/* CWE-195: Ensure the unsigned data_size fits in the signed
+		 * bytes_remaining field before assignment. A malformed archive
+		 * could supply a value > SSIZE_MAX which, after implicit
+		 * truncation, would produce a negative bytes_remaining and
+		 * later trigger a signed-integer underflow. */
+		if(data_size > SSIZE_MAX) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "File data size is too large");
+			return ARCHIVE_FATAL;
+		}
+
 		rar->file.bytes_remaining = data_size;
 	} else {
 		rar->file.bytes_remaining = 0;
@@ -1851,7 +1863,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	    rar->cstate.window_buf == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 				  "Declared solid file, but no window buffer "
-				  "initialized yet");
+				  "initialized yet.");
 		return ARCHIVE_FATAL;
 	}
 
@@ -1861,7 +1873,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	    (rar->file.dir == 0 && window_size == 0))
 	{
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Declared dictionary size is not supported");
+		    "Declared dictionary size is not supported.");
 		return ARCHIVE_FATAL;
 	}
 
@@ -1873,7 +1885,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		{
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Window size for this solid file doesn't match "
-			    "the window size used in previous solid file");
+			    "the window size used in previous solid file. ");
 			return ARCHIVE_FATAL;
 		}
 	}
@@ -1899,7 +1911,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		if(!new_window_buf) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 				"Not enough memory when trying to realloc the window "
-				"buffer");
+				"buffer.");
 			return ARCHIVE_FATAL;
 		}
 
@@ -3057,7 +3069,7 @@ static int parse_filter(struct archive_read* ar, const uint8_t* p) {
 	filt = add_new_filter(rar);
 	if(filt == NULL) {
 		archive_set_error(&ar->archive, ENOMEM,
-		    "Can't allocate memory for a filter descriptor");
+		    "Can't allocate memory for a filter descriptor.");
 		return ARCHIVE_FATAL;
 	}
 
@@ -3506,7 +3518,7 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
 	rar->vol.push_buf = malloc(block_size + 8);
 	if(!rar->vol.push_buf) {
 		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory for a merge block buffer");
+		    "Can't allocate memory for a merge block buffer.");
 		return ARCHIVE_FATAL;
 	}
 
@@ -3524,10 +3536,16 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
 		cur_block_size = rar5_min(rar->file.bytes_remaining,
 		    block_size - partial_offset);
 
-		if(cur_block_size == 0) {
+		/* CWE-122 (defense-in-depth): bytes_remaining must be positive
+		 * before read_ahead() uses it as a malloc size. A negative
+		 * value would silently convert to a huge size_t and trigger a
+		 * multi-exabyte allocation. The primary guard is in
+		 * process_block(), but catch it here too in case this function
+		 * is ever reached through a different path. */
+		if(cur_block_size <= 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Encountered block size == 0 during block merge");
+			    "Encountered invalid block size during block merge");
 			return ARCHIVE_FATAL;
 		}
 
@@ -3539,7 +3557,7 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
 		if(partial_offset + cur_block_size > block_size) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_PROGRAMMER,
-			    "Consumed too much data when merging blocks");
+			    "Consumed too much data when merging blocks.");
 			return ARCHIVE_FATAL;
 		}
 
@@ -3629,6 +3647,19 @@ static int process_block(struct archive_read* a) {
 
 		if(ARCHIVE_OK != consume(a, to_skip))
 			return ARCHIVE_EOF;
+
+		/* CWE-191: Guard against signed integer underflow. If the
+		 * block header's to_skip value exceeds the declared remaining
+		 * data, the archive is malformed. Without this check,
+		 * bytes_remaining wraps to a large negative ssize_t which is
+		 * then cast to ~SIZE_MAX inside malloc(), causing a heap
+		 * buffer overflow (CWE-122). */
+		if(to_skip > rar->file.bytes_remaining) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Block header size exceeds remaining file data");
+			return ARCHIVE_FATAL;
+		}
 
 		rar->file.bytes_remaining -= to_skip;
 
@@ -3808,7 +3839,7 @@ static int push_data_ready(struct archive_read* a, struct rar5* rar,
 	 * as an internal error. */
 
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-	    "Premature end of data_ready stack");
+	    "Error: premature end of data_ready stack");
 	return ARCHIVE_FATAL;
 }
 
