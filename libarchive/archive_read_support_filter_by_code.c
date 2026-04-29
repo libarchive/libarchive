@@ -63,6 +63,8 @@ archive_read_support_filter_by_code(struct archive *a, int filter_code)
 		return archive_read_support_filter_lz4(a);
 	case ARCHIVE_FILTER_ZSTD:
 		return archive_read_support_filter_zstd(a);
+	case ARCHIVE_FILTER_PBZX:
+		return archive_read_support_filter_pbzx(a);
 	}
 	return (ARCHIVE_FATAL);
 }
