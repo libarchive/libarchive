@@ -119,6 +119,8 @@ static const unsigned char zisofs_magic[8] = {
 #define ZF_LOG2_BS	15	/* log2 block size; 32K bytes. */
 #define ZF_BLOCK_SIZE	(1UL << ZF_LOG2_BS)
 
+#define MAX_JOLIET_ID_NUM	46656 /* 3 base 36 digits */
+
 /*
  * Manage extra records.
  */
@@ -1008,7 +1010,7 @@ static int	idr_start(struct archive_write *, struct idr *,
 static void	idr_register(struct idr *, struct isoent *, int,
 		    int);
 static void	idr_extend_identifier(struct idrent *, int, int);
-static void	idr_resolve(struct idr *, void (*)(unsigned char *, int));
+static int 	idr_resolve(struct idr *, void (*)(unsigned char *, int));
 static void	idr_set_num(unsigned char *, int);
 static void	idr_set_num_beutf16(unsigned char *, int);
 static int	isoent_gen_iso9660_identifier(struct archive_write *,
@@ -5926,7 +5928,7 @@ idr_extend_identifier(struct idrent *wnp, int numsize, int nullsize)
 	}
 }
 
-static void
+static int
 idr_resolve(struct idr *idr, void (*fsetnum)(unsigned char *p, int num))
 {
 	struct idrent *n;
@@ -5936,10 +5938,13 @@ idr_resolve(struct idr *idr, void (*fsetnum)(unsigned char *p, int num))
 		idr_extend_identifier(n, idr->num_size, idr->null_size);
 		p = (unsigned char *)n->isoent->identifier + n->noff;
 		do {
+			if (n->avail->rename_num >= MAX_JOLIET_ID_NUM)
+				return (-ERANGE);
 			fsetnum(p, n->avail->rename_num++);
 		} while (!__archive_rb_tree_insert_node(
 		    &(idr->rbtree), &(n->rbnode)));
 	}
+	return (0);
 }
 
 static void
@@ -6204,7 +6209,11 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	}
 
 	/* Resolve duplicate identifier. */
-	idr_resolve(idr, idr_set_num);
+	r = idr_resolve(idr, idr_set_num);
+	if (r < 0) {
+		archive_set_error(&a->archive, -r, "Too many duplicated identifiers");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Add a period and a version number to identifiers. */
 	for (np = isoent->children.first; np != NULL; np = np->chnext) {
@@ -6348,7 +6357,11 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	}
 
 	/* Resolve duplicate identifier with Joliet Volume. */
-	idr_resolve(idr, idr_set_num_beutf16);
+	r = idr_resolve(idr, idr_set_num_beutf16);
+	if (r < 0) {
+		archive_set_error(&a->archive, -r, "Too many duplicated identifiers");
+		return (ARCHIVE_FATAL);
+	}
 
 	return (ARCHIVE_OK);
 }
