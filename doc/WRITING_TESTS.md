@@ -107,8 +107,13 @@ The basic naming convention is `test_<functionality>_<format/API>_<detail>.c` wh
 
 ### 4. Registering the Test
 
-Adding the new files to build system is sufficient to have them built
-and run with the rest of the suite:
+The build system searches uses of `DEFINE_TEST` to locate tests
+in the relevant sources.
+You only need to add the new files to the build system
+to have them built
+and run with the rest of the suite.
+To add them to the build systems,
+you need to update two files:
 
 1. `Makefile.am` in the root:
    - Add `.c` files to `libarchive_test_SOURCES`.
