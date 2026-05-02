@@ -64,6 +64,8 @@ libtool
 stamp-h1
 tar/test/list.h
 unzip/test/list.h
+CLAUDE.md
+GEMINI.md
 CMakeCache.txt
 CMakeFiles/
 DartConfiguration.tcl
