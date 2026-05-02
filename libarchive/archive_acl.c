@@ -638,7 +638,8 @@ archive_acl_text_len(struct archive_acl *acl, int want_type, int flags,
 
 		if ((ap->tag == ARCHIVE_ENTRY_ACL_USER ||
 		    ap->tag == ARCHIVE_ENTRY_ACL_GROUP) &&
-		    (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID) != 0) {
+		    ((flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID) != 0 ||
+		    (wide ? wname == NULL : name == NULL))) {
 			length += 1; /* colon */
 			/* ID digit count */
 			idlen = 1;
@@ -750,7 +751,8 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 		if (r == 0) {
 			if (count > 0)
 				*wp++ = separator;
-			if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+			if ((flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID) ||
+			    wname == NULL)
 				id = ap->id;
 			else
 				id = -1;
