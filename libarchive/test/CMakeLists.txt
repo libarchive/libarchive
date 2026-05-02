@@ -17,6 +17,7 @@ IF(ENABLE_TEST)
     test_acl_platform_nfs4.c
     test_acl_platform_posix1e.c
     test_acl_posix1e.c
+    test_acl_posix1e_text.c
     test_acl_text.c
     test_ar_mode.c
     test_archive_api_feature.c
