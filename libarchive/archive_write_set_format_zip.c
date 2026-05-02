@@ -2295,7 +2295,7 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 	type = archive_entry_filetype(entry);
 	written_bytes = 0;
 
-	if (path == NULL)
+	if (path == NULL || path[0] == '\0')
 		return (ARCHIVE_FATAL);
 
 	ret = __archive_write_output(archive, path, strlen(path));
@@ -2328,7 +2328,7 @@ copy_path(struct archive_entry *entry, unsigned char *p)
 	memcpy(p, path, pathlen);
 
 	/* Folders are recognized by a trailing slash. */
-	if ((type == AE_IFDIR) && (path[pathlen - 1] != '/'))
+	if ((type == AE_IFDIR) && pathlen > 0 && (path[pathlen - 1] != '/'))
 		p[pathlen] = '/';
 }
 
