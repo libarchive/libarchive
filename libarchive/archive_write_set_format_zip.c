@@ -959,6 +959,11 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 	filename_length = path_length(zip->entry);
+	if (filename_length > 0xffff) {
+		archive_set_error(&a->archive, ENAMETOOLONG,
+		    "Pathname too long for ZIP format");
+		return (ARCHIVE_FAILED);
+	}
 
 	/* Determine appropriate compression and size for this entry. */
 	if (type == AE_IFLNK) {
