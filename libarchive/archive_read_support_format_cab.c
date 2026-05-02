@@ -2835,6 +2835,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				w_buff[w_pos] = c;
 				w_pos = (w_pos + 1) & w_mask;
 				/* Store the decoded code to output buffer. */
+				if (noutp >= endp)
+					goto next_data;
 				*noutp++ = c;
 				block_bytes_avail--;
 			}
