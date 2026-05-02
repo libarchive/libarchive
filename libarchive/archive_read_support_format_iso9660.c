@@ -3493,6 +3493,8 @@ build_pathname_utf16be(unsigned char *p, size_t max, size_t *len,
 	if (file->parent != NULL && file->parent->utf16be_bytes > 0) {
 		if (build_pathname_utf16be(p, max, len, file->parent) != 0)
 			return (-1);
+		if (*len + 2 > max)
+			return (-1);/* Path is too long! */
 		p[*len] = 0;
 		p[*len + 1] = '/';
 		*len += 2;
