@@ -12,6 +12,7 @@ IF(ENABLE_TEST)
     test_7zip_filename_encoding.c
     test_acl_nfs4.c
     test_acl_nfs4_null_id_overflow.c
+    test_acl_nfs4_text.c
     test_acl_pax.c
     test_acl_platform_nfs4.c
     test_acl_platform_posix1e.c
