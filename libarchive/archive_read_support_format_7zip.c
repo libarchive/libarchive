@@ -3692,7 +3692,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 		r = setup_decode_folder(a,
 			&(zip->si.ci.folders[zip->folder_index]), 0);
 		if (r != ARCHIVE_OK)
-			return (ARCHIVE_FATAL);
+			return (r);
 
 		zip->folder_index++;
 	}
@@ -3793,7 +3793,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 					ARCHIVE_ERRNO_MISC,
 					"The %s is encrypted, "
 					"but currently not supported", cname);
-				return (ARCHIVE_FATAL);
+				return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 			}
 			case _7Z_X86_BCJ2: {
 				found_bcj2++;
@@ -3813,7 +3813,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		    ARCHIVE_ERRNO_MISC,
 		    "The %s is encoded with many filters, "
 		    "but currently not supported", cname);
-		return (ARCHIVE_FATAL);
+		return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 	}
 	coder1 = &(folder->coders[0]);
 	if (folder->numCoders == 2)
