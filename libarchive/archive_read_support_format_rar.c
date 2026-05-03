@@ -2038,7 +2038,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Truncated RAR file data");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
 
   *size = bytes_avail;
@@ -2186,7 +2186,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         {
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                             "Invalid symbol");
-          return (ARCHIVE_FATAL);
+          return (ARCHIVE_FAILED);
         }
 
         switch(code)
@@ -2213,7 +2213,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
               {
                 archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                   "Invalid symbol");
-                return (ARCHIVE_FATAL);
+                return (ARCHIVE_FAILED);
               }
               lzss_offset |= code << (i * 8);
             }
@@ -2222,7 +2222,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
             {
               archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                 "Invalid symbol");
-              return (ARCHIVE_FATAL);
+              return (ARCHIVE_FAILED);
             }
             lzss_emit_match(rar, lzss_offset + 2, length + 32);
             rar->bytes_uncopied += length + 32;
@@ -2234,7 +2234,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
             {
               archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                 "Invalid symbol");
-              return (ARCHIVE_FATAL);
+              return (ARCHIVE_FAILED);
             }
             lzss_emit_match(rar, 1, length + 4);
             rar->bytes_uncopied += length + 4;
@@ -2564,7 +2564,7 @@ parse_codes(struct archive_read *a)
     if (new_size == 0) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "Zero window size is invalid");
-      return (ARCHIVE_FATAL);
+      return (ARCHIVE_FAILED);
     }
     new_window = realloc(rar->lzss.window, new_size);
     if (new_window == NULL) {
@@ -2811,7 +2811,7 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Prefix found");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
 
   /* Set leaf value */
@@ -2865,13 +2865,13 @@ make_table_recurse(struct archive_read *a, struct huffman_code *code, int node,
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Huffman tree was not created");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
   if (node < 0 || node >= code->numentries)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Invalid location to Huffman tree specified");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
 
   currtablesize = 1 << (maxdepth - depth);
