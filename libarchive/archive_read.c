@@ -934,7 +934,10 @@ archive_read_data_skip(struct archive *_a)
 	if (r == ARCHIVE_EOF)
 		r = ARCHIVE_OK;
 
-	a->archive.state = ARCHIVE_STATE_HEADER;
+	if (r == ARCHIVE_FATAL)
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	else
+		a->archive.state = ARCHIVE_STATE_HEADER;
 	return (r);
 }
 
@@ -942,6 +945,8 @@ la_int64_t
 archive_seek_data(struct archive *_a, int64_t offset, int whence)
 {
 	struct archive_read *a = (struct archive_read *)_a;
+	la_int64_t r;
+
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_seek_data_block");
 
@@ -949,10 +954,14 @@ archive_seek_data(struct archive *_a, int64_t offset, int whence)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "Internal error: "
 		    "No format_seek_data_block function registered");
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
 
-	return (a->format->seek_data)(a, offset, whence);
+	r = (a->format->seek_data)(a, offset, whence);
+	if (r == ARCHIVE_FATAL)
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	return (r);
 }
 
 /*
@@ -968,6 +977,8 @@ _archive_read_data_block(struct archive *_a,
     const void **buff, size_t *size, int64_t *offset)
 {
 	struct archive_read *a = (struct archive_read *)_a;
+	int r;
+
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");
 
@@ -975,10 +986,14 @@ _archive_read_data_block(struct archive *_a,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "Internal error: "
 		    "No format->read_data function registered");
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
 
-	return (a->format->read_data)(a, buff, size, offset);
+	r = (a->format->read_data)(a, buff, size, offset);
+	if (r == ARCHIVE_FATAL)
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	return (r);
 }
 
 static int
