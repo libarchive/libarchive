@@ -3050,7 +3050,7 @@ static int parse_filter(struct archive_read* ar, const uint8_t* p) {
 	{
 		archive_set_error(&ar->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Invalid filter encountered");
-		return ARCHIVE_FATAL;
+		return ARCHIVE_FAILED;
 	}
 
 	/* Allocate a new filter. */
@@ -4207,7 +4207,7 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	if (rar->headers_are_encrypted || rar->cstate.data_encrypted) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Reading encrypted data is not currently supported");
-		return ARCHIVE_FATAL;
+		return ARCHIVE_FAILED;
 	}
 
 	if(rar->file.dir > 0) {
