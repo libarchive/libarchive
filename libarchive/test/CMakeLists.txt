@@ -319,6 +319,7 @@ IF(ENABLE_TEST)
     test_write_format_zip_file.c
     test_write_format_zip_file_zip64.c
     test_write_format_zip_large.c
+    test_write_format_zip_long_pathname.c
     test_write_format_zip_stream.c
     test_write_format_zip_windows_path.c
     test_write_format_zip_zip64.c

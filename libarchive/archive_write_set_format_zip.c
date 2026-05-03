@@ -960,10 +960,17 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 	filename_length = path_length(zip->entry);
+
+  /* Reject empty or overlong pathnames */
 	path = archive_entry_pathname(zip->entry);
 	if (path == NULL || path[0] == '\0') {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "ZIP format requires a non-empty pathname");
+		return (ARCHIVE_FAILED);
+	}
+	if (filename_length > 0xffff) {
+		archive_set_error(&a->archive, ENAMETOOLONG,
+		    "Pathname too long for ZIP format");
 		return (ARCHIVE_FAILED);
 	}
 
