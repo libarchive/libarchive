@@ -248,6 +248,36 @@ static const size_t fflags_limit = 512; /* Longest fflags */
 static const size_t acl_limit = 131072; /* Longest textual ACL: 128kiB */
 static const int64_t entry_limit = 0xfffffffffffffffLL; /* 2^60 bytes = 1 ExbiByte */
 
+/*
+ * There's no standard for TIME_T_MAX.  So we compute it
+ * here.  TODO: Move this to configure time, but be careful
+ * about cross-compile environments.
+ */
+static time_t
+get_time_t_max(void)
+{
+#if defined(TIME_T_MAX)
+        return TIME_T_MAX;
+#else
+        /* ISO C allows time_t to be a floating-point type,
+           but POSIX requires an integer type.  The following
+           should work on any system that follows the POSIX
+           conventions. */
+        if (((time_t)0) < ((time_t)-1)) {
+                /* Time_t is unsigned */
+                return (~(time_t)0);
+        } else {
+                /* Time_t is signed. */
+                /* Assume it's the same as int64_t or int32_t */
+                if (sizeof(time_t) == sizeof(int64_t)) {
+                        return (time_t)INT64_MAX;
+                } else {
+                        return (time_t)INT32_MAX;
+                }
+        }
+#endif
+}
+
 int
 archive_read_support_format_gnutar(struct archive *a)
 {
@@ -1369,7 +1399,12 @@ header_common(struct archive_read *a, struct tar *tar,
 		archive_entry_set_gid(entry, tar_atol(header->gid, sizeof(header->gid)));
 	}
 	if (!archive_entry_mtime_is_set(entry)) {
-		archive_entry_set_mtime(entry, tar_atol(header->mtime, sizeof(header->mtime)), 0);
+		int64_t t64 = tar_atol(header->mtime, sizeof(header->mtime));
+		time_t t = (time_t)t64;
+		if ((int64_t)t != t64) { /* time_t overflowed */
+			t = get_time_t_max();
+		}
+		archive_entry_set_mtime(entry, t, 0);
 	}
 
 	/* Reconcile the size info. */
@@ -2268,7 +2303,7 @@ pax_attribute_SCHILY_acl(struct archive_read *a, struct tar *tar,
 }
 
 static int
-pax_attribute_read_time(struct archive_read *a, size_t value_length, int64_t *ps, long *pn, int64_t *unconsumed) {
+pax_attribute_read_time(struct archive_read *a, size_t value_length, __LA_TIME_T *ps, long *pn, int64_t *unconsumed) {
 	struct archive_string as;
 	int r;
 
@@ -2288,12 +2323,16 @@ pax_attribute_read_time(struct archive_read *a, size_t value_length, int64_t *ps
 		return (r);
 	}
 
-	pax_time(as.s, archive_strlen(&as), ps, pn);
+	int64_t sec = 0;
+	pax_time(as.s, archive_strlen(&as), &sec, pn);
 	archive_string_free(&as);
-	if (*ps == INT64_MIN) {
+
+	if (sec == INT64_MIN) {
 		*ps = 0;
 		*pn = 0;
 		return (ARCHIVE_WARN);
+	} else {
+		*ps = (__LA_TIME_T)sec;
 	}
 	return (ARCHIVE_OK);
 }
@@ -2509,8 +2548,13 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			*/
 			if (key_length == 12 && memcmp(key, "creationtime", 12) == 0) {
 				/* LIBARCHIVE.creationtime */
-				if ((err = pax_attribute_read_time(a, value_length, &t, &n, unconsumed)) == ARCHIVE_OK) {
-					archive_entry_set_birthtime(entry, t, n);
+				__LA_TIME_T sec = 0;
+				if ((err = pax_attribute_read_time(a, value_length, &sec, &n, unconsumed)) == ARCHIVE_OK) {
+					archive_entry_set_birthtime(entry, sec, n);
+				} else {
+					archive_set_error(&a->archive,
+							  ARCHIVE_ERRNO_MISC,
+							  "Ignoring malformed pax creationtime");
 				}
 				return (err);
 			}
@@ -2738,16 +2782,26 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		break;
 	case 'a':
 		if (key_length == 5 && memcmp(key, "atime", 5) == 0) {
-			if ((err = pax_attribute_read_time(a, value_length, &t, &n, unconsumed)) == ARCHIVE_OK) {
-				archive_entry_set_atime(entry, t, n);
+			__LA_TIME_T sec = 0;
+			if ((err = pax_attribute_read_time(a, value_length, &sec, &n, unconsumed)) == ARCHIVE_OK) {
+				archive_entry_set_atime(entry, sec, n);
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Ignoring malformed pax atime");
 			}
 			return (err);
 		}
 		break;
 	case 'c':
 		if (key_length == 5 && memcmp(key, "ctime", 5) == 0) {
-			if ((err = pax_attribute_read_time(a, value_length, &t, &n, unconsumed)) == ARCHIVE_OK) {
-				archive_entry_set_ctime(entry, t, n);
+			__LA_TIME_T sec = 0;
+			if ((err = pax_attribute_read_time(a, value_length, &sec, &n, unconsumed)) == ARCHIVE_OK) {
+				archive_entry_set_ctime(entry, sec, n);
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Ignoring malformed pax ctime");
 			}
 			return (err);
 		} else if (key_length == 7 && memcmp(key, "charset", 7) == 0) {
@@ -2819,8 +2873,13 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 		break;
 	case 'm':
 		if (key_length == 5 && memcmp(key, "mtime", 5) == 0) {
-			if ((err = pax_attribute_read_time(a, value_length, &t, &n, unconsumed)) == ARCHIVE_OK) {
-				archive_entry_set_mtime(entry, t, n);
+			__LA_TIME_T sec;
+			if ((err = pax_attribute_read_time(a, value_length, &sec, &n, unconsumed)) == ARCHIVE_OK) {
+				archive_entry_set_mtime(entry, sec, n);
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Ignoring malformed pax mtime");
 			}
 			return (err);
 		}
@@ -2887,7 +2946,8 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 /*
  * Parse a decimal time value, which may include a fractional portion
  *
- * Sets ps to INT64_MIN on error.
+ * Sets ps to INT64_MIN on error, including syntax issues such as non-digits,
+ * or a time value that's outside the range of time_t.
  */
 static void
 pax_time(const char *p, size_t length, int64_t *ps, long *pn)
@@ -2928,21 +2988,61 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 
 	*ps = s * sign;
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	/* Libarchive 4.0 will have __LA_TIME_T == int64_t, so
+	   this will be unnecessary. */
+	/* Test whether it overflows __LA_TIME_T */
+	__LA_TIME_T sec = (__LA_TIME_T)*ps;
+	if ((int64_t)sec != *ps) {
+		*ps = INT64_MIN;
+		*pn = 0;
+		return;
+	}
+#endif
+
 	/* Calculate nanoseconds. */
 	*pn = 0;
 
-	if (length <= 0 || *p != '.')
+	if (length <= 0) {
 		return;
+	}
+
+	/* Skip `.` */
+	if (*p != '.') {
+		*ps = INT64_MIN;
+		*pn = 0;
+		return;
+	}
+	++p;
+	--length;
 
 	l = 100000000UL;
 	do {
+		if (length <= 0) {
+			return;
+		}
+		if (*p >= '0' && *p <= '9') {
+			*pn += (*p - '0') * l;
+		} else {
+			*ps = INT64_MIN;
+			*pn = 0;
+			return;
+		}
 		++p;
 		--length;
-		if (length > 0 && *p >= '0' && *p <= '9')
-			*pn += (*p - '0') * l;
-		else
-			break;
 	} while (l /= 10);
+
+	/* Ignore resolution beyond nanoseconds,
+	   but verify it's all decimal digits. */
+	while (length > 0) {
+		if (*p < '0' || *p > '9') {
+			*ps = INT64_MIN;
+			*pn = 0;
+			return;
+		}
+		++p;
+		--length;
+	}
 }
 
 /*
