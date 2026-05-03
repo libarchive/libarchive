@@ -679,6 +679,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_zip_compression_bzip2.c \
 	libarchive/test/test_write_format_zip_compression_lzmaxz.c \
 	libarchive/test/test_write_format_zip_empty.c \
+	libarchive/test/test_write_format_zip_empty_pathname.c \
 	libarchive/test/test_write_format_zip_empty_zip64.c \
 	libarchive/test/test_write_format_zip_entry_size_unset.c \
 	libarchive/test/test_write_format_zip_file.c \
