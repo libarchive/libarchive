@@ -313,6 +313,7 @@ IF(ENABLE_TEST)
     test_write_format_zip_compression_lzmaxz.c
     test_write_format_zip_compression_zstd.c
     test_write_format_zip_empty.c
+    test_write_format_zip_empty_pathname.c
     test_write_format_zip_empty_zip64.c
     test_write_format_zip_entry_size_unset.c
     test_write_format_zip_file.c
