@@ -1452,7 +1452,7 @@ DEFINE_TEST(test_read_format_rar5_only_crypt_exfld)
 	   during data extraction. */
 
 	assertA(archive_read_next_header(a, &ae) == ARCHIVE_OK);
-	assertA(archive_read_data(a, buf, sizeof(buf)) == ARCHIVE_FATAL);
+	assertA(archive_read_data(a, buf, sizeof(buf)) == ARCHIVE_FAILED);
 
 	/* The reader should also provide a valid error message. */
 	assertA(archive_error_string(a) != NULL);

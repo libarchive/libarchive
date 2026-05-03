@@ -63,7 +63,7 @@ DEFINE_TEST(test_read_format_7zip_encryption_partially)
 		assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 		assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 		assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-		assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, sizeof(buff)));
+		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
 
 		assertEqualInt(2, archive_file_count(a));
 
