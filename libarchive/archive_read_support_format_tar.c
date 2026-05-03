@@ -253,7 +253,7 @@ static const int64_t entry_limit = 0xfffffffffffffffLL; /* 2^60 bytes = 1 ExbiBy
  * here.  TODO: Move this to configure time, but be careful
  * about cross-compile environments.
  */
-static int64_t
+static time_t
 get_time_t_max(void)
 {
 #if defined(TIME_T_MAX)
