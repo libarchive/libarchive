@@ -533,6 +533,14 @@ if test "x$with_lzma" != "xno"; then
   fi
 fi
 
+AC_ARG_WITH([inflatelib],
+  AS_HELP_STRING([--with-inflatelib], [Build support for Deflate64 through inflatelib]))
+
+if test "x$with_inflatelib" == "xyes"; then
+  AC_CHECK_HEADERS([inflatelib.h])
+  AC_CHECK_LIB(inflatelib,inflatelib_init)
+fi
+
 AC_ARG_WITH([lzo2],
   AS_HELP_STRING([--with-lzo2], [Build with LZO support from liblzo2]))
 
