@@ -1189,8 +1189,19 @@ archive_read_format_7zip_read_data_skip(struct archive_read *a)
 	 * compressed data much more quickly.
 	 */
 	bytes_skipped = skip_stream(a, (size_t)zip->entry_bytes_remaining);
+	/*
+	 * TODO: when archive_read_data() fails on an encrypted entry with
+	 * ARCHIVE_FAILED, the implicit skip from the next
+	 * archive_read_next_header() lands here.  Empirically, skip_stream()
+	 * still returns ARCHIVE_FATAL via extract_pack_stream() on its second
+	 * call (after setup_decode_folder() returned ARCHIVE_FAILED on the
+	 * first), so the FAILED-from-data / FATAL-from-skip asymmetry persists.
+	 * Audit extract_pack_stream() / read_stream() to see whether the second
+	 * call should also surface ARCHIVE_FAILED so the caller can move on
+	 * to entries in subsequent folders.
+	 */
 	if (bytes_skipped < 0)
-		return (ARCHIVE_FATAL);
+		return ((int)bytes_skipped);
 	zip->entry_bytes_remaining = 0;
 
 	/* This entry is finished and done. */
