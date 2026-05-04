@@ -3933,6 +3933,13 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 
 			/* Allocate memory for the decoded data of a sub
 			 * stream. */
+			if (zip->folder_outbytes_remaining > SIZE_MAX) {
+				free(b[0]); free(b[1]); free(b[2]);
+				archive_set_error(&a->archive, ENOMEM,
+				    "7-Zip sub-stream size exceeds"
+				    " addressable memory");
+				return (ARCHIVE_FATAL);
+			}
 			b[i] = malloc((size_t)zip->folder_outbytes_remaining);
 			if (b[i] == NULL) {
 				free(b[0]); free(b[1]); free(b[2]);
