@@ -399,6 +399,27 @@ struct _7zip {
  * the files. */
 #define UMAX_ENTRY	ARCHIVE_LITERAL_ULL(100000000)
 
+/*
+ * Files without unpack streams must be described by the EmptyStream bitmap,
+ * which consumes one bit for every file entry in FilesInfo.
+ */
+static int
+files_info_numfiles_is_sane(struct _7zip *zip)
+{
+	uint64_t empty_stream_map_bytes;
+
+	if (UMAX_ENTRY < zip->numFiles)
+		return (0);
+	if (zip->numFiles > SIZE_MAX / sizeof(*zip->entries))
+		return (0);
+
+	if (zip->numFiles <= zip->si.ss.unpack_streams)
+		return (1);
+
+	empty_stream_map_bytes = (zip->numFiles + 7) / 8;
+	return (empty_stream_map_bytes <= zip->header_bytes_remaining);
+}
+
 static int	archive_read_format_7zip_has_encrypted_entries(struct archive_read *);
 static int	archive_read_support_format_7zip_capabilities(struct archive_read *a);
 static int	archive_read_format_7zip_bid(struct archive_read *, int);
@@ -2807,7 +2828,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 
 	if (parse_7zip_uint64(a, &(zip->numFiles)) < 0)
 		return (-1);
-	if (UMAX_ENTRY < zip->numFiles)
+	if (!files_info_numfiles_is_sane(zip))
 		return (-1);
 	/* Empty-file entries (those beyond the known stream count) require a
 	 * kEmptyStream bitmap of ceil(numFiles/8) bytes; reject if that cannot
