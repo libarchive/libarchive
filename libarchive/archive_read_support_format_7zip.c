@@ -1189,8 +1189,19 @@ archive_read_format_7zip_read_data_skip(struct archive_read *a)
 	 * compressed data much more quickly.
 	 */
 	bytes_skipped = skip_stream(a, (size_t)zip->entry_bytes_remaining);
+	/*
+	 * TODO: when archive_read_data() fails on an encrypted entry with
+	 * ARCHIVE_FAILED, the implicit skip from the next
+	 * archive_read_next_header() lands here.  Empirically, skip_stream()
+	 * still returns ARCHIVE_FATAL via extract_pack_stream() on its second
+	 * call (after setup_decode_folder() returned ARCHIVE_FAILED on the
+	 * first), so the FAILED-from-data / FATAL-from-skip asymmetry persists.
+	 * Audit extract_pack_stream() / read_stream() to see whether the second
+	 * call should also surface ARCHIVE_FAILED so the caller can move on
+	 * to entries in subsequent folders.
+	 */
 	if (bytes_skipped < 0)
-		return (ARCHIVE_FATAL);
+		return ((int)bytes_skipped);
 	zip->entry_bytes_remaining = 0;
 
 	/* This entry is finished and done. */
@@ -3692,7 +3703,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 		r = setup_decode_folder(a,
 			&(zip->si.ci.folders[zip->folder_index]), 0);
 		if (r != ARCHIVE_OK)
-			return (ARCHIVE_FATAL);
+			return (r);
 
 		zip->folder_index++;
 	}
@@ -3793,7 +3804,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 					ARCHIVE_ERRNO_MISC,
 					"The %s is encrypted, "
 					"but currently not supported", cname);
-				return (ARCHIVE_FATAL);
+				return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 			}
 			case _7Z_X86_BCJ2: {
 				found_bcj2++;
@@ -3813,7 +3824,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		    ARCHIVE_ERRNO_MISC,
 		    "The %s is encoded with many filters, "
 		    "but currently not supported", cname);
-		return (ARCHIVE_FATAL);
+		return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 	}
 	coder1 = &(folder->coders[0]);
 	if (folder->numCoders == 2)
