@@ -6248,6 +6248,8 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	static const struct archive_rb_tree_ops rb_ops = {
 		isoent_cmp_node_joliet, isoent_cmp_key_joliet
 	};
+	const size_t num_size = 3 * sizeof(wchar_t);
+	const size_t null_size = 1 * sizeof(wchar_t);
 
 	if (isoent->children.cnt == 0)
 		return (0);
@@ -6258,7 +6260,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	else
 		ffmax = 128;
 
-	r = idr_start(a, idr, isoent->children.cnt, (int)ffmax, 6, 2, &rb_ops);
+	r = idr_start(a, idr, isoent->children.cnt, (int)ffmax, num_size, null_size, &rb_ops);
 	if (r < 0)
 		return (r);
 
@@ -6274,7 +6276,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		if ((l = np->file->basename_utf16.length) > ffmax)
 			l = ffmax;
 
-		p = malloc((l+1)*2);
+		p = malloc(l + num_size + null_size);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
