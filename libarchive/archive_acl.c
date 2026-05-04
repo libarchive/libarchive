@@ -1250,11 +1250,18 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 				type = want_type;
 
 			/* Check for a numeric ID in field n+1 or n+3. */
-			isint_w(field[n + 1].start, field[n + 1].end, &id);
+			if (isint_w(field[n + 1].start, field[n + 1].end,
+			    &id) < 0) {
+				ret = ARCHIVE_WARN;
+				continue;
+			}
 			/* Field n+3 is optional. */
-			if (id == -1 && fields > n+3)
-				isint_w(field[n + 3].start, field[n + 3].end,
-				    &id);
+			if (id == -1 && fields > n+3 &&
+			    isint_w(field[n + 3].start, field[n + 3].end,
+			    &id) < 0) {
+				ret = ARCHIVE_WARN;
+				continue;
+			}
 
 			tag = 0;
 			s = field[n].start;
@@ -1369,7 +1376,10 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 			    tag == ARCHIVE_ENTRY_ACL_GROUP) {
 				n = 1;
 				name = field[1];
-				isint_w(name.start, name.end, &id);
+				if (isint_w(name.start, name.end, &id) < 0) {
+					ret = ARCHIVE_WARN;
+					continue;
+				}
 			} else
 				n = 0;
 
@@ -1404,7 +1414,11 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 				ret = ARCHIVE_WARN;
 				continue;
 			}
-			isint_w(field[4 + n].start, field[4 + n].end, &id);
+			if (isint_w(field[4 + n].start, field[4 + n].end,
+			    &id) < 0) {
+				ret = ARCHIVE_WARN;
+				continue;
+			}
 		}
 
 		/* Add entry to the internal list. */
@@ -1438,8 +1452,8 @@ isint_w(const wchar_t *start, const wchar_t *end, int *result)
 		if (*start < L'0' || *start > L'9')
 			return (0);
 		if (n > (INT_MAX / 10) ||
-		    (n == INT_MAX / 10 && (*start - L'0') > INT_MAX % 10)) {
-			n = INT_MAX;
+		    (n == INT_MAX / 10 && (*start - L'0') >= INT_MAX % 10)) {
+			return (-1);
 		} else {
 			n *= 10;
 			n += *start - L'0';
@@ -1749,11 +1763,18 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 				type = want_type;
 
 			/* Check for a numeric ID in field n+1 or n+3. */
-			isint(field[n + 1].start, field[n + 1].end, &id);
+			if (isint(field[n + 1].start, field[n + 1].end,
+			    &id) < 0) {
+				ret = ARCHIVE_WARN;
+				continue;
+			}
 			/* Field n+3 is optional. */
-			if (id == -1 && fields > (n + 3))
-				isint(field[n + 3].start, field[n + 3].end,
-				    &id);
+			if (id == -1 && fields > (n + 3) &&
+			    isint(field[n + 3].start, field[n + 3].end,
+			    &id) < 0) {
+				ret = ARCHIVE_WARN;
+				continue;
+			}
 
 			tag = 0;
 			s = field[n].start;
@@ -1871,7 +1892,10 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 			    tag == ARCHIVE_ENTRY_ACL_GROUP) {
 				n = 1;
 				name = field[1];
-				isint(name.start, name.end, &id);
+				if (isint(name.start, name.end, &id) < 0) {
+					ret = ARCHIVE_WARN;
+					continue;
+				}
 			} else
 				n = 0;
 
@@ -1906,8 +1930,11 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 				ret = ARCHIVE_WARN;
 				continue;
 			}
-			isint(field[4 + n].start, field[4 + n].end,
-			    &id);
+			if (isint(field[4 + n].start, field[4 + n].end,
+			    &id) < 0) {
+				ret = ARCHIVE_WARN;
+				continue;
+			}
 		}
 
 		/* Add entry to the internal list. */
@@ -1941,8 +1968,8 @@ isint(const char *start, const char *end, int *result)
 		if (*start < '0' || *start > '9')
 			return (0);
 		if (n > (INT_MAX / 10) ||
-		    (n == INT_MAX / 10 && (*start - '0') > INT_MAX % 10)) {
-			n = INT_MAX;
+		    (n == INT_MAX / 10 && (*start - '0') >= INT_MAX % 10)) {
+			return (-1);
 		} else {
 			n *= 10;
 			n += *start - '0';
