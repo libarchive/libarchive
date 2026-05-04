@@ -977,6 +977,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_leftshift1.rar.uu \
 	libarchive/test/test_read_format_rar5_leftshift2.rar.uu \
 	libarchive/test/test_read_format_rar5_loop_bug.rar.uu \
+	libarchive/test/test_read_format_rar5_zero_remaining_block_header.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part01.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part02.rar.uu \
 	libarchive/test/test_read_format_rar5_multiarchive.part03.rar.uu \
