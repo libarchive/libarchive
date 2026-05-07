@@ -168,6 +168,9 @@
 #define AT_FDCWD -100
 #endif
 
+/* Global callback to retrieve the umask */
+static mode_t (*global_umask_fn)(void) = NULL;
+
 struct fixup_entry {
 	struct fixup_entry	*next;
 	struct archive_acl	 acl;
@@ -470,6 +473,18 @@ la_opendirat(int fd, const char *path) {
 #endif
 }
 
+static mode_t
+query_umask(void)
+{
+	mode_t mask;
+
+	if (global_umask_fn != NULL)
+		return (global_umask_fn());
+	mask = umask(0);
+	umask(mask);
+	return (mask);
+}
+
 static int
 la_verify_filetype(mode_t mode, __LA_MODE_T filetype) {
 	int ret = 0;
@@ -646,7 +661,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	 * user edits their umask during the extraction for some
 	 * reason.
 	 */
-	umask(a->user_umask = umask(0));
+	a->user_umask = query_umask();
 
 	/* Figure out what we need to do for this entry. */
 	a->todo = TODO_MODE_BASE;
@@ -1939,6 +1954,14 @@ finish_metadata:
 }
 
 int
+archive_write_disk_set_global_umask_lookup(
+    mode_t (*get_umask)(void))
+{
+	global_umask_fn = get_umask;
+	return (ARCHIVE_OK);
+}
+
+int
 archive_write_disk_set_group_lookup(struct archive *_a,
     void *private_data,
     la_int64_t (*lookup_gid)(void *private, const char *gname, la_int64_t gid),
@@ -2014,8 +2037,8 @@ archive_write_disk_new(void)
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	a->archive.vtable = &archive_write_disk_vtable;
 	a->start_time = time(NULL);
-	/* Query and restore the umask. */
-	umask(a->user_umask = umask(0));
+	/* Query the umask. */
+	a->user_umask = query_umask();
 #ifdef HAVE_GETEUID
 	a->user_uid = geteuid();
 #endif /* HAVE_GETEUID */

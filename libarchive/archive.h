@@ -989,6 +989,9 @@ __LA_DECL int		 archive_write_disk_set_options(struct archive *,
  * POSIX "tar".
  */
 __LA_DECL int	 archive_write_disk_set_standard_lookup(struct archive *);
+/* Set a global callback to query the umask.
+ * Pass NULL to restore the default behaviour. */
+__LA_DECL int	 archive_write_disk_set_global_umask_lookup(mode_t (*)(void));
 /*
  * If neither the default (naive) nor the standard (big) functions suit
  * your needs, you can write your own and register them.  Be sure to
