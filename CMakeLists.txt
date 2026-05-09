@@ -1,7 +1,7 @@
 #
 cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
 
-PROJECT(libarchive C)
+PROJECT(libarchive VERSION 3.8.2 LANGUAGES C)
 #
 # Include standard installation directories
 include(GNUInstallDirs)
