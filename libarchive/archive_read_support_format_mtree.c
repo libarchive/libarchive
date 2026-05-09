@@ -136,9 +136,6 @@ static int	skip(struct archive_read *a);
 static int	read_header(struct archive_read *,
 		    struct archive_entry *);
 static int64_t	mtree_atol(char **, int base);
-#ifndef HAVE_STRNLEN
-static size_t	mtree_strnlen(const char *, size_t);
-#endif
 
 /*
  * There's no standard for TIME_T_MAX/TIME_T_MIN.  So we compute them
@@ -198,12 +195,10 @@ mtree_strnlen(const char *p, size_t maxlen)
 {
 	size_t i;
 
-	for (i = 0; i <= maxlen; i++) {
+	for (i = 0; i < maxlen; i++) {
 		if (p[i] == 0)
 			break;
 	}
-	if (i > maxlen)
-		return (-1);/* invalid */
 	return (i);
 }
 #endif
