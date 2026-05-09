@@ -74,7 +74,6 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_read_support_filter_lzop.c \
 						libarchive/archive_read_support_filter_none.c \
 						libarchive/archive_read_support_filter_program.c \
-						libarchive/archive_read_support_filter_rpm.c \
 						libarchive/archive_read_support_filter_uu.c \
 						libarchive/archive_read_support_filter_xz.c \
 						libarchive/archive_read_support_filter_zstd.c \
@@ -91,6 +90,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_read_support_format_rar.c \
 						libarchive/archive_read_support_format_rar5.c \
 						libarchive/archive_read_support_format_raw.c \
+						libarchive/archive_read_support_format_rpm.c \
 						libarchive/archive_read_support_format_tar.c \
 						libarchive/archive_read_support_format_warc.c \
 						libarchive/archive_read_support_format_xar.c \

@@ -40,9 +40,7 @@ DEFINE_TEST(test_read_format_huge_rpm)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify that the format detection worked. */
-	assertEqualInt(ARCHIVE_FILTER_RPM, archive_filter_code(a, 0));
-	assertEqualString("rpm", archive_filter_name(a, 0));
-	assertEqualInt(ARCHIVE_FORMAT_EMPTY, archive_format(a));
+	assertEqualInt(ARCHIVE_FORMAT_RPM, archive_format(a));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

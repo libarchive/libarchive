@@ -60,8 +60,6 @@ archive_read_support_filter_all(struct archive *a)
 	archive_read_support_filter_xz(a);
 	/* The decode code doesn't use an outside library. */
 	archive_read_support_filter_uu(a);
-	/* The decode code doesn't use an outside library. */
-	archive_read_support_filter_rpm(a);
 	/* The decode code always uses "lrzip -q -d" command-line. */
 	archive_read_support_filter_lrzip(a);
 	/* Lzop decompress falls back to "lzop -d" command-line. */
