@@ -41,7 +41,8 @@ static const char *short_options
 
 static const struct bsdtar_option {
 	const char *name;
-	int required;      /* 1 if this option requires an argument. */
+	int argument;      /* 1 if this option requires an argument,
+	                      2 if it accepts an optional argument. */
 	int equivalent;    /* Equivalent short option. */
 } tar_longopts[] = {
 	{ "absolute-paths",       0, 'P' },
@@ -125,6 +126,7 @@ static const struct bsdtar_option {
 	{ "older-mtime-than",	  1, OPTION_OLDER_MTIME_THAN },
 	{ "older-than",		  1, OPTION_OLDER_CTIME_THAN },
 	{ "one-file-system",	  0, OPTION_ONE_FILE_SYSTEM },
+	{ "one-top-level",	  2, OPTION_ONE_TOP_LEVEL },
 	{ "options",              1, OPTION_OPTIONS },
 	{ "owner",		  1, OPTION_OWNER },
 	{ "passphrase",		  1, OPTION_PASSPHRASE },
@@ -380,9 +382,17 @@ again:
 			return ('?');
 		}
 
-		/* We've found a unique match; does it need an argument? */
-		if (match->required) {
-			/* Argument required: get next word if necessary. */
+		/* We've found a unique match; what about its argument? */
+		switch (match->argument) {
+		case 0: /* Argument forbidden: fail if there is one. */
+			if (bsdtar->argument != NULL) {
+				lafe_warnc(0,
+				    "Option %s%s does not allow an argument",
+				    long_prefix, match->name);
+				return ('?');
+			}
+			break;
+		case 1: /* Argument required: get next word if necessary. */
 			if (bsdtar->argument == NULL) {
 				bsdtar->argument = *bsdtar->argv;
 				if (bsdtar->argument == NULL) {
@@ -394,14 +404,8 @@ again:
 				++bsdtar->argv;
 				--bsdtar->argc;
 			}
-		} else {
-			/* Argument forbidden: fail if there is one. */
-			if (bsdtar->argument != NULL) {
-				lafe_warnc(0,
-				    "Option %s%s does not allow an argument",
-				    long_prefix, match->name);
-				return ('?');
-			}
+			break;
+		case 2: /* Optional argument. No special handling required. */
 		}
 		return (match->equivalent);
 	}

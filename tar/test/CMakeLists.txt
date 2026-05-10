@@ -64,6 +64,8 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_newer_than.c
     test_option_nodump.c
     test_option_older_than.c
+    test_option_one_top_level.c
+    test_option_one_top_level_infer.c
     test_option_owner.c
     test_option_passphrase.c
     test_option_q.c

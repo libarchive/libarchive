@@ -65,6 +65,7 @@ struct progress_data {
 	struct archive_entry *entry;
 };
 
+static void	do_top_level_dir(struct bsdtar *bsdtar);
 static void	read_archive(struct bsdtar *bsdtar, char mode, struct archive *);
 static int unmatched_inclusions_warn(struct archive *matching, const char *);
 
@@ -132,6 +133,22 @@ progress_func(void *cookie)
 		fprintf(stderr, " (%s bytes)\n",
 		    tar_i64toa(archive_entry_size(entry)));
 	}
+}
+
+static void
+do_top_level_dir(struct bsdtar *bsdtar)
+{
+	if ((bsdtar->flags & OPTFLAG_ONE_TOP_LEVEL) == 0)
+		return;
+
+	/* It would be nice to have a flag to abort the extraction when the
+	 * directory already exists.  The directory permissions could maybe
+	 * be inferred from the permissions of the archive file, but GNU tar
+	 * doesn't do that, and it's unclear what to do about stdin. */
+	if (mkdir(bsdtar->top_level, 0777) != 0 && errno != EEXIST)
+		lafe_errc(1, errno, "Can't create top level directory");
+	if (chdir(bsdtar->top_level) != 0)
+		lafe_errc(1, 0, "Couldn't chdir to top level directory");
 }
 
 /*
@@ -206,6 +223,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		    archive_error_string(a));
 
 	do_chdir(bsdtar);
+	do_top_level_dir(bsdtar);
 
 	if (mode == 'x') {
 		/* Set an extract callback so that we can handle SIGINFO. */

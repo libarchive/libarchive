@@ -579,6 +579,15 @@ except it compares mtime entries instead of ctime entries.
 .It Fl Fl one-file-system
 (c, r, and u modes)
 Do not cross mount points.
+.It Fl Fl one-top-level Op Ar directory
+(x mode only)
+Extract the archive into
+.Ar directory ,
+creating it if it doesn't exist.
+If not specified,
+.Ar directory
+will be inferred from the archive name,
+stripping any recognized extensions.
 .It Fl Fl options Ar options
 Select optional behaviors for particular modules.
 The argument is a text string containing comma-separated
