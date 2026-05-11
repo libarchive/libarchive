@@ -268,6 +268,7 @@ struct file_info {
 	uint64_t	 size;		/* File size in bytes.		*/
 	uint32_t	 ce_offset;	/* Offset of CE.		*/
 	uint32_t	 ce_size;	/* Size of CE.			*/
+	uint64_t	 ce_processed_end;/* End offset of processed CE.	*/
 	char		 rr_moved;	/* Flag to rr_moved.		*/
 	char		 rr_moved_has_re_only;
 	char		 re;		/* Having RRIP "RE" extension.	*/
@@ -2483,6 +2484,7 @@ read_CE(struct archive_read *a, struct iso9660 *iso9660)
 	const unsigned char *b, *p, *end;
 	struct file_info *file;
 	size_t step;
+	uint64_t ce_start, ce_end;
 	int r;
 
 	/* Read data which RRIP "CE" extension points. */
@@ -2506,8 +2508,16 @@ read_CE(struct archive_read *a, struct iso9660 *iso9660)
 				    "Malformed CE information");
 				return (ARCHIVE_FATAL);
 			}
+			ce_start = heap->reqs[0].offset + file->ce_offset;
+			ce_end = ce_start + file->ce_size;
+			if (ce_start < file->ce_processed_end) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+				    "Invalid parameter in SUSP \"CE\" extension");
+				return (ARCHIVE_FATAL);
+			}
 			p = b + file->ce_offset;
 			end = p + file->ce_size;
+			file->ce_processed_end = ce_end;
 			next_CE(heap);
 			r = parse_rockridge(a, file, p, end);
 			if (r != ARCHIVE_OK)
