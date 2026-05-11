@@ -14,6 +14,10 @@ command-line tools that use the libarchive library.
   https://github.com/libarchive/libarchive/issues
 * To submit an enhancement to libarchive, please
   submit a pull request via GitHub: https://github.com/libarchive/libarchive/pulls
+* For security vulnerabilities, please do not
+  open a public issue or pull request. See
+  https://github.com/libarchive/libarchive/security
+  for private reporting instructions.
 
 ## Contents of the Distribution
 
