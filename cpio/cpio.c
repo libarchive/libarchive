@@ -756,8 +756,21 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 				lafe_errc(1, ENOMEM,
 				    "Can't allocate path buffer");
 		}
-		strcpy(cpio->pass_destpath, cpio->destdir);
-		strcat(cpio->pass_destpath, remove_leading_slash(srcpath));
+		{
+			const char *safe_src = remove_leading_slash(srcpath);
+			size_t safe_len = strlen(safe_src);
+			if (strstr(safe_src, "../") != NULL ||
+			    (safe_len >= 2 &&
+			     safe_src[safe_len - 1] == '.' && safe_src[safe_len - 2] == '.' &&
+			     (safe_len == 2 || safe_src[safe_len - 3] == '/'))) {
+				lafe_warnc(0, "Skipping entry with unsafe path: %s",
+				    srcpath);
+				archive_entry_free(entry);
+				return (0);
+			}
+			strcpy(cpio->pass_destpath, cpio->destdir);
+			strcat(cpio->pass_destpath, safe_src);
+		}
 		archive_entry_set_pathname(entry, cpio->pass_destpath);
 	} else {
 		archive_entry_set_pathname(entry, srcpath);
