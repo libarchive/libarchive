@@ -304,13 +304,15 @@ lz4_allocate_out_block(struct archive_read_filter *self)
 		out_block_size += 64 * 1024;
 	if (state->out_block_size < out_block_size) {
 		free(state->out_block);
+		state->out_block = NULL;
 		out_block = malloc(out_block_size);
-		state->out_block_size = out_block_size;
 		if (out_block == NULL) {
+			state->out_block_size = 0;
 			archive_set_error(&self->archive->archive, ENOMEM,
 			    "Can't allocate data for lz4 decompression");
 			return (ARCHIVE_FATAL);
 		}
+		state->out_block_size = out_block_size;
 		state->out_block = out_block;
 	}
 	if (!state->flags.block_independence)
@@ -327,13 +329,15 @@ lz4_allocate_out_block_for_legacy(struct archive_read_filter *self)
 
 	if (state->out_block_size < out_block_size) {
 		free(state->out_block);
+		state->out_block = NULL;
 		out_block = malloc(out_block_size);
-		state->out_block_size = out_block_size;
 		if (out_block == NULL) {
+			state->out_block_size = 0;
 			archive_set_error(&self->archive->archive, ENOMEM,
 			    "Can't allocate data for lz4 decompression");
 			return (ARCHIVE_FATAL);
 		}
+		state->out_block_size = out_block_size;
 		state->out_block = out_block;
 	}
 	return (ARCHIVE_OK);
