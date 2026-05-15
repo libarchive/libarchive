@@ -121,7 +121,7 @@ static const wchar_t	*ae_wcstofflags(const wchar_t *stringp,
 static const char	*ae_strtofflags(const char *stringp, size_t length,
 		    unsigned long *setp, unsigned long *clrp);
 
-#ifndef HAVE_WCSCPY
+#if !defined(HAVE_WCSCPY) && !defined(_MSC_VER)
 static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
 {
 	wchar_t *dest = s1;
@@ -130,7 +130,7 @@ static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
 	return dest;
 }
 #endif
-#ifndef HAVE_WCSLEN
+#if !defined(HAVE_WCSLEN) && !defined(_MSC_VER)
 static size_t wcslen(const wchar_t *s)
 {
 	const wchar_t *p = s;
