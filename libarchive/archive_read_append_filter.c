@@ -92,6 +92,10 @@ archive_read_append_filter(struct archive *_a, int code)
       strcpy(str, "zstd");
       r1 = archive_read_support_filter_zstd(_a);
       break;
+    case ARCHIVE_FILTER_PBZX:
+      strcpy(str, "pbzx");
+      r1 = archive_read_support_filter_pbzx(_a);
+      break;
     case ARCHIVE_FILTER_LZIP:
       strcpy(str, "lzip");
       r1 = archive_read_support_filter_lzip(_a);
