@@ -2557,7 +2557,8 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 				return (-1);
 			if (UMAX_ENTRY < f[i].numUnpackStreams)
 				return (-1);
-			if (unpack_streams > SIZE_MAX - UMAX_ENTRY) {
+			if (f[i].numUnpackStreams >
+				UMAX_ENTRY - unpack_streams) {
 				return (-1);
 			}
 			unpack_streams += (size_t)f[i].numUnpackStreams;
@@ -2567,6 +2568,13 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 		type = *p;
 	} else
 		unpack_streams = numFolders;
+
+	if (type != kSize) {
+		for (i = 0; i < numFolders; i++) {
+			if (f[i].numUnpackStreams > 1)
+				return (-1);
+		}
+	}
 
 	ss->unpack_streams = unpack_streams;
 	if (unpack_streams) {
