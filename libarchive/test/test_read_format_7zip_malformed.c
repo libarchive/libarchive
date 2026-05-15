@@ -75,9 +75,35 @@ test_malformed3(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
 
+static void
+test_malformed4(void)
+{
+	static const unsigned char archive[] = {
+		0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c, 0x00, 0x04,
+		0x2e, 0xfb, 0xd9, 0x75, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x19, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x6d, 0xeb, 0xe2, 0xc5,
+		0x01, 0x04, 0x06, 0x00, 0x01, 0x09, 0x00, 0x00,
+		0x07, 0x0b, 0x01, 0x00, 0x01, 0x01, 0x00, 0x0c,
+		0x00, 0x00, 0x08, 0x0d, 0x02, 0x00, 0x00, 0x00,
+		0x00
+	};
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_malformed)
 {
 	test_malformed1();
 	test_malformed2();
 	test_malformed3();
+	test_malformed4();
 }
