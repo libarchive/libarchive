@@ -2619,11 +2619,6 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 		type = *p;
 	}
 
-	for (i = 0; i < unpack_streams; i++) {
-		ss->digestsDefined[i] = 0;
-		ss->digests[i] = 0;
-	}
-
 	numDigests = 0;
 	for (i = 0; i < numFolders; i++) {
 		if (f[i].numUnpackStreams != 1 || !f[i].digest_defined)
