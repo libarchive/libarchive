@@ -570,7 +570,6 @@ wchar_t *
 archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
     struct archive *a)
 {
-	int count;
 	const wchar_t *wname;
 	const wchar_t *prefix;
 	wchar_t separator;
@@ -596,7 +595,6 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 		separator = L'\n';
 
 	archive_string_init(&ws);
-	count = 0;
 
 	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		append_entry_w(&ws, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
@@ -610,7 +608,6 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 		append_entry_w(&ws, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
 		    ARCHIVE_ENTRY_ACL_OTHER, flags, NULL,
 		    acl->mode & 0007, -1);
-		count += 3;
 	}
 
 	for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
@@ -632,7 +629,7 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 			prefix = NULL;
 		r = archive_mstring_get_wcs(a, &ap->name, &wname);
 		if (r == 0) {
-			if (count > 0)
+			if (ws.length > 0)
 				archive_wstrappend_wchar(&ws, separator);
 			if ((flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID) ||
 			    wname == NULL)
@@ -641,7 +638,6 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 				id = -1;
 			append_entry_w(&ws, prefix, ap->type, ap->tag, flags,
 			    wname, ap->permset, id);
-			count++;
 		} else if (r < 0 && errno == ENOMEM) {
 			archive_wstring_free(&ws);
 			return (NULL);
@@ -783,7 +779,6 @@ char *
 archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
     struct archive_string_conv *sc)
 {
-	int count;
 	size_t len;
 	const char *name;
 	const char *prefix;
@@ -810,7 +805,6 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 		separator = '\n';
 
 	archive_string_init(&s);
-	count = 0;
 
 	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		append_entry(&s, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
@@ -824,7 +818,6 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 		append_entry(&s, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
 		    ARCHIVE_ENTRY_ACL_OTHER, flags, NULL,
 		    acl->mode & 0007, -1);
-		count += 3;
 	}
 
 	for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
@@ -850,7 +843,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 			archive_string_free(&s);
 			return (NULL);
 		}
-		if (count > 0)
+		if (s.length > 0)
 			archive_strappend_char(&s, separator);
 		if (name == NULL ||
 		    (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)) {
@@ -860,7 +853,6 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 		}
 		append_entry(&s, prefix, ap->type, ap->tag, flags, name,
 		    ap->permset, id);
-		count++;
 	}
 
 	if (text_len != NULL)
