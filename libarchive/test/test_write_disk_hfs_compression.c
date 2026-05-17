@@ -275,3 +275,43 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	assertEqualFile("hfscmp/Makefile", "nocmp/Makefile");
 #endif
 }
+
+
+DEFINE_TEST(test_write_disk_hfs_compression_large_file)
+{
+#if !defined(__APPLE__) || !defined(UF_COMPRESSED) || !defined(HAVE_SYS_XATTR_H)\
+	|| !defined(HAVE_ZLIB_H)
+	skipping("MacOS-specific HFS+ Compression test");
+#else
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[1024];
+	la_ssize_t r;
+
+	memset(buff, 0, sizeof(buff));
+
+	assert((a = archive_write_disk_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_disk_set_options(a,
+		ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "hfs-block-count-overflow");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_perm(ae, 0600);
+	archive_entry_set_size(ae, ((int64_t)1) << 48);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+
+	/*
+	 * Very large HFS-compressed files must be rejected before
+	 * ResourceFork metadata is initialized beyond supported limits.
+	 */
+	r = archive_write_data(a, buff, sizeof(buff));
+	failure("Large HFS+ compressed file must be rejected");
+	assert(r < ARCHIVE_OK);
+
+	archive_entry_free(ae);
+	archive_write_free(a);
+#endif
+}
