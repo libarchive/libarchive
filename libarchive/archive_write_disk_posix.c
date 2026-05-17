@@ -1468,6 +1468,9 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 	if (a->decmpfs_block_count == (unsigned)-1) {
 		void *new_block;
 		size_t new_size;
+		uint64_t block_count64;
+		uint64_t data_start64;
+		uint64_t rsrc_size64;
 		unsigned int block_count;
 
 		if (a->decmpfs_header_p == NULL) {
@@ -1489,18 +1492,29 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		    a->filesize);
 
 		/* Calculate a block count of the file. */
-		block_count =
-		    (a->filesize + MAX_DECMPFS_BLOCK_SIZE -1) /
-			MAX_DECMPFS_BLOCK_SIZE;
+		block_count64 =
+		    ((uint64_t)a->filesize + MAX_DECMPFS_BLOCK_SIZE - 1) /
+		    MAX_DECMPFS_BLOCK_SIZE;
+		if (block_count64 > UINT_MAX) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "File too large for HFS+ compression");
+			return (ARCHIVE_FAILED);
+		}
+		data_start64 = RSRC_H_SIZE + 4 +
+		    block_count64 * sizeof(uint32_t) * 2;
+		rsrc_size64 = data_start64 + RSRC_F_SIZE;
+		if (data_start64 > UINT32_MAX || rsrc_size64 > SIZE_MAX) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for ResourceFork");
+			return (ARCHIVE_FATAL);
+		}
+		block_count = (unsigned int)block_count64;
 		/*
 		 * Allocate buffer for resource fork.
 		 * Set up related pointers;
 		 */
-		new_size =
-		    RSRC_H_SIZE + /* header */
-		    4 + /* Block count */
-		    (block_count * sizeof(uint32_t) * 2) +
-		    RSRC_F_SIZE; /* footer */
+		new_size = (size_t)rsrc_size64;
 		if (new_size > a->resource_fork_allocated_size) {
 			new_block = realloc(a->resource_fork, new_size);
 			if (new_block == NULL) {
@@ -1538,8 +1552,7 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		archive_le32enc(a->decmpfs_block_info++, block_count);
 		/* Get the position where we are going to set compressed
 		 * data. */
-		a->compressed_rsrc_position =
-		    RSRC_H_SIZE + 4 + (block_count * 8);
+		a->compressed_rsrc_position = (uint32_t)data_start64;
 		a->compressed_rsrc_position_v = a->compressed_rsrc_position;
 		a->decmpfs_block_count = block_count;
 	}
