@@ -252,22 +252,36 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 	if (template == NULL) {
 		/* Get a temporary directory. */
 		if (tmpdir == NULL) {
-			size_t l;
-			wchar_t *tmp;
+			wchar_t buf[MAX_PATH + 1];
+			wchar_t *p = buf, *buf2 = NULL;
+			size_t l, s;
 
-			l = GetTempPathW(0, NULL);
+			s = MAX_PATH + 1;
+			l = GetTempPathW((DWORD)s, buf);
 			if (l == 0) {
 				la_dosmaperr(GetLastError());
 				goto exit_tmpfile;
 			}
-			tmp = malloc(l*sizeof(wchar_t));
-			if (tmp == NULL) {
-				errno = ENOMEM;
-				goto exit_tmpfile;
+			while (l > s) {
+				wchar_t *tmp;
+
+				s = l;
+				tmp = realloc(buf2, s * sizeof(wchar_t));
+				if (tmp == NULL) {
+					free(buf2);
+					errno = ENOMEM;
+					goto exit_tmpfile;
+				}
+				p = buf2 = tmp;
+				l = GetTempPathW((DWORD)s, buf2);
+				if (l == 0) {
+					free(buf2);
+					la_dosmaperr(GetLastError());
+					goto exit_tmpfile;
+				}
 			}
-			GetTempPathW((DWORD)l, tmp);
-			archive_wstrcpy(&temp_name, tmp);
-			free(tmp);
+			archive_wstrcpy(&temp_name, p);
+			free(buf2);
 		} else {
 			if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
 			    strlen(tmpdir)) < 0)
