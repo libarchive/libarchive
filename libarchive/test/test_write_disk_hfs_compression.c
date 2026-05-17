@@ -291,9 +291,9 @@ DEFINE_TEST(test_write_disk_hfs_compression_large_file)
 
 	memset(buff, 0, sizeof(buff));
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 3; i++) {
 		assert((a = archive_write_disk_new()) != NULL);
-		if (i == 0) {
+		if (i != 1) {
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_write_disk_set_options(a,
 				ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED));
@@ -302,10 +302,14 @@ DEFINE_TEST(test_write_disk_hfs_compression_large_file)
 		assert((ae = archive_entry_new()) != NULL);
 		archive_entry_set_pathname(ae, i == 0
 		    ? "hfs-large-forced"
-		    : "hfs-large-preserved");
+		    : i == 1
+		    ? "hfs-large-preserved"
+		    : "hfs-large-boundary");
 		archive_entry_set_filetype(ae, AE_IFREG);
 		archive_entry_set_perm(ae, 0600);
-		archive_entry_set_size(ae, ((int64_t)1) << 48);
+		archive_entry_set_size(ae, i == 2
+		    ? ((int64_t)0xffffffff) << 16
+		    : ((int64_t)1) << 48);
 		if (i == 1)
 			archive_entry_set_fflags(ae, UF_COMPRESSED, 0);
 
