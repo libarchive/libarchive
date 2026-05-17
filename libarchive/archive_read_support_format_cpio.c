@@ -160,6 +160,8 @@
 #define	afiol_filesize_c_offset 115	/* ':' */
 #define afiol_header_size 116
 
+/* CPIO name fields store a full pathname, including the terminating NUL. */
+#define	CPIO_PATHNAME_MAX	(1024 * 1024)
 
 struct links_entry {
         struct links_entry      *next;
@@ -385,8 +387,15 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	if (r < ARCHIVE_WARN)
 		return (r);
 
+	if (namelength > CPIO_PATHNAME_MAX) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Rejecting malformed cpio archive: "
+		    "pathname exceeds 1 megabyte");
+		return (ARCHIVE_FATAL);
+	}
+
 	/* Read name from buffer. */
-	h = __archive_read_ahead(a, namelength + name_pad, NULL);
+	h = __archive_read_ahead(a, namelength, NULL);
 	if (h == NULL)
 	    return (ARCHIVE_FATAL);
 	if (archive_entry_copy_pathname_l(entry,
@@ -403,7 +412,8 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	}
 	cpio->entry_offset = 0;
 
-	__archive_read_consume(a, namelength + name_pad);
+	__archive_read_consume(a, namelength);
+	__archive_read_consume(a, name_pad);
 
 	/* If this is a symlink, read the link contents. */
 	if (archive_entry_filetype(entry) == AE_IFLNK) {
