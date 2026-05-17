@@ -891,6 +891,7 @@ struct idr {
 
 	int				 pool_size;
 	int				 pool_idx;
+	int				 max_size;
 	int				 num_size;
 	int				 null_size;
 
@@ -1009,7 +1010,7 @@ static int	idr_start(struct archive_write *, struct idr *,
 		    int, int, int, int, const struct archive_rb_tree_ops *);
 static void	idr_register(struct idr *, struct isoent *, int,
 		    int);
-static void	idr_extend_identifier(struct idrent *, int, int);
+static int	idr_extend_identifier(struct idr *, struct idrent *);
 static int 	idr_resolve(struct idr *, void (*)(unsigned char *, int));
 static void	idr_set_num(unsigned char *, int);
 static void	idr_set_num_beutf16(unsigned char *, int);
@@ -5876,8 +5877,6 @@ idr_start(struct archive_write *a, struct idr *idr, int cnt, int ffmax,
 {
 	int r;
 
-	(void)ffmax; /* UNUSED */
-
 	r = idr_ensure_poolsize(a, idr, cnt);
 	if (r != ARCHIVE_OK)
 		return (r);
@@ -5885,6 +5884,7 @@ idr_start(struct archive_write *a, struct idr *idr, int cnt, int ffmax,
 	idr->wait_list.first = NULL;
 	idr->wait_list.last = &(idr->wait_list.first);
 	idr->pool_idx = 0;
+	idr->max_size = ffmax;
 	idr->num_size = num_size;
 	idr->null_size = null_size;
 	return (ARCHIVE_OK);
@@ -5899,6 +5899,8 @@ idr_register(struct idr *idr, struct isoent *isoent, int weight, int noff)
 	idrent->wnext = idrent->avail = NULL;
 	idrent->isoent = isoent;
 	idrent->weight = weight;
+	if (noff < 0 || noff > isoent->ext_off)
+		noff = isoent->ext_off;
 	idrent->noff = noff;
 	idrent->rename_num = 0;
 
@@ -5914,32 +5916,58 @@ idr_register(struct idr *idr, struct isoent *isoent, int weight, int noff)
 	}
 }
 
-static void
-idr_extend_identifier(struct idrent *wnp, int numsize, int nullsize)
+static int
+idr_extend_identifier(struct idr *idr, struct idrent *wnp)
 {
 	unsigned char *p;
-	int wnp_ext_off;
-	int new_id_len;
+	int available_ext_len;
+	int current_ext_len;
+	int current_ext_off;
+	int current_id_len;
+	int final_ext_len;
+	int final_ext_off;
+	int final_id_len;
 
-	wnp_ext_off = wnp->isoent->ext_off;
-	if (wnp->noff + numsize != wnp_ext_off) {
-		new_id_len = wnp->noff + numsize + wnp->isoent->ext_len;
-		/*
-		 * Reallocate the identifier buffer to fit the expanded
-		 * name.  Add extra space for a version suffix (";1")
-		 * that may be appended later.
-		 */
-		p = (unsigned char *)realloc(wnp->isoent->identifier,
-		    new_id_len + nullsize + numsize + 4);
-		if (p == NULL)
-			return;
-		wnp->isoent->identifier = (char *)p;
-		/* Extend the filename; foo.c --> foo___.c */
-		memmove(p + wnp->noff + numsize, p + wnp_ext_off,
-		    wnp->isoent->ext_len + nullsize);
-		wnp->isoent->ext_off = wnp_ext_off = wnp->noff + numsize;
-		wnp->isoent->id_len = wnp_ext_off + wnp->isoent->ext_len;
+	current_ext_off = wnp->isoent->ext_off;
+	current_ext_len = wnp->isoent->ext_len;
+	current_id_len = wnp->isoent->id_len;
+
+	final_ext_off = wnp->noff + idr->num_size;
+	available_ext_len = idr->max_size - final_ext_off;
+	if (available_ext_len < 0)
+		return (-ERANGE);
+
+	final_ext_len = current_ext_len;
+	if (final_ext_len > available_ext_len)
+		final_ext_len = available_ext_len;
+	final_id_len = final_ext_off + final_ext_len;
+
+	if (final_ext_off != current_ext_off ||
+	    final_ext_len != current_ext_len) {
+		p = (unsigned char *)wnp->isoent->identifier;
+		if (final_id_len > current_id_len) {
+			/*
+			 * Reallocate the identifier buffer to fit the expanded
+			 * name.  Add extra space for a version suffix (";1")
+			 * that may be appended later.
+			 */
+			p = (unsigned char *)realloc(wnp->isoent->identifier,
+			    final_id_len + idr->null_size +
+			    idr->num_size + 4);
+			if (p == NULL)
+				return (-ENOMEM);
+			wnp->isoent->identifier = (char *)p;
+		}
+		memmove(p + final_ext_off, p + current_ext_off,
+		    final_ext_len);
+		memset(p + final_ext_off + final_ext_len, 0,
+		    idr->null_size);
+		wnp->isoent->ext_off = final_ext_off;
+		wnp->isoent->ext_len = final_ext_len;
+		wnp->isoent->id_len = final_id_len;
 	}
+
+	return (0);
 }
 
 static int
@@ -5947,9 +5975,12 @@ idr_resolve(struct idr *idr, void (*fsetnum)(unsigned char *p, int num))
 {
 	struct idrent *n;
 	unsigned char *p;
+	int r;
 
 	for (n = idr->wait_list.first; n != NULL; n = n->wnext) {
-		idr_extend_identifier(n, idr->num_size, idr->null_size);
+		r = idr_extend_identifier(idr, n);
+		if (r < 0)
+			return (r);
 		p = (unsigned char *)n->isoent->identifier + n->noff;
 		do {
 			if (n->avail->rename_num >= MAX_JOLIET_ID_NUM)
@@ -6225,7 +6256,15 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	/* Resolve duplicate identifier. */
 	r = idr_resolve(idr, idr_set_num);
 	if (r < 0) {
-		archive_set_error(&a->archive, -r, "Too many duplicated identifiers");
+		if (r == -ENOMEM)
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory");
+		else if (r == -ERANGE)
+			archive_set_error(&a->archive, ERANGE,
+			    "Too many duplicated identifiers");
+		else
+			archive_set_error(&a->archive, -r,
+			    "Unable to resolve duplicated identifiers");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -6375,7 +6414,15 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	/* Resolve duplicate identifier with Joliet Volume. */
 	r = idr_resolve(idr, idr_set_num_beutf16);
 	if (r < 0) {
-		archive_set_error(&a->archive, -r, "Too many duplicated identifiers");
+		if (r == -ENOMEM)
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory");
+		else if (r == -ERANGE)
+			archive_set_error(&a->archive, ERANGE,
+			    "Too many duplicated identifiers");
+		else
+			archive_set_error(&a->archive, -r,
+			    "Unable to resolve duplicated identifiers");
 		return (ARCHIVE_FATAL);
 	}
 
