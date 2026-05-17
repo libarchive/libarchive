@@ -1175,10 +1175,18 @@ hfs_write_compressed_data(struct archive_write_disk *a, size_t bytes_compressed)
 {
 	int ret;
 
+	if (bytes_compressed > UINT32_MAX ||
+	    bytes_compressed > UINT32_MAX - a->compressed_rsrc_position) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "HFS+ compression ResourceFork is too large");
+		return (ARCHIVE_FAILED);
+	}
+
 	ret = hfs_write_resource_fork(a, a->compressed_buffer,
 	    bytes_compressed, a->compressed_rsrc_position);
 	if (ret == ARCHIVE_OK)
-		a->compressed_rsrc_position += bytes_compressed;
+		a->compressed_rsrc_position += (uint32_t)bytes_compressed;
 	return (ret);
 }
 
@@ -1391,10 +1399,17 @@ hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
 	}
 
 	/* Update block info. */
+	if (bytes_compressed > UINT32_MAX ||
+	    bytes_compressed > UINT32_MAX - a->compressed_rsrc_position_v) {
+		archive_set_error(&a->archive,
+		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    "HFS+ compression ResourceFork is too large");
+		return (ARCHIVE_FAILED);
+	}
 	archive_le32enc(a->decmpfs_block_info++,
 	    a->compressed_rsrc_position_v - RSRC_H_SIZE);
-	archive_le32enc(a->decmpfs_block_info++, bytes_compressed);
-	a->compressed_rsrc_position_v += bytes_compressed;
+	archive_le32enc(a->decmpfs_block_info++, (uint32_t)bytes_compressed);
+	a->compressed_rsrc_position_v += (uint32_t)bytes_compressed;
 
 	/*
 	 * Write the compressed data to the resource fork.
@@ -1471,7 +1486,7 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		uint64_t block_count64;
 		uint64_t data_start64;
 		uint64_t rsrc_size64;
-		unsigned int block_count;
+		uint32_t block_count;
 
 		if (a->decmpfs_header_p == NULL) {
 			new_block = malloc(MAX_DECMPFS_XATTR_SIZE
@@ -1492,10 +1507,16 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		    a->filesize);
 
 		/* Calculate a block count of the file. */
+		if (a->filesize < 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Unknown file size for HFS+ compression");
+			return (ARCHIVE_FAILED);
+		}
 		block_count64 =
 		    ((uint64_t)a->filesize + MAX_DECMPFS_BLOCK_SIZE - 1) /
 		    MAX_DECMPFS_BLOCK_SIZE;
-		if (block_count64 > UINT_MAX) {
+		if (block_count64 > UINT32_MAX) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "File too large for HFS+ compression");
@@ -1509,7 +1530,7 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 			    "Can't allocate memory for ResourceFork");
 			return (ARCHIVE_FATAL);
 		}
-		block_count = (unsigned int)block_count64;
+		block_count = (uint32_t)block_count64;
 		/*
 		 * Allocate buffer for resource fork.
 		 * Set up related pointers;

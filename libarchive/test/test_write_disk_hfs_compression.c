@@ -287,31 +287,40 @@ DEFINE_TEST(test_write_disk_hfs_compression_large_file)
 	struct archive_entry *ae;
 	char buff[1024];
 	la_ssize_t r;
+	int i;
 
 	memset(buff, 0, sizeof(buff));
 
-	assert((a = archive_write_disk_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_disk_set_options(a,
-		ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED));
+	for (i = 0; i < 2; i++) {
+		assert((a = archive_write_disk_new()) != NULL);
+		if (i == 0) {
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_write_disk_set_options(a,
+				ARCHIVE_EXTRACT_HFS_COMPRESSION_FORCED));
+		}
 
-	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_set_pathname(ae, "hfs-block-count-overflow");
-	archive_entry_set_filetype(ae, AE_IFREG);
-	archive_entry_set_perm(ae, 0600);
-	archive_entry_set_size(ae, ((int64_t)1) << 48);
+		assert((ae = archive_entry_new()) != NULL);
+		archive_entry_set_pathname(ae, i == 0
+		    ? "hfs-large-forced"
+		    : "hfs-large-preserved");
+		archive_entry_set_filetype(ae, AE_IFREG);
+		archive_entry_set_perm(ae, 0600);
+		archive_entry_set_size(ae, ((int64_t)1) << 48);
+		if (i == 1)
+			archive_entry_set_fflags(ae, UF_COMPRESSED, 0);
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 
-	/*
-	 * Very large HFS-compressed files must be rejected before
-	 * ResourceFork metadata is initialized beyond supported limits.
-	 */
-	r = archive_write_data(a, buff, sizeof(buff));
-	failure("Large HFS+ compressed file must be rejected");
-	assert(r < ARCHIVE_OK);
+		/*
+		 * Very large HFS-compressed files must be rejected before
+		 * ResourceFork metadata is initialized beyond supported limits.
+		 */
+		r = archive_write_data(a, buff, sizeof(buff));
+		failure("Large HFS+ compressed file must be rejected");
+		assert(r < ARCHIVE_OK);
 
-	archive_entry_free(ae);
-	archive_write_free(a);
+		archive_entry_free(ae);
+		archive_write_free(a);
+	}
 #endif
 }
