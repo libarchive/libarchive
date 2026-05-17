@@ -81,6 +81,59 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_cpio_newc_large_pathname)
+{
+	const size_t namesize = 1024 * 1024 + 1;
+	const size_t name_pad = (2 - namesize) & 3;
+	char header[111];
+	const size_t header_size = sizeof(header) - 1;
+	const size_t buffsize = header_size + namesize + name_pad;
+	char *buff;
+	struct archive *a;
+	struct archive_entry *ae;
+	int header_len;
+
+	assert((buff = calloc(1, buffsize)) != NULL);
+	if (buff == NULL)
+		return;
+
+	header_len = snprintf(header, sizeof(header),
+	    "070701" /* magic */
+	    "%08x" /* c_ino */
+	    "%08x" /* c_mode */
+	    "%08x" /* c_uid */
+	    "%08x" /* c_gid */
+	    "%08x" /* c_nlink */
+	    "%08x" /* c_mtime */
+	    "%08x" /* c_filesize */
+	    "%08x" /* c_devmajor */
+	    "%08x" /* c_devminor */
+	    "%08x" /* c_rdevmajor */
+	    "%08x" /* c_rdevminor */
+	    "%08x" /* c_namesize */
+	    "%08x", /* c_check */
+	    1, 0100644, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+	    (unsigned int)namesize, 0);
+	assertEqualInt((int)header_size, header_len);
+
+	memcpy(buff, header, header_size);
+	memset(buff + header_size, 'a', namesize);
+	buff[header_size + namesize - 1] = '\0';
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, buffsize));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualString("Rejecting malformed cpio archive: "
+	    "pathname exceeds 1 megabyte", archive_error_string(a));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(buff);
+}
+
 DEFINE_TEST(test_read_format_cpio_filename_UTF8_eucJP)
 {
 	const char *refname = "test_read_format_cpio_filename_utf8_jp.cpio";
@@ -868,4 +921,3 @@ DEFINE_TEST(test_read_format_cpio_filename_UTF8_CP1251)
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
-
