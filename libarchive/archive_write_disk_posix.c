@@ -2109,6 +2109,40 @@ restore_entry(struct archive_write_disk *a)
 	/* Try creating it first; if this fails, we'll try to recover. */
 	en = create_filesystem_object(a);
 
+	int auto_rename = (a->flags & ARCHIVE_EXTRACT_AUTO_RENAME);
+	if (auto_rename && en == EEXIST && !S_ISDIR(a->mode)) {
+		/* If the file already exists, rename it if auto_rename is enabled. */
+		/* Directoies are not handled, this will require some kind of mapping. */
+		int counter = 1;
+		struct archive_string new_name;
+		archive_string_init(&new_name);
+		
+		const char *orig_name = archive_entry_pathname(a->entry);
+		const char *slash = strrchr(orig_name, '/');
+		const char *dot = strrchr(orig_name, '.');
+		const char *ext = NULL;
+
+		/* Check if the object has a valid extension and save it. */
+		if (dot && (slash == NULL || dot > slash) && dot != orig_name
+			&& (slash == NULL ? dot != orig_name : dot != slash + 1)) {
+			ext = dot;
+		} else {
+			ext = orig_name + strlen(orig_name);
+		}
+		while (en == EEXIST) {
+			archive_string_empty(&new_name);
+			archive_strncat(&new_name, orig_name, (size_t)(ext - orig_name));
+			/* Append the suffix. */
+			archive_string_sprintf(&new_name, "_%d", counter++);
+			archive_strcat(&new_name, ext);
+			archive_strcpy(&a->_name_data, new_name.s);
+			a->name = a->_name_data.s;
+			/* Now try to create the object again with the new name. */
+			en = create_filesystem_object(a);
+		}
+		archive_string_free(&new_name);
+	}
+
 	if ((en == ENOTDIR || en == ENOENT)
 	    && !(a->flags & ARCHIVE_EXTRACT_NO_AUTODIR)) {
 		/* If the parent dir doesn't exist, try creating it. */
