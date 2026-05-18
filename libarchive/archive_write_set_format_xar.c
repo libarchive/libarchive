@@ -2205,20 +2205,29 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 				 *     --> 'dir/dir2/'
 				 */
 				char *rp = p -1;
+				size_t off;
+				for (off = 4; p[off] == '/'; off++)
+					;
 				while (rp >= dirname) {
 					if (*rp == '/')
 						break;
 					--rp;
 				}
 				if (rp > dirname) {
-					strcpy(rp, p+3);
+					memmove(rp + 1, p + off, strlen(p + off) + 1);
 					p = rp;
 				} else {
-					strcpy(dirname, p+4);
+					memmove(dirname, p + off, strlen(p + off) + 1);
 					p = dirname;
 				}
 			} else
 				p++;
+		} else if (p == dirname && p[0] == '.' && p[1] == '.' && p[2] == '/') {
+			size_t off;
+			for (off = 3; p[off] == '/'; off++)
+				;
+			memmove(dirname, p + off, strlen(p + off) + 1);
+			p = dirname;
 		} else
 			p++;
 	}
@@ -2272,7 +2281,7 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 static int
 get_path_component(char *name, int n, const char *fn)
 {
-	char *p;
+	const char *p;
 	int l;
 
 	p = strchr(fn, '/');
@@ -2378,9 +2387,23 @@ file_tree(struct archive_write *a, struct file **filepp)
 
 			archive_string_init(&as);
 			archive_strncat(&as, p, fn - p + l);
-			if (as.s[as.length-1] == '/') {
+			if (as.length > 0 && as.s[as.length-1] == '/') {
 				as.s[as.length-1] = '\0';
 				as.length--;
+			}
+			if (as.length == 0) {
+				archive_string_free(&as);
+				fn += strspn(fn, "/");
+				l = get_path_component(name, sizeof(name), fn);
+				if (l < 0) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "A name buffer is too small");
+					file_free(file);
+					*filepp = NULL;
+					return (ARCHIVE_FATAL);
+				}
+				continue;
 			}
 			vp = file_create_virtual_dir(a, xar, as.s);
 			if (vp == NULL) {

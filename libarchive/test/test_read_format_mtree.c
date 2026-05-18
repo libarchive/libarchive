@@ -843,3 +843,38 @@ DEFINE_TEST(test_read_format_mtree_tab)
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_mtree_nano)
+{
+	static char archive[] =
+		"#mtree\n"
+		"a type=file time=1234567890.1000000000000 contents=nonexistent_file\n"
+		"b type=file time=1234567899.-1000000000000 contents=nonexistent_file\n";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "a");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+	assertEqualIntA(a, archive_entry_mtime(ae), 1234567890);
+	assertEqualIntA(a, archive_entry_mtime_nsec(ae), 999999999);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "b");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+	assertEqualIntA(a, archive_entry_mtime(ae), 1234567899);
+	assertEqualIntA(a, archive_entry_mtime_nsec(ae), 0);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_file_count(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

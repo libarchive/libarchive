@@ -70,18 +70,24 @@ DEFINE_TEST(test_read_format_cab_mszip_oob)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_cab(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, b, total));
 
-	/*
-	 * Drive the read loop the same way the PoC does.  The first
-	 * archive_read_data() call is expected to fail (ARCHIVE_FATAL or
-	 * ARCHIVE_FAILED) because the payload is truncated.  The second
-	 * archive_read_next_header() call is where the OOB access occurs in
-	 * unfixed code; it must return an error rather than corrupt memory.
-	 */
 	struct archive_entry *ae;
 	char buf[4096];
-	while (archive_read_next_header(a, &ae) == ARCHIVE_OK)
-		archive_read_data(a, buf, sizeof(buf));
 
+	/* The single CFFILE header is well-formed and should read cleanly. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("a", archive_entry_pathname(ae));
+
+	/*
+	 * Reading data must fail: cbUncomp (0xFF6F) exceeds the decoder's
+	 * uncompressed buffer (0x8000), so the bounds check returns FATAL
+	 * rather than writing past the buffer end.
+	 */
+	assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buf, sizeof(buf)));
+
+	/* The archive is in FATAL state and should remain that way. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(b);
 }

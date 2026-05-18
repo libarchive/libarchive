@@ -29,6 +29,7 @@ IF(ENABLE_TEST)
     test_archive_match_time.c
     test_archive_parse_date.c
     test_archive_pathmatch.c
+    test_archive_pathmatch_oob.c
     test_archive_read.c
     test_archive_read_add_passphrase.c
     test_archive_read_close_twice.c
@@ -97,6 +98,7 @@ IF(ENABLE_TEST)
     test_read_disk_entry_from_file.c
     test_read_extract.c
     test_read_file_nonexistent.c
+    test_read_files_compressed.c
     test_read_filter_compress.c
     test_read_filter_grzip.c
     test_read_filter_gzip_recursive.c
@@ -177,10 +179,13 @@ IF(ENABLE_TEST)
     test_read_format_rar_filter.c
     test_read_format_rar_overflow.c
     test_read_format_rar5.c
+    test_read_format_rar5_bad_filter.c
     test_read_format_rar5_bad_tables.c
+    test_read_format_rar5_block_hdr_fail_loop.c
     test_read_format_rar5_loop_bug.c
     test_read_format_raw.c
     test_read_format_tar.c
+    test_read_format_tar_acl_oob_read.c
     test_read_format_tar_V_negative_size.c
     test_read_format_tar_concatenated.c
     test_read_format_tar_empty_filename.c
@@ -291,15 +296,20 @@ IF(ENABLE_TEST)
     test_write_format_iso9660_boot.c
     test_write_format_iso9660_empty.c
     test_write_format_iso9660_filename.c
+    test_write_format_iso9660_joliet_id.c
     test_write_format_iso9660_zisofs.c
+    test_write_format_iso9660_bugs.c
     test_write_format_mtree.c
+    test_write_format_mtree_absolute.c
     test_write_format_mtree_absolute_path.c
     test_write_format_mtree_classic.c
     test_write_format_mtree_classic_indent.c
+    test_write_format_mtree_dotdot.c
     test_write_format_mtree_fflags.c
     test_write_format_mtree_no_separator.c
     test_write_format_mtree_preset_digests.c
     test_write_format_mtree_quoted_filename.c
+    test_write_format_mtree_null_deref.c
     test_write_format_pax.c
     test_write_format_raw.c
     test_write_format_raw_b64.c
@@ -313,6 +323,7 @@ IF(ENABLE_TEST)
     test_write_format_warc_empty.c
     test_write_format_xar.c
     test_write_format_xar_empty.c
+    test_write_format_xar_bugs.c
     test_write_format_zip.c
     test_write_format_zip64_stream.c
     test_write_format_zip_compression_store.c
@@ -352,20 +363,8 @@ IF(ENABLE_TEST)
   SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR})
 
-  # list.h has a line DEFINE_TEST(testname) for every
-  # test.  We can use that to define the tests for cmake by
-  # defining a DEFINE_TEST macro and reading list.h in.
-  MACRO (DEFINE_TEST _testname)
-    ADD_TEST(
-      NAME libarchive_${_testname}
-      COMMAND libarchive_test -vv
-                              -r ${CMAKE_CURRENT_SOURCE_DIR}
-                              -s
-                              ${_testname})
-    SET_TESTS_PROPERTIES(libarchive_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
-  ENDMACRO (DEFINE_TEST _testname)
+  DISCOVER_TESTS(libarchive ${libarchive_test_SOURCES})
 
-  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h OPTIONAL)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/libarchive/test)

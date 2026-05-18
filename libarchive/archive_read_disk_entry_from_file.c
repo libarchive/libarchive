@@ -894,7 +894,7 @@ setup_sparse_fiemap(struct archive_read_disk *a,
 
 		r = ioctl(*fd, FS_IOC_FIEMAP, fm);
 		if (r < 0) {
-			/* When something error happens, it is better we
+			/* When some error happens, it is better we
 			 * should return ARCHIVE_OK because an earlier
 			 * version(<2.6.28) cannot perform FS_IOC_FIEMAP. */
 			goto exit_setup_sparse_fiemap;

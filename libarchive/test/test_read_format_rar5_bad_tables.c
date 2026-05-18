@@ -50,12 +50,8 @@ DEFINE_TEST(test_read_format_rar5_bad_tables)
 	/* The file header is valid; the bad data is in the compressed block. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
-	/* Reading must fail because the meta-table is over-subscribed.
-	 * TODO: Investigate whether ARCHIVE_FAILED is achievable here
-	 * instead of ARCHIVE_FATAL, which would allow the caller to skip
-	 * to a subsequent valid entry.  That would also require expanding
-	 * the reference archive to include a valid entry after the bad one. */
-	assertEqualIntA(a, ARCHIVE_FATAL,
+	/* Reading must fail because the meta-table is over-subscribed. */
+	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_read_data_block(a, &buf, &size, &offset));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));

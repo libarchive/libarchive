@@ -358,6 +358,8 @@ la_linkname_from_handle(HANDLE h, wchar_t **linkname, int *linktype)
 	}
 
 	indata = malloc(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+	if (indata == NULL)
+		return (-1);
 	ret = DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, indata,
 	    1024, &inbytes, NULL);
 	if (ret == 0) {
@@ -946,7 +948,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	if (a->matching) {
 		r = archive_match_path_excluded(a->matching, entry);
 		if (r < 0) {
-			archive_set_error(&(a->archive), errno,
+			archive_set_error(&(a->archive), archive_errno(a->matching),
 			    "%s", archive_error_string(a->matching));
 			return (r);
 		}
@@ -1018,7 +1020,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	if (a->matching) {
 		r = archive_match_time_excluded(a->matching, entry);
 		if (r < 0) {
-			archive_set_error(&(a->archive), errno,
+			archive_set_error(&(a->archive), archive_errno(a->matching),
 			    "%s", archive_error_string(a->matching));
 			return (r);
 		}
@@ -1044,7 +1046,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	if (a->matching) {
 		r = archive_match_owner_excluded(a->matching, entry);
 		if (r < 0) {
-			archive_set_error(&(a->archive), errno,
+			archive_set_error(&(a->archive), archive_errno(a->matching),
 			    "%s", archive_error_string(a->matching));
 			return (r);
 		}
@@ -1632,6 +1634,8 @@ tree_push(struct tree *t, const wchar_t *path, const wchar_t *full_path,
 	struct tree_entry *te;
 
 	te = calloc(1, sizeof(*te));
+	if (te == NULL)
+		return;
 	te->next = t->stack;
 	te->parent = t->current;
 	if (te->parent)
@@ -1704,6 +1708,8 @@ tree_open(const wchar_t *path, int symlink_mode, int restore_time)
 	struct tree *t;
 
 	t = calloc(1, sizeof(*t));
+	if (t == NULL)
+		return (NULL);
 	archive_string_init(&(t->full_path));
 	archive_string_init(&t->path);
 	if (archive_wstring_ensure(&t->path, 15) == NULL) {

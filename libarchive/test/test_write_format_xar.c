@@ -93,13 +93,13 @@ test_xar(const char *option)
 	archive_entry_free(ae);
 
 	/*
-	 * "dir/file3" has a bunch of attributes and 8 bytes of data.
+	 * "dir/file" has a bunch of attributes and 8 bytes of data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_atime(ae, 2, 20);
 	archive_entry_set_ctime(ae, 4, 40);
 	archive_entry_set_mtime(ae, 5, 50);
-	archive_entry_copy_pathname(ae, "dir/file");
+	archive_entry_copy_pathname(ae, "dir/../../dir/file");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
@@ -113,7 +113,7 @@ test_xar(const char *option)
 	archive_entry_set_atime(ae, 2, 20);
 	archive_entry_set_ctime(ae, 4, 40);
 	archive_entry_set_mtime(ae, 5, 50);
-	archive_entry_copy_pathname(ae, "dir/dir2/file4");
+	archive_entry_copy_pathname(ae, "dir/..//dir/dir2/file4");
 	archive_entry_copy_hardlink(ae, "file");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_nlink(ae, 2);

@@ -175,7 +175,7 @@ struct _7z_digests {
 struct _7z_folder {
 	uint64_t		 numCoders;
 	struct _7z_coder {
-		unsigned long	 codec;
+		uint64_t	 codec;
 		uint64_t	 numInStreams;
 		uint64_t	 numOutStreams;
 		uint64_t	 propertiesSize;
@@ -409,7 +409,7 @@ static int	archive_read_format_7zip_read_data_skip(struct archive_read *);
 static int	archive_read_format_7zip_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	check_7zip_header_in_sfx(const unsigned char *);
-static unsigned long decode_codec_id(const unsigned char *, size_t);
+static int	decode_codec_id(const unsigned char *, size_t, uint64_t *);
 static int	decode_encoded_header_info(struct archive_read *,
 		    struct _7z_stream_info *);
 static int	decompress(struct archive_read *, struct _7zip *,
@@ -1197,7 +1197,7 @@ archive_read_format_7zip_read_data_skip(struct archive_read *a)
 	 */
 	bytes_skipped = skip_stream(a, (size_t)zip->entry_bytes_remaining);
 	if (bytes_skipped < 0)
-		return (ARCHIVE_FATAL);
+		return ((int)bytes_skipped);
 	zip->entry_bytes_remaining = 0;
 
 	/* This entry is finished and done. */
@@ -1289,17 +1289,20 @@ set_error(struct archive_read *a, int ret)
 
 #endif
 
-static unsigned long
-decode_codec_id(const unsigned char *codecId, size_t id_size)
+static int
+decode_codec_id(const unsigned char *codecId, size_t id_size, uint64_t *id)
 {
 	unsigned i;
-	unsigned long id = 0;
+	uint64_t v = 0;
 
 	for (i = 0; i < id_size; i++) {
-		id <<= 8;
-		id += codecId[i];
+		if (v > (uint64_t)INT64_MAX / 256)
+			return (-1);
+		v <<= 8;
+		v += codecId[i];
 	}
-	return (id);
+	*id = v;
+	return (0);
 }
 
 static Byte
@@ -2287,7 +2290,8 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 		if ((p = header_bytes(a, codec_size)) == NULL)
 			return (-1);
 
-		f->coders[i].codec = decode_codec_id(p, codec_size);
+		if (decode_codec_id(p, codec_size, &f->coders[i].codec) < 0)
+			return (-1);
 
 		if (simple) {
 			f->coders[i].numInStreams = 1;
@@ -3699,7 +3703,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 		r = setup_decode_folder(a,
 			&(zip->si.ci.folders[zip->folder_index]), 0);
 		if (r != ARCHIVE_OK)
-			return (ARCHIVE_FATAL);
+			return (r);
 
 		zip->folder_index++;
 	}
@@ -3794,7 +3798,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 					ARCHIVE_ERRNO_MISC,
 					"The %s is encrypted, "
 					"but currently not supported", cname);
-				return (ARCHIVE_FATAL);
+				return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 			}
 			case _7Z_X86_BCJ2: {
 				found_bcj2++;
@@ -3814,7 +3818,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		    ARCHIVE_ERRNO_MISC,
 		    "The %s is encoded with many filters, "
 		    "but currently not supported", cname);
-		return (ARCHIVE_FATAL);
+		return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 	}
 
 	/*
@@ -4311,7 +4315,7 @@ sparc_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 	size &= ~(size_t)3;
 
 	for (i = 0; i < size; i += 4) {
-		instr = (uint32_t)(buf[i] << 24)
+		instr = ((uint32_t)buf[i] << 24)
 			| ((uint32_t)buf[i+1] << 16)
 			| ((uint32_t)buf[i+2] << 8)
 			| (uint32_t)buf[i+3];

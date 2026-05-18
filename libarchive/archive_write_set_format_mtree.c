@@ -307,14 +307,14 @@ static const uint32_t crctab[] = {
 static const unsigned char safe_char[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 00 - 0F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 10 - 1F */
-	/* !"$%&'()*+,-./  EXCLUSION:0x20( ) 0x23(#) */
-	0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 20 - 2F */
-	/* 0123456789:;<>?  EXCLUSION:0x3d(=) */
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, /* 30 - 3F */
+	/* !"$%&'()+,-./  EXCLUSION:0x20( ) 0x23(#) 0x2a(*) */
+	0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, /* 20 - 2F */
+	/* 0123456789:;<>  EXCLUSION:0x3d(=) 0x3f(?) */
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, /* 30 - 3F */
 	/* @ABCDEFGHIJKLMNO */
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 40 - 4F */
-	/* PQRSTUVWXYZ[]^_ EXCLUSION:0x5c(\)  */
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, /* 50 - 5F */
+	/* PQRSTUVWXYZ]^_ EXCLUSION:0x5b([) 0x5c(\)  */
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, /* 50 - 5F */
 	/* `abcdefghijklmno */
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 60 - 6F */
 	/* pqrstuvwxyz{|}~ */
@@ -988,7 +988,8 @@ write_mtree_entry(struct archive_write *a, struct mtree_entry *me)
 		 * a full pathname.
 		 */
 		mtree_quote(str, me->parentdir.s);
-		archive_strappend_char(str, '/');
+		if (strcmp(me->basename.s, ".") != 0)
+			archive_strappend_char(str, '/');
 	}
 	mtree_quote(str, me->basename.s);
 
@@ -1145,6 +1146,8 @@ write_mtree_entry_tree(struct archive_write *a)
 	int ret;
 
 	do {
+		if (np->dir_info == NULL)
+			break;
 		if (mtree->output_global_set) {
 			/*
 			 * Collect attribute information to know which value
@@ -1881,20 +1884,29 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 				 *     --> 'dir/dir2/'
 				 */
 				char *rp = p -1;
+				size_t off;
+				for (off = 4; p[off] == '/'; off++)
+					;
 				while (rp >= dirname) {
 					if (*rp == '/')
 						break;
 					--rp;
 				}
 				if (rp > dirname) {
-					strcpy(rp, p+3);
+					memmove(rp + 1, p + off, strlen(p + off) + 1);
 					p = rp;
 				} else {
-					strcpy(dirname, p+4);
+					memmove(dirname, p + off, strlen(p + off) + 1);
 					p = dirname;
 				}
 			} else
 				p++;
+		} else if (p == dirname && p[0] == '.' && p[1] == '.' && p[2] == '/') {
+			size_t off;
+			for (off = 3; p[off] == '/'; off++)
+				;
+			memmove(dirname, p + off, strlen(p + off) + 1);
+			p = dirname;
 		} else
 			p++;
 	}
@@ -2036,7 +2048,7 @@ mtree_entry_find_child(struct mtree_entry *parent, const char *child_name)
 static int
 get_path_component(char *name, size_t n, const char *fn)
 {
-	char *p;
+	const char *p;
 	size_t l;
 
 	p = strchr(fn, '/');

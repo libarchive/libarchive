@@ -1790,12 +1790,16 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			 * 123456789.1 represents 123456789
 			 * seconds and 1 nanosecond. */
 			if (*val == '.') {
+				int64_t v;
+
 				++val;
-				ns = (long)mtree_atol(&val, 10);
-				if (ns < 0)
+				v = mtree_atol(&val, 10);
+				if (v < 0)
 					ns = 0;
-				else if (ns > 999999999)
+				else if (v > 999999999)
 					ns = 999999999;
+				else
+					ns = (long)v;
 			}
 			if (m > my_time_t_max)
 				m = my_time_t_max;
@@ -2029,9 +2033,9 @@ parsedigit(char c)
 	if (c >= '0' && c <= '9')
 		return c - '0';
 	else if (c >= 'a' && c <= 'f')
-		return c - 'a';
+		return 10 + c - 'a';
 	else if (c >= 'A' && c <= 'F')
-		return c - 'A';
+		return 10 + c - 'A';
 	else
 		return -1;
 }
@@ -2100,8 +2104,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 	ssize_t bytes_read;
 	ssize_t total_size = 0;
 	ssize_t find_off = 0;
-	const void *t;
-	void *nl;
+	const void *nl, *t;
 	char *u;
 
 	/* Accumulate line in a line buffer. */

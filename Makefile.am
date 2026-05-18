@@ -19,6 +19,8 @@ BUILT_SOURCES= libarchive/test/list.h tar/test/list.h cpio/test/list.h cat/test/
 check_PROGRAMS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs) $(bsdunzip_test_programs)
 TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs) $(bsdunzip_test_programs)
 TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT) $(bsdcat_TESTS_ENVIRONMENT) $(bsdunzip_TESTS_ENVIRONMENT)
+# Uncomment the following to enable verbose test output:
+# TESTS_ENVIRONMENT += _VERBOSITY_LEVEL=2
 # Always build and test both bsdtar and bsdcpio as part of 'distcheck'
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 # The next line is commented out by default in shipping libarchive releases.
@@ -395,6 +397,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_match_time.c \
 	libarchive/test/test_archive_parse_date.c \
 	libarchive/test/test_archive_pathmatch.c \
+	libarchive/test/test_archive_pathmatch_oob.c \
 	libarchive/test/test_archive_read.c \
 	libarchive/test/test_archive_read_add_passphrase.c \
 	libarchive/test/test_archive_read_close_twice.c \
@@ -463,6 +466,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_disk_entry_from_file.c \
 	libarchive/test/test_read_extract.c \
 	libarchive/test/test_read_file_nonexistent.c \
+	libarchive/test/test_read_files_compressed.c \
 	libarchive/test/test_read_filter_compress.c \
 	libarchive/test/test_read_filter_grzip.c \
 	libarchive/test/test_read_filter_gzip_recursive.c \
@@ -543,10 +547,13 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar_invalid1.c \
 	libarchive/test/test_read_format_rar_overflow.c \
 	libarchive/test/test_read_format_rar5.c \
+	libarchive/test/test_read_format_rar5_bad_filter.c \
 	libarchive/test/test_read_format_rar5_bad_tables.c \
+	libarchive/test/test_read_format_rar5_block_hdr_fail_loop.c \
 	libarchive/test/test_read_format_rar5_loop_bug.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
+	libarchive/test/test_read_format_tar_acl_oob_read.c \
 	libarchive/test/test_read_format_tar_V_negative_size.c \
 	libarchive/test/test_read_format_tar_concatenated.c \
 	libarchive/test/test_read_format_tar_empty_pax.c \
@@ -655,17 +662,22 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_gnutar_filenames.c \
 	libarchive/test/test_write_format_iso9660.c \
 	libarchive/test/test_write_format_iso9660_boot.c \
+	libarchive/test/test_write_format_iso9660_bugs.c \
 	libarchive/test/test_write_format_iso9660_empty.c \
 	libarchive/test/test_write_format_iso9660_filename.c \
+	libarchive/test/test_write_format_iso9660_joliet_id.c \
 	libarchive/test/test_write_format_iso9660_zisofs.c \
 	libarchive/test/test_write_format_mtree.c \
+	libarchive/test/test_write_format_mtree_absolute.c \
 	libarchive/test/test_write_format_mtree_absolute_path.c \
 	libarchive/test/test_write_format_mtree_classic.c \
 	libarchive/test/test_write_format_mtree_classic_indent.c\
+	libarchive/test/test_write_format_mtree_dotdot.c \
 	libarchive/test/test_write_format_mtree_fflags.c \
 	libarchive/test/test_write_format_mtree_no_separator.c \
 	libarchive/test/test_write_format_mtree_preset_digests.c \
 	libarchive/test/test_write_format_mtree_quoted_filename.c\
+	libarchive/test/test_write_format_mtree_null_deref.c \
 	libarchive/test/test_write_format_pax.c \
 	libarchive/test/test_write_format_raw.c \
 	libarchive/test/test_write_format_raw_b64.c \
@@ -678,6 +690,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_warc.c \
 	libarchive/test/test_write_format_warc_empty.c \
 	libarchive/test/test_write_format_xar.c \
+	libarchive/test/test_write_format_xar_bugs.c \
 	libarchive/test/test_write_format_xar_empty.c \
 	libarchive/test/test_write_format_zip.c \
 	libarchive/test/test_write_format_zip64_stream.c \
@@ -720,9 +733,12 @@ libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/
 
 libarchive_test_EXTRA_DIST=\
 	libarchive/test/list.h \
+	libarchive/test/test_fuzz_consumer.h \
 	libarchive/test/test_acl_pax_posix1e.tar.uu \
 	libarchive/test/test_acl_pax_nfs4.tar.uu \
 	libarchive/test/test_archive_string_conversion.txt.Z.uu \
+	libarchive/test/test_archive_pathmatch_oob_bracket.bin.uu \
+	libarchive/test/test_archive_pathmatch_oob_strchr.bin.uu \
 	libarchive/test/test_compat_bzip2_1.tbz.uu \
 	libarchive/test/test_compat_bzip2_2.tbz.uu \
 	libarchive/test/test_compat_cpio_1.cpio.uu \
@@ -802,6 +818,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_rar_multivolume_uncompressed_files.part08.rar.uu \
 	libarchive/test/test_rar_multivolume_uncompressed_files.part09.rar.uu \
 	libarchive/test/test_rar_multivolume_uncompressed_files.part10.rar.uu \
+	libarchive/test/test_read_files_compressed.part01.uu \
+	libarchive/test/test_read_files_compressed.part02.uu \
 	libarchive/test/test_read_filter_grzip.tar.grz.uu \
 	libarchive/test/test_read_filter_gzip_recursive.gz.uu \
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu \
@@ -1019,6 +1037,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_raw.data.Z.uu \
 	libarchive/test/test_read_format_raw.data.uu \
 	libarchive/test/test_read_format_tar_V_negative_size.tar.uu \
+	libarchive/test/test_read_format_tar_acl_oob_read.tar.uu \
 	libarchive/test/test_read_format_tar_concatenated.tar.uu \
 	libarchive/test/test_read_format_tar_empty_filename.tar.uu \
 	libarchive/test/test_read_format_tar_empty_with_gnulabel.tar.uu \
@@ -1038,6 +1057,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_warc_incomplete.warc.uu \
 	libarchive/test/test_read_format_xar_doublelink.xar.uu \
 	libarchive/test/test_read_format_xar_duplicate_filename_node.xar.uu \
+	libarchive/test/test_read_format_xar_large_mode.xar.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.zip.uu \
 	libarchive/test/test_read_format_zip_7z_deflate.zip.uu \
@@ -1117,6 +1137,12 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_write_disk_hfs_compression.tgz.uu \
 	libarchive/test/test_write_disk_mac_metadata.tar.gz.uu \
 	libarchive/test/test_write_disk_no_hfs_compression.tgz.uu \
+	libarchive/test/test_write_format_iso9660_joliet_overflow.bin.uu \
+	libarchive/test/test_write_format_iso9660_null_deref.bin.uu \
+	libarchive/test/test_write_format_iso9660_underflow.bin.uu \
+	libarchive/test/test_write_format_mtree_null_deref.bin.uu \
+	libarchive/test/test_write_format_xar_strcpy_overlap.bin.uu \
+	libarchive/test/test_write_format_xar_underflow.bin.uu \
 	libarchive/test/CMakeLists.txt \
 	libarchive/test/README
 

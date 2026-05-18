@@ -109,21 +109,8 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR})
 
-  # list.h has a line DEFINE_TEST(testname) for every
-  # test.  We can use that to define the tests for cmake by
-  # defining a DEFINE_TEST macro and reading list.h in.
-  MACRO (DEFINE_TEST _testname)
-    ADD_TEST(
-      NAME bsdtar_${_testname}
-      COMMAND bsdtar_test -vv
-                          -p $<TARGET_FILE:bsdtar>
-                          -r ${CMAKE_CURRENT_SOURCE_DIR}
-                          -s
-                          ${_testname})
-    SET_TESTS_PROPERTIES(bsdtar_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
-  ENDMACRO (DEFINE_TEST _testname)
+  DISCOVER_TESTS(bsdtar ${bsdtar_test_SOURCES})
 
-  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h OPTIONAL)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tar/test)

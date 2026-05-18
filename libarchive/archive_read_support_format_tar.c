@@ -3636,9 +3636,8 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 {
 	ssize_t bytes_read;
 	ssize_t total_size = 0;
-	const void *t;
+	const void *p, *t;
 	const char *s;
-	void *p;
 
 	if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
 		return (ARCHIVE_FATAL);
