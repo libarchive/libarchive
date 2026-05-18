@@ -191,3 +191,58 @@ DEFINE_TEST(test_write_format_iso9660_joliet_overflow)
 {
 	replay_iso9660_writer("test_write_format_iso9660_joliet_overflow.bin");
 }
+
+DEFINE_TEST(test_write_format_iso9660_duplicate_identifier_truncation)
+{
+	const char *names[2];
+	struct archive *a;
+	struct archive_entry *entry;
+	char name1[66], name2[66];
+	unsigned char *buff;
+	size_t buffsize = 190 * 2048;
+	size_t i, used = 0;
+
+	/* These names collide after default Joliet identifier truncation. */
+	memset(name1, 'A', sizeof(name1));
+	memset(name2, 'A', sizeof(name2));
+	name1[0] = name2[0] = '.';
+	name1[64] = 'X';
+	name2[64] = 'Y';
+	name1[65] = name2[65] = '\0';
+	names[0] = name1;
+	names[1] = name2;
+
+	buff = malloc(buffsize);
+	assert(buff != NULL);
+	if (buff == NULL)
+		return;
+
+	assert((a = archive_write_new()) != NULL);
+	if (a == NULL) {
+		free(buff);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_iso9660(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_bytes_in_last_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
+	for (i = 0; i < 2; i++) {
+		entry = archive_entry_new();
+		if (!assert(entry != NULL))
+			break;
+		archive_entry_copy_pathname(entry, names[i]);
+		archive_entry_set_mode(entry, AE_IFREG | 0644);
+		archive_entry_set_size(entry, 0);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_header(a, entry));
+		archive_entry_free(entry);
+	}
+	failure("ISO9660 writer should resolve duplicate Joliet identifiers "
+	    "after truncation");
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	free(buff);
+}
