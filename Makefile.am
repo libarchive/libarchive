@@ -526,6 +526,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_isojoliet_versioned.c \
 	libarchive/test/test_read_format_isorr_bz2.c \
 	libarchive/test/test_read_format_isorr_ce.c \
+	libarchive/test/test_read_format_isorr_ce_loop.c \
 	libarchive/test/test_read_format_isorr_new_bz2.c \
 	libarchive/test/test_read_format_isorr_rr_moved.c \
 	libarchive/test/test_read_format_isozisofs_bz2.c \
@@ -926,6 +927,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_multi_extent.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_ce.iso.Z.uu \
+	libarchive/test/test_read_format_iso_rockridge_ce_loop.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_new.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_rr_moved.iso.Z.uu \
 	libarchive/test/test_read_format_iso_xorriso.iso.Z.uu \
