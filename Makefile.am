@@ -691,6 +691,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_xar.c \
 	libarchive/test/test_write_format_xar_bugs.c \
 	libarchive/test/test_write_format_xar_empty.c \
+	libarchive/test/test_write_format_xar_fflags.c \
 	libarchive/test/test_write_format_zip.c \
 	libarchive/test/test_write_format_zip64_stream.c \
 	libarchive/test/test_write_format_zip_compression_store.c \

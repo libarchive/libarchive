@@ -322,6 +322,7 @@ IF(ENABLE_TEST)
     test_write_format_warc_empty.c
     test_write_format_xar.c
     test_write_format_xar_empty.c
+    test_write_format_xar_fflags.c
     test_write_format_xar_bugs.c
     test_write_format_zip.c
     test_write_format_zip64_stream.c

@@ -1110,30 +1110,27 @@ make_fflags_entry(struct archive_write *a, struct xml_writer *writer,
 		{ NULL, NULL}
 	};
 	const struct flagentry *fe, *flagentry;
-#define FLAGENTRY_MAXSIZE ((sizeof(flagbsd)+sizeof(flagext2))/sizeof(flagbsd))
-	const struct flagentry *avail[FLAGENTRY_MAXSIZE];
 	const char *p;
-	int i, n, r;
+	int r, started;
 
 	if (strcmp(element, "ext2") == 0)
 		flagentry = flagext2;
 	else
 		flagentry = flagbsd;
-	n = 0;
 	p = fflags_text;
+	started = 0;
 	do {
-		const char *cp;
+		const char *cp, *name = NULL;
 
 		cp = strchr(p, ',');
 		if (cp == NULL)
 			cp = p + strlen(p);
 
 		for (fe = flagentry; fe->name != NULL; fe++) {
-			if (fe->name[cp - p] != '\0'
-			    || p[0] != fe->name[0])
-				continue;
 			if (strncmp(p, fe->name, cp - p) == 0) {
-				avail[n++] = fe;
+				if (fe->name[cp - p] != '\0')
+					continue;
+				name = fe->xarname;
 				break;
 			}
 		}
@@ -1141,23 +1138,26 @@ make_fflags_entry(struct archive_write *a, struct xml_writer *writer,
 			p = cp + 1;
 		else
 			p = NULL;
-	} while (p != NULL);
 
-	if (n > 0) {
-		r = xml_writer_start_element(writer, element);
-		if (r < 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "xml_writer_start_element() failed: %d", r);
-			return (ARCHIVE_FATAL);
-		}
-		for (i = 0; i < n; i++) {
-			r = xmlwrite_string(a, writer,
-			    avail[i]->xarname, NULL);
+		if (name != NULL) {
+			if (!started) {
+				r = xml_writer_start_element(writer, element);
+				if (r < 0) {
+					archive_set_error(&a->archive,
+						ARCHIVE_ERRNO_MISC,
+						"xml_writer_start_element()"
+						" failed: %d", r);
+					return (ARCHIVE_FATAL);
+				}
+				started = 1;
+			}
+			r = xmlwrite_string(a, writer, name, NULL);
 			if (r != ARCHIVE_OK)
 				return (r);
 		}
+	} while (p != NULL);
 
+	if (started) {
 		r = xml_writer_end_element(writer);
 		if (r < 0) {
 			archive_set_error(&a->archive,
