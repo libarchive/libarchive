@@ -1656,3 +1656,53 @@ DEFINE_TEST(test_read_format_7zip_lzma2_powerpc)
   
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * Test that 7-Zip bidder accounts for seekability.
+ * Issue #3068.
+ */
+DEFINE_TEST(test_read_format_7zip_bid)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	/* 7z signature */
+	unsigned char data[] = {'7', 'z', 0xbc, 0xaf, 0x27, 0x1c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+	/* 1. Seekable stream: 7-Zip should win. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, data, sizeof(data)));
+	/* Since the data is truncated, reading header should fail, 
+	   but the format SHOULD be identified as 7z. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_format(a) & ARCHIVE_FORMAT_BASE_MASK, ARCHIVE_FORMAT_7ZIP);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* 2. Non-seekable stream: 7-Zip should NOT win. */
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	{
+		int pipefd[2];
+		if (pipe(pipefd) == 0) {
+			if (write(pipefd[1], data, sizeof(data)) != (ssize_t)sizeof(data)) {
+				/* Handle error if needed */
+			}
+			close(pipefd[1]);
+
+			assert((a = archive_read_new()) != NULL);
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_open_fd(a, pipefd[0], 512));
+
+			/* 7-Zip should have abstained, allowing 'raw' to win. */
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+			assertEqualInt(archive_format(a) & ARCHIVE_FORMAT_BASE_MASK, ARCHIVE_FORMAT_RAW);
+
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+			close(pipefd[0]);
+		}
+	}
+#endif
+}
+

@@ -486,7 +486,7 @@ archive_read_open1(struct archive *_a)
 	filter->name = "none";
 	filter->code = ARCHIVE_FILTER_NONE;
 	filter->can_skip = 1;
-	filter->can_seek = 1;
+	filter->can_seek = (a->client.seeker != NULL);
 
 	a->client.dataset[0].begin_position = 0;
 	if (!a->filter || !a->bypass_filter_bidding)

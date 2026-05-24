@@ -600,6 +600,9 @@ fail:
 static int
 archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 {
+	if (a->filter->can_seek == 0)
+		return (0);
+
 	int64_t data_offset;
 
 	/* If someone has already bid more than 32, then avoid
