@@ -73,6 +73,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_read_support_filter_lz4.c \
 						libarchive/archive_read_support_filter_lzop.c \
 						libarchive/archive_read_support_filter_none.c \
+						libarchive/archive_read_support_filter_pbzx.c \
 						libarchive/archive_read_support_filter_program.c \
 						libarchive/archive_read_support_filter_rpm.c \
 						libarchive/archive_read_support_filter_uu.c \
