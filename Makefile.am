@@ -957,6 +957,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_solid_encrypted_filenames.rar.uu \
 	libarchive/test/test_read_format_rar5_arm.rar.uu \
 	libarchive/test/test_read_format_rar5_blake2.rar.uu \
+	libarchive/test/test_read_format_rar5_bytes_remaining_underflow.rar.uu \
 	libarchive/test/test_read_format_rar5_compressed.rar.uu \
 	libarchive/test/test_read_format_rar5_different_window_size.rar.uu \
 	libarchive/test/test_read_format_rar5_different_solid_window_size.rar.uu \

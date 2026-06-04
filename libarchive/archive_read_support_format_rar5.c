@@ -3645,21 +3645,22 @@ static int process_block(struct archive_read* a) {
 		to_skip = sizeof(struct compressed_block_header) +
 			bf_byte_count(&rar->last_block_hdr) + 1;
 
-		if(ARCHIVE_OK != consume(a, to_skip))
-			return ARCHIVE_EOF;
-
 		/* CWE-191: Guard against signed integer underflow. If the
 		 * block header's to_skip value exceeds the declared remaining
 		 * data, the archive is malformed. Without this check,
 		 * bytes_remaining wraps to a large negative ssize_t which is
 		 * then cast to ~SIZE_MAX inside malloc(), causing a heap
-		 * buffer overflow (CWE-122). */
+		 * buffer overflow (CWE-122). Validate before consuming any
+		 * bytes from the stream. */
 		if(to_skip > rar->file.bytes_remaining) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Block header size exceeds remaining file data");
 			return ARCHIVE_FATAL;
 		}
+
+		if(ARCHIVE_OK != consume(a, to_skip))
+			return ARCHIVE_EOF;
 
 		rar->file.bytes_remaining -= to_skip;
 

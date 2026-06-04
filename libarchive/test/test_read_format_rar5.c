@@ -1494,3 +1494,32 @@ DEFINE_TEST(test_read_format_rar5_invalidhash_and_validhtime_exfld)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_bytes_remaining_underflow)
+{
+	/* GH #2986 — CWE-191 signed integer underflow on
+	 * rar->file.bytes_remaining in process_block(). A malformed RAR5
+	 * archive whose compressed-block to_skip value exceeds the declared
+	 * remaining file data drives bytes_remaining negative; the negative
+	 * ssize_t later reaches read_ahead() and is implicitly converted to
+	 * a near-SIZE_MAX malloc request (CWE-122).
+	 *
+	 * The patched reader must reject the malformed archive with
+	 * ARCHIVE_FATAL before the negative value is reached. */
+
+	char buf[4096];
+	la_ssize_t r;
+	PROLOGUE("test_read_format_rar5_bytes_remaining_underflow.rar");
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("poc.txt", archive_entry_pathname(ae));
+
+	do {
+		r = archive_read_data(a, buf, sizeof(buf));
+	} while (r > 0);
+
+	assertEqualIntA(a, ARCHIVE_FATAL, r);
+	assertA(archive_error_string(a) != NULL);
+
+	EPILOGUE();
+}
