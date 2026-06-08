@@ -47,4 +47,26 @@ int __archive_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags);
 #define archive_pathmatch(p, s, f)	__archive_pathmatch(p, s, f)
 #define archive_pathmatch_w(p, s, f)	__archive_pathmatch_w(p, s, f)
 
+/*
+ * A name filter: ordered lists of shell-style patterns used to decide
+ * whether an extended-attribute name should be processed.  Shared by the
+ * read-disk (archiving) and write-disk (extraction) xattr code so that
+ * bsdtar's --xattrs-include / --xattrs-exclude can drop individual keys
+ * (e.g. security.selinux) while keeping the rest (e.g. security.capability).
+ */
+struct archive_xattr_filter;
+
+/* Append `pattern` to a filter list (allocating it on first use). */
+int  __archive_xattr_filter_add(struct archive_xattr_filter **list,
+	const char *pattern);
+/* Free a filter list and reset it to NULL. */
+void __archive_xattr_filter_free(struct archive_xattr_filter **list);
+/*
+ * Return non-zero if an xattr named `name` must be skipped given the
+ * include/exclude lists.  Exclusion wins; when an include list is present a
+ * name must match it to be kept; empty lists impose no restriction.
+ */
+int  __archive_xattr_name_excluded(struct archive_xattr_filter *include,
+	struct archive_xattr_filter *exclude, const char *name);
+
 #endif

@@ -82,6 +82,7 @@ void
 tar_mode_x(struct bsdtar *bsdtar)
 {
 	struct archive *writer;
+	struct xattr_match *xattr_m;
 
 	writer = archive_write_disk_new();
 	if (writer == NULL)
@@ -89,6 +90,13 @@ tar_mode_x(struct bsdtar *bsdtar)
 	if ((bsdtar->flags & OPTFLAG_NUMERIC_OWNER) == 0)
 		archive_write_disk_set_standard_lookup(writer);
 	archive_write_disk_set_options(writer, bsdtar->extract_flags);
+	/* Restrict which xattr names are restored (--xattrs-include/exclude). */
+	for (xattr_m = bsdtar->xattr_include; xattr_m != NULL;
+	    xattr_m = xattr_m->next)
+		archive_write_disk_set_xattr_include(writer, xattr_m->pattern);
+	for (xattr_m = bsdtar->xattr_exclude; xattr_m != NULL;
+	    xattr_m = xattr_m->next)
+		archive_write_disk_set_xattr_exclude(writer, xattr_m->pattern);
 
 	read_archive(bsdtar, 'x', writer);
 

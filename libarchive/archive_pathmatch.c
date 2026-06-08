@@ -33,6 +33,11 @@
 #include <wchar.h>
 #endif
 
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
+#include "archive.h"
 #include "archive_pathmatch.h"
 
 #define MAX_RECURSION	100
@@ -477,4 +482,74 @@ __archive_pathmatch_w(const wchar_t *p, const wchar_t *s, int flags)
 
 	/* Default: Match from beginning. */
 	return (pm_w(p, s, flags, 0));
+}
+
+/*
+ * Extended-attribute name filtering (see archive_pathmatch.h).  An xattr
+ * name is matched against shell-style patterns as a whole string (no path
+ * splitting), so a literal pattern like "security.selinux" matches only that
+ * key, while "security.*" matches the namespace.
+ */
+struct archive_xattr_filter {
+	struct archive_xattr_filter	*next;
+	char				*pattern;
+};
+
+int
+__archive_xattr_filter_add(struct archive_xattr_filter **list,
+    const char *pattern)
+{
+	struct archive_xattr_filter *f;
+
+	if (pattern == NULL)
+		return (ARCHIVE_OK);
+	if ((f = malloc(sizeof(*f))) == NULL)
+		return (ARCHIVE_FATAL);
+	if ((f->pattern = strdup(pattern)) == NULL) {
+		free(f);
+		return (ARCHIVE_FATAL);
+	}
+	/* Append, preserving the order patterns were supplied. */
+	f->next = NULL;
+	while (*list != NULL)
+		list = &(*list)->next;
+	*list = f;
+	return (ARCHIVE_OK);
+}
+
+void
+__archive_xattr_filter_free(struct archive_xattr_filter **list)
+{
+	struct archive_xattr_filter *f;
+
+	while ((f = *list) != NULL) {
+		*list = f->next;
+		free(f->pattern);
+		free(f);
+	}
+}
+
+int
+__archive_xattr_name_excluded(struct archive_xattr_filter *include,
+    struct archive_xattr_filter *exclude, const char *name)
+{
+	struct archive_xattr_filter *f;
+
+	/* Anchor patterns at both ends: a whole-name match, not a substring. */
+	const int flags = 0;
+
+	/* Exclusion takes precedence over inclusion. */
+	for (f = exclude; f != NULL; f = f->next) {
+		if (__archive_pathmatch(f->pattern, name, flags))
+			return (1);
+	}
+	/* With an inclusion list present, a name must match it to be kept. */
+	if (include != NULL) {
+		for (f = include; f != NULL; f = f->next) {
+			if (__archive_pathmatch(f->pattern, name, flags))
+				return (0);
+		}
+		return (1);
+	}
+	return (0);
 }

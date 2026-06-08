@@ -447,6 +447,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 {
 	const char *arg;
 	struct archive_entry *entry, *sparse_entry;
+	struct xattr_match *xattr_m;
 
 	/* Choose a suitable copy buffer size */
 	bsdtar->buff_size = 64 * 1024;
@@ -488,6 +489,15 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	archive_read_disk_set_behavior(bsdtar->diskreader,
 	    bsdtar->readdisk_flags);
 	archive_read_disk_set_standard_lookup(bsdtar->diskreader);
+	/* Restrict which xattr names are archived (--xattrs-include/exclude). */
+	for (xattr_m = bsdtar->xattr_include; xattr_m != NULL;
+	    xattr_m = xattr_m->next)
+		archive_read_disk_set_xattr_include(bsdtar->diskreader,
+		    xattr_m->pattern);
+	for (xattr_m = bsdtar->xattr_exclude; xattr_m != NULL;
+	    xattr_m = xattr_m->next)
+		archive_read_disk_set_xattr_exclude(bsdtar->diskreader,
+		    xattr_m->pattern);
 
 	if (bsdtar->names_from_file != NULL)
 		archive_names_from_file(bsdtar, a);

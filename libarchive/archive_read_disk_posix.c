@@ -95,6 +95,7 @@
 #include "archive_string.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_pathmatch.h"
 #include "archive_read_disk_private.h"
 
 #ifndef HAVE_FCHDIR
@@ -479,6 +480,8 @@ _archive_read_free(struct archive *_a)
 		r = ARCHIVE_OK;
 
 	tree_free(a->tree);
+	__archive_xattr_filter_free(&a->xattr_include);
+	__archive_xattr_filter_free(&a->xattr_exclude);
 	if (a->cleanup_gname != NULL && a->lookup_gname_data != NULL)
 		(a->cleanup_gname)(a->lookup_gname_data);
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
@@ -505,6 +508,24 @@ _archive_read_close(struct archive *_a)
 	tree_close(a->tree);
 
 	return (ARCHIVE_OK);
+}
+
+int
+archive_read_disk_set_xattr_include(struct archive *_a, const char *pattern)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_xattr_include");
+	return (__archive_xattr_filter_add(&a->xattr_include, pattern));
+}
+
+int
+archive_read_disk_set_xattr_exclude(struct archive *_a, const char *pattern)
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_disk_set_xattr_exclude");
+	return (__archive_xattr_filter_add(&a->xattr_exclude, pattern));
 }
 
 static void

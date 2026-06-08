@@ -144,6 +144,7 @@
 #include "archive_string.h"
 #include "archive_endian.h"
 #include "archive_entry.h"
+#include "archive_pathmatch.h"
 #include "archive_private.h"
 #include "archive_write_disk_private.h"
 
@@ -312,6 +313,10 @@ struct archive_write_disk {
     ARCHIVE_XATTR_FREEBSD)
 	int			 warning_done;
 #endif
+
+	/* Optional extended-attribute name filters (NULL = no filtering). */
+	struct archive_xattr_filter *xattr_include;
+	struct archive_xattr_filter *xattr_exclude;
 };
 
 /*
@@ -962,6 +967,24 @@ archive_write_disk_set_skip_file(struct archive *_a, la_int64_t d, la_int64_t i)
 	a->skip_file_dev = d;
 	a->skip_file_ino = i;
 	return (ARCHIVE_OK);
+}
+
+int
+archive_write_disk_set_xattr_include(struct archive *_a, const char *pattern)
+{
+	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_write_disk_set_xattr_include");
+	return (__archive_xattr_filter_add(&a->xattr_include, pattern));
+}
+
+int
+archive_write_disk_set_xattr_exclude(struct archive *_a, const char *pattern)
+{
+	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_write_disk_set_xattr_exclude");
+	return (__archive_xattr_filter_add(&a->xattr_exclude, pattern));
 }
 
 static ssize_t
@@ -2666,6 +2689,8 @@ _archive_write_disk_free(struct archive *_a)
 	archive_string_free(&a->_tmpname_data);
 	archive_string_free(&a->archive.error_string);
 	archive_string_free(&a->path_safe);
+	__archive_xattr_filter_free(&a->xattr_include);
+	__archive_xattr_filter_free(&a->xattr_exclude);
 	a->archive.magic = 0;
 	__archive_clean(&a->archive);
 	free(a->decmpfs_header_p);
@@ -4543,6 +4568,10 @@ set_xattrs(struct archive_write_disk *a)
 		}
 #endif
 
+		if (__archive_xattr_name_excluded(a->xattr_include,
+		    a->xattr_exclude, name))
+			continue;
+
 		if (a->fd >= 0) {
 #if ARCHIVE_XATTR_LINUX
 			e = fsetxattr(a->fd, name, value, size, 0);
@@ -4611,6 +4640,10 @@ set_xattrs(struct archive_write_disk *a)
 		if (name != NULL) {
 			int e;
 			int namespace;
+
+			if (__archive_xattr_name_excluded(a->xattr_include,
+			    a->xattr_exclude, name))
+				continue;
 
 			namespace = EXTATTR_NAMESPACE_USER;
 

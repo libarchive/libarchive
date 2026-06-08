@@ -93,6 +93,7 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_pathmatch.h"
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
 
@@ -633,6 +634,9 @@ setup_xattrs(struct archive_read_disk *a,
 		if (strncmp(p, "xfsroot.", 8) == 0)
 			continue;
 #endif
+		if (__archive_xattr_name_excluded(a->xattr_include,
+		    a->xattr_exclude, p))
+			continue;
 		setup_xattr(a, entry, p, *fd, path);
 	}
 
@@ -777,6 +781,11 @@ setup_xattrs_namespace(struct archive_read_disk *a,
 		name = buff + strlen(buff);
 		memcpy(name, p + 1, len);
 		name[len] = '\0';
+		if (__archive_xattr_name_excluded(a->xattr_include,
+		    a->xattr_exclude, buff)) {
+			p += 1 + len;
+			continue;
+		}
 		setup_xattr(a, entry, namespace, name, buff, *fd, path);
 		p += 1 + len;
 	}

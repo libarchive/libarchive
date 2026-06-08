@@ -1012,6 +1012,31 @@ This is the reverse of
 and the default behavior in c, r, and u modes or if
 .Nm
 is run in x mode as root.
+.It Fl Fl xattrs-exclude Ar pattern
+(c, r, u, x modes only)
+Do not archive or extract extended attributes whose name matches the
+shell-style
+.Ar pattern .
+May be specified more than once.
+The pattern is matched against the whole attribute name, so
+.Dq Li security.selinux
+excludes exactly that attribute while
+.Dq Li security.\&*
+excludes the whole namespace.
+This is useful to keep host-specific attributes such as SELinux labels
+out of an archive while preserving others such as
+.Dq Li security.capability .
+Exclusion takes precedence over
+.Fl Fl xattrs-include .
+.It Fl Fl xattrs-include Ar pattern
+(c, r, u, x modes only)
+Only archive or extract extended attributes whose name matches the
+shell-style
+.Ar pattern .
+May be specified more than once.
+When no include pattern is given, all attributes (subject to
+.Fl Fl xattrs-exclude )
+are processed.
 .It Fl y
 (c mode only)
 Compress the resulting archive with

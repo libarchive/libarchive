@@ -973,6 +973,17 @@ __LA_DECL int archive_write_disk_set_skip_file(struct archive *,
 __LA_DECL int		 archive_write_disk_set_options(struct archive *,
 		     int flags);
 /*
+ * Restrict which extended-attribute names are restored on extraction.  Each
+ * call appends a shell-style pattern matched against the whole xattr name
+ * (e.g. "security.selinux", or "security.*").  With an include list set, only
+ * matching names are restored; exclude always wins.  May be called repeatedly.
+ * Requires ARCHIVE_EXTRACT_XATTR to have any effect.
+ */
+__LA_DECL int		 archive_write_disk_set_xattr_include(struct archive *,
+		     const char *_pattern);
+__LA_DECL int		 archive_write_disk_set_xattr_exclude(struct archive *,
+		     const char *_pattern);
+/*
  * The lookup functions are given uname/uid (or gname/gid) pairs and
  * return a uid (gid) suitable for this system.  These are used for
  * restoring ownership and for setting ACLs.  The default functions
@@ -1094,6 +1105,17 @@ __LA_DECL int	archive_read_disk_set_matching(struct archive *,
 __LA_DECL int	archive_read_disk_set_metadata_filter_callback(struct archive *,
 		    int (*_metadata_filter_func)(struct archive *, void *,
 		    	struct archive_entry *), void *_client_data);
+
+/*
+ * Restrict which extended-attribute names are archived.  Each call appends a
+ * shell-style pattern matched against the whole xattr name (e.g.
+ * "security.selinux", or "security.*").  With an include list set, only
+ * matching names are archived; exclude always wins.  May be called repeatedly.
+ */
+__LA_DECL int	archive_read_disk_set_xattr_include(struct archive *,
+		    const char *_pattern);
+__LA_DECL int	archive_read_disk_set_xattr_exclude(struct archive *,
+		    const char *_pattern);
 
 /* Simplified cleanup interface;
  * This calls archive_read_free() or archive_write_free() as needed. */

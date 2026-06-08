@@ -31,6 +31,12 @@ struct creation_set;
  * pointer to this structure is passed to most bsdtar internal
  * functions.
  */
+/* A --xattrs-include / --xattrs-exclude pattern (points into argv). */
+struct xattr_match {
+	struct xattr_match	*next;
+	const char		*pattern;
+};
+
 struct bsdtar {
 	/* Options */
 	const char	 *filename; /* -f filename */
@@ -42,6 +48,8 @@ struct bsdtar {
 	unsigned int	  flags; /* Bitfield of boolean options */
 	int		  extract_flags; /* Flags for extract operation */
 	int		  readdisk_flags; /* Flags for read disk operation */
+	struct xattr_match *xattr_include; /* --xattrs-include patterns */
+	struct xattr_match *xattr_exclude; /* --xattrs-exclude patterns */
 	int		  strip_components; /* Remove this many leading dirs */
 	int		  gid;  /* --gid */
 	const char	 *gname; /* --gname */
@@ -183,6 +191,8 @@ enum {
 	OPTION_UUENCODE,
 	OPTION_VERSION,
 	OPTION_XATTRS,
+	OPTION_XATTRS_EXCLUDE,
+	OPTION_XATTRS_INCLUDE,
 	OPTION_ZSTD,
 	OPTION_MTIME,
 	OPTION_CLAMP_MTIME,

@@ -35,6 +35,7 @@
 
 struct tree;
 struct archive_entry;
+struct archive_xattr_filter;
 
 struct archive_read_disk {
 	struct archive	archive;
@@ -77,6 +78,10 @@ struct archive_read_disk {
 	int	(*metadata_filter_func)(struct archive *, void *,
 			struct archive_entry *);
 	void	*metadata_filter_data;
+
+	/* Optional extended-attribute name filters (NULL = no filtering). */
+	struct archive_xattr_filter *xattr_include;
+	struct archive_xattr_filter *xattr_exclude;
 
 	/* ARCHIVE_MATCH object. */
 	struct archive	*matching;

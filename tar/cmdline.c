@@ -149,6 +149,8 @@ static const struct bsdtar_option {
 	{ "verbose",              0, 'v' },
 	{ "version",              0, OPTION_VERSION },
 	{ "xattrs",               0, OPTION_XATTRS },
+	{ "xattrs-exclude",       1, OPTION_XATTRS_EXCLUDE },
+	{ "xattrs-include",       1, OPTION_XATTRS_INCLUDE },
 	{ "xz",                   0, 'J' },
 	{ "zstd",                 0, OPTION_ZSTD },
 	{ NULL, 0, 0 }

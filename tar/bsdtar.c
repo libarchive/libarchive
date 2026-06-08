@@ -104,6 +104,7 @@ need_report(void)
 static __LA_NORETURN void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
+static void		 add_xattr_match(struct xattr_match **, const char *);
 static void		 set_mode(struct bsdtar *, int opt);
 static __LA_NORETURN void		 version(void);
 
@@ -830,6 +831,14 @@ main(int argc, char **argv)
 			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_NO_XATTR;
 			bsdtar->flags |= OPTFLAG_XATTRS;
 			break;
+		case OPTION_XATTRS_EXCLUDE: /* GNU tar */
+			add_xattr_match(&bsdtar->xattr_exclude,
+			    bsdtar->argument);
+			break;
+		case OPTION_XATTRS_INCLUDE: /* GNU tar */
+			add_xattr_match(&bsdtar->xattr_include,
+			    bsdtar->argument);
+			break;
 		case 'y': /* FreeBSD version of GNU tar */
 			if (compression != '\0')
 				lafe_errc(1, 0,
@@ -1037,6 +1046,26 @@ set_mode(struct bsdtar *bsdtar, int opt)
 		lafe_errc(1, 0,
 		    "Can't specify both -%c and -%c", opt, bsdtar->mode);
 	bsdtar->mode = opt;
+}
+
+/*
+ * Append a --xattrs-include / --xattrs-exclude pattern.  The pattern points
+ * into argv, which outlives the lists, so it is stored without copying; the
+ * lists are applied to the read/write-disk objects in write.c and read.c.
+ */
+static void
+add_xattr_match(struct xattr_match **list, const char *pattern)
+{
+	struct xattr_match *m, **tail;
+
+	m = malloc(sizeof(*m));
+	if (m == NULL)
+		lafe_errc(1, 0, "Out of memory");
+	m->pattern = pattern;
+	m->next = NULL;
+	for (tail = list; *tail != NULL; tail = &(*tail)->next)
+		;
+	*tail = m;
 }
 
 /*
