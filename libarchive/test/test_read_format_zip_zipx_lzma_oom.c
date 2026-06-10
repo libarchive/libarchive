@@ -23,13 +23,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
+#include "archive_platform.h"
 
 /*
  * A ZIPX entry whose LZMA properties encode a 0xFFFFFFFF-byte dictionary
  * previously caused libarchive to attempt a ~4 GiB allocation because
  * lzma_alone_decoder() was called with an unlimited memory limit.
- * The fix passes a 64 MiB limit; the decoder must then return
- * LZMA_MEMLIMIT_ERROR, which libarchive must report as ENOMEM.
+ * The fix validates the dictionary size before passing it to liblzma
+ * and rejects sizes above ZIPX_LZMA_MAX_DICT_SIZE (128 MiB) with
+ * ARCHIVE_FAILED / ARCHIVE_ERRNO_FILE_FORMAT (CWE-400 / CWE-770).
  */
 DEFINE_TEST(test_read_format_zip_zipx_lzma_oom)
 {
@@ -52,11 +54,11 @@ DEFINE_TEST(test_read_format_zip_zipx_lzma_oom)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
 	/*
-	 * Data extraction must fail gracefully with ENOMEM rather than
+	 * Data extraction must fail gracefully rather than
 	 * attempting a multi-gigabyte allocation.
 	 */
-	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buf, sizeof(buf)));
-	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buf, sizeof(buf)));
+	assertEqualInt(ARCHIVE_ERRNO_FILE_FORMAT, archive_errno(a));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
