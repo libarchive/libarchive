@@ -28,6 +28,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -311,7 +314,7 @@ static int	_7z_compression_init_encoder(struct archive_write *, unsigned,
 		    int);
 static int	compression_init_encoder_zstd(struct archive *,
 		    struct la_zstream *, int, int);
-#if defined(HAVE_ZSTD_H)
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 static int	compression_code_zstd(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_zstd(struct archive *, struct la_zstream *);
@@ -333,6 +336,7 @@ string_to_number(const char *string, intmax_t *numberp)
 
 	if (string == NULL || *string == '\0')
 		return (ARCHIVE_WARN);
+	errno = 0;
 	*numberp = strtoimax(string, &end, 10);
 	if (end == string || *end != '\0' || errno == EOVERFLOW) {
 		*numberp = 0;
@@ -375,7 +379,7 @@ archive_write_set_format_7zip(struct archive *_a)
 	zip->opt_compression = _7Z_BZIP2;
 #elif defined(HAVE_ZLIB_H)
 	zip->opt_compression = _7Z_DEFLATE;
-#elif HAVE_ZSTD_H
+#elif HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 	zip->opt_compression = _7Z_ZSTD;
 #else
 	zip->opt_compression = _7Z_COPY;
@@ -487,8 +491,9 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 		}
 
 		char *end = NULL;
+		errno = 0;
 		long lvl = strtol(value, &end, 10);
-		if (end == NULL || *end != '\0') {
+		if (errno != 0 || end == NULL || *end != '\0') {
 			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
 				"parsing compression-level option value failed `%s'", value);
 			return (ARCHIVE_FAILED);
@@ -525,7 +530,7 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 		if (string_to_number(value, &threads) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-		if (threads < 0) {
+		if (threads < 0 || threads > INT_MAX) {
 			return (ARCHIVE_WARN);
 		}
 		if (threads == 0) {
@@ -1680,7 +1685,7 @@ file_new(struct archive_write *a, struct archive_entry *entry,
 		const char* linkpath;
 		linkpath = archive_entry_symlink_utf8(entry);
 		if (linkpath == NULL) {
-			free(file);
+			file_free(file);
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "symlink path could not be converted to UTF-8");
 			return (ARCHIVE_FAILED);

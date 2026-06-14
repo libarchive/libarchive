@@ -341,27 +341,69 @@ INCLUDE(CheckTypeSize)
 #
 # Generate list.h
 #
-MACRO (GENERATE_LIST_H _listfile _cmlist __list_sources)
+MACRO (GENERATE_LIST_H _listfile _cmlist _target __list_sources)
   SET(_argv ${ARGV})
-  # Remove _listfile and _cmlist from _argv
-  LIST(REMOVE_AT _argv 0 1)
-  IF (NOT EXISTS "${_listfile}" OR
-     ${_cmlist} IS_NEWER_THAN "${_listfile}")
-
-    MESSAGE(STATUS "Generating ${_listfile}")
-    FILE(WRITE ${_listfile} "")
-    FOREACH (testfile ${_argv})
-      IF (testfile MATCHES "^test_[^/]+[.]c$")
-        FILE(STRINGS ${testfile} testvar REGEX "^DEFINE_TEST")
-        FOREACH (deftest ${testvar})
-          FILE(APPEND ${_listfile} "${deftest}\n")
-        ENDFOREACH (deftest)
-      ENDIF (testfile MATCHES "^test_[^/]+[.]c$")
-    ENDFOREACH (testfile)
-
-  ENDIF (NOT EXISTS "${_listfile}" OR
-     ${_cmlist} IS_NEWER_THAN "${_listfile}")
+  # Remove _listfile, _cmlist, and _target from _argv
+  LIST(REMOVE_AT _argv 0 1 2)
+  # Convert source paths to absolute so discover_tests.cmake can find them
+  # regardless of the working directory when cmake -P runs.
+  SET(_gl_abs_sources "")
+  FOREACH(_gl_src ${_argv})
+    IF(IS_ABSOLUTE "${_gl_src}")
+      LIST(APPEND _gl_abs_sources "${_gl_src}")
+    ELSE()
+      LIST(APPEND _gl_abs_sources "${CMAKE_CURRENT_SOURCE_DIR}/${_gl_src}")
+    ENDIF()
+  ENDFOREACH()
+  # Stamp out discover_tests.cmake with source list and output path baked in.
+  SET(SOURCES "${_gl_abs_sources}")
+  SET(OUTPUT "${_listfile}")
+  CONFIGURE_FILE(
+    ${CMAKE_SOURCE_DIR}/build/cmake/discover_tests.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/discover_tests.cmake
+    @ONLY)
+  UNSET(SOURCES)
+  UNSET(OUTPUT)
+  # list.h is regenerated at build time whenever any test .c file changes.
+  ADD_CUSTOM_COMMAND(
+    OUTPUT "${_listfile}"
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/discover_tests.cmake
+    DEPENDS ${_gl_abs_sources}
+    COMMENT "Generating ${_listfile}"
+    VERBATIM)
+  # Attaching list.h to the target tells CMake to build it before compiling.
+  TARGET_SOURCES(${_target} PRIVATE "${_listfile}")
 ENDMACRO (GENERATE_LIST_H)
+
+#
+# Register individual tests with CTest by scanning DEFINE_TEST() declarations.
+#
+MACRO (DISCOVER_TESTS _component __list_sources)
+  IF(ENABLE_TEST)
+    SET(_sources ${ARGV})
+    LIST(REMOVE_AT _sources 0)
+    FOREACH (_src ${_sources})
+      IF (_src MATCHES "test_[^/]+\\.c$")
+        FILE(STRINGS "${_src}" _lines REGEX "^DEFINE_TEST\(.*\)")
+        FOREACH (_line ${_lines})
+          STRING(REGEX MATCH "DEFINE_TEST\((.*)\)" _full_match ${_line})
+          # CMake REGEX seems to handle ( and \( rather inconsistently...
+          # So we go through an extra dance to definitively strip the parens
+          STRING(REPLACE "(" "" _test_name_with_paren "${CMAKE_MATCH_1}")
+          STRING(REPLACE ")" "" _test_name "${_test_name_with_paren}")
+          SET(_full_test_name "${_component}_${_test_name}")
+          ADD_TEST(NAME ${_full_test_name}
+                   COMMAND ${_component}_test -vv
+                                   -r ${CMAKE_CURRENT_SOURCE_DIR}
+                                   -s
+                                   ${_test_name})
+          SET_TESTS_PROPERTIES(${_full_test_name} PROPERTIES SKIP_RETURN_CODE 2)
+        ENDFOREACH (_line)
+      ENDIF (_src MATCHES "test_[^/]+\\.c$")
+    ENDFOREACH (_src)
+  ENDIF(ENABLE_TEST)
+ENDMACRO (DISCOVER_TESTS __list_sources)
+
 #
 # Generate installation rules for man pages.
 #
@@ -663,7 +705,7 @@ IF(ENABLE_ZSTD)
   ENDIF()
 
   FIND_PATH(ZSTD_INCLUDE_DIR zstd.h HINTS ${PC_ZSTD_INCLUDEDIR} ${PC_ZSTD_INCLUDE_DIRS})
-  FIND_LIBRARY(ZSTD_LIBRARY NAMES zstd libzstd HINTS ${PC_ZSTD_LIBDIR} ${PC_ZSTD_LIBRARY_DIRS})
+  FIND_LIBRARY(ZSTD_LIBRARY NAMES zstd libzstd zstd_static HINTS ${PC_ZSTD_LIBDIR} ${PC_ZSTD_LIBRARY_DIRS})
   INCLUDE(FindPackageHandleStandardArgs)
   FIND_PACKAGE_HANDLE_STANDARD_ARGS(ZSTD DEFAULT_MSG ZSTD_LIBRARY ZSTD_INCLUDE_DIR)
 ELSE(ENABLE_ZSTD)
@@ -747,6 +789,7 @@ LA_CHECK_INCLUDE_FILE("signal.h" HAVE_SIGNAL_H)
 LA_CHECK_INCLUDE_FILE("spawn.h" HAVE_SPAWN_H)
 LA_CHECK_INCLUDE_FILE("stdarg.h" HAVE_STDARG_H)
 LA_CHECK_INCLUDE_FILE("stdint.h" HAVE_STDINT_H)
+LA_CHECK_INCLUDE_FILE("stdio.h" HAVE_STDIO_H)
 LA_CHECK_INCLUDE_FILE("stdlib.h" HAVE_STDLIB_H)
 LA_CHECK_INCLUDE_FILE("string.h" HAVE_STRING_H)
 LA_CHECK_INCLUDE_FILE("strings.h" HAVE_STRINGS_H)
@@ -823,11 +866,14 @@ IF(ENABLE_MBEDTLS)
     LIST(APPEND ADDITIONAL_LIBS ${MBEDCRYPTO_LIBRARY})
     INCLUDE_DIRECTORIES(${MBEDTLS_INCLUDE_DIRS})
 
+    CMAKE_PUSH_CHECK_STATE()
     LIST(APPEND CMAKE_REQUIRED_INCLUDES ${MBEDTLS_INCLUDE_DIRS})
     LA_CHECK_INCLUDE_FILE("mbedtls/aes.h" HAVE_MBEDTLS_AES_H)
     LA_CHECK_INCLUDE_FILE("mbedtls/md.h" HAVE_MBEDTLS_MD_H)
     LA_CHECK_INCLUDE_FILE("mbedtls/pkcs5.h" HAVE_MBEDTLS_PKCS5_H)
     LA_CHECK_INCLUDE_FILE("mbedtls/version.h" HAVE_MBEDTLS_VERSION_H)
+    CMAKE_POP_CHECK_STATE()
+
   ENDIF(MBEDTLS_FOUND)
   MARK_AS_ADVANCED(CLEAR MBEDTLS_INCLUDE_DIRS)
   MARK_AS_ADVANCED(CLEAR MBEDCRYPTO_LIBRARY)
@@ -843,6 +889,7 @@ IF(ENABLE_NETTLE)
     LIST(APPEND ADDITIONAL_LIBS ${NETTLE_LIBRARIES})
     INCLUDE_DIRECTORIES(${NETTLE_INCLUDE_DIR})
 
+    CMAKE_PUSH_CHECK_STATE()
     LIST(APPEND CMAKE_REQUIRED_INCLUDES ${NETTLE_INCLUDE_DIR})
     LA_CHECK_INCLUDE_FILE("nettle/aes.h" HAVE_NETTLE_AES_H)
     LA_CHECK_INCLUDE_FILE("nettle/hmac.h" HAVE_NETTLE_HMAC_H)
@@ -851,6 +898,8 @@ IF(ENABLE_NETTLE)
     LA_CHECK_INCLUDE_FILE("nettle/ripemd160.h" HAVE_NETTLE_RIPEMD160_H)
     LA_CHECK_INCLUDE_FILE("nettle/sha.h" HAVE_NETTLE_SHA_H)
     LA_CHECK_INCLUDE_FILE("nettle/version.h" HAVE_NETTLE_VERSION_H)
+    CMAKE_POP_CHECK_STATE()
+
   ENDIF(NETTLE_FOUND)
   MARK_AS_ADVANCED(CLEAR NETTLE_INCLUDE_DIR)
   MARK_AS_ADVANCED(CLEAR NETTLE_LIBRARIES)
@@ -866,11 +915,15 @@ IF(ENABLE_OPENSSL AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
     SET(HAVE_LIBCRYPTO 1)
     INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
     LIST(APPEND ADDITIONAL_LIBS ${OPENSSL_CRYPTO_LIBRARY})
+
+    CMAKE_PUSH_CHECK_STATE()
     SET(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY})
     SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
     LA_CHECK_INCLUDE_FILE("openssl/evp.h" HAVE_OPENSSL_EVP_H)
     LA_CHECK_INCLUDE_FILE("openssl/opensslv.h" HAVE_OPENSSL_OPENSSLV_H)
     CHECK_FUNCTION_EXISTS(PKCS5_PBKDF2_HMAC_SHA1 HAVE_PKCS5_PBKDF2_HMAC_SHA1)
+    CMAKE_POP_CHECK_STATE()
+
   ENDIF(OPENSSL_FOUND)
 ELSE()
   SET(OPENSSL_FOUND FALSE) # Override cached value
@@ -891,9 +944,13 @@ ENDIF(NOT OPENSSL_FOUND)
 # libbsd for readpassphrase on Haiku
 IF("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
   MESSAGE(STATUS "Adding libbsd for Haiku")
+
+  CMAKE_PUSH_CHECK_STATE()
   SET(CMAKE_REQUIRED_LIBRARIES "bsd")
   FIND_LIBRARY(LIBBSD_LIBRARY NAMES bsd)
   LIST(APPEND ADDITIONAL_LIBS ${LIBBSD_LIBRARY})
+  CMAKE_POP_CHECK_STATE()
+
 ENDIF("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
 
 #
@@ -2106,16 +2163,19 @@ ENDIF(ENABLE_ACL)
 # Check MD5/RMD160/SHA support
 # NOTE: Crypto checks must be run last before generating config.h
 #
-CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" LIBC)
-CHECK_CRYPTO("SHA256;SHA384;SHA512" LIBC2)
-CHECK_CRYPTO("SHA256;SHA384;SHA512" LIBC3)
-CHECK_CRYPTO("MD5;SHA1;SHA256;SHA384;SHA512" LIBSYSTEM)
-CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" MBEDTLS)
-CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" NETTLE)
-CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" OPENSSL)
+IF(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  CHECK_CRYPTO("MD5;SHA1;SHA256;SHA384;SHA512" LIBSYSTEM)
+ELSE()
+  CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" LIBC)
+  CHECK_CRYPTO("SHA256;SHA384;SHA512" LIBC2)
+  CHECK_CRYPTO("SHA256;SHA384;SHA512" LIBC3)
+  CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" MBEDTLS)
+  CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" NETTLE)
+  CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" OPENSSL)
 
-# Libmd has to be probed after OpenSSL.
-CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA512" LIBMD)
+  # Libmd has to be probed after OpenSSL.
+  CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA512" LIBMD)
+ENDIF()
 
 # Check visibility annotations
 SET(OLD_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")

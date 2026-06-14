@@ -57,7 +57,7 @@ static void la_arc4random_buf(void *, size_t);
 #include "archive.h"
 #include "archive_random_private.h"
 
-#if defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #include <bcrypt.h>
 
 /* Common in other bcrypt implementations, but missing from VS2008. */

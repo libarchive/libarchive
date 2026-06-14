@@ -57,7 +57,6 @@ struct private_data {
 	int		 compression_level;
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	bz_stream	 stream;
-	int64_t		 total_in;
 	char		*compressed;
 	size_t		 compressed_buffer_size;
 #else
@@ -127,8 +126,11 @@ archive_compressor_bzip2_options(struct archive_write_filter *f,
 
 	if (strcmp(key, "compression-level") == 0) {
 		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
-		    value[1] != '\0')
-			return (ARCHIVE_WARN);
+		    value[1] != '\0') {
+			archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
+			    "compression-level invalid");
+			return (ARCHIVE_FAILED);
+		}
 		data->compression_level = value[0] - '0';
 		/* Make '0' be a synonym for '1'. */
 		/* This way, bzip2 compressor supports the same 0..9
@@ -235,9 +237,6 @@ archive_compressor_bzip2_write(struct archive_write_filter *f,
     const void *buff, size_t length)
 {
 	struct private_data *data = (struct private_data *)f->data;
-
-	/* Update statistics */
-	data->total_in += length;
 
 	/* Compress input data to output buffer */
 	SET_NEXT_IN(data, buff);

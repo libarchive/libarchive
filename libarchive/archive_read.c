@@ -36,6 +36,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -171,7 +174,7 @@ static int64_t
 client_skip_proxy(struct archive_read_filter *self, int64_t request)
 {
 	if (request < 0)
-		__archive_errx(1, "Negative skip requested.");
+		__archive_errx(1, "Negative skip requested");
 	if (request == 0)
 		return 0;
 
@@ -253,41 +256,38 @@ client_close_proxy(struct archive_read_filter *self)
 }
 
 static int
-client_open_proxy(struct archive_read_filter *self)
-{
-  int r = ARCHIVE_OK;
-	if (self->archive->client.opener != NULL)
-		r = (self->archive->client.opener)(
-		    (struct archive *)self->archive, self->data);
-	return (r);
-}
-
-static int
 client_switch_proxy(struct archive_read_filter *self, unsigned int iindex)
 {
-  int r1 = ARCHIVE_OK, r2 = ARCHIVE_OK;
-	void *data2 = NULL;
+	struct archive_read *a;
+	int r1 = ARCHIVE_OK, r2 = ARCHIVE_OK;
+	void *data2;
+
+	while (self->upstream != NULL)
+		self = self->upstream;
+	a = self->archive;
 
 	/* Don't do anything if already in the specified data node */
-	if (self->archive->client.cursor == iindex)
+	if (a->client.cursor == iindex)
 		return (ARCHIVE_OK);
 
-	self->archive->client.cursor = iindex;
-	data2 = self->archive->client.dataset[self->archive->client.cursor].data;
-	if (self->archive->client.switcher != NULL)
+	a->client.cursor = iindex;
+	data2 = a->client.dataset[a->client.cursor].data;
+	if (a->client.switcher != NULL)
 	{
-		r1 = r2 = (self->archive->client.switcher)
-			((struct archive *)self->archive, self->data, data2);
+		r1 = r2 = (a->client.switcher)
+			((struct archive *)a, self->data, data2);
 		self->data = data2;
 	}
 	else
 	{
 		/* Attempt to call close and open instead */
-		if (self->archive->client.closer != NULL)
-			r1 = (self->archive->client.closer)
-				((struct archive *)self->archive, self->data);
+		if (a->client.closer != NULL)
+			r1 = (a->client.closer)
+				((struct archive *)a, self->data);
 		self->data = data2;
-		r2 = client_open_proxy(self);
+		if (a->client.opener != NULL)
+			r2 = (a->client.opener)
+				((struct archive *)a, self->data);
 	}
 	return (r1 < r2) ? r1 : r2;
 }
@@ -379,7 +379,7 @@ archive_read_set_callback_data2(struct archive *_a, void *client_data,
 		if (a->client.dataset == NULL)
 		{
 			archive_set_error(&a->archive, ENOMEM,
-				"No memory.");
+				"No memory");
 			return ARCHIVE_FATAL;
 		}
 		a->client.nodes = 1;
@@ -388,7 +388,7 @@ archive_read_set_callback_data2(struct archive *_a, void *client_data,
 	if (iindex > a->client.nodes - 1)
 	{
 		archive_set_error(&a->archive, EINVAL,
-			"Invalid index specified.");
+			"Invalid index specified");
 		return ARCHIVE_FATAL;
 	}
 	a->client.dataset[iindex].data = client_data;
@@ -404,22 +404,35 @@ archive_read_add_callback_data(struct archive *_a, void *client_data,
 	struct archive_read *a = (struct archive_read *)_a;
 	void *p;
 	unsigned int i;
+	unsigned int nodes;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
 	    "archive_read_add_callback_data");
 	if (iindex > a->client.nodes) {
 		archive_set_error(&a->archive, EINVAL,
-			"Invalid index specified.");
+			"Invalid index specified");
 		return ARCHIVE_FATAL;
 	}
-	p = realloc(a->client.dataset, sizeof(*a->client.dataset)
-		* (++(a->client.nodes)));
+
+	if (a->client.nodes == UINT_MAX ||
+	    (size_t)a->client.nodes + 1 >
+	    SIZE_MAX / sizeof(*a->client.dataset)) {
+		archive_set_error(&a->archive, ENOMEM,
+			"No memory");
+		return ARCHIVE_FATAL;
+	}
+
+	nodes = a->client.nodes + 1;
+	p = realloc(a->client.dataset, sizeof(*a->client.dataset) * nodes);
 	if (p == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
-			"No memory.");
+			"No memory");
 		return ARCHIVE_FATAL;
 	}
+
 	a->client.dataset = (struct archive_read_data_node *)p;
+	a->client.nodes = nodes;
+
 	for (i = a->client.nodes - 1; i > iindex; i--) {
 		a->client.dataset[i].data = a->client.dataset[i-1].data;
 		a->client.dataset[i].begin_position = -1;
@@ -625,7 +638,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		r1 = archive_read_data_skip(&a->archive);
 		if (r1 == ARCHIVE_EOF)
 			archive_set_error(&a->archive, EIO,
-			    "Premature end-of-file.");
+			    "Premature end-of-file");
 		if (r1 == ARCHIVE_EOF || r1 == ARCHIVE_FATAL) {
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			return (ARCHIVE_FATAL);
@@ -934,7 +947,10 @@ archive_read_data_skip(struct archive *_a)
 	if (r == ARCHIVE_EOF)
 		r = ARCHIVE_OK;
 
-	a->archive.state = ARCHIVE_STATE_HEADER;
+	if (r == ARCHIVE_FATAL)
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	else
+		a->archive.state = ARCHIVE_STATE_HEADER;
 	return (r);
 }
 
@@ -942,6 +958,8 @@ la_int64_t
 archive_seek_data(struct archive *_a, int64_t offset, int whence)
 {
 	struct archive_read *a = (struct archive_read *)_a;
+	la_int64_t r;
+
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_seek_data_block");
 
@@ -949,10 +967,14 @@ archive_seek_data(struct archive *_a, int64_t offset, int whence)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "Internal error: "
 		    "No format_seek_data_block function registered");
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
 
-	return (a->format->seek_data)(a, offset, whence);
+	r = (a->format->seek_data)(a, offset, whence);
+	if (r == ARCHIVE_FATAL)
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	return (r);
 }
 
 /*
@@ -968,6 +990,8 @@ _archive_read_data_block(struct archive *_a,
     const void **buff, size_t *size, int64_t *offset)
 {
 	struct archive_read *a = (struct archive_read *)_a;
+	int r;
+
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");
 
@@ -975,10 +999,14 @@ _archive_read_data_block(struct archive *_a,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "Internal error: "
 		    "No format->read_data function registered");
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
 
-	return (a->format->read_data)(a, buff, size, offset);
+	r = (a->format->read_data)(a, buff, size, offset);
+	if (r == ARCHIVE_FATAL)
+		a->archive.state = ARCHIVE_STATE_FATAL;
+	return (r);
 }
 
 static int
@@ -1366,7 +1394,7 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 
 		/* Move data forward in copy buffer if necessary. */
 		if (filter->next > filter->buffer &&
-		    filter->next + min > filter->buffer + filter->buffer_size) {
+		    min > filter->buffer_size - (filter->next - filter->buffer)) {
 			if (filter->avail > 0)
 				memmove(filter->buffer, filter->next,
 				    filter->avail);

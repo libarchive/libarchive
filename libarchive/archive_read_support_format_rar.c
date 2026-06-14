@@ -154,7 +154,7 @@
 #define UNP_BUFFER_SIZE   (128 * 1024)
 
 /* Define this here for non-Windows platforms */
-#if !((defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__))
+#ifndef FILE_ATTRIBUTE_DIRECTORY
 #define FILE_ATTRIBUTE_DIRECTORY 0x10
 #endif
 
@@ -955,7 +955,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
 
     if ((h = __archive_read_ahead(a, 7, NULL)) == NULL) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Failed to read next header.");
+                        "Failed to read next header");
       return (ARCHIVE_FATAL);
     }
     p = h;
@@ -1005,7 +1005,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         archive_entry_set_is_data_encrypted(entry, 1);
         rar->has_encrypted_entries = 1;
          archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                          "RAR encryption support unavailable.");
+                          "RAR encryption support unavailable");
         return (ARCHIVE_FATAL);
       }
 
@@ -1141,8 +1141,8 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
 
   default:
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Unsupported compression method for RAR file.");
-    ret = ARCHIVE_FATAL;
+                      "Unsupported compression method for RAR file");
+    ret = ARCHIVE_FAILED;
     break;
   }
   return (ret);
@@ -1432,14 +1432,14 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   else
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "RAR solid archive support unavailable.");
+                      "RAR solid archive support unavailable");
     return (ARCHIVE_FATAL);
   }
 
   if ((h = __archive_read_ahead(a, (size_t)header_size - 7, NULL)) == NULL)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Failed to read full header content.");
+                      "Failed to read full header content");
     return (ARCHIVE_FATAL);
   }
 
@@ -1471,7 +1471,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     archive_entry_set_is_data_encrypted(entry, 1);
     rar->has_encrypted_entries = 1;
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "RAR encryption support unavailable.");
+                      "RAR encryption support unavailable");
     /* Since it is only the data part itself that is encrypted we can at least
        extract information about the currently processed entry and don't need
        to return ARCHIVE_FATAL here. */
@@ -1503,7 +1503,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   if (rar->packed_size < 0 || rar->unp_size < 0)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Invalid sizes specified.");
+                      "Invalid sizes specified");
     return (ARCHIVE_FATAL);
   }
 
@@ -1513,27 +1513,23 @@ read_header(struct archive_read *a, struct archive_entry *entry,
    * consumed at the end.
    */
   if (head_type == NEWSUB_HEAD) {
-    size_t distance = p - (const char *)h;
     if (rar->packed_size > INT64_MAX - header_size) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Extended header size too large.");
+                        "Invalid RAR file: Overlarge extended header");
       return (ARCHIVE_FATAL);
     }
-    header_size += rar->packed_size;
-    if ((uintmax_t)header_size > SIZE_MAX) {
+    if (__archive_read_consume(a, header_size + rar->packed_size - 7) < 0) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Unable to read extended header data.");
+                        "Invalid RAR file: Cannot read extended header data");
       return (ARCHIVE_FATAL);
     }
-    /* Make sure we have the extended data. */
-    if ((h = __archive_read_ahead(a, (size_t)header_size - 7, NULL)) == NULL) {
-      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Failed to read extended header data.");
-      return (ARCHIVE_FATAL);
-    }
-    p = h;
-    endp = p + header_size - 7;
-    p += distance;
+
+    /*
+     * NEWSUB records are metadata-only in this reader. The block header
+     * has already been validated, so it is safe to skip exactly the
+     * remaining header bytes and the associated data payload.
+     */
+    return ret;
   }
 
   filename_size = archive_le16dec(file_header.name_size);
@@ -1547,7 +1543,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     newptr = realloc(rar->filename, newsize);
     if (newptr == NULL) {
       archive_set_error(&a->archive, ENOMEM,
-                        "Couldn't allocate memory.");
+                        "Couldn't allocate memory");
       return (ARCHIVE_FATAL);
     }
     rar->filename = newptr;
@@ -1701,7 +1697,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       newsize = sizeof(*rar->dbo) * (rar->nodes + 1);
       if ((newdbo = realloc(rar->dbo, newsize)) == NULL)
       {
-        archive_set_error(&a->archive, ENOMEM, "Couldn't allocate memory.");
+        archive_set_error(&a->archive, ENOMEM, "Couldn't allocate memory");
         return (ARCHIVE_FATAL);
       }
       rar->dbo = newdbo;
@@ -1715,7 +1711,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       if (rar->packed_size > INT64_MAX - a->filter->position)
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                          "Unable to store offsets.");
+                          "Unable to store offsets");
         return (ARCHIVE_FATAL);
       }
       rar->dbo[rar->cursor].start_offset = a->filter->position;
@@ -1734,7 +1730,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   newsize = filename_size + 1;
   if ((newptr = realloc(rar->filename_save, newsize)) == NULL)
   {
-    archive_set_error(&a->archive, ENOMEM, "Couldn't allocate memory.");
+    archive_set_error(&a->archive, ENOMEM, "Couldn't allocate memory");
     return (ARCHIVE_FATAL);
   }
   rar->filename_save = newptr;
@@ -1745,7 +1741,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   free(rar->dbo);
   if ((rar->dbo = calloc(1, sizeof(*rar->dbo))) == NULL)
   {
-    archive_set_error(&a->archive, ENOMEM, "Couldn't allocate memory.");
+    archive_set_error(&a->archive, ENOMEM, "Couldn't allocate memory");
     return (ARCHIVE_FATAL);
   }
   rar->dbo[0].header_size = header_size;
@@ -1776,7 +1772,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   __archive_read_consume(a, header_size - 7);
   if (rar->packed_size > INT64_MAX - a->filter->position) {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Unable to store offsets.");
+                      "Unable to store offsets");
     return (ARCHIVE_FATAL);
   }
   rar->dbo[0].start_offset = a->filter->position;
@@ -1829,10 +1825,6 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->ppmd_valid = rar->ppmd_eod = 0;
   rar->filters.filterstart = INT64_MAX;
 
-  /* Don't set any archive entries for non-file header types */
-  if (head_type == NEWSUB_HEAD)
-    return ret;
-
   archive_entry_set_mtime(entry, rar->mtime, rar->mnsec);
   archive_entry_set_ctime(entry, rar->ctime, rar->cnsec);
   archive_entry_set_atime(entry, rar->atime, rar->ansec);
@@ -1848,7 +1840,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       return (ARCHIVE_FATAL);
     }
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Pathname cannot be converted from %s to current locale.",
+                      "Pathname cannot be converted from %s to current locale",
                       archive_string_conversion_charset_name(fn_sconv));
     ret = (ARCHIVE_WARN);
   }
@@ -1979,13 +1971,13 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
   if ((uintmax_t)rar->packed_size > SIZE_MAX)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Unable to read link.");
+                      "Unable to read link");
     return (ARCHIVE_FATAL);
   }
   if ((h = rar_read_ahead(a, (size_t)rar->packed_size, NULL)) == NULL)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Failed to read link.");
+                      "Failed to read link");
     return (ARCHIVE_FATAL);
   }
   p = h;
@@ -2000,7 +1992,7 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
       return (ARCHIVE_FATAL);
     }
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "link cannot be converted from %s to current locale.",
+                      "link cannot be converted from %s to current locale",
                       archive_string_conversion_charset_name(sconv));
     ret = (ARCHIVE_WARN);
   }
@@ -2026,7 +2018,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
 #ifndef DONT_FAIL_ON_CRC_ERROR
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "File CRC error");
-      return (ARCHIVE_FATAL);
+      return (ARCHIVE_FAILED);
 #endif
     }
     rar->entry_eof = 1;
@@ -2038,7 +2030,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Truncated RAR file data");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
 
   *size = bytes_avail;
@@ -2058,7 +2050,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
                      int64_t *offset, size_t looper)
 {
   if (looper++ > MAX_COMPRESS_DEPTH)
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
 
   struct rar *rar;
   int64_t start, end;
@@ -2069,7 +2061,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
 
   do {
     if (!rar->valid)
-      return (ARCHIVE_FATAL);
+      return (ARCHIVE_FAILED);
 
     if (rar->filters.bytes_ready > 0)
     {
@@ -2121,7 +2113,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
 #ifndef DONT_FAIL_ON_CRC_ERROR
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "File CRC error");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
 #endif
       }
       rar->entry_eof = 1;
@@ -2155,7 +2147,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     if (rar->filters.lastend == rar->filters.filterstart)
     {
       if (!run_filters(a))
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       continue;
     }
 
@@ -2172,7 +2164,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Invalid symbol");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
       if(sym != rar->ppmd_escape)
       {
@@ -2186,7 +2178,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         {
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                             "Invalid symbol");
-          return (ARCHIVE_FATAL);
+          return (ARCHIVE_FAILED);
         }
 
         switch(code)
@@ -2201,7 +2193,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
 
           case 3:
             archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-                              "Parsing filters is unsupported.");
+                              "Parsing filters is unsupported");
             return (ARCHIVE_FAILED);
 
           case 4:
@@ -2213,7 +2205,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
               {
                 archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                   "Invalid symbol");
-                return (ARCHIVE_FATAL);
+                return (ARCHIVE_FAILED);
               }
               lzss_offset |= code << (i * 8);
             }
@@ -2222,7 +2214,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
             {
               archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                 "Invalid symbol");
-              return (ARCHIVE_FATAL);
+              return (ARCHIVE_FAILED);
             }
             lzss_emit_match(rar, lzss_offset + 2, length + 32);
             rar->bytes_uncopied += length + 32;
@@ -2234,7 +2226,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
             {
               archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                                 "Invalid symbol");
-              return (ARCHIVE_FATAL);
+              return (ARCHIVE_FAILED);
             }
             lzss_emit_match(rar, 1, length + 4);
             rar->bytes_uncopied += length + 4;
@@ -2280,7 +2272,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
           * what we would do to solve it. */
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                             "Internal error extracting RAR file");
-          return (ARCHIVE_FATAL);
+          return (ARCHIVE_FAILED);
       }
     }
     if (rar->bytes_uncopied > (rar->unp_buffer_size - rar->unp_offset))
@@ -2363,7 +2355,7 @@ parse_codes(struct archive_read *a)
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Truncated RAR file data");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
 
       /* Make sure ppmd7_context is freed before Ppmd7_Construct
@@ -2379,7 +2371,7 @@ parse_codes(struct archive_read *a)
       if (rar->dictionary_size == 0) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Invalid zero dictionary size");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
 
       if (!__archive_ppmd7_functions.Ppmd7_Alloc(&rar->ppmd7_context,
@@ -2393,7 +2385,7 @@ parse_codes(struct archive_read *a)
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Unable to initialize PPMd range decoder");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
       __archive_ppmd7_functions.Ppmd7_Init(&rar->ppmd7_context, maxorder);
       rar->ppmd_valid = 1;
@@ -2403,19 +2395,26 @@ parse_codes(struct archive_read *a)
       if (!rar->ppmd_valid) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Invalid PPMd sequence");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
       if (!__archive_ppmd7_functions.PpmdRAR_RangeDec_Init(&rar->range_dec))
       {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                           "Unable to initialize PPMd range decoder");
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
     }
   }
   else
   {
     rar_br_consume(br, 1);
+
+    /*
+     * Low-distance repeat state belongs to the current LZ table and
+     * must not be reused after starting a new table.
+     */
+    rar->lastlowoffset = 0;
+    rar->numlowoffsetrepeats = 0;
 
     /* Keep existing table flag */
     if (!rar_br_read_ahead(a, br, 1))
@@ -2459,7 +2458,7 @@ parse_codes(struct archive_read *a)
       if ((val = read_next_symbol(a, &precode)) < 0) {
         free(precode.tree);
         free(precode.table);
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       }
       if (val < 16)
       {
@@ -2473,8 +2472,8 @@ parse_codes(struct archive_read *a)
           free(precode.tree);
           free(precode.table);
           archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                            "Internal error extracting RAR file.");
-          return (ARCHIVE_FATAL);
+                            "Internal error extracting RAR file");
+          return (ARCHIVE_FAILED);
         }
 
         if(val == 16) {
@@ -2548,7 +2547,8 @@ parse_codes(struct archive_read *a)
       return (r);
   }
 
-  if (!rar->dictionary_size || !rar->lzss.window)
+  if (!rar->dictionary_size || !rar->lzss.window ||
+      (unsigned int)(rar->lzss.mask + 1) < rar->dictionary_size)
   {
     /* Seems as though dictionary sizes are not used. Even so, minimize
      * memory usage as much as possible.
@@ -2562,13 +2562,13 @@ parse_codes(struct archive_read *a)
       new_size = rar_fls((unsigned int)rar->unp_size) << 1;
     if (new_size == 0) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                        "Zero window size is invalid.");
-      return (ARCHIVE_FATAL);
+                        "Zero window size is invalid");
+      return (ARCHIVE_FAILED);
     }
     new_window = realloc(rar->lzss.window, new_size);
     if (new_window == NULL) {
       archive_set_error(&a->archive, ENOMEM,
-                        "Unable to allocate memory for uncompressed data.");
+                        "Unable to allocate memory for uncompressed data");
       return (ARCHIVE_FATAL);
     }
     rar->lzss.window = (unsigned char *)new_window;
@@ -2583,7 +2583,7 @@ truncated_data:
   archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                     "Truncated RAR file data");
   rar->valid = 0;
-  return (ARCHIVE_FATAL);
+  return (ARCHIVE_FAILED);
 }
 
 static void
@@ -2686,7 +2686,7 @@ create_code(struct archive_read *a, struct huffman_code *code,
   code->numallocatedentries = 0;
   if (new_node(code) < 0) {
     archive_set_error(&a->archive, ENOMEM,
-                      "Unable to allocate memory for node data.");
+                      "Unable to allocate memory for node data");
     return (ARCHIVE_FATAL);
   }
   code->numentries = 1;
@@ -2699,7 +2699,7 @@ create_code(struct archive_read *a, struct huffman_code *code,
     {
       if (lengths[j] != i) continue;
       if (add_value(a, code, j, codebits, i) != ARCHIVE_OK)
-        return (ARCHIVE_FATAL);
+        return (ARCHIVE_FAILED);
       codebits++;
       if (--symbolsleft <= 0)
         break;
@@ -2751,7 +2751,7 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
     {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "Prefix found");
-      return (ARCHIVE_FATAL);
+      return (ARCHIVE_FAILED);
     }
 
     /*
@@ -2769,12 +2769,12 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
 
       if ((repeatnode = new_node(code)) < 0) {
         archive_set_error(&a->archive, ENOMEM,
-                          "Unable to allocate memory for node data.");
+                          "Unable to allocate memory for node data");
         return (ARCHIVE_FATAL);
       }
       if ((nextnode = new_node(code)) < 0) {
         archive_set_error(&a->archive, ENOMEM,
-                          "Unable to allocate memory for node data.");
+                          "Unable to allocate memory for node data");
         return (ARCHIVE_FATAL);
       }
 
@@ -2794,7 +2794,7 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
       {
         if (new_node(code) < 0) {
           archive_set_error(&a->archive, ENOMEM,
-                            "Unable to allocate memory for node data.");
+                            "Unable to allocate memory for node data");
           return (ARCHIVE_FATAL);
         }
         code->tree[lastnode].branches[bit] = code->numentries++;
@@ -2810,7 +2810,7 @@ add_value(struct archive_read *a, struct huffman_code *code, int value,
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Prefix found");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
 
   /* Set leaf value */
@@ -2849,6 +2849,10 @@ make_table(struct archive_read *a, struct huffman_code *code)
     code->tablesize = code->maxlength;
 
   code->table = calloc(((size_t)1U) << code->tablesize, sizeof(*code->table));
+  if (code->table == NULL) {
+    archive_set_error(&a->archive, ENOMEM, "Can't allocate memory");
+    return (ARCHIVE_FATAL);
+  }
 
   return make_table_recurse(a, code, 0, code->table, 0, code->tablesize);
 }
@@ -2863,14 +2867,14 @@ make_table_recurse(struct archive_read *a, struct huffman_code *code, int node,
   if (!code->tree)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Huffman tree was not created.");
-    return (ARCHIVE_FATAL);
+                      "Huffman tree was not created");
+    return (ARCHIVE_FAILED);
   }
   if (node < 0 || node >= code->numentries)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-                      "Invalid location to Huffman tree specified.");
-    return (ARCHIVE_FATAL);
+                      "Invalid location to Huffman tree specified");
+    return (ARCHIVE_FAILED);
   }
 
   currtablesize = 1 << (maxdepth - depth);
@@ -3133,11 +3137,11 @@ truncated_data:
   archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                     "Truncated RAR file data");
   rar->valid = 0;
-  return (ARCHIVE_FATAL);
+  return (ARCHIVE_FAILED);
 bad_data:
   archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                     "Bad RAR file data");
-  return (ARCHIVE_FATAL);
+  return (ARCHIVE_FAILED);
 }
 
 static int
@@ -3149,10 +3153,15 @@ copy_from_lzss_window(struct archive_read *a, uint8_t *buffer,
 
   windowoffs = lzss_offset_for_position(&rar->lzss, startpos);
   firstpart = lzss_size(&rar->lzss) - windowoffs;
+  if (length > lzss_size(&rar->lzss)) {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Bad RAR file data");
+    return (ARCHIVE_FAILED);
+  }
   if (firstpart < 0) {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Bad RAR file data");
-    return (ARCHIVE_FATAL);
+    return (ARCHIVE_FAILED);
   }
   if (firstpart < length) {
     memcpy(buffer, &rar->lzss.window[windowoffs], firstpart);
@@ -3180,7 +3189,7 @@ copy_from_lzss_window_to_unp(struct archive_read *a, const void **buffer,
     if ((rar->unp_buffer = malloc(rar->unp_buffer_size)) == NULL)
     {
       archive_set_error(&a->archive, ENOMEM,
-                        "Unable to allocate memory for uncompressed data.");
+                        "Unable to allocate memory for uncompressed data");
       return (ARCHIVE_FATAL);
     }
   }
@@ -3194,7 +3203,7 @@ copy_from_lzss_window_to_unp(struct archive_read *a, const void **buffer,
     if (firstpart < 0) {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                         "Bad RAR file data");
-      return (ARCHIVE_FATAL);
+      return (ARCHIVE_FAILED);
     }
     if ((size_t)firstpart < length) {
       memcpy(&rar->unp_buffer[rar->unp_offset],
@@ -3218,7 +3227,7 @@ copy_from_lzss_window_to_unp(struct archive_read *a, const void **buffer,
 fatal:
   archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                     "Bad RAR file data");
-  return (ARCHIVE_FATAL);
+  return (ARCHIVE_FAILED);
 }
 
 static const void *
@@ -3315,7 +3324,8 @@ parse_filter(struct archive_read *a, const uint8_t *bytes, uint16_t length, uint
   else
     blocklength = prog ? prog->oldfilterlength : 0;
 
-  if (blocklength > rar->dictionary_size)
+  if (blocklength > rar->dictionary_size ||
+      blocklength > (uint32_t)(rar->lzss.mask + 1))
     return 0;
 
   registers[3] = PROGRAM_SYSTEM_GLOBAL_ADDRESS;
@@ -3549,7 +3559,13 @@ compile_program(const uint8_t *bytes, size_t length)
 
   if (membr_bits(&br, 1))
   {
-    prog->staticdatalen = membr_next_rarvm_number(&br) + 1;
+    uint32_t staticdatalen = membr_next_rarvm_number(&br);
+    if (staticdatalen >= VM_MEMORY_SIZE)
+    {
+      delete_program_code(prog);
+      return NULL;
+    }
+    prog->staticdatalen = staticdatalen + 1;
     prog->staticdata = malloc(prog->staticdatalen);
     if (!prog->staticdata)
     {

@@ -301,7 +301,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
-			    "Cannot append to compressed archive.");
+			    "Cannot append to compressed archive");
 		}
 		/* Keep going until we hit end-of-archive */
 		format = archive_format(a);
@@ -329,7 +329,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		if (format != (int)(archive_format(a) & ARCHIVE_FORMAT_BASE_MASK)
 		    && format != ARCHIVE_FORMAT_EMPTY) {
 			lafe_errc(1, 0,
-			    "Format %s is incompatible with the archive %s.",
+			    "Format %s is incompatible with the archive %s",
 			    cset_get_format(bsdtar->cset), bsdtar->filename);
 		}
 	} else {
@@ -394,12 +394,12 @@ tar_mode_u(struct bsdtar *bsdtar)
 			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
-			    "Cannot append to compressed archive.");
+			    "Cannot append to compressed archive");
 		}
 		if (archive_match_exclude_entry(bsdtar->matching,
 		    ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_OLDER |
 		    ARCHIVE_MATCH_EQUAL, entry) != ARCHIVE_OK)
-			lafe_errc(1, 0, "Error : %s",
+			lafe_errc(1, 0, "%s",
 			    archive_error_string(bsdtar->matching));
 		/* Record the last format determination we see */
 		format = archive_format(a);
@@ -699,7 +699,18 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 	int e;
 
 	while (ARCHIVE_OK == (e = archive_read_next_header(ina, &in_entry))) {
-		if (archive_match_excluded(bsdtar->matching, in_entry))
+		e = archive_match_excluded(bsdtar->matching, in_entry);
+		if (e < 0) {
+			if (!bsdtar->verbose)
+				lafe_errc(1, 0, "%s",
+				    archive_error_string(bsdtar->matching));
+			else {
+				fprintf(stderr, ": %s",
+				    archive_error_string(bsdtar->matching));
+				exit(1);
+			}
+		}
+		if (e)
 			continue;
 		if(edit_pathname(bsdtar, in_entry))
 			continue;
@@ -786,7 +797,7 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 					 * continue. */
 					lafe_warnc(0,
 					    "%s: Truncated write; file may "
-					    "have grown while being archived.",
+					    "have grown while being archived",
 					    archive_entry_pathname(entry));
 					return (0);
 				}
@@ -805,7 +816,7 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 			/* Write was truncated; warn but continue. */
 			lafe_warnc(0,
 			    "%s: Truncated write; file may have grown "
-			    "while being archived.",
+			    "while being archived",
 			    archive_entry_pathname(entry));
 			return (0);
 		}
@@ -1052,14 +1063,14 @@ test_for_append(struct bsdtar *bsdtar)
 	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
 		lafe_errc(1, 0, "no files or directories specified");
 	if (bsdtar->filename == NULL)
-		lafe_errc(1, 0, "Cannot append to stdout.");
+		lafe_errc(1, 0, "Cannot append to stdout");
 
 	if (stat(bsdtar->filename, &s) != 0)
 		return;
 
 	if (!S_ISREG(s.st_mode) && !S_ISBLK(s.st_mode))
 		lafe_errc(1, 0,
-		    "Cannot append to %s: not a regular file.",
+		    "Cannot append to %s: not a regular file",
 		    bsdtar->filename);
 
 /* Is this an appropriate check here on Windows? */

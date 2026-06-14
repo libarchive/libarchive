@@ -112,8 +112,8 @@ struct lzx_dec {
 		unsigned char	*bitlen;
 
 		/*
-		 * Use a index table. It's faster than searching a huffman
-		 * coding tree, which is a binary tree. But a use of a large
+		 * Use an index table. It's faster than searching a huffman
+		 * coding tree, which is a binary tree. But usage of a large
 		 * index table causes L1 cache read miss many times.
 		 */
 		int		 max_bits;
@@ -264,7 +264,7 @@ struct cfheader {
 };
 
 struct cab {
-	/* entry_bytes_remaining is the number of bytes we expect.	    */
+	/* entry_bytes_remaining is the number of bytes we expect. */
 	int64_t			 entry_offset;
 	int64_t			 entry_bytes_remaining;
 	int64_t			 entry_unconsumed;
@@ -279,7 +279,7 @@ struct cab {
 	struct cfheader		 cfheader;
 	struct archive_wstring	 ws;
 
-	/* Flag to mark progress that an archive was read their first header.*/
+	/* Flag to mark progress that first header of an archive was read.*/
 	char			 found_header;
 	char			 end_of_archive;
 	char			 end_of_entry;
@@ -383,8 +383,10 @@ archive_read_support_format_cab(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK)
+	if (r != ARCHIVE_OK) {
+		archive_wstring_free(&cab->ws);
 		free(cab);
+	}
 	return (ARCHIVE_OK);
 }
 
@@ -431,7 +433,7 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 	/*
 	 * Attempt to handle self-extracting archives
 	 * by noting a PE header and searching forward
-	 * up to 128k for a 'MSCF' marker.
+	 * up to 128k for an 'MSCF' marker.
 	 */
 	if (p[0] == 'M' && p[1] == 'Z') {
 		offset = 0;
@@ -499,7 +501,7 @@ cab_skip_sfx(struct archive_read *a)
 	for (;;) {
 		const char *h = __archive_read_ahead(a, window, &bytes);
 		if (h == NULL) {
-			/* Remaining size are less than window. */
+			/* Remaining size is less than window. */
 			window >>= 1;
 			if (window < 128) {
 				archive_set_error(&a->archive,
@@ -556,15 +558,12 @@ cab_strnlen(const unsigned char *p, size_t maxlen)
 static const void *
 cab_read_ahead_remaining(struct archive_read *a, size_t min, ssize_t *avail)
 {
-	const void *p;
+	const void *p = __archive_read_ahead(a, min, avail);
 
-	while (min > 0) {
-		p = __archive_read_ahead(a, min, avail);
-		if (p != NULL)
-			return (p);
-		min--;
-	}
-	return (NULL);
+	if (p == NULL && *avail > 0)
+		p = __archive_read_ahead(a, *avail, avail);
+
+	return (p);
 }
 
 /* Convert a path separator '\' -> '/' */
@@ -774,7 +773,7 @@ cab_read_header(struct archive_read *a)
 	 */
 	/* Seek read pointer to the offset of CFFILE if needed. */
 	skip = (int64_t)hd->files_offset - cab->cab_offset;
-	if (skip <  0) {
+	if (skip < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid offset of CFFILE %jd < %jd",
 		    (intmax_t)hd->files_offset, (intmax_t)cab->cab_offset);
@@ -978,7 +977,7 @@ archive_read_format_cab_read_header(struct archive_read *a,
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Pathname cannot be converted "
-		    "from %s to current locale.",
+		    "from %s to current locale",
 		    archive_string_conversion_charset_name(sconv));
 		err = ARCHIVE_WARN;
 	}
@@ -1024,7 +1023,7 @@ archive_read_format_cab_read_data(struct archive_read *a,
 		*offset = 0;
 		archive_clear_error(&a->archive);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Cannot restore this file split in multivolume.");
+		    "Cannot restore this file split in multivolume");
 		return (ARCHIVE_FAILED);
 	default:
 		break;
@@ -1173,6 +1172,9 @@ cab_checksum_finish(struct archive_read *a)
 	l = 4;
 	if (cab->cfheader.flags & RESERVE_PRESENT)
 		l += cab->cfheader.cfdata;
+	if (cfdata->memimage == NULL) {
+		return (ARCHIVE_FAILED);
+	}
 	cfdata->sum_calculated = cab_checksum_cfdata(
 	    cfdata->memimage + CFDATA_cbData, l, cfdata->sum_calculated);
 	if (cfdata->sum_calculated != cfdata->sum) {
@@ -1331,6 +1333,10 @@ cab_next_cfdata(struct archive_read *a)
 	}
 	return (ARCHIVE_OK);
 invalid:
+	cfdata->compressed_size = 0;
+	cfdata->compressed_bytes_remaining = 0;
+	cfdata->uncompressed_size = 0;
+	cfdata->uncompressed_bytes_remaining = 0;
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "Invalid CFDATA");
 	return (ARCHIVE_FATAL);
@@ -1360,7 +1366,7 @@ cab_read_ahead_cfdata(struct archive_read *a, ssize_t *avail)
 		return (cab_read_ahead_cfdata_lzx(a, avail));
 	default: /* Unsupported compression. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Unsupported CAB compression : %s",
+		    "Unsupported CAB compression: %s",
 		    cab->entry_cffolder->compname);
 		*avail = ARCHIVE_FAILED;
 		return (NULL);
@@ -1447,7 +1453,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 			    -15 /* Don't check for zlib header */);
 		if (r != Z_OK) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Can't initialize deflate decompression.");
+			    "Can't initialize deflate decompression");
 			*avail = ARCHIVE_FATAL;
 			return (NULL);
 		}
@@ -1473,6 +1479,14 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 		    cab->uncompressed_buffer + cab->stream.total_out;
 		cab->stream.avail_out =
 		    cfdata->uncompressed_size - cab->stream.total_out;
+		if ((size_t)cfdata->uncompressed_size >
+		    cab->uncompressed_buffer_size) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Invalid CFDATA uncompressed size");
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
 
 		d = __archive_read_ahead(a, 1, &bytes_avail);
 		if (bytes_avail <= 0) {
@@ -1667,7 +1681,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 		    cab->entry_cffolder->compdata);
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Can't initialize LZX decompression.");
+			    "Can't initialize LZX decompression");
 			*avail = ARCHIVE_FATAL;
 			return (NULL);
 		}
@@ -1685,6 +1699,13 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 		    cab->uncompressed_buffer + cab->xstrm.total_out;
 		cab->xstrm.avail_out =
 		    cfdata->uncompressed_size - cab->xstrm.total_out;
+		
+		if ((size_t)cfdata->uncompressed_size > cab->uncompressed_buffer_size) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				"Invalid CFDATA uncompressed size");
+			*avail = ARCHIVE_FATAL;
+			return (NULL);
+		}
 
 		d = __archive_read_ahead(a, 1, &bytes_avail);
 		if (d == NULL) {
@@ -3199,6 +3220,10 @@ lzx_make_huffman_table(struct huffman *hf)
 	bitlen = hf->bitlen;
 	len_avail = hf->len_size;
 	hf->tree_used = 0;
+	/* Initialize table to invalid values */
+	for (i = 0; i < tbl_size; i++) {
+		tbl[i] = (uint16_t)hf->len_size;
+	}
 	for (i = 0; i < len_avail; i++) {
 		uint16_t *p;
 		int len, cnt;

@@ -62,7 +62,7 @@ archive_read_support_filter_grzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, NULL,
+	if (__archive_read_register_bidder(a, NULL, "grzip",
 				&grzip_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -80,12 +80,11 @@ grzip_bidder_bid(struct archive_read_filter_bidder *self,
     struct archive_read_filter *filter)
 {
 	const unsigned char *p;
-	ssize_t avail;
 
 	(void)self; /* UNUSED */
 
-	p = __archive_read_filter_ahead(filter, sizeof(grzip_magic), &avail);
-	if (p == NULL || avail == 0)
+	p = __archive_read_filter_ahead(filter, sizeof(grzip_magic), NULL);
+	if (p == NULL)
 		return (0);
 
 	if (memcmp(p, grzip_magic, sizeof(grzip_magic)))
