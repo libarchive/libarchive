@@ -30,6 +30,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_Z1.c
     test_P_encryption.c
     test_I.c
+    test_insecure_paths.c
   )
 
   #
