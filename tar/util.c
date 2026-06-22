@@ -17,6 +17,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_FNMATCH_H
+#include <fnmatch.h>
+#endif
 #ifdef HAVE_IO_H
 #include <io.h>
 #endif
@@ -42,6 +45,7 @@
 
 #include "bsdtar.h"
 #include "lafe_err.h"
+#include "lafe_fnmatch.h"
 #include "passphrase.h"
 
 static size_t	bsdtar_expand_char(char *, size_t, size_t, char);
@@ -582,6 +586,91 @@ edit_mtime(struct bsdtar *bsdtar, struct archive_entry *entry)
 	__LA_TIME_T entry_mtime = archive_entry_mtime(entry);
 	if (!bsdtar->clamp_mtime || entry_mtime > bsdtar->mtime)
 		archive_entry_set_mtime(entry, bsdtar->mtime, 0);
+}
+
+/*
+ * Decide whether an extended-attribute name survives the
+ * --xattrs-include / --xattrs-exclude masks.  The name is matched as a
+ * whole string with shell-style globbing (no path splitting), so
+ * "security.selinux" matches exactly that key while "security.*" matches
+ * the namespace.  Exclusion wins; when an include list is present a name
+ * must match it to be kept; empty lists impose no restriction.
+ */
+static int
+xattr_name_kept(struct bsdtar *bsdtar, const char *name)
+{
+	struct xattr_match *m;
+
+	for (m = bsdtar->xattr_exclude; m != NULL; m = m->next)
+		if (fnmatch(m->pattern, name, 0) == 0)
+			return 0;
+	if (bsdtar->xattr_include != NULL) {
+		for (m = bsdtar->xattr_include; m != NULL; m = m->next)
+			if (fnmatch(m->pattern, name, 0) == 0)
+				return 1;
+		return 0;
+	}
+	return 1;
+}
+
+/*
+ * Apply the --xattrs-include / --xattrs-exclude masks to an entry,
+ * dropping any extended attribute whose name does not survive.  Used on
+ * both the create side (entries read from disk) and the extract side
+ * (entries read from the archive).  archive_entry has no per-name remove,
+ * so the surviving attributes are copied out, the list is cleared and the
+ * survivors are re-added (in reverse, since add_entry prepends, to keep
+ * the original order).
+ */
+void
+edit_xattrs(struct bsdtar *bsdtar, struct archive_entry *entry)
+{
+	struct kept_xattr {
+		char	*name;
+		void	*value;
+		size_t	 size;
+	} *kept;
+	const char *name;
+	const void *value;
+	size_t size;
+	int count, n, i;
+
+	if (bsdtar->xattr_include == NULL && bsdtar->xattr_exclude == NULL)
+		return;
+
+	count = archive_entry_xattr_reset(entry);
+	if (count <= 0)
+		return;
+
+	kept = calloc((size_t)count, sizeof(*kept));
+	if (kept == NULL)
+		lafe_errc(1, 0, "Out of memory");
+
+	n = 0;
+	while (archive_entry_xattr_next(entry, &name, &value, &size)
+	    == ARCHIVE_OK) {
+		if (name == NULL || !xattr_name_kept(bsdtar, name))
+			continue;
+		if ((kept[n].name = strdup(name)) == NULL)
+			lafe_errc(1, 0, "Out of memory");
+		if (size > 0) {
+			if ((kept[n].value = malloc(size)) == NULL)
+				lafe_errc(1, 0, "Out of memory");
+			memcpy(kept[n].value, value, size);
+		} else
+			kept[n].value = NULL;
+		kept[n].size = size;
+		n++;
+	}
+
+	archive_entry_xattr_clear(entry);
+	for (i = n - 1; i >= 0; i--) {
+		archive_entry_xattr_add_entry(entry, kept[i].name,
+		    kept[i].value, kept[i].size);
+		free(kept[i].name);
+		free(kept[i].value);
+	}
+	free(kept);
 }
 
 /*

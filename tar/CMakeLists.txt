@@ -20,6 +20,8 @@ IF(ENABLE_TAR)
     write.c
     ../libarchive_fe/lafe_err.c
     ../libarchive_fe/lafe_err.h
+    ../libarchive_fe/lafe_fnmatch.c
+    ../libarchive_fe/lafe_fnmatch.h
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
