@@ -758,7 +758,8 @@ archive_read_support_format_rar(struct archive *_a)
                                      archive_read_format_rar_seek_data,
                                      archive_read_format_rar_cleanup,
                                      archive_read_support_format_rar_capabilities,
-                                     archive_read_format_rar_has_encrypted_entries);
+                                     archive_read_format_rar_has_encrypted_entries,
+                                     NULL);
 
   if (r != ARCHIVE_OK)
     free(rar);
