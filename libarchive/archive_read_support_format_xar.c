@@ -2631,7 +2631,7 @@ strappend_base64(struct xar *xar,
 	len = 0;
 	out = buff;
 	b = (const unsigned char *)s;
-	while (l > 0) {
+	while (l > 1) {
 		int n = 0;
 
 		if (base64[b[0]] < 0 || base64[b[1]] < 0)

@@ -969,3 +969,37 @@ DEFINE_TEST(test_read_format_xar_large_mode)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * A TOC with an odd-length base64-encoded <name> used to make
+ * strappend_base64() read one byte past the (non-NUL-terminated) expat
+ * character-data buffer and then underflow its size_t length counter.
+ * The trailing incomplete base64 character must be dropped; the rest of
+ * the name still decodes ("YWJjA" -> "abc").
+ */
+DEFINE_TEST(test_read_format_xar_base64_oob)
+{
+	const char *reffile = "test_read_format_xar_base64_oob.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("abc", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
