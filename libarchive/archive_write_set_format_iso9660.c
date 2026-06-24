@@ -55,6 +55,7 @@
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
 #include "archive_private.h"
+#include "archive_integer.h"
 #include "archive_rb.h"
 #include "archive_write_private.h"
 
@@ -7522,14 +7523,19 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 		(uint32_t)archive_entry_size(file->entry);
 
 	/* Calculate a size of Block Pointers of zisofs. */
-	_ceil = (file->zisofs.uncompressed_size + ZF_BLOCK_SIZE -1)
-		>> file->zisofs.log2_bs;
+	_ceil = (size_t)(((uint64_t)file->zisofs.uncompressed_size
+	    + ZF_BLOCK_SIZE - 1) >> file->zisofs.log2_bs);
 	iso9660->zisofs.block_pointers_cnt = (int)_ceil + 1;
 	iso9660->zisofs.block_pointers_idx = 0;
 
 	/* Ensure a buffer size used for Block Pointers */
-	bpsize = iso9660->zisofs.block_pointers_cnt *
-	    sizeof(iso9660->zisofs.block_pointers[0]);
+	if (archive_ckd_mul_size(&bpsize,
+	    (size_t)iso9660->zisofs.block_pointers_cnt,
+	    sizeof(iso9660->zisofs.block_pointers[0]))) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate data");
+		return (ARCHIVE_FATAL);
+	}
 	if (iso9660->zisofs.block_pointers_allocated < bpsize) {
 		free(iso9660->zisofs.block_pointers);
 		iso9660->zisofs.block_pointers = malloc(bpsize);
@@ -7831,8 +7837,13 @@ zisofs_finish_entry(struct archive_write *a)
 	/*
 	 * Write zisofs Block Pointers.
 	 */
-	s = iso9660->zisofs.block_pointers_cnt *
-	    sizeof(iso9660->zisofs.block_pointers[0]);
+	if (archive_ckd_mul_size(&s,
+	    (size_t)iso9660->zisofs.block_pointers_cnt,
+	    sizeof(iso9660->zisofs.block_pointers[0]))) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate data");
+		return (ARCHIVE_FATAL);
+	}
 	if (wb_write_to_temp(a, iso9660->zisofs.block_pointers, s)
 	    != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
