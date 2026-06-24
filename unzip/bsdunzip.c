@@ -741,9 +741,12 @@ recheck:
 static int
 pathname_is_insecure(const char* pathname)
 {
+	size_t len = strlen(pathname);
 	return (pathname[0] == '/' ||
+	    strcmp(pathname, "..") == 0 ||
 	    strncmp(pathname, "../", 3) == 0 ||
-	    strstr(pathname, "/../") != NULL);
+	    strstr(pathname, "/../") != NULL ||
+	    (len >= 3 && strcmp(pathname + len - 3, "/..") == 0));
 }
 
 /*

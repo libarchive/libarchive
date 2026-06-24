@@ -16,6 +16,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_not_exist.c
     test_singlefile.c
     test_symlink.c
+    test_symlink_dotdot.c
     test_C.c
     test_p.c
     test_d.c

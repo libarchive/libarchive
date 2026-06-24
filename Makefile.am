@@ -1723,6 +1723,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_o.c \
 	unzip/test/test_q.c \
 	unzip/test/test_symlink.c \
+	unzip/test/test_symlink_dotdot.c \
 	unzip/test/test_t.c \
 	unzip/test/test_t_bad.c \
 	unzip/test/test_u.c \
@@ -1761,6 +1762,7 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/test_singlefile.zip.uu \
 	unzip/test/test_symlink_1.zip.uu \
 	unzip/test/test_symlink_2.zip.uu \
+	unzip/test/test_symlink_dotdot.zip.uu \
 	unzip/test/test_t_bad.zip.uu \
 	unzip/test/test_u_new.zip.uu \
 	unzip/test/test_u_old.zip.uu \
