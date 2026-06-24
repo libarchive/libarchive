@@ -7522,8 +7522,9 @@ zisofs_init(struct archive_write *a,  struct isofile *file)
 		(uint32_t)archive_entry_size(file->entry);
 
 	/* Calculate a size of Block Pointers of zisofs. */
-	_ceil = (file->zisofs.uncompressed_size + ZF_BLOCK_SIZE -1)
-		>> file->zisofs.log2_bs;
+	_ceil = (size_t)(((uint64_t)file->zisofs.uncompressed_size +
+		    (ZF_BLOCK_SIZE - 1))
+		>> file->zisofs.log2_bs);
 	iso9660->zisofs.block_pointers_cnt = (int)_ceil + 1;
 	iso9660->zisofs.block_pointers_idx = 0;
 
