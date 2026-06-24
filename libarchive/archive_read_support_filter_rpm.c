@@ -37,20 +37,6 @@
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-struct rpm {
-	int data_reached;
-};
-#define RPM_LEAD_SIZE		96	/* Size of 'Lead' section. */
-#define RPM_MIN_HEAD_SIZE	16	/* Minimum size of 'Head'. */
-
-static int	rpm_bidder_bid(struct archive_read_filter_bidder *,
-		    struct archive_read_filter *);
-static int	rpm_bidder_init(struct archive_read_filter *);
-
-static ssize_t	rpm_filter_read(struct archive_read_filter *,
-		    const void **);
-static int	rpm_filter_close(struct archive_read_filter *);
-
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /* Deprecated; remove in libarchive 4.0 */
 int
@@ -58,192 +44,16 @@ archive_read_support_compression_rpm(struct archive *a)
 {
 	return archive_read_support_filter_rpm(a);
 }
-#endif
-
-static const struct archive_read_filter_bidder_vtable
-rpm_bidder_vtable = {
-	.bid = rpm_bidder_bid,
-	.init = rpm_bidder_init,
-};
 
 int
 archive_read_support_filter_rpm(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	return __archive_read_register_bidder(a, NULL, "rpm",
-			&rpm_bidder_vtable);
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+					"The RPM filter is deprecated. "
+					"Please use the format instead!");
+
+	return (ARCHIVE_FATAL);
 }
-
-static int
-rpm_bidder_bid(struct archive_read_filter_bidder *b,
-    struct archive_read_filter *f)
-{
-	const unsigned char *p;
-	int bits_checked;
-
-	(void)b; /* UNUSED */
-
-	p = __archive_read_filter_ahead(f, 8, NULL);
-	if (p == NULL)
-		return (0);
-
-	bits_checked = 0;
-	/*
-	 * Verify Header Magic Bytes : 0XED 0XAB 0XEE 0XDB
-	 */
-	if (memcmp(p, "\xED\xAB\xEE\xDB", 4) != 0)
-		return (0);
-	bits_checked += 32;
-	/*
-	 * Check major version.
-	 */
-	if (p[4] != 3 && p[4] != 4)
-		return (0);
-	bits_checked += 8;
-	/*
-	 * Check package type; binary or source.
-	 */
-	if (p[6] != 0)
-		return (0);
-	bits_checked += 8;
-	if (p[7] != 0 && p[7] != 1)
-		return (0);
-	bits_checked += 8;
-
-	return (bits_checked);
-}
-
-static const struct archive_read_filter_vtable
-rpm_reader_vtable = {
-	.read = rpm_filter_read,
-	.close = rpm_filter_close,
-};
-
-static int
-rpm_bidder_init(struct archive_read_filter *f)
-{
-	struct rpm   *rpm;
-
-	f->code = ARCHIVE_FILTER_RPM;
-	f->name = "rpm";
-
-	rpm = calloc(1, sizeof(*rpm));
-	if (rpm == NULL) {
-		archive_set_error(&f->archive->archive, ENOMEM,
-		    "Can't allocate data for rpm");
-		return (ARCHIVE_FATAL);
-	}
-
-	f->data = rpm;
-	rpm->data_reached = 0;
-	f->vtable = &rpm_reader_vtable;
-
-	return (ARCHIVE_OK);
-}
-
-static ssize_t
-skip_padding(struct archive_read_filter *f)
-{
-	const unsigned char *h;
-	ssize_t avail, count, r;
-
-	do {
-		h = __archive_read_filter_ahead(f->upstream, 1, &avail);
-		if (h == NULL)
-			return (ARCHIVE_FATAL);
-		for (count = 0; count < avail && *h++ == '\0'; count++)
-			;
-		r = __archive_read_filter_consume(f->upstream, count);
-		if (r < 0)
-			return (r);
-	} while (count == avail);
-
-	return (ARCHIVE_OK);
-}
-
-static ssize_t
-skip_prologue(struct archive_read_filter *f)
-{
-	const unsigned char *h;
-	ssize_t r;
-	int header, seen_header = 0;
-
-	/* Skip lead size. */
-	r = __archive_read_filter_consume(f->upstream, RPM_LEAD_SIZE);
-	if (r < 0)
-		return (r);
-
-	do {
-		/* Read header intro. */
-		h = __archive_read_filter_ahead(f->upstream,
-		    RPM_MIN_HEAD_SIZE, NULL);
-		if (h == NULL)
-			return (ARCHIVE_FATAL);
-
-		header = (memcmp(h, "\x8E\xAD\xE8\x01", 4) == 0);
-		if (header) {
-			int64_t bytes, length, section;
-
-			seen_header = 1;
-
-			/* Calculate header length. */
-			section = archive_be32dec(h + 8);
-			bytes = archive_be32dec(h + 12);
-			length = RPM_MIN_HEAD_SIZE + section * 16 + bytes;
-
-			/* Skip header. */
-			r = __archive_read_filter_consume(f->upstream,
-			     length);
-			if (r < 0)
-				return (r);
-
-			/* Skip padding. */
-			r = skip_padding(f);
-			if (r != ARCHIVE_OK)
-				return (r);
-		}
-	} while (header);
-
-	/* At least one header must have been encountered. */
-	if (!seen_header) {
-		archive_set_error(
-		    &f->archive->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Unrecognized rpm header");
-		return (ARCHIVE_FATAL);
-	}
-
-	return (ARCHIVE_OK);
-}
-
-static ssize_t
-rpm_filter_read(struct archive_read_filter *f, const void **buff)
-{
-	struct rpm *rpm = f->data;
-	ssize_t r;
-
-	if (!rpm->data_reached) {
-		r = skip_prologue(f);
-		if (r != ARCHIVE_OK)
-			return (r);
-		rpm->data_reached = 1;
-	}
-
-	*buff = __archive_read_filter_ahead(f->upstream, 1, &r);
-	if (r > 0)
-		__archive_read_filter_consume(f->upstream, r);
-
-	return r;
-}
-
-static int
-rpm_filter_close(struct archive_read_filter *f)
-{
-	struct rpm *rpm = f->data;
-
-	free(rpm);
-
-	return (ARCHIVE_OK);
-}
-
+#endif

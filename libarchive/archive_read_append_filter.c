@@ -80,10 +80,12 @@ archive_read_append_filter(struct archive *_a, int code)
       str = "uu";
       r1 = archive_read_support_filter_uu(_a);
       break;
+#if ARCHIVE_VERSION_NUMBER < 4000000
     case ARCHIVE_FILTER_RPM:
       str = "rpm";
       r1 = archive_read_support_filter_rpm(_a);
       break;
+#endif
     case ARCHIVE_FILTER_LZ4:
       str = "lz4";
       r1 = archive_read_support_filter_lz4(_a);
