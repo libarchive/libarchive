@@ -74,6 +74,8 @@ distcheck-hook:
 #
 # Extra rules for cleanup
 #
+CLEANFILES=
+
 DISTCLEANFILES= \
 	libarchive/test/list.h \
 	tar/test/list.h \
@@ -1227,10 +1229,21 @@ bsdtar_LDADD= libarchive.la libarchive_fe.la $(LTLIBICONV)
 bsdtar_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdtar_ccstatic) $(PLATFORMCPPFLAGS)
 bsdtar_LDFLAGS= $(bsdtar_ldstatic) $(DEAD_CODE_REMOVAL)
 
+if INC_WINDOWS_FILES
+# Embed an application manifest marking bsdtar as long-path aware.
+tar/bsdtar_rc.$(OBJEXT): $(top_srcdir)/tar/bsdtar.rc $(top_srcdir)/tar/bsdtar.exe.manifest
+	$(AM_V_GEN)$(WINDRES) -I $(top_srcdir)/tar -i $(top_srcdir)/tar/bsdtar.rc -o $@
+bsdtar_LDADD += tar/bsdtar_rc.$(OBJEXT)
+bsdtar_DEPENDENCIES += tar/bsdtar_rc.$(OBJEXT)
+CLEANFILES += tar/bsdtar_rc.$(OBJEXT)
+endif
+
 bsdtar_EXTRA_DIST= \
 	tar/bsdtar.1 \
 	tar/bsdtar_windows.h \
 	tar/bsdtar_windows.c \
+	tar/bsdtar.rc \
+	tar/bsdtar.exe.manifest \
 	tar/CMakeLists.txt \
 	tar/config_freebsd.h
 

@@ -101,6 +101,9 @@ esac
 AM_CONDITIONAL([INC_WINDOWS_FILES], [test $inc_windows_files = yes])
 AM_CONDITIONAL([INC_CYGWIN_FILES], [test $inc_cygwin_files = yes])
 
+dnl On native Windows (MinGW), embedding the manifest needs windres
+AS_IF([test $inc_windows_files = yes], [AC_CHECK_TOOL([WINDRES], [windres])])
+
 dnl Defines that are required for specific platforms (e.g. -D_POSIX_SOURCE, etc)
 PLATFORMCPPFLAGS=
 case "$host_os" in
