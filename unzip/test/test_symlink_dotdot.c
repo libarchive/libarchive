@@ -21,6 +21,7 @@ DEFINE_TEST(test_symlink_dotdot)
 		return;
 	}
 
+	assertUmask(0);
 	extract_reference_file(reffile);
 
 	r = systemf("%s %s >test.out 2>test.err", testprog, reffile);

@@ -141,56 +141,6 @@ static int64_t	mtree_atol(char **, int base);
 static size_t	mtree_strnlen(const char *, size_t);
 #endif
 
-/*
- * There's no standard for TIME_T_MAX/TIME_T_MIN.  So we compute them
- * here.  TODO: Move this to configure time, but be careful
- * about cross-compile environments.
- */
-static int64_t
-get_time_t_max(void)
-{
-#if defined(TIME_T_MAX)
-	return TIME_T_MAX;
-#else
-	/* ISO C allows time_t to be a floating-point type,
-	   but POSIX requires an integer type.  The following
-	   should work on any system that follows the POSIX
-	   conventions. */
-	if (((time_t)0) < ((time_t)-1)) {
-		/* Time_t is unsigned */
-		return (~(time_t)0);
-	} else {
-		/* Time_t is signed. */
-		/* Assume it's the same as int64_t or int32_t */
-		if (sizeof(time_t) == sizeof(int64_t)) {
-			return (time_t)INT64_MAX;
-		} else {
-			return (time_t)INT32_MAX;
-		}
-	}
-#endif
-}
-
-static int64_t
-get_time_t_min(void)
-{
-#if defined(TIME_T_MIN)
-	return TIME_T_MIN;
-#else
-	if (((time_t)0) < ((time_t)-1)) {
-		/* Time_t is unsigned */
-		return (time_t)0;
-	} else {
-		/* Time_t is signed. */
-		if (sizeof(time_t) == sizeof(int64_t)) {
-			return (time_t)INT64_MIN;
-		} else {
-			return (time_t)INT32_MIN;
-		}
-	}
-#endif
-}
-
 #ifdef HAVE_STRNLEN
 #define mtree_strnlen(a,b) strnlen(a,b)
 #else
@@ -1781,8 +1731,6 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		}
 		if (strcmp(key, "time") == 0) {
 			int64_t m;
-			int64_t my_time_t_max = get_time_t_max();
-			int64_t my_time_t_min = get_time_t_min();
 			long ns = 0;
 
 			*parsed_kws |= MTREE_HAS_MTIME;
@@ -1802,10 +1750,10 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 				else
 					ns = (long)v;
 			}
-			if (m > my_time_t_max)
-				m = my_time_t_max;
-			else if (m < my_time_t_min)
-				m = my_time_t_min;
+			if (m > TIME_MAX)
+				m = TIME_MAX;
+			else if (m < TIME_MIN)
+				m = TIME_MIN;
 			archive_entry_set_mtime(entry, (time_t)m, ns);
 			return (ARCHIVE_OK);
 		}

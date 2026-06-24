@@ -18,6 +18,7 @@ DEFINE_TEST(test_symlink)
 		return;
 	}
 
+	assertUmask(0);
 	extract_reference_file(reffile1);
 	extract_reference_file(reffile2);
 

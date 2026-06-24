@@ -3082,7 +3082,7 @@ systemf(const char *fmt, ...)
 	r = vsnprintf(buff + off, avail, fmt, ap);
 	va_end(ap);
 
-	if (r < 0 || (size_t)r > avail) {
+	if (r < 0 || (size_t)r >= avail) {
 		return (-1);
 	}
 

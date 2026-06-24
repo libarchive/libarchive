@@ -56,7 +56,7 @@ static la_ssize_t read_streaming_buffer(struct archive *a, void *_client_data, c
 }
 
 static void
-validate_entry_read(struct archive *a, const char* msg, const int streaming_reader)
+validate_entry_read(struct archive *a, const int streaming_reader)
 {
 	struct archive_entry *ae;
 	size_t total_read;
@@ -76,7 +76,8 @@ validate_entry_read(struct archive *a, const char* msg, const int streaming_read
 		r = archive_read_data(a, readbuf, sizeof(readbuf));
 		if (r <= 0) {
 			if (r < 0) {
-				failure(msg, (int) r, archive_error_string(a));
+				failure("archive_read_data returned %d: %s",
+				    (int)r, archive_error_string(a));
 				assertEqualInt(r > 0, 1);
 			}
 			break;
@@ -114,7 +115,7 @@ test_encrypted_zipx_read_mem(char* buff, size_t used)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, password));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
-	validate_entry_read(a, "archive_read_data returned %d: %s", 0);
+	validate_entry_read(a, 0);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -126,7 +127,7 @@ test_encrypted_zipx_read_mem(char* buff, size_t used)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, password));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
 
-	validate_entry_read(a, "seek: archive_read_data returned %d: %s", 0);
+	validate_entry_read(a, 0);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -144,7 +145,7 @@ test_encrypted_zipx_read_callback(const char* buff, const size_t used)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, password));
 	/* NOTE: archive_read_open2 with read callback only -> NON-seekable. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open2(a, &stream_buffer, NULL, read_streaming_buffer, NULL, NULL));
-	validate_entry_read(a, "archive_read_data returned %d: %s", 1);
+	validate_entry_read(a, 1);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

@@ -251,36 +251,6 @@ static const size_t fflags_limit = 512; /* Longest fflags */
 static const size_t acl_limit = 131072; /* Longest textual ACL: 128kiB */
 static const int64_t entry_limit = 0xfffffffffffffffLL; /* 2^60 bytes = 1 ExbiByte */
 
-/*
- * There's no standard for TIME_T_MAX.  So we compute it
- * here.  TODO: Move this to configure time, but be careful
- * about cross-compile environments.
- */
-static time_t
-get_time_t_max(void)
-{
-#if defined(TIME_T_MAX)
-        return TIME_T_MAX;
-#else
-        /* ISO C allows time_t to be a floating-point type,
-           but POSIX requires an integer type.  The following
-           should work on any system that follows the POSIX
-           conventions. */
-        if (((time_t)0) < ((time_t)-1)) {
-                /* Time_t is unsigned */
-                return (~(time_t)0);
-        } else {
-                /* Time_t is signed. */
-                /* Assume it's the same as int64_t or int32_t */
-                if (sizeof(time_t) == sizeof(int64_t)) {
-                        return (time_t)INT64_MAX;
-                } else {
-                        return (time_t)INT32_MAX;
-                }
-        }
-#endif
-}
-
 int
 archive_read_support_format_gnutar(struct archive *a)
 {
@@ -1402,7 +1372,7 @@ header_common(struct archive_read *a, struct tar *tar,
 		int64_t t64 = tar_atol(header->mtime, sizeof(header->mtime));
 		time_t t = (time_t)t64;
 		if ((int64_t)t != t64) { /* time_t overflowed */
-			t = get_time_t_max();
+			t = TIME_MAX;
 		}
 		archive_entry_set_mtime(entry, t, 0);
 	}

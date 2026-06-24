@@ -111,7 +111,7 @@ static int xml_writer_start_element(struct xml_writer *ctx,
 static int xml_writer_write_attribute(struct xml_writer *ctx, const char *key,
     const char *value);
 static int xml_writer_write_attributef(struct xml_writer *ctx, const char *key,
-    const char *format, ...);
+    const char *format, ...) __LA_PRINTF(3, 4);
 static int xml_writer_write_string(struct xml_writer *ctx, const char *string);
 static int xml_writer_write_base64(struct xml_writer* ctx,
     const char *data, size_t start, size_t len);
@@ -907,7 +907,7 @@ xmlwrite_string(struct archive_write *a, struct xml_writer *writer,
 	return (ARCHIVE_OK);
 }
 
-static int
+static int __LA_PRINTF(4, 5)
 xmlwrite_fstring(struct archive_write *a, struct xml_writer *writer,
 	const char *key, const char *fmt, ...)
 {
@@ -1333,11 +1333,11 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 			return (ARCHIVE_FATAL);
 		}
 		r = xmlwrite_fstring(a, writer, "major",
-		    "%d", archive_entry_rdevmajor(file->entry));
+		    "%ld", (long)archive_entry_rdevmajor(file->entry));
 		if (r < 0)
 			return (ARCHIVE_FATAL);
 		r = xmlwrite_fstring(a, writer, "minor",
-		    "%d", archive_entry_rdevminor(file->entry));
+		    "%ld", (long)archive_entry_rdevminor(file->entry));
 		if (r < 0)
 			return (ARCHIVE_FATAL);
 		r = xml_writer_end_element(writer);
@@ -1361,7 +1361,7 @@ make_file_entry(struct archive_write *a, struct xml_writer *writer,
 		return (ARCHIVE_FATAL);
 	if (archive_entry_dev(file->entry) != 0) {
 		r = xmlwrite_fstring(a, writer, "deviceno",
-		    "%d", archive_entry_dev(file->entry));
+		    "%ld", (long)archive_entry_dev(file->entry));
 		if (r < 0)
 			return (ARCHIVE_FATAL);
 	}
