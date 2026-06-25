@@ -389,6 +389,55 @@ DEFINE_TEST(test_gnutar_filename_encoding_CP932_UTF8)
 	assertEqualMem(buff, "\xE8\xA1\xA8.txt", 7);
 }
 
+/*
+ * A group name whose converted byte length exceeds the 32-byte gname
+ * field used to clamp on strlen() of the converted string instead of its
+ * byte length.  With a header charset that embeds NUL bytes (UTF-16),
+ * strlen() stops at the first NUL while the memcpy still used the full
+ * byte length, writing past the 512-byte header buffer.
+ */
+DEFINE_TEST(test_gnutar_filename_encoding_long_gname_utf16)
+{
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[4096];
+	char gname[256];
+	size_t used;
+
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_gnutar(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-16LE") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " to UTF-16LE.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	memset(gname, 'A', sizeof(gname) - 1);
+	gname[sizeof(gname) - 1] = '\0';
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "file");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	archive_entry_set_gname(entry, gname);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* The archive is still well-formed; the gname field is truncated to
+	 * the 32-byte field, which reads back as "A" (the first UTF-16 unit
+	 * before the embedded NUL). */
+	a = archive_read_new();
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_tar(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualString("A", archive_entry_gname(entry));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_gnutar_filename_encoding_UTF16_win)
 {
 #if !defined(_WIN32) || defined(__CYGWIN__)

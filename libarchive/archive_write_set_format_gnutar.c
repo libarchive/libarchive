@@ -652,7 +652,7 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 		copy_length = gnutar->gname_length;
 	}
 	if (copy_length > 0) {
-		if (strlen(p) > GNUTAR_gname_size)
+		if (copy_length > GNUTAR_gname_size)
 			copy_length = GNUTAR_gname_size;
 		memcpy(h + GNUTAR_gname_offset, p, copy_length);
 	}
