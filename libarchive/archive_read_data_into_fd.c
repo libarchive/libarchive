@@ -141,6 +141,8 @@ archive_read_data_into_fd(struct archive *a, int fd)
 		    target_offset, actual_offset);
 		if (r2 != ARCHIVE_OK)
 			r = r2;
+		else
+			actual_offset = target_offset;
 	}
 
 cleanup:
