@@ -1003,3 +1003,40 @@ DEFINE_TEST(test_read_format_xar_base64_oob)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * A numeric TOC field (here <inode>) is parsed by atou64().  Under the
+ * expat backend that function is handed the raw, non-NUL-terminated
+ * character-data buffer (libxml2 masks this by passing a strlen'd copy).
+ * The loop fetched the next digit with *++p before checking the remaining
+ * count, so an all-digit field whose content ends at the parser buffer
+ * read one byte past the supplied range.  The parsed value is unchanged;
+ * only the stray read is gone.  Build with ASan to catch the over-read.
+ */
+DEFINE_TEST(test_read_format_xar_atou64_overread)
+{
+	const char *reffile = "test_read_format_xar_atou64_overread.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("num", archive_entry_pathname(ae));
+	assertEqualInt(1234567890, archive_entry_ino64(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

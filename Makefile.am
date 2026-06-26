@@ -1082,6 +1082,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_ustar_filename_koi8r.tar.Z.uu \
 	libarchive/test/test_read_format_warc.warc.uu \
 	libarchive/test/test_read_format_warc_incomplete.warc.uu \
+	libarchive/test/test_read_format_xar_atou64_overread.xar.uu \
 	libarchive/test/test_read_format_xar_base64_oob.xar.uu \
 	libarchive/test/test_read_format_xar_doublelink.xar.uu \
 	libarchive/test/test_read_format_xar_duplicate_filename_node.xar.uu \
