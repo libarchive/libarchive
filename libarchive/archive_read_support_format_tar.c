@@ -1757,7 +1757,6 @@ header_pax_global(struct archive_read *a, struct tar *tar,
 	const struct archive_entry_header_ustar *header;
 	int64_t size, to_consume;
 
-	(void)a; /* UNUSED */
 	(void)tar; /* UNUSED */
 	(void)entry; /* UNUSED */
 
@@ -1767,6 +1766,11 @@ header_pax_global(struct archive_read *a, struct tar *tar,
 		archive_set_error(&a->archive, EINVAL,
 		    "Special header has invalid size: %lld",
 		    (long long)size);
+		return (ARCHIVE_FATAL);
+	}
+	if (size == 0) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Invalid empty pax global extended header");
 		return (ARCHIVE_FATAL);
 	}
 	to_consume = ((size + 511) & ~511);
@@ -1914,6 +1918,11 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			    "pax extension header has invalid size: %lld",
 			    (long long)ext_size);
 	  return (ARCHIVE_FATAL);
+	}
+	if (ext_size == 0) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Invalid empty pax extended header");
+		return (ARCHIVE_FATAL);
 	}
 
 	ext_padding = 0x1ff & (-ext_size);
