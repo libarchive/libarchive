@@ -2121,7 +2121,7 @@ next_field(const char **p, size_t *l, const char **start,
 		(*p)++;
 		(*l)--;
 	}
-	*sep = **p;
+	*sep = (*l > 0) ? **p : '\0';
 
 	/* Handle in-field comments */
 	if (*sep == '#') {
@@ -2129,7 +2129,7 @@ next_field(const char **p, size_t *l, const char **start,
 			(*p)++;
 			(*l)--;
 		}
-		*sep = **p;
+		*sep = (*l > 0) ? **p : '\0';
 	}
 
 	/* Skip separator. */

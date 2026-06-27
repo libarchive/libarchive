@@ -24,6 +24,9 @@
  */
 #include "test.h"
 
+#define __LIBARCHIVE_TEST
+#include "archive_acl_private.h"
+
 /*
  * Test converting ACLs to text, both wide and non-wide
  *
@@ -426,6 +429,64 @@ DEFINE_TEST(test_acl_from_text)
 	assertEqualInt(ARCHIVE_WARN,
 	    archive_entry_acl_from_text_w(ae, L"default",
 	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT));
+
+	archive_entry_free(ae);
+}
+
+/*
+ * GHSA-6m2j-rq6x-fprv: next_field() in archive_acl.c read one byte past
+ * the end of the caller's (text, length) buffer whenever the final
+ * field did not end in a separator character (',', ':', '\n', '#').
+ *
+ * archive_entry_acl_from_text()/_w() always pass a NUL-terminated C
+ * string, so the out-of-bounds read always lands on the string's own
+ * NUL terminator and is harmless. The real trigger path -- pax ACL
+ * attributes parsed straight out of a TAR archive's internal read-ahead
+ * buffer -- calls archive_acl_from_text_nl() with a buffer that is
+ * exactly `length` bytes with no trailing NUL, which is what actually
+ * exposes the heap-buffer-overflow read under ASan. So this test calls
+ * archive_acl_from_text_l()/_nl() directly with exactly-sized heap
+ * buffers, the same way pax_attribute_SCHILY_acl() does.
+ */
+DEFINE_TEST(test_acl_from_text_no_trailing_separator)
+{
+	struct archive_entry *ae;
+	struct archive_acl *acl;
+	char *buf;
+	size_t len;
+
+	assert((ae = archive_entry_new()) != NULL);
+	acl = archive_entry_acl(ae);
+
+	/* "user::rwx" has no trailing separator: this used to read one
+	 * byte past the end of a buffer sized to fit it exactly. */
+	len = strlen("user::rwx");
+	buf = malloc(len);
+	memcpy(buf, "user::rwx", len);
+	assertEqualInt(ARCHIVE_OK,
+	    archive_acl_from_text_nl(acl, buf, len,
+	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, NULL));
+	free(buf);
+	archive_entry_acl_clear(ae);
+
+	/* Negative control: a trailing separator was always handled
+	 * safely, even before the fix. */
+	len = strlen("user::rwx,");
+	buf = malloc(len);
+	memcpy(buf, "user::rwx,", len);
+	assertEqualInt(ARCHIVE_OK,
+	    archive_acl_from_text_nl(acl, buf, len,
+	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, NULL));
+	free(buf);
+	archive_entry_acl_clear(ae);
+
+	/* archive_acl_from_text_l() takes a NUL-terminated string and
+	 * derives the length via strlen(), so it cannot reach the
+	 * out-of-bounds branch -- exercised here for API coverage. */
+	assertEqualInt(ARCHIVE_OK,
+	    archive_acl_from_text_l(acl, "user::rwx",
+	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, NULL));
+	archive_entry_acl_clear(ae);
 
 	archive_entry_free(ae);
 }
