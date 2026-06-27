@@ -145,6 +145,7 @@ errorx(const char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
+#if defined(HAVE_LCHMOD) || defined(HAVE_UTIMENSAT) || defined(HAVE_LUTIMES)
 /* non-fatal error message + errno */
 static void
 warning(const char *fmt, ...)
@@ -160,6 +161,7 @@ warning(const char *fmt, ...)
 	va_end(ap);
 	fprintf(stderr, ": %s\n", strerror(errno));
 }
+#endif
 
 /* non-fatal error message, no errno */
 static void
@@ -326,6 +328,30 @@ accept_pathname(const char *pathname)
 	return (1);
 }
 
+/* System call to create a directory. */
+static int
+system_mkdir(const char *pathname, int mode)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	(void)mode; /* UNUSED */
+	return _mkdir(pathname);
+#else
+	return mkdir(pathname, mode);
+#endif
+}
+
+static void
+system_unlink(const char *pathname) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (unlink(pathname) == -1) {
+		/* Windows treats directory symbolic links specially. */
+		rmdir(pathname);
+	}
+#else
+	(void)unlink(pathname);
+#endif
+}
+
 /*
  * Create the specified directory with the specified mode, taking certain
  * precautions on they way.
@@ -346,14 +372,9 @@ make_dir(const char *path, int mode)
 		 * even compromise (if this non-directory happens to be a
 		 * symlink to somewhere unsafe), so we don't.
 		 */
-
-		/*
-		 * Don't check unlink() result; failure will cause mkdir()
-		 * to fail later, which we will catch.
-		 */
-		(void)unlink(path);
+		system_unlink(path);
 	}
-	if (mkdir(path, (mode_t)mode) != 0 && errno != EEXIST)
+	if (system_mkdir(path, (mode_t)mode) != 0 && errno != EEXIST)
 		error("mkdir('%s')", path);
 }
 
@@ -378,10 +399,10 @@ make_parent(char *path)
 			*sep = '/';
 			return;
 		}
-		unlink(path);
+		system_unlink(path);
 	}
 	make_parent(path);
-	mkdir(path, 0755);
+	system_mkdir(path, 0755);
 	*sep = '/';
 
 #if 0
@@ -458,7 +479,7 @@ handle_existing_file(char **path)
 			/* FALLTHROUGH */
 		case 'y':
 		case 'Y':
-			(void)unlink(*path);
+			system_unlink(*path);
 			return 1;
 		case 'N':
 			n_opt = 1;
@@ -658,10 +679,10 @@ recheck:
 #endif
 			    ))
 				return;
-			(void)unlink(*path);
+			system_unlink(*path);
 		} else if (o_opt) {
 			/* overwrite */
-			(void)unlink(*path);
+			system_unlink(*path);
 		} else if (n_opt) {
 			/* do not overwrite */
 			return;
@@ -897,9 +918,9 @@ list(struct archive *a, struct archive_entry *e)
 	mtime = archive_entry_mtime(e);
 	tm = localtime(&mtime);
 	if (*y_str)
-		strftime(buf, sizeof(buf), "%m-%d-%Y %R", tm);
+		strftime(buf, sizeof(buf), "%m-%d-%Y %H:%M", tm);
 	else
-		strftime(buf, sizeof(buf), "%m-%d-%y %R", tm);
+		strftime(buf, sizeof(buf), "%m-%d-%y %H:%M", tm);
 
 	pathname = archive_entry_pathname(e);
 	if (!pathname)

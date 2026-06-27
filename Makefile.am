@@ -1670,8 +1670,10 @@ bsdunzip_SOURCES= \
 	unzip/cmdline.c
 
 if INC_WINDOWS_FILES
-noinst_HEADERS+=
-bsdunzip_SOURCES+=
+noinst_HEADERS+= \
+	unzip/bsdunzip_windows.h
+bsdunzip_SOURCES+= \
+	unzip/bsdunzip_windows.c
 endif
 
 bsdunzip_DEPENDENCIES = libarchive.la libarchive_fe.la
@@ -1689,7 +1691,20 @@ bsdunzip_LDADD= libarchive_fe.la libarchive.la $(LTLIBICONV)
 bsdunzip_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe $(bsdunzip_ccstatic) $(PLATFORMCPPFLAGS)
 bsdunzip_LDFLAGS= $(bsdunzip_ldstatic) $(DEAD_CODE_REMOVAL)
 
+if INC_WINDOWS_FILES
+# Embed an application manifest marking bsdunzip as long-path aware.
+unzip/bsdunzip_rc.$(OBJEXT): $(top_srcdir)/unzip/bsdunzip.rc $(top_srcdir)/unzip/bsdunzip.exe.manifest
+	$(AM_V_GEN)$(WINDRES) -I $(top_srcdir)/unzip -i $(top_srcdir)/unzip/bsdunzip.rc -o $@
+bsdunzip_LDADD += unzip/bsdunzip_rc.$(OBJEXT)
+bsdunzip_DEPENDENCIES += unzip/bsdunzip_rc.$(OBJEXT)
+CLEANFILES += unzip/bsdunzip_rc.$(OBJEXT)
+endif
+
 bsdunzip_EXTRA_DIST= \
+	unzip/bsdunzip_windows.h \
+	unzip/bsdunzip_windows.c \
+	unzip/bsdunzip.rc \
+	unzip/bsdunzip.exe.manifest \
 	unzip/bsdunzip.1 \
 	unzip/CMakeLists.txt
 
