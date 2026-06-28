@@ -337,7 +337,7 @@ next_line(struct archive_read *a,
 	 */
 	while (*nl == 0 && len == *avail && !quit) {
 		ssize_t diff = *ravail - *avail;
-		size_t nbytes_req = (*ravail+1023) & ~1023U;
+		size_t nbytes_req = ((size_t)*ravail + 1023) & ~1023U;
 		ssize_t tested;
 
 		/*
