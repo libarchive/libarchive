@@ -1572,3 +1572,17 @@ DEFINE_TEST(test_read_format_rar5_bytes_remaining_underflow)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_unpacked_size_exceeds_declared)
+{
+	PROLOGUE("test_read_format_rar5_unpacked_size_exceeds_declared.rar");
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("seed", archive_entry_pathname(ae));
+	assertEqualInt(109, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertA(archive_error_string(a) != NULL);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

@@ -3160,6 +3160,13 @@ static int copy_string(struct archive_read* a, int len, int dist) {
 	if (rar->cstate.window_buf == NULL)
 		return ARCHIVE_FATAL;
 
+	if (rar->cstate.write_ptr > rar->file.unpacked_size ||
+	    len > rar->file.unpacked_size - rar->cstate.write_ptr) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Uncompressed data exceeds declared size");
+		return rar->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+	}
+
 	/* The unpacker spends most of the time in this function. It would be
 	 * a good idea to introduce some optimizations here.
 	 *
@@ -3228,7 +3235,17 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 
 		if(num < 256) {
 			/* Directly store the byte. */
-			int64_t write_idx = rar->cstate.solid_offset +
+			int64_t write_idx;
+
+			/* A literal write emits one byte; copy_string() checks len. */
+			if(rar->cstate.write_ptr >= rar->file.unpacked_size) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Uncompressed data exceeds declared size");
+				return rar->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+			}
+
+			write_idx = rar->cstate.solid_offset +
 			    rar->cstate.write_ptr++;
 
 			rar->cstate.window_buf[write_idx & cmask] =
@@ -3344,8 +3361,9 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 			dist_cache_push(rar, dist);
 			rar->cstate.last_len = len;
 
-			if(ARCHIVE_OK != copy_string(a, len, dist))
-				return rar->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+			ret = copy_string(a, len, dist);
+			if(ret != ARCHIVE_OK)
+				return ret;
 
 			continue;
 		} else if(num == 256) {
@@ -3357,12 +3375,11 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 			continue;
 		} else if(num == 257) {
 			if(rar->cstate.last_len != 0) {
-				if(ARCHIVE_OK != copy_string(a,
+				ret = copy_string(a,
 				    rar->cstate.last_len,
-				    rar->cstate.dist_cache[0]))
-				{
-					return rar->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
-				}
+				    rar->cstate.dist_cache[0]);
+				if(ret != ARCHIVE_OK)
+					return ret;
 			}
 
 			continue;
@@ -3386,8 +3403,9 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 
 			rar->cstate.last_len = len;
 
-			if(ARCHIVE_OK != copy_string(a, len, dist))
-				return rar->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+			ret = copy_string(a, len, dist);
+			if(ret != ARCHIVE_OK)
+				return ret;
 
 			continue;
 		}
