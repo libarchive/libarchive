@@ -948,11 +948,11 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	   that is associated to the current 7zip entry. If the folder
 	   has a coder with a _7Z_CRYPTO codec then the folder is encrypted.
 	   Hence the entry must also be encrypted. */
-	if (zip_entry && zip_entry->folderIndex < zip->si.ci.numFolders) {
+	if (zip_entry->folderIndex < zip->si.ci.numFolders) {
 		size_t fidx = 0;
 
 		folder = &(zip->si.ci.folders[zip_entry->folderIndex]);
-		for (fidx = 0; folder && fidx < folder->numCoders; fidx++) {
+		for (fidx = 0; fidx < folder->numCoders; fidx++) {
 			switch(folder->coders[fidx].codec) {
 				case _7Z_CRYPTO_MAIN_ZIP:
 				case _7Z_CRYPTO_RAR_29:
@@ -963,13 +963,6 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 				}
 			}
 		}
-	}
-
-	/* Now that we've checked for encryption, if there were still no
-	 * encrypted entries found we can say for sure that there are none.
-	 */
-	if (zip->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
-		zip->has_encrypted_entries = 0;
 	}
 
 	if (archive_entry_copy_pathname_l(entry,
