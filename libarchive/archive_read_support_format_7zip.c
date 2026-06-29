@@ -192,6 +192,7 @@ struct _7z_folder {
 	size_t			 numOutStreams;
 	int64_t			*unPackSize;
 	unsigned char		 digest_defined;
+	unsigned char		has_crypto;
 	uint32_t		 digest;
 	size_t			 numUnpackStreams;
 	size_t			 packIndex;
@@ -897,7 +898,6 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	struct _7zip *zip = (struct _7zip *)a->format->data;
 	struct _7zip_entry *zip_entry;
 	int r, ret = ARCHIVE_OK;
-	struct _7z_folder *folder = 0;
 
 	/*
 	 * It should be sufficient to call archive_read_next_header() for
@@ -944,25 +944,12 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 	}
 
-	/* Figure out if the entry is encrypted by looking at the folder
-	   that is associated to the current 7zip entry. If the folder
-	   has a coder with a _7Z_CRYPTO codec then the folder is encrypted.
-	   Hence the entry must also be encrypted. */
-	if (zip_entry && zip_entry->folderIndex < zip->si.ci.numFolders) {
-		size_t fidx = 0;
-
-		folder = &(zip->si.ci.folders[zip_entry->folderIndex]);
-		for (fidx = 0; folder && fidx < folder->numCoders; fidx++) {
-			switch(folder->coders[fidx].codec) {
-				case _7Z_CRYPTO_MAIN_ZIP:
-				case _7Z_CRYPTO_RAR_29:
-				case _7Z_CRYPTO_AES_256_SHA_256: {
-					archive_entry_set_is_data_encrypted(entry, 1);
-					zip->has_encrypted_entries = 1;
-					break;
-				}
-			}
-		}
+	/* Figure out if the entry is encrypted. */
+	if (zip_entry != NULL &&
+	    zip_entry->folderIndex < zip->si.ci.numFolders &&
+	    zip->si.ci.folders[zip_entry->folderIndex].has_crypto) {
+		archive_entry_set_is_data_encrypted(entry, 1);
+		zip->has_encrypted_entries = 1;
 	}
 
 	/* Now that we've checked for encryption, if there were still no
@@ -2313,6 +2300,15 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 
 		if (decode_codec_id(p, codec_size, &f->coders[i].codec) < 0)
 			return (-1);
+		switch (f->coders[i].codec) {
+		case _7Z_CRYPTO_MAIN_ZIP:
+		case _7Z_CRYPTO_RAR_29:
+		case _7Z_CRYPTO_AES_256_SHA_256:
+			f->has_crypto = 1;
+			break;
+		default:
+			break;
+		}
 
 		if (simple) {
 			f->coders[i].numInStreams = 1;
