@@ -52,6 +52,29 @@
 struct lzx_dec {
 	/* Decoding status. */
 	int     		 state;
+#define ST_RD_TRANSLATION	0
+#define ST_RD_TRANSLATION_SIZE	1
+#define ST_RD_BLOCK_TYPE	2
+#define ST_RD_BLOCK_SIZE	3
+#define ST_RD_ALIGNMENT		4
+#define ST_RD_R0		5
+#define ST_RD_R1		6
+#define ST_RD_R2		7
+#define ST_COPY_UNCOMP1		8
+#define ST_COPY_UNCOMP2		9
+#define ST_RD_ALIGNED_OFFSET	10
+#define ST_RD_VERBATIM		11
+#define ST_RD_PRE_MAIN_TREE_256	12
+#define ST_MAIN_TREE_256	13
+#define ST_RD_PRE_MAIN_TREE_REM	14
+#define ST_MAIN_TREE_REM	15
+#define ST_RD_PRE_LENGTH_TREE	16
+#define ST_LENGTH_TREE		17
+#define ST_MAIN			18
+#define ST_LENGTH		19
+#define ST_OFFSET		20
+#define ST_REAL_POS		21
+#define ST_COPY			22
 
 	/*
 	 * Window to see last decoded data, from 32KBi to 2MBi.
@@ -69,7 +92,7 @@ struct lzx_dec {
 	int     		 copy_len;
 	/* Translation reversal for x86 processor CALL byte sequence(E8).
 	 * This is used for LZX only. */
-	uint32_t		 translation_size;
+	int32_t			 translation_size;
 	char			 translation;
 	char			 block_type;
 #define VERBATIM_BLOCK		1
@@ -178,6 +201,10 @@ struct lzx_stream {
 #define CFDATA_csum		0
 #define CFDATA_cbData		4
 #define CFDATA_cbUncomp		6
+
+/* Limits */
+#define MAX_UNCOMPRESS_SIZE	0x8000
+#define MAX_FILE_SIZE		(UINT16_MAX * MAX_UNCOMPRESS_SIZE)
 
 static const char * const compression_name[] = {
 	"NONE",
@@ -335,7 +362,7 @@ static int	lzx_decode_init(struct lzx_stream *, int);
 static int	lzx_read_blocks(struct lzx_stream *, int);
 static int	lzx_decode_blocks(struct lzx_stream *, int);
 static void	lzx_decode_free(struct lzx_stream *);
-static void	lzx_translation(struct lzx_stream *, void *, size_t, uint32_t);
+static void	lzx_translation(struct lzx_stream *, unsigned char *, size_t, int32_t);
 static void	lzx_cleanup_bitstream(struct lzx_stream *);
 static int	lzx_decode(struct lzx_stream *, int);
 static int	lzx_read_pre_tree(struct lzx_stream *);
@@ -824,10 +851,10 @@ cab_read_header(struct archive_read *a)
 		/*
 		 * Sanity check if each data is acceptable.
 		 */
-		if (file->uncompressed_size > 0x7FFF8000)
+		if (file->uncompressed_size > MAX_FILE_SIZE)
 			goto invalid;/* Too large */
 		if ((int64_t)file->offset + (int64_t)file->uncompressed_size
-		    > ARCHIVE_LITERAL_LL(0x7FFF8000))
+		    > (int64_t)MAX_FILE_SIZE)
 			goto invalid;/* Too large */
 		switch (file->folder) {
 		case iFoldCONTINUED_TO_NEXT:
@@ -1280,9 +1307,9 @@ cab_next_cfdata(struct archive_read *a)
 		 * Sanity check if data size is acceptable.
 		 */
 		if (cfdata->compressed_size == 0 ||
-		    cfdata->compressed_size > (0x8000+6144))
+		    cfdata->compressed_size > (MAX_UNCOMPRESS_SIZE + 6144))
 			goto invalid;
-		if (cfdata->uncompressed_size > 0x8000)
+		if (cfdata->uncompressed_size > MAX_UNCOMPRESS_SIZE)
 			goto invalid;
 		if (cfdata->uncompressed_size == 0) {
 			switch (cab->entry_cffile->folder) {
@@ -1298,7 +1325,7 @@ cab_next_cfdata(struct archive_read *a)
 		 * size must be 0x8000(32KBi) */
 		if ((cab->entry_cffolder->cfdata_index <
 		     cab->entry_cffolder->cfdata_count) &&
-		       cfdata->uncompressed_size != 0x8000)
+		       cfdata->uncompressed_size != MAX_UNCOMPRESS_SIZE)
 			goto invalid;
 
 		/* A compressed data size and an uncompressed data size must
@@ -1423,7 +1450,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 	cfdata = cab->entry_cfdata;
 	/* If the buffer hasn't been allocated, allocate it now. */
 	if (cab->uncompressed_buffer == NULL) {
-		cab->uncompressed_buffer_size = 0x8000;
+		cab->uncompressed_buffer_size = MAX_UNCOMPRESS_SIZE;
 		cab->uncompressed_buffer
 		    = malloc(cab->uncompressed_buffer_size);
 		if (cab->uncompressed_buffer == NULL) {
@@ -1650,7 +1677,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 	cfdata = cab->entry_cfdata;
 	/* If the buffer hasn't been allocated, allocate it now. */
 	if (cab->uncompressed_buffer == NULL) {
-		cab->uncompressed_buffer_size = 0x8000;
+		cab->uncompressed_buffer_size = MAX_UNCOMPRESS_SIZE;
 		cab->uncompressed_buffer
 		    = malloc(cab->uncompressed_buffer_size);
 		if (cab->uncompressed_buffer == NULL) {
@@ -1750,7 +1777,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 	 */
 	lzx_translation(&cab->xstrm, cab->uncompressed_buffer,
 	    cfdata->uncompressed_size,
-	    (cab->entry_cffolder->cfdata_index-1) * 0x8000);
+	    (cab->entry_cffolder->cfdata_index - 1) * MAX_UNCOMPRESS_SIZE);
 
 	d = cab->uncompressed_buffer + cfdata->read_offset;
 	*avail = uavail - cfdata->read_offset;
@@ -2144,7 +2171,7 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 	}
 
 	ds->w_pos = 0;
-	ds->state = 0;
+	ds->state = ST_RD_TRANSLATION;
 	ds->br.cache_buffer = 0;
 	ds->br.cache_avail = 0;
 	ds->r0 = ds->r1 = ds->r2 = 1;
@@ -2194,29 +2221,36 @@ lzx_decode_free(struct lzx_stream *strm)
  * E8 Call Translation reversal.
  */
 static void
-lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
+lzx_translation(struct lzx_stream *strm, unsigned char *buffer, size_t size,
+    int32_t offset)
 {
 	struct lzx_dec *ds = strm->ds;
-	unsigned char *b, *end;
+	unsigned char *p, *end;
 
 	if (!ds->translation || size <= 10)
 		return;
-	b = p;
-	end = b + size - 10;
-	while (b < end && (b = memchr(b, 0xE8, end - b)) != NULL) {
-		size_t i = b - (unsigned char *)p;
-		int32_t cp, displacement, value;
 
-		cp = (int32_t)(offset + (uint32_t)i);
-		value = archive_le32dec(&b[1]);
-		if (value >= -cp && value < (int32_t)ds->translation_size) {
-			if (value >= 0)
-				displacement = value - cp;
+	p = buffer;
+	end = buffer + size - 10;
+
+	while (p < end && (p = memchr(p, 0xE8, end - p)) != NULL) {
+		int32_t address, position;
+
+		address = archive_le32dec(p + 1);
+		position = offset + (p - buffer);
+
+		if (address >= -position && address < ds->translation_size) {
+			uint32_t relative;
+
+			if (address >= 0)
+				relative = address - position;
 			else
-				displacement = value + ds->translation_size;
-			archive_le32enc(&b[1], (uint32_t)displacement);
+				relative = address + ds->translation_size;
+
+			archive_le32enc(p + 1, relative);
 		}
-		b += 5;
+
+		p += 5;
 	}
 }
 
@@ -2372,30 +2406,6 @@ lzx_cleanup_bitstream(struct lzx_stream *strm)
  * 3. Returns ARCHIVE_FAILED if an error occurred; compressed data
  *    is broken or you do not set 'last' flag properly.
  */
-#define ST_RD_TRANSLATION	0
-#define ST_RD_TRANSLATION_SIZE	1
-#define ST_RD_BLOCK_TYPE	2
-#define ST_RD_BLOCK_SIZE	3
-#define ST_RD_ALIGNMENT		4
-#define ST_RD_R0		5
-#define ST_RD_R1		6
-#define ST_RD_R2		7
-#define ST_COPY_UNCOMP1		8
-#define ST_COPY_UNCOMP2		9
-#define ST_RD_ALIGNED_OFFSET	10
-#define ST_RD_VERBATIM		11
-#define ST_RD_PRE_MAIN_TREE_256	12
-#define ST_MAIN_TREE_256	13
-#define ST_RD_PRE_MAIN_TREE_REM	14
-#define ST_MAIN_TREE_REM	15
-#define ST_RD_PRE_LENGTH_TREE	16
-#define ST_LENGTH_TREE		17
-#define ST_MAIN			18
-#define ST_LENGTH		19
-#define ST_OFFSET		20
-#define ST_REAL_POS		21
-#define ST_COPY			22
-
 static int
 lzx_decode(struct lzx_stream *strm, int last)
 {
@@ -2444,16 +2454,21 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			/* FALL THROUGH */
 		case ST_RD_TRANSLATION_SIZE:
 			if (ds->translation) {
+				uint32_t v;
+
 				if (!lzx_br_read_ahead(strm, br, 32)) {
 					ds->state = ST_RD_TRANSLATION_SIZE;
 					if (last)
 						goto failed;
 					return (ARCHIVE_OK);
 				}
-				ds->translation_size = lzx_br_bits(br, 16);
+				v = lzx_br_bits(br, 16);
 				lzx_br_consume(br, 16);
-				ds->translation_size <<= 16;
-				ds->translation_size |= lzx_br_bits(br, 16);
+				v <<= 16;
+				v |= lzx_br_bits(br, 16);
+				if (v > MAX_FILE_SIZE)
+					goto failed;
+				ds->translation_size = (int32_t)v;
 				lzx_br_consume(br, 16);
 			}
 			/* FALL THROUGH */
