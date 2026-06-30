@@ -320,7 +320,7 @@ static void verify_lzma_contents(const char *buff, size_t used)
 }
 
 #endif /* HAVE_LZMA_H */
-DEFINE_TEST(test_write_format_zip_compression_lzmaxz)
+DEFINE_TEST(test_write_format_zip_compression_lzma_xz)
 {
 #ifndef HAVE_LZMA_H
 	skipping("lzma is not fully supported on this platform");

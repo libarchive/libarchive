@@ -26,7 +26,7 @@
 
 /*
 Execute the following command to rebuild the data for this program:
-   tail -n +32 test_read_format_isozisofs_bz2.c | /bin/sh
+   tail -n +32 test_read_format_isozisofs_compress.c | /bin/sh
 
 rm -rf /tmp/iso /tmp/ziso
 mkdir /tmp/iso
@@ -50,7 +50,7 @@ exit 1
 
  */
 
-DEFINE_TEST(test_read_format_isozisofs_bz2)
+DEFINE_TEST(test_read_format_isozisofs_compress)
 {
 	const char *refname = "test_read_format_iso_zisofs.iso.Z";
 	struct archive_entry *ae;

@@ -404,15 +404,10 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_read.c \
 	libarchive/test/test_archive_read_add_passphrase.c \
 	libarchive/test/test_archive_read_close_twice.c \
-	libarchive/test/test_archive_read_close_twice_open_fd.c \
-	libarchive/test/test_archive_read_close_twice_open_filename.c \
 	libarchive/test/test_archive_read_multiple_data_objects.c \
 	libarchive/test/test_archive_read_next_header_empty.c \
 	libarchive/test/test_archive_read_next_header_raw.c \
 	libarchive/test/test_archive_read_open2.c \
-	libarchive/test/test_archive_read_set_filter_option.c \
-	libarchive/test/test_archive_read_set_format_option.c \
-	libarchive/test/test_archive_read_set_option.c \
 	libarchive/test/test_archive_read_set_options.c \
 	libarchive/test/test_archive_read_support.c \
 	libarchive/test/test_archive_set_error.c \
@@ -420,11 +415,8 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_string_conversion.c \
 	libarchive/test/test_archive_write_add_filter.c \
 	libarchive/test/test_archive_write_add_filter_by_name.c \
-	libarchive/test/test_archive_write_set_filter_option.c \
 	libarchive/test/test_archive_write_set_format_by_name.c \
 	libarchive/test/test_archive_write_set_format_filter_by_ext.c \
-	libarchive/test/test_archive_write_set_format_option.c \
-	libarchive/test/test_archive_write_set_option.c \
 	libarchive/test/test_archive_write_set_options.c \
 	libarchive/test/test_archive_write_set_passphrase.c \
 	libarchive/test/test_bad_fd.c \
@@ -527,16 +519,16 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_iso_joliet_utf16be_overflow.c \
 	libarchive/test/test_read_format_iso_multi_extent.c \
 	libarchive/test/test_read_format_iso_xorriso.c \
-	libarchive/test/test_read_format_isojoliet_bz2.c \
+	libarchive/test/test_read_format_isojoliet_compress.c \
 	libarchive/test/test_read_format_isojoliet_long.c \
 	libarchive/test/test_read_format_isojoliet_rr.c \
 	libarchive/test/test_read_format_isojoliet_versioned.c \
-	libarchive/test/test_read_format_isorr_bz2.c \
+	libarchive/test/test_read_format_isorr_compress.c \
 	libarchive/test/test_read_format_isorr_ce.c \
 	libarchive/test/test_read_format_isorr_ce_loop.c \
-	libarchive/test/test_read_format_isorr_new_bz2.c \
+	libarchive/test/test_read_format_isorr_new_compress.c \
 	libarchive/test/test_read_format_isorr_rr_moved.c \
-	libarchive/test/test_read_format_isozisofs_bz2.c \
+	libarchive/test/test_read_format_isozisofs_compress.c \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.c \
 	libarchive/test/test_read_format_iso_zisofs_overflow.c \
 	libarchive/test/test_read_format_lha.c \
@@ -710,7 +702,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_zip_compression_store.c \
 	libarchive/test/test_write_format_zip_compression_zstd.c \
 	libarchive/test/test_write_format_zip_compression_bzip2.c \
-	libarchive/test/test_write_format_zip_compression_lzmaxz.c \
+	libarchive/test/test_write_format_zip_compression_lzma_xz.c \
 	libarchive/test/test_write_format_zip_empty.c \
 	libarchive/test/test_write_format_zip_empty_pathname.c \
 	libarchive/test/test_write_format_zip_empty_zip64.c \

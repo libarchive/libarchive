@@ -2,7 +2,7 @@
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
- * Based on libarchive/test/test_read_format_isorr_bz2.c with
+ * Based on libarchive/test/test_read_format_isorr_compress.c with
  * bugs introduced by Andreas Henriksson <andreas@fatal.se> for
  * testing ISO9660 image with Joliet extension.
  *
@@ -30,7 +30,7 @@
 
 /*
 Execute the following to rebuild the data for this program:
-   tail -n +35 test_read_format_isojoliet_bz2.c | /bin/sh
+   tail -n +35 test_read_format_isojoliet_compress.c | /bin/sh
 
 rm -rf /tmp/iso
 mkdir /tmp/iso
@@ -51,7 +51,7 @@ uuencode $F $F > $F.uu
 exit 1
  */
 
-DEFINE_TEST(test_read_format_isojoliet_bz2)
+DEFINE_TEST(test_read_format_isojoliet_compress)
 {
 	const char *refname = "test_read_format_iso_joliet.iso.Z";
 	struct archive_entry *ae;

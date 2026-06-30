@@ -29,7 +29,7 @@ PLEASE use latest cdrtools at least mkisofs version is 2.01.01a63 or later.
 Old version mkisofs made wrong "SL" System Use Entry of RRIP.
 
 Execute the following command to rebuild the data for this program:
-   tail -n +34 test_read_format_isorr_new_bz2.c | /bin/sh
+   tail -n +34 test_read_format_isorr_new_compress.c | /bin/sh
 
 rm -rf /tmp/iso
 mkdir /tmp/iso
@@ -51,7 +51,7 @@ uuencode $F $F > $F.uu
 exit 1
  */
 
-DEFINE_TEST(test_read_format_isorr_new_bz2)
+DEFINE_TEST(test_read_format_isorr_new_compress)
 {
 	const char *refname = "test_read_format_iso_rockridge_new.iso.Z";
 	struct archive_entry *ae;
@@ -68,7 +68,7 @@ DEFINE_TEST(test_read_format_isorr_new_bz2)
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
-	/* Retrieve each of the 8 files on the ISO image and
+	/* Retrieve each of the 10 entries on the ISO image and
 	 * verify that each one is what we expect. */
 	for (i = 0; i < 10; ++i) {
 		assertEqualInt(0, archive_read_next_header(a, &ae));

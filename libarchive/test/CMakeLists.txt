@@ -33,15 +33,10 @@ IF(ENABLE_TEST)
     test_archive_read.c
     test_archive_read_add_passphrase.c
     test_archive_read_close_twice.c
-    test_archive_read_close_twice_open_fd.c
-    test_archive_read_close_twice_open_filename.c
     test_archive_read_multiple_data_objects.c
     test_archive_read_next_header_empty.c
     test_archive_read_next_header_raw.c
     test_archive_read_open2.c
-    test_archive_read_set_filter_option.c
-    test_archive_read_set_format_option.c
-    test_archive_read_set_option.c
     test_archive_read_set_options.c
     test_archive_read_support.c
     test_archive_set_error.c
@@ -49,11 +44,8 @@ IF(ENABLE_TEST)
     test_archive_string_conversion.c
     test_archive_write_add_filter.c
     test_archive_write_add_filter_by_name.c
-    test_archive_write_set_filter_option.c
     test_archive_write_set_format_by_name.c
     test_archive_write_set_format_filter_by_ext.c
-    test_archive_write_set_format_option.c
-    test_archive_write_set_option.c
     test_archive_write_set_options.c
     test_archive_write_set_passphrase.c
     test_bad_fd.c
@@ -156,16 +148,16 @@ IF(ENABLE_TEST)
     test_read_format_iso_joliet_utf16be_overflow.c
     test_read_format_iso_multi_extent.c
     test_read_format_iso_xorriso.c
-    test_read_format_isojoliet_bz2.c
+    test_read_format_isojoliet_compress.c
     test_read_format_isojoliet_long.c
     test_read_format_isojoliet_rr.c
     test_read_format_isojoliet_versioned.c
-    test_read_format_isorr_bz2.c
+    test_read_format_isorr_compress.c
     test_read_format_isorr_ce.c
     test_read_format_isorr_ce_loop.c
-    test_read_format_isorr_new_bz2.c
+    test_read_format_isorr_new_compress.c
     test_read_format_isorr_rr_moved.c
-    test_read_format_isozisofs_bz2.c
+    test_read_format_isozisofs_compress.c
     test_read_format_iso_rockridge_zf_overflow.c
     test_read_format_iso_zisofs_overflow.c
     test_read_format_lha.c
@@ -338,7 +330,7 @@ IF(ENABLE_TEST)
     test_write_format_zip64_stream.c
     test_write_format_zip_compression_store.c
     test_write_format_zip_compression_bzip2.c
-    test_write_format_zip_compression_lzmaxz.c
+    test_write_format_zip_compression_lzma_xz.c
     test_write_format_zip_compression_zstd.c
     test_write_format_zip_empty.c
     test_write_format_zip_empty_pathname.c
