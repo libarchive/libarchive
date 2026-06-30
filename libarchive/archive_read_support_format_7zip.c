@@ -579,7 +579,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 			continue;
 		}
 		p = buff + offset;
-		while (p + 32 < buff + bytes_avail) {
+		while (buff + bytes_avail - p >= 32) {
 			size_t step = check_7zip_header_in_sfx(p);
 			if (step == 0) {
 				*data_offset = p - buff;
@@ -776,7 +776,7 @@ get_elf_sfx_offset(struct archive_read *a, int64_t *sfx_offset, int compat)
 			e_shentsize = (*dec16)(h + 0x3A);
 			e_shnum = (*dec16)(h + 0x3C);
 			e_shstrndx = (*dec16)(h + 0x3E);
-			if (e_shnum < e_shstrndx || e_shentsize < 0x28)
+			if (e_shnum <= e_shstrndx || e_shentsize < 0x28)
 				break;
 
 		} else {
@@ -784,7 +784,7 @@ get_elf_sfx_offset(struct archive_read *a, int64_t *sfx_offset, int compat)
 			e_shentsize = (*dec16)(h + 0x2E);
 			e_shnum = (*dec16)(h + 0x30);
 			e_shstrndx = (*dec16)(h + 0x32);
-			if (e_shnum < e_shstrndx || e_shentsize < 0x18)
+			if (e_shnum <= e_shstrndx || e_shentsize < 0x18)
 				break;
 		}
 
@@ -838,7 +838,7 @@ get_elf_sfx_offset(struct archive_read *a, int64_t *sfx_offset, int compat)
 			return (ARCHIVE_FATAL);
 		}
 		size_t data_sym_offset = strtab_size;
-		for (size_t offset = 0; offset < strtab_size - 6; offset++) {
+		for (size_t offset = 0; offset + 6 <= strtab_size; offset++) {
 			if (memcmp(h + offset, ".data\00", 6) == 0) {
 				data_sym_offset = offset;
 				break;
