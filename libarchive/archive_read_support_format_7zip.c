@@ -2994,11 +2994,9 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 				return (-1);
 			if (allAreDefined)
 				memset(h->attrBools, 1, zip->numFiles);
-			else {
-				if (read_Bools(a, h->attrBools,
-				      zip->numFiles) < 0)
-					return (-1);
-			}
+			else if (read_Bools(a, h->attrBools,
+			    zip->numFiles) < 0)
+				return (-1);
 			for (i = 0; i < zip->numFiles; i++) {
 				if (h->attrBools[i]) {
 					if ((p = header_bytes(a, 4)) == NULL)
@@ -3062,14 +3060,10 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			entries[i].ssIndex = sindex;
 			sindex++;
 		} else {
-			int dir;
-			if (h->emptyFileBools == NULL)
-				dir = 1;
-			else {
-				if (h->emptyFileBools[eindex])
-					dir = 0;
-				else
-					dir = 1;
+			int dir = 1;
+
+			if (h->emptyFileBools != NULL) {
+				dir = !h->emptyFileBools[eindex];
 				eindex++;
 			}
 			if (entries[i].mode == 0) {
@@ -3145,10 +3139,8 @@ read_Times(struct archive_read *a, int type)
 	allAreDefined = *p;
 	if (allAreDefined)
 		memset(timeBools, 1, zip->numFiles);
-	else {
-		if (read_Bools(a, timeBools, zip->numFiles) < 0)
-			goto failed;
-	}
+	else if (read_Bools(a, timeBools, zip->numFiles) < 0)
+		goto failed;
 
 	/* Read external. */
 	if ((p = header_bytes(a, 1)) == NULL)
