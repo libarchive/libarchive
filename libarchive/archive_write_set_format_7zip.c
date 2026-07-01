@@ -215,8 +215,6 @@ struct _7zip {
 	size_t			 total_number_dir_entry;
 	size_t			 total_bytes_entry_name;
 	size_t			 total_number_time_defined[3];
-	uint64_t		 total_bytes_compressed;
-	uint64_t		 total_bytes_uncompressed;
 	uint64_t		 entry_bytes_remaining;
 	uint32_t		 entry_crc32;
 	uint32_t		 precode_crc32;
@@ -787,8 +785,6 @@ _7z_finish_entry(struct archive_write *a)
 		if (r < 0)
 			return ((int)r);
 	}
-	zip->total_bytes_compressed += zip->stream.total_in;
-	zip->total_bytes_uncompressed += zip->stream.total_out;
 	zip->cur_file->crc32 = zip->entry_crc32;
 	zip->cur_file = NULL;
 
