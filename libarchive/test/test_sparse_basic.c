@@ -73,10 +73,16 @@ static void create_sparse_file(const char *, const struct sparse *);
 /* A few data points:
  * = ZFS on FreeBSD needs this to be at least 200kB
  * = macOS APFS needs this to be at least 4096x4097 bytes
+ * = Linux tmpfs on 16KB-page architectures (like LoongArch64) uses
+ *   32MiB Transparent Huge Pages (THP). If a hole is exactly the
+ *   size of a THP, the data blocks on either side can end up in
+ *   adjacent physical folios, causing SEEK_HOLE to report the range
+ *   as contiguous data.
  *
- * 32MiB here is bigger than either of the above.
+ * 64MiB here is enough to ensure a hole exists between THP folios on all
+ * common architectures.
  */
-#define MIN_HOLE (32 * 1024UL * 1024UL)
+#define MIN_HOLE (64 * 1024UL * 1024UL)
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <winioctl.h>
