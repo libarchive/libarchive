@@ -167,11 +167,9 @@ enum FILTER_TYPE {
 struct filter_info {
 	int type;
 	int channels;
-	int pos_r;
 
 	int64_t block_start;
 	ssize_t block_length;
-	uint16_t width;
 };
 
 struct data_ready {

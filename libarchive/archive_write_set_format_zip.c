@@ -154,7 +154,6 @@ struct zip {
 	enum compression entry_compression;
 	enum encryption  entry_encryption;
 	int entry_flags;
-	int experiments;
 	struct trad_enc_ctx tctx;
 	char tctx_valid;
 	unsigned char trad_chkdat;

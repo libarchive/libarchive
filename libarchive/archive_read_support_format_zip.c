@@ -152,8 +152,6 @@ struct zip {
 	struct archive_string	format_name;
 	int64_t			central_directory_offset;
 	int64_t			central_directory_offset_adjusted;
-	size_t			central_directory_entries_total;
-	size_t			central_directory_entries_on_this_disk;
 	int			has_encrypted_entries;
 
 	/* List of entries (seekable Zip only) */
@@ -4203,7 +4201,6 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 	__archive_rb_tree_init(&zip->tree, &rb_ops);
 	__archive_rb_tree_init(&zip->tree_rsrc, &rb_rsrc_ops);
 
-	zip->central_directory_entries_total = 0;
 	while (1) {
 		struct zip_entry *zip_entry;
 		size_t filename_length, extra_length, comment_length;
@@ -4232,7 +4229,6 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 		zip_entry->next = zip->zip_entries;
 		zip_entry->flags |= LA_FROM_CENTRAL_DIRECTORY;
 		zip->zip_entries = zip_entry;
-		zip->central_directory_entries_total++;
 
 		/* version = p[4]; */
 		zip_entry->system = p[5];

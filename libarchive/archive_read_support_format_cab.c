@@ -141,7 +141,6 @@ struct lzx_dec {
 		 */
 		int		 max_bits;
 		int		 tbl_bits;
-		int		 tree_used;
 		/* Direct access table. */
 		uint16_t	*tbl;
 	}			 at, lt, mt, pt;
@@ -267,8 +266,6 @@ struct cffile {
 };
 
 struct cfheader {
-	/* Total bytes of all file size in a Cabinet. */
-	uint32_t		 total_bytes;
 	uint32_t		 files_offset;
 	uint16_t		 folder_count;
 	uint16_t		 file_count;
@@ -276,7 +273,6 @@ struct cfheader {
 #define PREV_CABINET	0x0001
 #define NEXT_CABINET	0x0002
 #define RESERVE_PRESENT	0x0004
-	uint16_t		 setid;
 	uint16_t		 cabinet;
 	/* Version number. */
 	unsigned char		 major;
@@ -295,8 +291,6 @@ struct cab {
 	int64_t			 entry_offset;
 	int64_t			 entry_bytes_remaining;
 	int64_t			 entry_unconsumed;
-	int64_t			 entry_compressed_bytes_read;
-	int64_t			 entry_uncompressed_bytes_read;
 	struct cffolder		*entry_cffolder;
 	struct cffile		*entry_cffile;
 	struct cfdata		*entry_cfdata;
@@ -690,7 +684,6 @@ cab_read_header(struct archive_read *a)
 		    "Couldn't find out CAB header");
 		return (ARCHIVE_FATAL);
 	}
-	hd->total_bytes = archive_le32dec(p + CFHEADER_cbCabinet);
 	hd->files_offset = archive_le32dec(p + CFHEADER_coffFiles);
 	hd->minor = p[CFHEADER_versionMinor];
 	hd->major = p[CFHEADER_versionMajor];
@@ -701,7 +694,6 @@ cab_read_header(struct archive_read *a)
 	if (hd->file_count == 0)
 		goto invalid;
 	hd->flags = archive_le16dec(p + CFHEADER_flags);
-	hd->setid = archive_le16dec(p + CFHEADER_setID);
 	hd->cabinet = archive_le16dec(p + CFHEADER_iCabinet);
 	used = CFHEADER_iCabinet + 2;
 	if (hd->flags & RESERVE_PRESENT) {
@@ -945,8 +937,6 @@ archive_read_format_cab_read_header(struct archive_read *a,
 
 	cab->end_of_entry = 0;
 	cab->end_of_entry_cleanup = 0;
-	cab->entry_compressed_bytes_read = 0;
-	cab->entry_uncompressed_bytes_read = 0;
 	cab->entry_unconsumed = 0;
 	cab->entry_cffile = file;
 
@@ -3217,7 +3207,6 @@ lzx_make_huffman_table(struct huffman *hf)
 	tbl = hf->tbl;
 	bitlen = hf->bitlen;
 	len_avail = hf->len_size;
-	hf->tree_used = 0;
 	/* Initialize table to invalid values */
 	for (i = 0; i < tbl_size; i++) {
 		tbl[i] = (uint16_t)hf->len_size;

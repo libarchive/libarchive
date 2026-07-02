@@ -54,7 +54,6 @@ struct warc_s {
 
 	time_t now;
 	mode_t typ;
-	unsigned int rng;
 	/* populated size */
 	uint64_t populz;
 };
@@ -140,8 +139,6 @@ archive_write_set_format_warc(struct archive *_a)
 	w->now = time(NULL);
 	/* reset file type info */
 	w->typ = 0;
-	/* also initialise our rng */
-	w->rng = (unsigned int)w->now;
 
 	a->format_data = w;
 	a->format_name = "WARC/1.0";
