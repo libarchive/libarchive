@@ -204,6 +204,7 @@ struct lzx_stream {
 /* Limits */
 #define MAX_UNCOMPRESS_SIZE	0x8000
 #define MAX_FILE_SIZE		(UINT16_MAX * MAX_UNCOMPRESS_SIZE)
+#define MAX_E8_TRANSLATION	(0x8000 * MAX_UNCOMPRESS_SIZE)
 
 static const char * const compression_name[] = {
 	"NONE",
@@ -2217,7 +2218,7 @@ lzx_translation(struct lzx_stream *strm, unsigned char *buffer, size_t size,
 	struct lzx_dec *ds = strm->ds;
 	unsigned char *p, *end;
 
-	if (!ds->translation || size <= 10)
+	if (!ds->translation || offset >= MAX_E8_TRANSLATION || size <= 10)
 		return;
 
 	p = buffer;

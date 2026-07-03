@@ -486,6 +486,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_ar.c \
 	libarchive/test/test_read_format_cab.c \
 	libarchive/test/test_read_format_cab_filename.c \
+	libarchive/test/test_read_format_cab_lzx_e8.c \
 	libarchive/test/test_read_format_cab_lzx_oob.c \
 	libarchive/test/test_read_format_cab_mszip_oob.c \
 	libarchive/test/test_read_format_cab_multi.c \
@@ -903,6 +904,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_2.cab.uu \
 	libarchive/test/test_read_format_cab_3.cab.uu \
 	libarchive/test/test_read_format_cab_filename_cp932.cab.uu \
+	libarchive/test/test_read_format_cab_lzx_e8.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_oob.cab.uu \
 	libarchive/test/test_read_format_cab_multi.p1.cab.uu \
 	libarchive/test/test_read_format_cab_multi.p2.cab.uu \
