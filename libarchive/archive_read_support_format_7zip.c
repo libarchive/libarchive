@@ -2787,6 +2787,7 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 	size_t folderIndex, indexInFolder;
 	size_t i;
 	size_t eindex, empty_streams, sindex;
+	int attr_seen = 0;
 
 	if (check_header_id) {
 		/*
@@ -2986,19 +2987,20 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			if ((p = header_bytes(a, 2)) == NULL)
 				return (-1);
 			allAreDefined = *p;
-			if (h->attrBools != NULL)
+			if (attr_seen)
 				return (-1);
-			h->attrBools = calloc(zip->numFiles,
-			    sizeof(*h->attrBools));
-			if (h->attrBools == NULL)
-				return (-1);
-			if (allAreDefined)
-				memset(h->attrBools, 1, zip->numFiles);
-			else if (read_Bools(a, h->attrBools,
-			    zip->numFiles) < 0)
-				return (-1);
+			attr_seen = 1;
+			if (!allAreDefined) {
+				h->attrBools = calloc(zip->numFiles,
+				    sizeof(*h->attrBools));
+				if (h->attrBools == NULL)
+					return (-1);
+				if (read_Bools(a, h->attrBools,
+				    zip->numFiles) < 0)
+					return (-1);
+			}
 			for (i = 0; i < zip->numFiles; i++) {
-				if (h->attrBools[i]) {
+				if (allAreDefined || h->attrBools[i]) {
 					if ((p = header_bytes(a, 4)) == NULL)
 						return (-1);
 					entries[i].attr = archive_le32dec(p);
@@ -3125,22 +3127,22 @@ read_Times(struct archive_read *a, int type)
 	struct _7zip *zip = (struct _7zip *)a->format->data;
 	const unsigned char *p;
 	struct _7zip_entry *entries = zip->entries;
-	unsigned char *timeBools;
+	unsigned char *timeBools = NULL;
 	int allAreDefined;
 	size_t dataIndex, i;
-
-	timeBools = calloc(zip->numFiles, sizeof(*timeBools));
-	if (timeBools == NULL)
-		return (-1);
 
 	/* Read allAreDefined. */
 	if ((p = header_bytes(a, 1)) == NULL)
 		goto failed;
 	allAreDefined = *p;
-	if (allAreDefined)
-		memset(timeBools, 1, zip->numFiles);
-	else if (read_Bools(a, timeBools, zip->numFiles) < 0)
-		goto failed;
+
+	if (!allAreDefined) {
+		timeBools = calloc(zip->numFiles, sizeof(*timeBools));
+		if (timeBools == NULL)
+			goto failed;
+		if (read_Bools(a, timeBools, zip->numFiles) < 0)
+			goto failed;
+	}
 
 	/* Read external. */
 	if ((p = header_bytes(a, 1)) == NULL)
@@ -3151,7 +3153,7 @@ read_Times(struct archive_read *a, int type)
 	}
 
 	for (i = 0; i < zip->numFiles; i++) {
-		if (!timeBools[i])
+		if (!allAreDefined && !timeBools[i])
 			continue;
 		if ((p = header_bytes(a, 8)) == NULL)
 			goto failed;
