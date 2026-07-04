@@ -545,7 +545,8 @@ find_newc_header(struct archive_read *a)
 {
 	const void *h;
 	const char *p, *q;
-	size_t skip, skipped = 0;
+	int64_t skip;
+	uintmax_t skipped = 0;
 	ssize_t bytes;
 
 	for (;;) {
@@ -577,9 +578,9 @@ find_newc_header(struct archive_read *a)
 					if (skipped > 0) {
 						archive_set_error(&a->archive,
 						    0,
-						    "Skipped %d bytes before "
+						    "Skipped %ju bytes before "
 						    "finding valid header",
-						    (int)skipped);
+						    skipped);
 						return (ARCHIVE_WARN);
 					}
 					return (ARCHIVE_OK);
