@@ -494,6 +494,13 @@ archive_write_gnutar_header(struct archive_write *a,
 		size_t length = gnutar->linkname_length + 1;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
 
+		if (temp == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			ret = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
+
 		/* Uname/gname here don't really matter since no one reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */
 		archive_entry_set_uname(temp, "root");
@@ -523,6 +530,13 @@ archive_write_gnutar_header(struct archive_write *a,
 		const char *pathname = gnutar->pathname;
 		size_t length = gnutar->pathname_length + 1;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
+
+		if (temp == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			ret = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
 
 		/* Uname/gname here don't really matter since no one reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */

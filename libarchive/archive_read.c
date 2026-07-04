@@ -103,6 +103,10 @@ archive_read_new(void)
 
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->entry = archive_entry_new2(&a->archive);
+	if (a->entry == NULL) {
+		free(a);
+		return (NULL);
+	}
 	a->archive.vtable = &archive_read_vtable;
 
 	a->passphrases.last = &a->passphrases.first;

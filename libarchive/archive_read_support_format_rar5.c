@@ -2481,6 +2481,9 @@ static int skip_base_block(struct archive_read* a) {
 	 * by header reader; operations on this archive_entry will be discarded.
 	 */
 	struct archive_entry* entry = archive_entry_new();
+	if (entry == NULL)
+		return ARCHIVE_FATAL;
+
 	ret = process_base_block(a, entry);
 
 	/* Discard operations on this archive_entry structure. */

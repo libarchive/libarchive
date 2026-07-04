@@ -430,6 +430,8 @@ archive_write_newc_close(struct archive_write *a)
 	struct archive_entry *trailer;
 
 	trailer = archive_entry_new();
+	if (trailer == NULL)
+		return ARCHIVE_FATAL;
 	archive_entry_set_nlink(trailer, 1);
 	archive_entry_set_size(trailer, 0);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");

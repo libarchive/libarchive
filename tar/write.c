@@ -560,6 +560,8 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		 * without failure.
 		 */
 		entry2 = archive_entry_new();
+		if (entry2 == NULL)
+			lafe_errc(1, errno, "Out of memory");
 		r = archive_read_next_header2(disk, entry2);
 		archive_entry_free(entry2);
 		if (r != ARCHIVE_OK) {
