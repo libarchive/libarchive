@@ -143,3 +143,28 @@ DEFINE_TEST(test_write_format_warc)
 
 	free(buff);
 }
+
+DEFINE_TEST(test_write_format_warc_size)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[2048];
+	size_t used;
+
+	memset(buff, 0, sizeof(buff));
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_warc(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
+	assertEqualString("Size required", archive_error_string(a));
+	archive_entry_free(ae);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}

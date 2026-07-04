@@ -233,10 +233,22 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			/*len*/0,
 		};
 		ssize_t r;
+		int64_t size;
 		rh.tgturi = archive_entry_pathname(entry);
 		rh.rtime = w->now;
 		rh.mtime = archive_entry_mtime(entry);
-		rh.cntlen = (size_t)archive_entry_size(entry);
+		if (!archive_entry_size_is_set(entry)) {
+			archive_set_error(&a->archive, -1,
+			    "Size required");
+			return (ARCHIVE_FAILED);
+		}
+		size = archive_entry_size(entry);
+		if (size < 0) {
+			archive_set_error(&a->archive, -1,
+			    "Size required");
+			return (ARCHIVE_FAILED);
+		}
+		rh.cntlen = (uint64_t)size;
 
 		archive_string_init(&hdr);
 		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, rh);
