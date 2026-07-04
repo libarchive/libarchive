@@ -108,6 +108,7 @@ archive_read_new(void)
 		return (NULL);
 	}
 	a->archive.vtable = &archive_read_vtable;
+	a->entry_bytes_declared = -1;
 
 	a->passphrases.last = &a->passphrases.first;
 
@@ -687,6 +688,12 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		break;
 	}
+
+	if (r2 == ARCHIVE_OK || r2 == ARCHIVE_WARN)
+		a->entry_bytes_declared = archive_entry_size_is_set(entry)
+		    ? archive_entry_size(entry) : -1;
+	else
+		a->entry_bytes_declared = -1;
 
 	__archive_reset_read_data(&a->archive);
 

@@ -456,6 +456,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_open_filename.c \
 	libarchive/test/test_pax_filename_encoding.c \
 	libarchive/test/test_pax_xattr_header.c \
+	libarchive/test/test_read_data_into_fd_size_exceeds_declared.c \
 	libarchive/test/test_read_data_large.c \
 	libarchive/test/test_read_disk.c \
 	libarchive/test/test_read_disk_directory_traversals.c \
@@ -825,6 +826,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_rar_multivolume_uncompressed_files.part08.rar.uu \
 	libarchive/test/test_rar_multivolume_uncompressed_files.part09.rar.uu \
 	libarchive/test/test_rar_multivolume_uncompressed_files.part10.rar.uu \
+	libarchive/test/test_read_data_into_fd_size_exceeds_declared_deflate.zip.uu \
+	libarchive/test/test_read_data_into_fd_size_exceeds_declared_stored.zip.uu \
 	libarchive/test/test_read_files_compressed.part01.uu \
 	libarchive/test/test_read_files_compressed.part02.uu \
 	libarchive/test/test_read_filter_grzip.tar.grz.uu \
@@ -1331,6 +1334,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_r.c \
 	tar/test/test_option_s.c \
 	tar/test/test_option_safe_writes.c \
+	tar/test/test_option_stdout_size_exceeds_declared.c \
 	tar/test/test_option_uid_uname.c \
 	tar/test/test_option_uuencode.c \
 	tar/test/test_option_xattrs.c \
@@ -1382,6 +1386,8 @@ bsdtar_test_EXTRA_DIST= \
 	tar/test/test_option_keep_newer_files.tar.Z.uu \
 	tar/test/test_option_passphrase.zip.uu \
 	tar/test/test_option_s.tar.Z.uu \
+	tar/test/test_option_stdout_size_exceeds_declared_deflate.zip.uu \
+	tar/test/test_option_stdout_size_exceeds_declared_stored.zip.uu \
 	tar/test/test_patterns_2.tar.uu \
 	tar/test/test_patterns_3.tar.uu \
 	tar/test/test_patterns_4.tar.uu \

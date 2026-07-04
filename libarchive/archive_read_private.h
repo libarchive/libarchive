@@ -180,6 +180,15 @@ struct archive_read {
 	/* File offset of beginning of most recently-read header. */
 	int64_t		  header_position;
 
+	/*
+	 * Declared uncompressed size of the entry whose header was most
+	 * recently read, or -1 if no size was declared.  Lets format-
+	 * agnostic consumers like archive_read_data_into_fd() cap their
+	 * output at the size an entry actually promised, regardless of
+	 * whether the format reader enforces that itself.
+	 */
+	int64_t		  entry_bytes_declared;
+
 	/* Nodes and offsets of compressed data block */
 	unsigned int data_start_node;
 	unsigned int data_end_node;
