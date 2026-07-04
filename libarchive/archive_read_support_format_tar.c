@@ -1347,6 +1347,7 @@ header_common(struct archive_read *a, struct tar *tar,
 	const struct archive_entry_header_ustar	*header;
 	const char *existing_linkpath;
 	const wchar_t *existing_wcs_linkpath;
+	mode_t header_mode;
 	int     err = ARCHIVE_OK;
 
 	header = (const struct archive_entry_header_ustar *)h;
@@ -1354,12 +1355,10 @@ header_common(struct archive_read *a, struct tar *tar,
 	/* Parse out the numeric fields (all are octal) */
 
 	/* Split mode handling: Set filetype always, perm only if not already set */
-	archive_entry_set_filetype(entry,
-	    (mode_t)tar_atol(header->mode, sizeof(header->mode)));
-	if (!archive_entry_perm_is_set(entry)) {
-		archive_entry_set_perm(entry,
-			(mode_t)tar_atol(header->mode, sizeof(header->mode)));
-	}
+	header_mode = (mode_t)tar_atol(header->mode, sizeof(header->mode));
+	archive_entry_set_filetype(entry, header_mode);
+	if (!archive_entry_perm_is_set(entry))
+		archive_entry_set_perm(entry, header_mode);
 
 	/* Set uid, gid, mtime if not already set */
 	if (!archive_entry_uid_is_set(entry)) {
