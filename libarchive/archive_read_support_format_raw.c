@@ -34,6 +34,7 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -146,9 +147,15 @@ archive_read_format_raw_read_data(struct archive_read *a,
 	*buff = __archive_read_ahead(a, 1, &avail);
 	if (avail > 0) {
 		/* Return the bytes we just read */
-		*size = avail;
 		*offset = info->offset;
-		info->offset += *size;
+		if (archive_ckd_add_i64(&info->offset, info->offset, avail)) {
+			avail = INT64_MAX - *offset;
+			if (avail == 0) {
+				*size = 0;
+				return (ARCHIVE_FATAL);
+			}
+		}
+		*size = avail;
 		info->unconsumed = avail;
 		return (ARCHIVE_OK);
 	} else if (0 == avail) {
