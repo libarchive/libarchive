@@ -2809,10 +2809,23 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 			int64_t size;
 			if ((p = header_bytes(a, 1)) == NULL)
 				return (-1);
-			if (*p == 0)
+			if (*p == kEnd)
 				break;
 			if (parse_7zip_int64(a, &size) < 0)
 				return (-1);
+			if (size < 0 || zip->header_bytes_remaining < size)
+				return (-1);
+
+			/* Skip the property data to keep header parsing aligned. */
+			while (size > 0) {
+				int64_t skip = size;
+
+				if (skip > UBUFF_SIZE)
+					skip = UBUFF_SIZE;
+				if (header_bytes(a, (size_t)skip) == NULL)
+					return (-1);
+				size -= skip;
+			}
 		}
 		if ((p = header_bytes(a, 1)) == NULL)
 			return (-1);
