@@ -227,6 +227,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_sfx.c
     test_read_format_zip_size_exceeds_declared.c
     test_read_format_zip_traditional_encryption_data.c
+    test_read_format_zip_uncompressed_size_off_by_4gib.c
     test_read_format_zip_winzip_aes.c
     test_read_format_zip_winzip_aes_large.c
     test_read_format_zip_zip64.c
