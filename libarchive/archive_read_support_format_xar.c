@@ -1696,6 +1696,16 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 		}
 		break;
 	}
+	/*
+	 * A finished stream keeps returning end-of-stream without consuming
+	 * or producing anything.  Callers loop until the declared length is
+	 * used up, so reject a stream that ends early instead of spinning.
+	 */
+	if (*used == 0 && *outbytes == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "XAR decompressor made no progress");
+		return (ARCHIVE_FATAL);
+	}
 	return (ARCHIVE_OK);
 }
 
