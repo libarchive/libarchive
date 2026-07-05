@@ -639,7 +639,8 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	int r1 = ARCHIVE_OK, r2;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA |
+	    ARCHIVE_STATE_DATA_RECOVERY,
 	    "archive_read_next_header");
 
 	archive_entry_clear(entry);
@@ -648,8 +649,12 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	/*
 	 * If client didn't consume entire data, skip any remainder
 	 * (This is especially important for GNU incremental directories.)
+	 * A header that failed to parse (DATA_RECOVERY) still needs the
+	 * same treatment: whatever of its body the format reader left
+	 * unconsumed must be skipped before we can read the next header.
 	 */
-	if (a->archive.state == ARCHIVE_STATE_DATA) {
+	if (a->archive.state == ARCHIVE_STATE_DATA ||
+	    a->archive.state == ARCHIVE_STATE_DATA_RECOVERY) {
 		r1 = archive_read_data_skip(&a->archive);
 		if (r1 == ARCHIVE_EOF)
 			archive_set_error(&a->archive, EIO,
@@ -686,6 +691,18 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	case ARCHIVE_FATAL:
 		a->archive.state = ARCHIVE_STATE_FATAL;
+		break;
+	case ARCHIVE_FAILED:
+		/*
+		 * This entry's header could not be parsed, so its metadata
+		 * cannot be trusted.  ARCHIVE_STATE_DATA_RECOVERY still
+		 * permits skipping past it (the format reader is
+		 * responsible for ensuring that's actually possible), but
+		 * blocks archive_read_data() and friends, which all check
+		 * for ARCHIVE_STATE_DATA specifically and would otherwise
+		 * return content for an entry we don't actually understand.
+		 */
+		a->archive.state = ARCHIVE_STATE_DATA_RECOVERY;
 		break;
 	}
 
@@ -953,7 +970,8 @@ archive_read_data_skip(struct archive *_a)
 	size_t size;
 	int64_t offset;
 
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_DATA | ARCHIVE_STATE_DATA_RECOVERY,
 	    "archive_read_data_skip");
 
 	if (a->format->read_data_skip != NULL)

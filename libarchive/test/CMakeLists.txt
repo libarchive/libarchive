@@ -167,6 +167,7 @@ IF(ENABLE_TEST)
     test_read_format_lha_filename.c
     test_read_format_lha_filename_utf16.c
     test_read_format_lha_oversize_header.c
+    test_read_format_lha_symlink_missing_target.c
     test_read_format_mtree.c
     test_read_format_mtree_crash747.c
     test_read_format_pax_bz2.c
@@ -226,6 +227,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_padded.c
     test_read_format_zip_sfx.c
     test_read_format_zip_size_exceeds_declared.c
+    test_read_format_zip_symlink_unsupported_compression.c
     test_read_format_zip_traditional_encryption_data.c
     test_read_format_zip_uncompressed_size_off_by_4gib.c
     test_read_format_zip_winzip_aes.c

@@ -538,6 +538,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_lha_filename.c \
 	libarchive/test/test_read_format_lha_filename_utf16.c \
 	libarchive/test/test_read_format_lha_oversize_header.c \
+	libarchive/test/test_read_format_lha_symlink_missing_target.c \
 	libarchive/test/test_read_format_mtree.c \
 	libarchive/test/test_read_format_mtree_crash747.c \
 	libarchive/test/test_read_format_pax_bz2.c \
@@ -597,6 +598,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_size_exceeds_declared.c \
+	libarchive/test/test_read_format_zip_symlink_unsupported_compression.c \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.c \
 	libarchive/test/test_read_format_zip_uncompressed_size_off_by_4gib.c \
 	libarchive/test/test_read_format_zip_winzip_aes.c \
@@ -968,6 +970,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_lha_lh6.lzh.uu \
 	libarchive/test/test_read_format_lha_lh7.lzh.uu \
 	libarchive/test/test_read_format_lha_oversize_header.lzh.uu \
+	libarchive/test/test_read_format_lha_symlink_missing_target.lzh.uu \
 	libarchive/test/test_read_format_lha_withjunk.lzh.uu \
 	libarchive/test/test_read_format_mtree.mtree.uu \
 	libarchive/test/test_read_format_mtree_nomagic.mtree.uu \
@@ -1136,6 +1139,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_size_exceeds_declared_deflate.zip.uu \
 	libarchive/test/test_read_format_zip_size_exceeds_declared_stored.zip.uu \
 	libarchive/test/test_read_format_zip_symlink.zip.uu \
+	libarchive/test/test_read_format_zip_symlink_unsupported_compression.zip.uu \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.zip.uu \
 	libarchive/test/test_read_format_zip_uncompressed_size_off_by_4gib.zip.uu \
 	libarchive/test/test_read_format_zip_ux.zip.uu \
