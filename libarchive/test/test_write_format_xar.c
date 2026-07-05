@@ -380,3 +380,78 @@ DEFINE_TEST(test_write_format_xar_entry_trunc)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
+
+DEFINE_TEST(test_write_format_xar_duplicate_path)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	static unsigned char buf[4096];
+	static char rbuf[64];
+	size_t used;
+	const char *xname;
+	const void *xval;
+	size_t xsize;
+
+	assert((a = archive_write_new()) != NULL);
+	if (archive_write_set_format_xar(a) != ARCHIVE_OK) {
+		skipping("xar is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "xar:compression=none"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buf, sizeof(buf), &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+
+	archive_entry_set_pathname(ae, "foo");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 4);
+	archive_entry_xattr_add_entry(ae, "user.one", "XX", 2);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 4, archive_write_data(a, "AAAA", 4));
+
+	archive_entry_clear(ae);
+	archive_entry_set_pathname(ae, "foo");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 3);
+	archive_entry_xattr_add_entry(ae, "user.two", "Y", 1);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 3, archive_write_data(a, "BBB", 3));
+
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Read back: <length> must be 3 (second entry only), not 7 (accumulated) */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buf, used));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("foo", archive_entry_pathname(ae));
+	assertEqualInt(3, (int)archive_entry_size(ae));
+
+	assertEqualIntA(a, 3, archive_read_data(a, rbuf, sizeof(rbuf)));
+	assertEqualMem("BBB", rbuf, 3);
+	assertEqualIntA(a, 0, archive_read_data(a, rbuf, sizeof(rbuf)));
+
+	/* Exactly one xattr */
+	assertEqualInt(1, archive_entry_xattr_reset(ae));
+	assertEqualInt(ARCHIVE_OK,
+		archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+	assertEqualString("user.two", xname);
+	assertEqualInt(1, (int)xsize);
+	assertEqualMem("Y", xval, 1);
+	/* No further xattrs */
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
