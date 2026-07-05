@@ -54,8 +54,8 @@ struct warc_s {
 
 	time_t now;
 	mode_t typ;
-	/* populated size */
-	uint64_t populz;
+	/* Remaining bytes to write for the current entry. */
+	uint64_t entry_bytes_remaining;
 };
 
 static const char warcinfo[] =
@@ -221,7 +221,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	w->typ = archive_entry_filetype(entry);
-	w->populz = 0U;
+	w->entry_bytes_remaining = 0U;
 	if (w->typ == AE_IFREG) {
 		warc_essential_hdr_t rh = {
 			WT_RSRC,
@@ -264,7 +264,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		/* otherwise append to output stream */
 		__archive_write_output(a, hdr.s, r);
 		/* and let subsequent calls to _data() know about the size */
-		w->populz = rh.cntlen;
+		w->entry_bytes_remaining = rh.cntlen;
 		archive_string_free(&hdr);
 		return (ARCHIVE_OK);
 	}
@@ -283,8 +283,8 @@ _warc_data(struct archive_write *a, const void *buf, size_t len)
 		int rc;
 
 		/* never write more bytes than announced */
-		if (len > w->populz) {
-			len = (size_t)w->populz;
+		if ((uint64_t)len > w->entry_bytes_remaining) {
+			len = (size_t)w->entry_bytes_remaining;
 		}
 
 		/* now then, out we put the whole shebang */
@@ -292,6 +292,7 @@ _warc_data(struct archive_write *a, const void *buf, size_t len)
 		if (rc != ARCHIVE_OK) {
 			return rc;
 		}
+		w->entry_bytes_remaining -= len;
 	}
 	return len;
 }

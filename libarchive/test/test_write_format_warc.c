@@ -108,6 +108,7 @@ DEFINE_TEST(test_write_format_warc)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 9, archive_write_data(a, "12345678", 9));
+	assertEqualIntA(a, 0, archive_write_data(a, "overflow", 8));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
