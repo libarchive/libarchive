@@ -1126,6 +1126,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_padded1.zip.uu \
 	libarchive/test/test_read_format_zip_padded2.zip.uu \
 	libarchive/test/test_read_format_zip_padded3.zip.uu \
+	libarchive/test/test_read_format_zip_pkware_unix.zip.uu \
 	libarchive/test/test_read_format_zip_ppmd8.zipx.uu \
 	libarchive/test/test_read_format_zip_ppmd8_aes256_streaming.zipx.uu \
 	libarchive/test/test_read_format_zip_ppmd8_crash_1.zipx.uu \

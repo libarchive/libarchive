@@ -756,6 +756,22 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			 * on which file starts, but we don't handle
 			 * multi-volume Zip files. */
 			break;
+		case 0x000d:
+			/* PKWARE Unix Extra Field fixed metadata. */
+			if (datasize >= 12) {
+				zip_entry->atime = archive_le32dec(p + offset);
+				zip_entry->mtime =
+				    archive_le32dec(p + offset + 4);
+				zip_entry->uid =
+				    archive_le16dec(p + offset + 8);
+				zip_entry->gid =
+				    archive_le16dec(p + offset + 10);
+				/*
+				 * APPNOTE.TXT also defines additional data after
+				 * this fixed metadata, depending on file type.
+				 */
+			}
+			break;
 #ifdef DEBUG
 		case 0x0017:
 		{
