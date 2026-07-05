@@ -1392,6 +1392,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_copy.c \
 	tar/test/test_crlf_mtree.c \
 	tar/test/test_empty_mtree.c \
+	tar/test/test_extract_pipe_windows.c \
 	tar/test/test_extract_tar_Z.c \
 	tar/test/test_extract_tar_bz2.c \
 	tar/test/test_extract_tar_grz.c \
@@ -1484,6 +1485,7 @@ endif
 
 bsdtar_test_EXTRA_DIST= \
 	tar/test/list.h \
+	tar/test/test_extract_pipe_windows.zip.uu \
 	tar/test/test_extract.tar.Z.uu \
 	tar/test/test_extract.tar.bz2.uu \
 	tar/test/test_extract.tar.grz.uu \
