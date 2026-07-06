@@ -1074,21 +1074,19 @@ static int
 header_Solaris_ACL(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, int64_t *unconsumed)
 {
-	const struct archive_entry_header_ustar *header;
 	struct archive_string	 acl_text;
 	size_t size;
 	int err, acl_type;
 	uint64_t type;
 	char *acl, *p;
 
-	header = (const struct archive_entry_header_ustar *)h;
-	size = (size_t)tar_atol(header->size, sizeof(header->size));
 	archive_string_init(&acl_text);
 	err = read_body_to_string(a, tar, &acl_text, h, unconsumed);
 	if (err != ARCHIVE_OK) {
 		archive_string_free(&acl_text);
 		return (err);
 	}
+	size = archive_strlen(&acl_text);
 
 	/* TODO: Examine the first characters to see if this
 	 * is an AIX ACL descriptor.  We'll likely never support
