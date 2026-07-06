@@ -49,6 +49,108 @@
 #include "archive_endian.h"
 
 
+/*
+ * Huffman coding.
+ *
+ * Array representation of a Huffman tree for codes of up to 16 bit lengths.
+ * Lookups are performed through a direct, expanded lookup table.
+ *
+ * An expanded table has as many elements as needed to cover all possible
+ * indices formable with bit patterns of given max_bits length.
+ *
+ * If less codes exist, these span multiple entries for all possible
+ * combinations of following bits.
+ *
+ * Example of a Huffman tree with len_size = 3, max_bits = 2:
+ *
+ * Symbol | Code
+ * -------+-----
+ *      A | 0b0
+ *      B | 0b10
+ *      C | 0b11
+ *
+ * The bit sequences 0b00 and 0b01 are rightfully not covered by a code,
+ * since code 0b0 already maps to symbol A. The table will contain two
+ * entries for symbol A instead:
+ *
+ *  idx | tbl[idx]
+ * -----+---------
+ * 0b00 |        A
+ * 0b01 |        A
+ * 0b10 |        B
+ * 0b11 |        C
+ *
+ * By using max_bits bits as a lookup, it becomes apparent that 0b00 and
+ * 0b01 point to a symbol which actually has the code 0b0. A user of this
+ * data structure must check the code bit length of a retrieved symbol after
+ * the lookup to properly advance the bit stream:
+ *
+ * idx | bitlen[idx]
+ * ----+------------
+ *   A |           1
+ *   B |           2
+ *   C |           2
+ *
+ * Thus, a proper code sequence would be:
+ *
+ * symbol = tbl[read_bits(max_bits)]
+ * consume_bits(bitlen[symbol])
+ */
+struct huffman {
+	/*
+	 * Amount of symbols.
+	 *
+	 * This implementation keeps track of unused symbols as well,
+	 * thus symbols start with 0x0000 up to given maximum amount
+	 * of symbols: [0..len_size]
+	 *
+	 * Used to construct tbl.
+	 */
+	int		 len_size;
+	/*
+	 * Frequency (aka weight) of code bit lengths.
+	 *
+	 * Represents the amount of occurrences of given bit lengths.
+	 * Index 0 is used for "empty" codes (aka unused symbols),
+	 * otherwise index represents the bit length
+	 * (index 1 is bit length 1 and so on).
+	 *
+	 * Used to construct tbl.
+	 */
+	int		 freq[17];
+	/* Map of symbols to their code bit lengths. */
+	unsigned char	*bitlen;
+	/* Longest used code bit length (<= tbl_bits). */
+	int		 max_bits;
+	/*
+	 * Maximum allowed code bit length (<= 16).
+	 *
+	 * Used to construct tbl.
+	 */
+	int		 tbl_bits;
+	/* Direct, expanded lookup table. */
+	uint16_t	*tbl;
+};
+
+/*
+ * Bit stream reader.
+ */
+struct lzx_br {
+#define CACHE_TYPE		uint64_t
+#define CACHE_BITS		(8 * sizeof(CACHE_TYPE))
+	/* Cache buffer. */
+	CACHE_TYPE	 cache_buffer;
+	/* Indicates how many bits avail in cache_buffer. */
+	int		 cache_avail;
+	unsigned char	 odd;
+	char		 have_odd;
+};
+
+struct lzx_pos_tbl {
+	int		 base;
+	int		 footer_bits;
+};
+
 struct lzx_dec {
 	/* Decoding status. */
 	int     		 state;
@@ -108,42 +210,19 @@ struct lzx_dec {
 	int			 position_slot;
 	int			 offset_bits;
 
-	struct lzx_pos_tbl {
-		int		 base;
-		int		 footer_bits;
-	}			*pos_tbl;
+	struct lzx_pos_tbl 	*pos_tbl;
 	/*
 	 * Bit stream reader.
 	 */
-	struct lzx_br {
-#define CACHE_TYPE		uint64_t
-#define CACHE_BITS		(8 * sizeof(CACHE_TYPE))
-	 	/* Cache buffer. */
-		CACHE_TYPE	 cache_buffer;
-		/* Indicates how many bits avail in cache_buffer. */
-		int		 cache_avail;
-		unsigned char	 odd;
-		char		 have_odd;
-	} br;
+	struct lzx_br		 br;
 
 	/*
 	 * Huffman coding.
 	 */
-	struct huffman {
-		int		 len_size;
-		int		 freq[17];
-		unsigned char	*bitlen;
-
-		/*
-		 * Use an index table. It's faster than searching a huffman
-		 * coding tree, which is a binary tree. But usage of a large
-		 * index table causes L1 cache read miss many times.
-		 */
-		int		 max_bits;
-		int		 tbl_bits;
-		/* Direct access table. */
-		uint16_t	*tbl;
-	}			 at, lt, mt, pt;
+	struct huffman		 at;
+	struct huffman		 lt;
+	struct huffman		 mt;
+	struct huffman		 pt;
 
 	int			 loop;
 	int			 error;
@@ -3160,7 +3239,8 @@ lzx_huffman_free(struct huffman *hf)
 }
 
 /*
- * Make a huffman coding table.
+ * Create a direct, expanded Huffman lookup table based on
+ * canonical representation.
  */
 static int
 lzx_make_huffman_table(struct huffman *hf)
@@ -3173,6 +3253,32 @@ lzx_make_huffman_table(struct huffman *hf)
 
 	/*
 	 * Initialize bit patterns.
+	 *
+	 * Each bitptn element represents the smallest possible
+	 * code sequence allowed. The weight represents the amount
+	 * of lookup bit patterns covered by a code of this length.
+	 *
+	 * Example of a Huffman tree:
+	 *
+	 * idx | freq[idx]
+	 * ----+----------
+	 *   1 |         1
+	 *   2 |         2
+	 *
+	 * The result will be:
+	 *
+	 * idx | bitptn[idx] | weight[idx]
+	 * ----+-------------+------------
+	 *   1 |      0x0000 |       32768
+	 *   2 |      0x8000 |       16384
+	 *
+	 * This means that a code with bit length 1 will take 32768
+	 * possible combinations starting with 0b0. Since one such code exists
+	 * (freq[1] = 1), codes with bit length 2 must start with 0b1. Since
+	 * two codes with bit length 2 exist (freq[2] = 2), no more codes can
+	 * be added.
+	 *
+	 * In this example, maxbits will be 2 (longest code length is 2).
 	 */
 	ptn = 0;
 	for (i = 1, w = 1 << 15; i <= 16; i++, w >>= 1) {
@@ -3183,15 +3289,33 @@ lzx_make_huffman_table(struct huffman *hf)
 			maxbits = i;
 		}
 	}
+	/* Verify Kraft's inequality. */
 	if ((ptn & 0xffff) != 0 || maxbits > hf->tbl_bits)
 		return (0);/* Invalid */
 
 	hf->max_bits = maxbits;
 
 	/*
-	 * Cut out extra bits which we won't house in the table.
-	 * This preparation reduces the same calculation in the for-loop
-	 * making the table.
+	 * Shrink codes to smallest size by removing extra bits after
+	 * the actual code sequences as good as possible.
+	 *
+	 * Continuing the example above:
+	 *
+	 * idx | bitptn[idx] | weight[idx]
+	 * ----+-------------+-------------
+	 *   1 |      0x0000 |       32768
+	 *   2 |      0x8000 |       16384
+	 *
+	 * As can be seen, a total of 65536 entries must be created even
+	 * though 4 would be sufficient (indices 0b00 to 0b11). Right shift
+	 * the pattern and divide weight as much as possible:
+	 *
+	 * idx | bitptn[idx] | weight[idx]
+	 * ----+-------------+-------------
+	 *   1 |      0x0000 |           2
+	 *   2 |      0x0002 |           1
+	 *
+	 * Thus, the direct, expanded lookup table only needs 4 entries.
 	 */
 	if (maxbits < 16) {
 		int ebits = 16 - maxbits;
@@ -3202,7 +3326,30 @@ lzx_make_huffman_table(struct huffman *hf)
 	}
 
 	/*
-	 * Make the table.
+	 * Construct the direct, expanded lookup table.
+	 *
+	 * Store each symbol in table for every possible bit patterns starting
+	 * with their code.
+	 *
+	 * Following the example with len_avail being 4:
+	 *
+	 * idx | bitlen[idx]
+	 * ----+------------
+	 *   0 |           0
+	 *   1 |           1
+	 *   2 |           0
+	 *   3 |           2
+	 *   4 |           2
+	 *
+	 * The resulting table contains all used symbols (1, 3, 4) for up to
+	 * max_len bit patterns:
+	 *
+	 *       idx | tbl[idx]
+	 * ----------+---------
+	 *  0 (0b00) |        1
+	 *  1 (0b01) |        1
+	 *  2 (0b10) |        3
+	 *  3 (0b11) |        4
 	 */
 	tbl_size = 1 << hf->tbl_bits;
 	tbl = hf->tbl;
