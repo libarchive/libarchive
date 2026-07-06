@@ -3447,13 +3447,10 @@ pax_attribute_SUN_holesdata(struct archive_read *a, struct tar *tar,
 				return (ARCHIVE_FATAL);
 			tar->sparse_last->hole = hole;
 		}
-		if (length == 0 || *e == '\n') {
-			if (length == 0 && *e == '\n') {
-				return (ARCHIVE_OK);
-			} else {
-				return (ARCHIVE_WARN);
-			}
-		}
+		if (length == 0)
+			return (ARCHIVE_OK);
+		if (*e == '\n')
+			return (ARCHIVE_WARN);
 		p = e + 1;
 		length--;
 		hole = hole == 0;
