@@ -10,6 +10,7 @@ IF(ENABLE_TEST)
     read_open_memory.c
     test.h
     test_7zip_filename_encoding.c
+    test_acl_from_text_overread.c
     test_acl_nfs4.c
     test_acl_nfs4_null_id_overflow.c
     test_acl_nfs4_text.c
