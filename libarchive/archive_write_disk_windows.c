@@ -1660,6 +1660,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	mode_t final_mode, mode;
 	int r;
 	DWORD attrs = 0;
+	DWORD file_flags = 0;
 # if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
 		CREATEFILE2_EXTENDED_PARAMETERS createExParams;
 #endif
@@ -1820,16 +1821,31 @@ create_filesystem_object(struct archive_write_disk *a)
 	case AE_IFREG:
 		a->tmpname = NULL;
 		fullname = a->name;
+		if ((a->flags & ARCHIVE_EXTRACT_SECURE_SYMLINKS) == 0) {
+			/*
+			 * Creating a regular file is expected to fail with EEXIST if *any
+			 * object* exists at the target location.
+			 * SECURE_SYMLINKS deletes any symbolic link that would have been
+			 * written through. When it's off, though, we risk writing through
+			 * extant but broken symlinks unless we allow CreateFile to fail
+			 * on the link rather than creating its target.
+			 *
+			 * This is effectively O_EXCL.
+			 */
+			file_flags |= FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS;
+		}
+
 		/* O_WRONLY | O_CREAT | O_EXCL */
 # if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
 		ZeroMemory(&createExParams, sizeof(createExParams));
 		createExParams.dwSize = sizeof(createExParams);
 		createExParams.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+		createExParams.dwFileFlags = file_flags;
 		a->fh = CreateFile2(fullname, GENERIC_WRITE, 0,
 		    CREATE_NEW, &createExParams);
 #else
 		a->fh = CreateFileW(fullname, GENERIC_WRITE, 0, NULL,
-		    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+		    CREATE_NEW, FILE_ATTRIBUTE_NORMAL | file_flags, NULL);
 #endif
 		if (a->fh == INVALID_HANDLE_VALUE &&
 		    GetLastError() == ERROR_INVALID_NAME &&
@@ -1840,7 +1856,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			    CREATE_NEW, &createExParams);
 #else
 			a->fh = CreateFileW(fullname, GENERIC_WRITE, 0, NULL,
-			    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+			    CREATE_NEW, FILE_ATTRIBUTE_NORMAL | file_flags, NULL);
 #endif
 		}
 		if (a->fh == INVALID_HANDLE_VALUE) {
