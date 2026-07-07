@@ -4347,12 +4347,14 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 			r = rsrc_basename(name, filename_length);
 			if (filename_length >= 9 &&
 			    strncmp("__MACOSX/", name, 9) == 0) {
+				const char *name_end;
+
+				name_end = name + filename_length;
 				/* If this file is not a resource fork nor
 				 * a directory. We should treat it as a non
 				 * resource fork file to expose it. */
 				if (name[filename_length-1] != '/' &&
-				    (r - name < 3 || r[0] != '.' ||
-				     r[1] != '_')) {
+				    (name_end - r < 2 || r[0] != '.' || r[1] != '_')) {
 					__archive_rb_tree_insert_node(
 					    &zip->tree, &zip_entry->node);
 					/* Expose its parent directories. */
