@@ -1086,7 +1086,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 		p = b;
 		b += iso9660->logical_block_size;
 		step -= iso9660->logical_block_size;
-		for (; *p != 0 && p + DR_name_offset < b && p + *p <= b;
+		for (; p < b && b - p > DR_name_offset && *p != 0 && *p <= b - p;
 			p += *p) {
 			struct file_info *child;
 
