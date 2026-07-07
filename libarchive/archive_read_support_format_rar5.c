@@ -1948,8 +1948,8 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
 		if (file_attr & (ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM)) {
 			char buf[sizeof(",rdonly,hidden,system")];
-			char *fflags[3] = { "", "", "" };
-			char **flag = fflags;
+			const char *fflags[3] = { "", "", "" };
+			const char **flag = fflags;
 
 			if (file_attr & ATTR_READONLY)
 				*flag++ = ",rdonly";

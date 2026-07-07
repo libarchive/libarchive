@@ -1006,8 +1006,8 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 
 	if (zip_entry->attr & supported_attrs) {
 		char buf[sizeof(",rdonly,hidden,system")];
-		char *fflags[3] = { "", "", "" };
-		char **flag = fflags;
+		const char *fflags[3] = { "", "", "" };
+		const char **flag = fflags;
 
 		if (zip_entry->attr & FILE_ATTRIBUTE_READONLY)
 			*flag++ = ",rdonly";
