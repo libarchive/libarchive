@@ -400,19 +400,18 @@ _warc_read(struct archive_read *a, const void **buf, size_t *bsz, int64_t *off)
 	const char *rab;
 	ssize_t nrd;
 
+	if (w->unconsumed) {
+		__archive_read_consume(a, w->unconsumed);
+		w->unconsumed = 0U;
+	}
+
 	if (w->cntoff >= w->cntlen) {
 	eof:
 		/* it's our lucky day, no work, we can leave early */
 		*buf = NULL;
 		*bsz = 0U;
 		*off = w->cntoff;
-		w->unconsumed = 0U;
 		return (ARCHIVE_EOF);
-	}
-
-	if (w->unconsumed) {
-		__archive_read_consume(a, w->unconsumed);
-		w->unconsumed = 0U;
 	}
 
 	rab = __archive_read_ahead(a, 1U, &nrd);
@@ -440,7 +439,13 @@ _warc_skip(struct archive_read *a)
 {
 	struct warc_s *w = a->format->data;
 
-	if (__archive_read_consume(a, w->cntlen) < 0 ||
+	if (w->cntoff > w->cntlen)
+		return (ARCHIVE_FATAL);
+	if (w->unconsumed) {
+		__archive_read_consume(a, w->unconsumed);
+		w->unconsumed = 0U;
+	}
+	if (__archive_read_consume(a, w->cntlen - w->cntoff) < 0 ||
 	    __archive_read_consume(a, 4U/*\r\n\r\n separator*/) < 0)
 		return (ARCHIVE_FATAL);
 	w->cntlen = 0U;
