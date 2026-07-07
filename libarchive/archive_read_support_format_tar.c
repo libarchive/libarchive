@@ -3511,17 +3511,17 @@ tar_atol_base_n(const char *p, size_t char_cnt, int base)
 	}
 
 	l = 0;
-	if (char_cnt != 0) {
+	while (char_cnt != 0) {
 		digit = *p - '0';
-		while (digit >= 0 && digit < base && char_cnt != 0) {
-			if (archive_ckd_mul_i64(&l, l, base) ||
-			    archive_ckd_add_i64(&l, l, sign * digit)) {
-				 /* Truncate on overflow. */
-				return sign < 0 ? INT64_MIN : INT64_MAX;
-			}
-			digit = *++p - '0';
-			char_cnt--;
+		if (digit < 0 || digit >= base)
+			break;
+		if (archive_ckd_mul_i64(&l, l, base) ||
+		    archive_ckd_add_i64(&l, l, sign * digit)) {
+			 /* Truncate on overflow. */
+			return sign < 0 ? INT64_MIN : INT64_MAX;
 		}
+		p++;
+		char_cnt--;
 	}
 	return l;
 }
