@@ -47,6 +47,7 @@
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_string.h"
@@ -314,8 +315,8 @@ struct file_info {
 
 struct heap_queue {
 	struct file_info **files;
-	int		 allocated;
-	int		 used;
+	size_t		 allocated;
+	size_t		 used;
 };
 
 struct iso9660 {
@@ -337,8 +338,8 @@ struct iso9660 {
 			uint64_t	 offset;/* Offset of CE on disk. */
 			struct file_info *file;
 		}		*reqs;
-		int		 cnt;
-		int		 allocated;
+		size_t		 cnt;
+		size_t		 allocated;
 	}	read_ce_req;
 
 	int64_t		previous_number;
@@ -2368,9 +2369,8 @@ register_CE(struct archive_read *a, int32_t location,
 {
 	struct iso9660 *iso9660;
 	struct read_ce_queue *heap;
-	struct read_ce_req *p;
 	uint64_t offset, parent_offset;
-	int hole, parent;
+	size_t hole, parent;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
 	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
@@ -2389,14 +2389,13 @@ register_CE(struct archive_read *a, int32_t location,
 	/* Expand our CE list as necessary. */
 	heap = &(iso9660->read_ce_req);
 	if (heap->cnt >= heap->allocated) {
-		int new_size;
+		struct read_ce_req *p;
+		size_t new_size;
 
 		if (heap->allocated < 16)
 			new_size = 16;
-		else
-			new_size = heap->allocated * 2;
-		/* Overflow might keep us from growing the list. */
-		if (new_size <= heap->allocated) {
+		else if (archive_ckd_mul_size(&new_size, heap->allocated, 2)) {
+			/* Overflow keeps us from growing the list. */
 			archive_set_error(&a->archive, ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
 		}
@@ -2438,7 +2437,7 @@ static void
 next_CE(struct read_ce_queue *heap)
 {
 	uint64_t a_offset, b_offset, c_offset;
-	int a, b, c;
+	size_t a, b, c;
 	struct read_ce_req tmp;
 
 	if (heap->cnt < 1)
@@ -3144,7 +3143,7 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
     struct file_info *file, uint64_t key)
 {
 	uint64_t file_key, parent_key;
-	int hole, parent;
+	size_t hole, parent;
 
 	/* Reserve 16 bits for possible key collisions (needed for linked items) */
 	/* For ISO files with more than 65535 entries, reordering will still occur */
@@ -3154,12 +3153,12 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 	/* Expand our pending files list as necessary. */
 	if (heap->used >= heap->allocated) {
 		struct file_info **new_pending_files;
-		int new_size = heap->allocated * 2;
+		size_t new_size;
 
 		if (heap->allocated < 1024)
 			new_size = 1024;
-		/* Overflow might keep us from growing the list. */
-		if (new_size <= heap->allocated) {
+		else if (archive_ckd_mul_size(&new_size, heap->allocated, 2)) {
+			/* Overflow keeps us from growing the list. */
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
@@ -3186,7 +3185,7 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 	 */
 	hole = heap->used++;
 	while (hole > 0) {
-		parent = (hole - 1)/2;
+		parent = (hole - 1) / 2;
 		parent_key = heap->files[parent]->key;
 		if (file_key >= parent_key) {
 			heap->files[hole] = file;
@@ -3205,7 +3204,7 @@ static struct file_info *
 heap_get_entry(struct heap_queue *heap)
 {
 	uint64_t a_key, b_key, c_key;
-	int a, b, c;
+	size_t a, b, c;
 	struct file_info *r, *tmp;
 
 	if (heap->used < 1)

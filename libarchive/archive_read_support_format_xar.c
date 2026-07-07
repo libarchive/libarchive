@@ -214,8 +214,8 @@ struct hdlink {
 
 struct heap_queue {
 	struct xar_file		**files;
-	int			 allocated;
-	int			 used;
+	size_t			 allocated;
+	size_t			 used;
 };
 
 enum xmlstatus {
@@ -957,7 +957,7 @@ xar_cleanup(struct archive_read *a)
 {
 	struct xar *xar;
 	struct hdlink *hdlink;
-	int i;
+	size_t i;
 	int r;
 
 	xar = (struct xar *)(a->format->data);
@@ -1207,19 +1207,17 @@ heap_add_entry(struct archive_read *a,
     struct heap_queue *heap, struct xar_file *file)
 {
 	uint64_t file_id, parent_id;
-	int hole, parent;
+	size_t hole, parent;
 
 	/* Expand our pending files list as necessary. */
 	if (heap->used >= heap->allocated) {
 		struct xar_file **new_pending_files;
-		int new_size;
+		size_t new_size;
 
 		if (heap->allocated < 1024)
 			new_size = 1024;
-		else
-			new_size = heap->allocated * 2;
-		/* Overflow might keep us from growing the list. */
-		if (new_size <= heap->allocated) {
+		else if (archive_ckd_mul_size(&new_size, heap->allocated, 2)) {
+			/* Overflow keeps us from growing the list. */
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
@@ -1247,7 +1245,7 @@ heap_add_entry(struct archive_read *a,
 	 */
 	hole = heap->used++;
 	while (hole > 0) {
-		parent = (hole - 1)/2;
+		parent = (hole - 1) / 2;
 		parent_id = heap->files[parent]->id;
 		if (file_id >= parent_id) {
 			heap->files[hole] = file;
@@ -1266,7 +1264,7 @@ static struct xar_file *
 heap_get_entry(struct heap_queue *heap)
 {
 	uint64_t a_id, b_id, c_id;
-	int a, b, c;
+	size_t a, b, c;
 	struct xar_file *r, *tmp;
 
 	if (heap->used < 1)

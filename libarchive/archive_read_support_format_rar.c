@@ -42,6 +42,7 @@
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_ppmd7_private.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
@@ -201,8 +202,8 @@ struct huffman_table_entry
 struct huffman_code
 {
   struct huffman_tree_node *tree;
-  int numentries;
-  int numallocatedentries;
+  size_t numentries;
+  size_t numallocatedentries;
   int minlength;
   int maxlength;
   int tablesize;
@@ -2823,11 +2824,16 @@ new_node(struct huffman_code *code)
 {
   void *new_tree;
   if (code->numallocatedentries == code->numentries) {
-    int new_num_entries = 256;
-    if (code->numentries > 0) {
-        new_num_entries = code->numentries * 2;
-    }
-    new_tree = realloc(code->tree, new_num_entries * sizeof(*code->tree));
+    size_t size, new_num_entries;
+
+    if (code->numentries == 0)
+        new_num_entries = 256;
+    else if (archive_ckd_mul_size(&new_num_entries, code->numentries, 2)
+      || new_num_entries > INT_MAX)
+        return -1;
+    if (archive_ckd_mul_size(&size, new_num_entries, sizeof(*code->tree)))
+        return -1;
+    new_tree = realloc(code->tree, size);
     if (new_tree == NULL)
         return (-1);
     code->tree = (struct huffman_tree_node *)new_tree;
@@ -2868,7 +2874,7 @@ make_table_recurse(struct archive_read *a, struct huffman_code *code, int node,
                       "Huffman tree was not created");
     return (ARCHIVE_FAILED);
   }
-  if (node < 0 || node >= code->numentries)
+  if (node < 0 || (size_t)node >= code->numentries)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Invalid location to Huffman tree specified");

@@ -1490,16 +1490,16 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 
 			/* Ensure the buffer is big enough. */
 			if (min > filter->buffer_size) {
-				size_t s, t;
+				size_t s;
 				char *p;
 
 				/* Double the buffer; watch for overflow. */
-				s = t = filter->buffer_size;
+				s = filter->buffer_size;
 				if (s == 0)
 					s = min;
 				while (s < min) {
-					t *= 2;
-					if (t <= s) { /* Integer overflow! */
+					if (archive_ckd_mul_size(&s, s, 2)) {
+						/* Integer overflow! */
 						archive_set_error(
 						    &filter->archive->archive,
 						    ENOMEM,
@@ -1510,7 +1510,6 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 							*avail = ARCHIVE_FATAL;
 						return (NULL);
 					}
-					s = t;
 				}
 				/* Now s >= min, so allocate a new buffer. */
 				p = malloc(s);

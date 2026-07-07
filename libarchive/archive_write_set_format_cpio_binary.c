@@ -40,6 +40,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
@@ -307,10 +308,16 @@ synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
 
 	/* Ensure space for the new mapping. */
 	if (cpio->ino_list_size <= cpio->ino_list_next) {
-		size_t newsize = cpio->ino_list_size < 512
-		    ? 512 : cpio->ino_list_size * 2;
-		void *newlist = realloc(cpio->ino_list,
-		    sizeof(cpio->ino_list[0]) * newsize);
+		size_t newsize, size;
+		if (cpio->ino_list_size < 512)
+			newsize = 512;
+		else if (archive_ckd_mul_size(&newsize,
+		    cpio->ino_list_size, 2))
+			return (-1);
+		if (archive_ckd_mul_size(&size,
+		    newsize, sizeof(cpio->ino_list[0])))
+			return (-1);
+		void *newlist = realloc(cpio->ino_list, size);
 		if (newlist == NULL)
 			return (-1);
 

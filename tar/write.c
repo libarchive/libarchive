@@ -450,8 +450,11 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 
 	/* Choose a suitable copy buffer size */
 	bsdtar->buff_size = 64 * 1024;
-	while (bsdtar->buff_size < (size_t)bsdtar->bytes_per_block)
-	  bsdtar->buff_size *= 2;
+	while (bsdtar->buff_size < (size_t)bsdtar->bytes_per_block) {
+		bsdtar->buff_size *= 2;
+		if (bsdtar->buff_size < 64 * 1024)
+			lafe_errc(1, 0, "cannot allocate memory");
+	}
 	/* Try to compensate for space we'll lose to alignment. */
 	bsdtar->buff_size += 16 * 1024;
 

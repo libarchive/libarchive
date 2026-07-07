@@ -37,10 +37,11 @@
 #include <winioctl.h>
 
 #include "archive.h"
-#include "archive_string.h"
 #include "archive_entry.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
+#include "archive_string.h"
 #include "archive_time_private.h"
 
 #ifndef O_BINARY
@@ -2540,7 +2541,12 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 			    (DWORD)outranges_size, &retbytes, NULL);
 			if (ret == 0 && GetLastError() == ERROR_MORE_DATA) {
 				free(outranges);
-				outranges_size *= 2;
+				if (archive_ckd_mul_size(&outranges_size, outranges_size, 2)) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "Couldn't allocate memory");
+					exit_sts = ARCHIVE_FATAL;
+					goto exit_setup_sparse;
+				}
 				outranges = (FILE_ALLOCATED_RANGE_BUFFER *)
 				    malloc(outranges_size);
 				if (outranges == NULL) {
