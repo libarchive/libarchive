@@ -31,7 +31,7 @@
 
 #include "archive_options_private.h"
 
-static char *
+static int
 parse_option(char **str,
     char **mod, char **opt, char **val);
 
@@ -101,7 +101,7 @@ int
 _archive_set_options(struct archive *a, const char *options,
     unsigned int magic, const char *fn, option_handler use_option)
 {
-	int allok = 1, anyok = 0, ignore_mod_err = 0, r;
+	int allok = 1, anyok = 0, ignore_mod_err = 0, r, d;
 	char *data;
 	char *s, *mod, *opt, *val;
 
@@ -120,7 +120,7 @@ _archive_set_options(struct archive *a, const char *options,
 	do {
 		mod = opt = val = NULL;
 
-		parse_option(&s, &mod, &opt, &val);
+		d = parse_option(&s, &mod, &opt, &val);
 		if (mod == NULL && opt != NULL &&
 		    strcmp("__ignore_wrong_module_name__", opt) == 0) {
 			/* Ignore module name error */
@@ -131,7 +131,10 @@ _archive_set_options(struct archive *a, const char *options,
 			continue;
 		}
 
-		r = use_option(a, mod, opt, val);
+		if (d)
+			r = use_option(a, mod, opt, "1");
+		else
+			r = use_option(a, mod, opt, val);
 		if (r == ARCHIVE_FATAL) {
 			free(data);
 			return (ARCHIVE_FATAL);
@@ -167,16 +170,21 @@ _archive_set_options(struct archive *a, const char *options,
 	return allok ? ARCHIVE_OK : anyok ? ARCHIVE_WARN : ARCHIVE_FAILED;
 }
 
-static char *
+/*
+ * Returns 1 if we are using default value of "1" or 0 otherwise
+ */
+static int
 parse_option(char **s, char **m, char **o, char **v)
 {
+	int default_val;
 	char *end, *mod, *opt, *val;
 	char *p;
 
+	default_val = 1;
 	end = NULL;
 	mod = NULL;
 	opt = *s;
-	val = "1";
+	val = NULL;
 
 	p = strchr(opt, ',');
 
@@ -190,7 +198,7 @@ parse_option(char **s, char **m, char **o, char **v)
 		*m = NULL;
 		*o = NULL;
 		*v = NULL;
-		return end;
+		return default_val;
 	}
 
 	p = strchr(opt, ':');
@@ -204,9 +212,11 @@ parse_option(char **s, char **m, char **o, char **v)
 	if (p != NULL) {
 		*p = '\0';
 		val = ++p;
+		default_val = 0;
 	} else if (opt[0] == '!') {
 		++opt;
 		val = NULL;
+		default_val = 0;
 	}
 
 	*s = end;
@@ -214,6 +224,5 @@ parse_option(char **s, char **m, char **o, char **v)
 	*o = opt;
 	*v = val;
 
-	return end;
+	return default_val;
 }
-
