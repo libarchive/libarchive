@@ -1607,6 +1607,26 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 		}
 		break;
 	}
+
+	/*
+	 * Pathological case: after trimming trailing '/' characters and
+	 * '/.' path elements, there is no filename component left.  This
+	 * happens for pathnames made entirely of '/' characters.  Do not
+	 * attempt to compute filename_end - 1 in that case, which would
+	 * move the filename pointer in front of the input buffer and read
+	 * one byte out of bounds.  Emit a root-like ustar name instead.
+	 */
+	if (filename_end == src) {
+		p = dest;
+		if (insert != NULL) {
+			strcpy(p, insert);
+			p += strlen(insert);
+		}
+		*p++ = '/';
+		*p = '\0';
+		return (dest);
+	}
+
 	if (need_slash)
 		suffix_length--;
 	/* Find start of filename. */
