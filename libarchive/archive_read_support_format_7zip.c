@@ -2404,6 +2404,7 @@ free_CodersInfo(struct _7z_coders_info *ci)
 static int
 read_CodersInfo(struct archive_read *a, struct _7z_coders_info *ci)
 {
+	struct _7zip *zip = (struct _7zip *)a->format->data;
 	const unsigned char *p;
 	struct _7z_digests digest;
 	size_t dataStreamIndex, i;
@@ -2420,6 +2421,14 @@ read_CodersInfo(struct archive_read *a, struct _7z_coders_info *ci)
 	 * Read NumFolders.
 	 */
 	if (parse_7zip_size(a, &(ci->numFolders)) < 0)
+		goto failed;
+	/*
+	 * Each folder is encoded by at least one byte in the coders
+	 * list that follows, so a folder count larger than the bytes
+	 * left in the header cannot be honored and is rejected here
+	 * before it is used to size the folders allocation.
+	 */
+	if (ci->numFolders > (uint64_t)zip->header_bytes_remaining)
 		goto failed;
 
 	/*
