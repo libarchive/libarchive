@@ -64,6 +64,7 @@
 #include "archive.h"
 #include "archive_platform_stat.h"
 #include "archive_private.h"
+#include "archive_read_private.h"
 #include "archive_string.h"
 
 #ifndef O_BINARY
@@ -356,6 +357,9 @@ file_open(struct archive *a, void *client_data)
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		/* Regular files act like disks. */
 		is_disk_like = 1;
+		if (((struct archive_read *)a)->client.nodes == 1)
+			__archive_read_set_clone_source((struct archive_read *)a,
+			    fd, lseek(fd, 0, SEEK_CUR));
 	}
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 	/* FreeBSD: if it supports DIOCGMEDIASIZE ioctl, it's disk-like. */
