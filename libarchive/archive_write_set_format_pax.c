@@ -1794,7 +1794,12 @@ build_gnu_sparse_name(char *dest, const char *src)
 	}
 
 	/* General case: build a ustar-compatible name adding
-	 * "/GNUSparseFile/". */
+	 * "/GNUSparseFile.0/". */
+
+	if (p == src) {
+		strcpy(dest, "/GNUSparseFile.0/rootdir");
+		return (dest);
+	}
 	build_ustar_entry_name(dest, src, p - src, "GNUSparseFile.0");
 
 	return (dest);
