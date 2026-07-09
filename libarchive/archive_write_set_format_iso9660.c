@@ -1427,8 +1427,8 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 		break;
 	case 'i':
 		if (strcmp(key, "iso-level") == 0) {
-			if (value != NULL && value[1] == '\0' &&
-			    (value[0] >= '1' && value[0] <= '4')) {
+			if (value != NULL && value[0] >= '1' &&
+			    value[0] <= '4' && value[1] == '\0') {
 				iso9660->opt.iso_level = value[0]-'0';
 				return (ARCHIVE_OK);
 			}
