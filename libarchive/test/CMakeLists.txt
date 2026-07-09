@@ -119,6 +119,7 @@ IF(ENABLE_TEST)
     test_read_format_ar.c
     test_read_format_cab.c
     test_read_format_cab_filename.c
+    test_read_format_cab_lzx_16bit.c
     test_read_format_cab_lzx_e8.c
     test_read_format_cab_lzx_oob.c
     test_read_format_cab_mszip_oob.c
