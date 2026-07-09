@@ -43,6 +43,7 @@ IF(ENABLE_TEST)
     test_archive_set_error.c
     test_archive_string.c
     test_archive_string_conversion.c
+    test_archive_string_conversion_overread.c
     test_archive_write_add_filter.c
     test_archive_write_add_filter_by_name.c
     test_archive_write_set_format_by_name.c

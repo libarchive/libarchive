@@ -2325,7 +2325,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 
 	remaining = length;
 	itp = (const uint8_t *)_p;
-	while (*itp && remaining > 0) {
+	while (remaining > 0 && *itp) {
 		if (*itp > 127) {
 			// Non-ASCII: Substitute with suitable replacement
 			if (sc->flag & SCONV_TO_UTF8) {
@@ -2340,6 +2340,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 			archive_strappend_char(as, *itp);
 		}
 		++itp;
+		--remaining;
 	}
 	return (return_value);
 }
