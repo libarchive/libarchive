@@ -31,11 +31,15 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
 #include "archive.h"
+#include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -86,6 +90,62 @@ pad_to(struct archive *a, int fd, int can_lseek,
 	return (ARCHIVE_OK);
 }
 
+static int
+copy_file_range_fast_path(struct archive *a, int fd, int64_t declared_size,
+    int dst_is_regular)
+{
+#ifdef HAVE_COPY_FILE_RANGE
+	struct archive_read *ar = (struct archive_read *)a;
+	int64_t remaining, source_offset;
+	off_t in_off;
+
+	if (!dst_is_regular || declared_size < 0)
+		return (ARCHIVE_FAILED);
+	source_offset = ar->entry_data_offset;
+	if (source_offset < 0)
+		return (ARCHIVE_FAILED);
+	in_off = (off_t)source_offset;
+	if ((int64_t)in_off != source_offset)
+		return (ARCHIVE_FAILED);
+
+	remaining = declared_size;
+	while (remaining > 0) {
+		size_t chunk = (uint64_t)remaining > SSIZE_MAX
+		    ? SSIZE_MAX : (size_t)remaining;
+		ssize_t n = copy_file_range(ar->client_fd, &in_off, fd, NULL,
+		    chunk, 0);
+
+		if (n < 0) {
+			if (errno == EINTR)
+				continue;
+			if (remaining == declared_size &&
+			    __archive_copy_file_range_unsupported(errno))
+				return (ARCHIVE_FAILED);
+			archive_set_error(a, errno, "copy_file_range failed");
+			return (ARCHIVE_FATAL);
+		}
+		if (n == 0) {
+			if (remaining == declared_size)
+				return (ARCHIVE_FAILED);
+			/* A partial copy cannot fall back safely. */
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated input file");
+			a->state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
+		remaining -= n;
+	}
+
+	return (archive_read_data_skip(a));
+#else
+	(void)a;
+	(void)fd;
+	(void)declared_size;
+	(void)dst_is_regular;
+	return (ARCHIVE_FAILED);
+#endif
+}
+
 
 int
 archive_read_data_into_fd(struct archive *a, int fd)
@@ -106,8 +166,11 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	    "archive_read_data_into_fd");
 
 	declared_size = ((struct archive_read *)a)->entry_bytes_declared;
-
 	can_lseek = (fstat(fd, &st) == 0) && S_ISREG(st.st_mode);
+	r = copy_file_range_fast_path(a, fd, declared_size, can_lseek);
+	if (r != ARCHIVE_FAILED)
+		return (r);
+
 	if (can_lseek) {
 		fd_offset = lseek(fd, 0, SEEK_CUR);
 		if (fd_offset == -1)

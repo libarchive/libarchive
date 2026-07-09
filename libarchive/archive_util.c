@@ -641,6 +641,15 @@ __archive_ensure_cloexec_flag(int fd)
 #endif
 }
 
+/* Errors suitable for buffered fallback. */
+int
+__archive_copy_file_range_unsupported(int errnum)
+{
+	return (errnum == ENOSYS || errnum == EXDEV
+	    || errnum == EOPNOTSUPP || errnum == EINVAL
+	    || errnum == EBADF || errnum == EPERM);
+}
+
 #if ARCHIVE_VERSION_NUMBER < 4000000
 /*
  * Utility functions to sort a group of strings using quicksort.

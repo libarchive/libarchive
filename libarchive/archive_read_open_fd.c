@@ -49,6 +49,7 @@
 
 #include "archive.h"
 #include "archive_platform_stat.h"
+#include "archive_read_private.h"
 
 struct read_fd_data {
 	int	 fd;
@@ -99,6 +100,8 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		mine->use_lseek = 1;
 		mine->size = st.st_size;
+		__archive_read_set_clone_source((struct archive_read *)a, fd,
+		    lseek(fd, 0, SEEK_CUR));
 	}
 #if defined(__CYGWIN__) || defined(_WIN32)
 	setmode(mine->fd, O_BINARY);
