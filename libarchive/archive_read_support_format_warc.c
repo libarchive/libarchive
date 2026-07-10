@@ -68,6 +68,7 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -105,9 +106,9 @@ typedef struct {
 
 struct warc_s {
 	/* content length ahead */
-	size_t cntlen;
+	int64_t cntlen;
 	/* and how much we've processed so far */
-	size_t cntoff;
+	int64_t cntoff;
 	/* and how much we need to consume between calls */
 	size_t unconsumed;
 
@@ -129,7 +130,7 @@ static int _warc_rdhdr(struct archive_read *a, struct archive_entry *e);
 static unsigned int _warc_rdver(const char *buf, size_t bsz);
 static unsigned int _warc_rdtyp(const char *buf, size_t bsz);
 static warc_string_t _warc_rduri(const char *buf, size_t bsz);
-static ssize_t _warc_rdlen(const char *buf, size_t bsz);
+static int64_t _warc_rdlen(const char *buf, size_t bsz);
 static time_t _warc_rdrtm(const char *buf, size_t bsz);
 static time_t _warc_rdmtm(const char *buf, size_t bsz);
 static const char *_warc_find_eoh(const char *buf, size_t bsz);
@@ -221,7 +222,7 @@ _warc_rdhdr(struct archive_read *a, struct archive_entry *entry)
 	/* warc record type, not that we really use it a lot */
 	warc_type_t ftyp;
 	/* content-length+error monad */
-	ssize_t cntlen;
+	int64_t cntlen;
 	/* record time is the WARC-Date time we reinterpret it as ctime */
 	time_t rtime;
 	/* mtime is the Last-Modified time which will be the entry's mtime */
@@ -301,7 +302,7 @@ start_over:
 	ftyp = _warc_rdtyp(buf, eoh - buf);
 	/* and let future calls know about the content */
 	w->cntlen = cntlen;
-	w->cntoff = 0U;
+	w->cntoff = 0;
 	mtime = 0;/* Avoid compiling error on some platform. */
 
 	switch (ftyp) {
@@ -421,7 +422,7 @@ _warc_read(struct archive_read *a, const void **buf, size_t *bsz, int64_t *off)
 		return (int)nrd;
 	} else if (nrd == 0) {
 		goto eof;
-	} else if ((size_t)nrd > w->cntlen - w->cntoff) {
+	} else if ((int64_t)nrd > w->cntlen - w->cntoff) {
 		/* clamp to content-length */
 		nrd = w->cntlen - w->cntoff;
 	}
@@ -448,8 +449,8 @@ _warc_skip(struct archive_read *a)
 	if (__archive_read_consume(a, w->cntlen - w->cntoff) < 0 ||
 	    __archive_read_consume(a, 4U/*\r\n\r\n separator*/) < 0)
 		return (ARCHIVE_FATAL);
-	w->cntlen = 0U;
-	w->cntoff = 0U;
+	w->cntlen = 0;
+	w->cntoff = 0;
 	return (ARCHIVE_OK);
 }
 
@@ -752,38 +753,45 @@ _warc_rduri(const char *buf, size_t bsz)
 	return res;
 }
 
-static ssize_t
+static int64_t
 _warc_rdlen(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nContent-Length:";
-	const char *val, *eol;
-	char *on = NULL;
-	long int len;
+	const char *val, *eol, *p;
+	int64_t len;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
 		/* no bother */
 		return -1;
 	}
 	val += sizeof(_key) - 1U;
+
 	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL) {
-		/* no end of line */
+		/* malformed, no end-of-line */
 		return -1;
 	}
 
 	/* skip leading whitespace */
 	while (val < eol && (*val == ' ' || *val == '\t'))
 		val++;
+
 	/* there must be at least one digit */
-	if (!isdigit((unsigned char)*val))
+	if (val >= eol || *val < '0' || *val > '9')
 		return -1;
-	errno = 0;
-	len = strtol(val, &on, 10);
-	if (errno != 0 || on != eol) {
-		/* line must end here */
-		return -1;
+
+	len = 0;
+	for (p = val; p < eol; p++) {
+		int64_t digit;
+
+		if (*p < '0' || *p > '9')
+			return -1;
+		digit = *p - '0';
+		if (archive_ckd_mul_i64(&len, len, 10) ||
+		    archive_ckd_add_i64(&len, len, digit))
+			return -1;
 	}
 
-	return (size_t)len;
+	return len;
 }
 
 static time_t
