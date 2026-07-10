@@ -3858,7 +3858,7 @@ execute_filter_audio(struct rar_filter *filter, struct rar_virtual_machine *vm)
       state.delta[0] = state.lastdelta;
       predbyte = ((8 * state.lastbyte + state.weight[0] * state.delta[0] + state.weight[1] * state.delta[1] + state.weight[2] * state.delta[2]) >> 3) & 0xFF;
       byte = (predbyte - delta) & 0xFF;
-      prederror = delta << 3;
+      prederror = delta * 8;
       state.error[0] += abs(prederror);
       state.error[1] += abs(prederror - state.delta[0]); state.error[2] += abs(prederror + state.delta[0]);
       state.error[3] += abs(prederror - state.delta[1]); state.error[4] += abs(prederror + state.delta[1]);

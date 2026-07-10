@@ -4191,7 +4191,7 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 		if (p >= limit)
 			break;
 		prevPosT = bufferPos - prevPosT;
-		if (prevPosT > 3)
+		if (prevPosT == 0 || prevPosT > 3)
 			prevMask = 0;
 		else {
 			prevMask = (prevMask << ((int)prevPosT - 1)) & 0x7;
