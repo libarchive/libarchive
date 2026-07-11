@@ -363,7 +363,7 @@ archive_compressor_xz_open(struct archive_write_filter *f)
 	ret = archive_compressor_xz_init_stream(f, data);
 	if (ret == LZMA_OK) {
 		f->data = data;
-		return (0);
+		return (ARCHIVE_OK);
 	}
 	return (ARCHIVE_FATAL);
 }

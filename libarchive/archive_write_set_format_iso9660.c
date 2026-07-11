@@ -6014,7 +6014,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	const int null_size = 1;
 
 	if (isoent->children.cnt == 0)
-		return (0);
+		return (ARCHIVE_OK);
 
 	iso9660 = a->format_data;
 	char_map = idr->char_map;
@@ -6271,7 +6271,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	const int null_size = 2;
 
 	if (isoent->children.cnt == 0)
-		return (0);
+		return (ARCHIVE_OK);
 
 	iso9660 = a->format_data;
 	if (iso9660->opt.joliet == OPT_JOLIET_LONGNAME)

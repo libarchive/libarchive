@@ -170,7 +170,7 @@ archive_filter_uuencode_open(struct archive_write_filter *f)
 	    (unsigned int)state->mode, state->name.s);
 
 	f->data = state;
-	return (0);
+	return (ARCHIVE_OK);
 }
 
 static void

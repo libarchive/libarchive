@@ -530,7 +530,7 @@ archive_write_shar_finish_entry(struct archive_write *a)
 
 	shar = (struct shar *)a->format_data;
 	if (shar->entry == NULL)
-		return (0);
+		return (ARCHIVE_OK);
 
 	if (shar->dump) {
 		/* Finish uuencoded data. */

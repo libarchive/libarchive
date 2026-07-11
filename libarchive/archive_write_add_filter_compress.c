@@ -200,7 +200,7 @@ archive_compressor_compress_open(struct archive_write_filter *f)
 	state->compressed_offset = 3;
 
 	f->data = state;
-	return (0);
+	return (ARCHIVE_OK);
 }
 
 /*-

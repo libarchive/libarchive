@@ -135,7 +135,7 @@ archive_write_set_bytes_per_block(struct archive *_a, int bytes_per_block)
 
 	if (bytes_per_block < 0) {
 		// Do nothing if the bytes_per_block is negative
-		return 0;
+		return ARCHIVE_OK;
 	}
 	a->bytes_per_block = bytes_per_block;
 	return (ARCHIVE_OK);
