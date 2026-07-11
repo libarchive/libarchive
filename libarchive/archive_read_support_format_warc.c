@@ -192,11 +192,8 @@ _warc_bid(struct archive_read *a, int best_bid)
 	(void)best_bid; /* UNUSED */
 
 	/* Check the first line, which should already be a record header. */
-	if ((hdr = __archive_read_ahead(a, 12U, &nrd)) == NULL) {
+	if ((hdr = __archive_read_ahead(a, 12, &nrd)) == NULL) {
 		/* Not enough data to identify this format. */
-		return -1;
-	} else if (nrd < 12) {
-		/* Not WARC; the magic string is at least 12 bytes. */
 		return -1;
 	}
 
