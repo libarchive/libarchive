@@ -369,6 +369,7 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	struct archive_string_conv *sconv;
 	size_t namelength;
 	size_t name_pad;
+	int is_trailer;
 	int r;
 
 	cpio = (struct cpio *)(a->format->data);
@@ -411,6 +412,9 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		    archive_string_conversion_charset_name(sconv));
 		r = ARCHIVE_WARN;
 	}
+	/* Save this before consuming the name buffer below. */
+	is_trailer = (namelength == 11 &&
+	    memcmp((const char *)h, "TRAILER!!!", 10) == 0);
 	cpio->entry_offset = 0;
 
 	__archive_read_consume(a, namelength);
@@ -451,8 +455,7 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	 * header.  XXX */
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
-	if (namelength == 11 && strncmp((const char *)h, "TRAILER!!!",
-	    10) == 0) {
+	if (is_trailer) {
 		/* TODO: Store file location of start of block. */
 		archive_clear_error(&a->archive);
 		return (ARCHIVE_EOF);
