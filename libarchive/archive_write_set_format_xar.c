@@ -322,6 +322,7 @@ static int	file_register_hardlink(struct archive_write *,
 static void	file_connect_hardlink_files(struct xar *);
 static void	file_init_hardlinks(struct xar *);
 static void	file_free_hardlinks(struct xar *);
+static void	file_reset_write_state(struct file *);
 
 static void	checksum_init(struct chksumwork *, enum sumalg);
 static void	checksum_update(struct chksumwork *, const void *, size_t);
@@ -636,6 +637,8 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 			xar->temp_offset = algsize;
 		}
 	}
+
+	file_reset_write_state(file);
 
 	if (archive_entry_hardlink(file->entry) == NULL) {
 		r = save_xattrs(a, file);
@@ -2633,6 +2636,22 @@ file_free_hardlinks(struct xar *xar)
 		__archive_rb_tree_remove_node(&(xar->hardlink_rbtree), n);
 		free(n);
 	}
+}
+
+static void
+file_reset_write_state(struct file *file)
+{
+	struct heap_data *hp, *hp_next;
+
+	for (hp = file->xattr.first; hp != NULL; hp = hp_next) {
+		hp_next = hp->next;
+		free(hp);
+	}
+	file->xattr.first = NULL;
+	file->xattr.last = &(file->xattr.first);
+	file->ea_idx = 0;
+	memset(&(file->data), 0, sizeof(file->data));
+	archive_string_empty(&(file->script));
 }
 
 static void

@@ -1104,6 +1104,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_xar_doublelink.xar.uu \
 	libarchive/test/test_read_format_xar_duplicate_filename_node.xar.uu \
 	libarchive/test/test_read_format_xar_large_mode.xar.uu \
+	libarchive/test/test_read_format_xar_stream_end_eof.xar.uu \
+	libarchive/test/test_read_format_xar_stream_end_trunc.xar.uu \
+	libarchive/test/test_read_format_xar_toc_stream_end.xar.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.zip.uu \
 	libarchive/test/test_read_format_zip_7z_deflate.zip.uu \

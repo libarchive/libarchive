@@ -1040,3 +1040,100 @@ DEFINE_TEST(test_read_format_xar_atou64_overread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * The declared length runs past the end of the compressed stream, so the
+ * decompressor stalls after the first byte.  The reader must reject the
+ * entry instead of looping forever.
+ */
+DEFINE_TEST(test_read_format_xar_stream_end_eof)
+{
+	const char *reffile = "test_read_format_xar_stream_end_eof.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+	char buf[64];
+
+	extract_reference_file(reffile);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(".t1", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buf, sizeof(buf)));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * The compressed stream ends before the declared size is produced, so the
+ * decompressor stalls on the first read.  The reader must reject the entry.
+ */
+DEFINE_TEST(test_read_format_xar_stream_end_trunc)
+{
+	const char *reffile = "test_read_format_xar_stream_end_trunc.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+	char buf[64];
+
+	extract_reference_file(reffile);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 10240));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buf, sizeof(buf)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * The table of contents is compressed, and its declared length runs past
+ * the end of the stream.  Only the expat/bsdxml backend loops on this
+ * input; the libxml2 backend stops on its own, so skip it there.
+ */
+DEFINE_TEST(test_read_format_xar_toc_stream_end)
+{
+#if defined(HAVE_LIBXML_XMLREADER_H)
+	skipping("xar TOC stall only affects the expat/bsdxml backend");
+#else
+	const char *reffile = "test_read_format_xar_toc_stream_end.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 10240));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
+}
