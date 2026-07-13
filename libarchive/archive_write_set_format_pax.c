@@ -45,6 +45,8 @@
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
+#define PAX_MAX_ALIGN (1U << 20)
+
 struct sparse_block {
 	struct sparse_block	*next;
 	int		is_hole;
@@ -64,6 +66,10 @@ struct pax {
 	struct archive_string_conv *sconv_utf8;
 	int			 opt_binary;
 
+	/* If non-zero, align regular file data to this many bytes in the
+	 * uncompressed stream (power of two, multiple of 512). */
+	size_t			 align;
+
 	unsigned flags;
 #define WRITE_SCHILY_XATTR       (1 << 0)
 #define WRITE_LIBARCHIVE_XATTR   (1 << 1)
@@ -79,6 +85,8 @@ static void		 add_pax_attr_int(struct archive_string *,
 static void		 add_pax_attr_time(struct archive_string *,
 			     const char *key, int64_t sec,
 			     unsigned long nanos);
+static size_t		 add_pax_padding_prefix(struct archive_string *,
+			     size_t cur_len, size_t target_len);
 static int		 add_pax_acl(struct archive_write *,
 			    struct archive_entry *, struct pax *, int);
 static ssize_t		 archive_write_pax_data(struct archive_write *,
@@ -90,6 +98,7 @@ static int		 archive_write_pax_header(struct archive_write *,
 			     struct archive_entry *);
 static int		 archive_write_pax_options(struct archive_write *,
 			     const char *, const char *);
+static int		 write_pax_padding(struct archive_write *, size_t);
 static char		*base64_encode(const char *src, size_t len);
 static char		*build_gnu_sparse_name(char *dest, const char *src);
 static char		*build_pax_attribute_name(char *dest, const char *src);
@@ -223,6 +232,25 @@ archive_write_pax_options(struct archive_write *a, const char *key,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "pax: invalid xattr header name");
 		return (ret);
+	} else if (strcmp(key, "align") == 0) {
+		unsigned long v;
+		char *end;
+
+		if (val == NULL || val[0] == 0) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "pax: align option needs a value");
+			return (ARCHIVE_FAILED);
+		}
+		v = strtoul(val, &end, 10);
+		if (*end != '\0' || v == 0 || (v % 512) != 0 ||
+		    (v & (v - 1)) != 0 || v > PAX_MAX_ALIGN) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "pax: align must be a power of two, a multiple "
+			    "of 512, and no larger than 1 MiB");
+			return (ARCHIVE_FAILED);
+		}
+		pax->align = (size_t)v;
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -359,6 +387,81 @@ add_pax_attr_binary(struct archive_string *as, const char *key,
 	archive_strappend_char(as, '=');
 	archive_array_append(as, value, value_len);
 	archive_strappend_char(as, '\n');
+}
+
+/*
+ * Append the length/key prefix of an ignorable "LIBARCHIVE.pad" record whose
+ * full length rounds the pax body up to 'target_len'.  Return the number of
+ * value/newline bytes that must be emitted after the in-memory header.
+ */
+static size_t
+add_pax_padding_prefix(struct archive_string *as, size_t cur_len,
+    size_t target_len)
+{
+	static const char key[] = "LIBARCHIVE.pad";
+	char tmp[1 + 3 * sizeof(int64_t)];
+	char *length;
+	size_t prefix_len, record_len;
+
+	if (target_len <= cur_len)
+		return (0);
+	record_len = target_len - cur_len;
+	tmp[sizeof(tmp) - 1] = 0;
+	length = format_int(tmp + sizeof(tmp) - 1, (int64_t)record_len);
+	prefix_len = strlen(length) + 1 + sizeof(key) - 1 + 1;
+	if (record_len <= prefix_len)
+		return (0); /* not enough room; leave unaligned */
+
+	archive_strcat(as, length);
+	archive_strappend_char(as, ' ');
+	archive_strcat(as, key);
+	archive_strappend_char(as, '=');
+	return (record_len - prefix_len);
+}
+
+/* Emit a deferred pax padding value followed by its record newline. */
+static int
+write_pax_padding(struct archive_write *a, size_t length)
+{
+	char padding[1024];
+
+	if (length == 0)
+		return (ARCHIVE_OK);
+	memset(padding, 'X', sizeof(padding));
+	while (length > 1) {
+		size_t to_write = length - 1;
+		int r;
+
+		if (to_write > sizeof(padding))
+			to_write = sizeof(padding);
+		r = __archive_write_output(a, padding, to_write);
+		if (r != ARCHIVE_OK)
+			return (r);
+		length -= to_write;
+	}
+	return (__archive_write_output(a, "\n", 1));
+}
+
+/*
+ * For the pax "align" option: given entry offset 'off' (a multiple of 512) and
+ * current extended-header body length 'l0', return the body length needed so
+ * the file data (after the x header) lands on 'align', or 'l0' if already
+ * aligned.
+ */
+static size_t
+pax_align_body_len(uint64_t off, size_t l0, size_t align)
+{
+	uint64_t amask = (uint64_t)align - 1;
+	/* Data offset with no extra padding (no x header when l0 == 0). */
+	uint64_t natural_off = (l0 == 0) ? off + 512
+	    : off + 1024 + (((uint64_t)l0 + 511) & ~(uint64_t)511);
+
+	if ((natural_off & amask) == 0)
+		return (l0);
+
+	/* Grow the body (past l0 plus pad-record room) to land data on align. */
+	uint64_t base = off + 1024;
+	return ((size_t)(((base + l0 + 64 + amask) & ~amask) - base));
 }
 
 static void
@@ -593,6 +696,7 @@ archive_write_pax_header(struct archive_write *a,
 	size_t mac_metadata_size;
 	struct archive_string_conv *sconv;
 	size_t hardlink_length, path_length, linkpath_length;
+	size_t pax_header_padding = 0;
 	size_t uname_length, gname_length;
 
 	char paxbuff[512];
@@ -1403,6 +1507,21 @@ archive_write_pax_header(struct archive_write *a,
 		return (ARCHIVE_FATAL);
 	}
 
+	/* Pad the extended header so contiguous file data starts on a pax->align
+	 * boundary (for reflinking); short and sparse files are left alone. */
+	if (pax->align > 0
+	    && archive_entry_filetype(entry_main) == AE_IFREG
+	    && hardlink == NULL
+	    && sparse_count == 0
+	    && real_size >= (uint64_t)pax->align) {
+		size_t l0 = archive_strlen(&(pax->pax_header));
+		size_t needed = pax_align_body_len(
+		    (uint64_t)a->filter_first->bytes_written, l0, pax->align);
+		if (needed != l0)
+			pax_header_padding = add_pax_padding_prefix(
+			    &(pax->pax_header), l0, needed);
+	}
+
 	/* If we built any extended attributes, write that entry first. */
 	if (archive_strlen(&(pax->pax_header)) > 0) {
 		struct archive_entry *pax_attr_entry;
@@ -1423,7 +1542,8 @@ archive_write_pax_header(struct archive_write *a,
 		archive_entry_set_pathname(pax_attr_entry,
 		    build_pax_attribute_name(pax_entry_name, p));
 		archive_entry_set_size(pax_attr_entry,
-		    archive_strlen(&(pax->pax_header)));
+		    archive_strlen(&(pax->pax_header)) +
+		    pax_header_padding);
 		/* Copy uid/gid (but clip to ustar limits). */
 		uid = archive_entry_uid(entry_main);
 		if (uid >= 1 << 18)
@@ -1489,7 +1609,8 @@ archive_write_pax_header(struct archive_write *a,
 			return (ARCHIVE_FATAL);
 		}
 
-		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header));
+		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header)) +
+		    pax_header_padding;
 		pax->entry_padding =
 		    0x1ff & (-(int64_t)pax->entry_bytes_remaining);
 
@@ -1497,6 +1618,12 @@ archive_write_pax_header(struct archive_write *a,
 		    archive_strlen(&(pax->pax_header)));
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
+			archive_entry_free(entry_main);
+			archive_string_free(&entry_name);
+			return (ARCHIVE_FATAL);
+		}
+		r = write_pax_padding(a, pax_header_padding);
+		if (r != ARCHIVE_OK) {
 			archive_entry_free(entry_main);
 			archive_string_free(&entry_name);
 			return (ARCHIVE_FATAL);
