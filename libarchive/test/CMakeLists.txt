@@ -141,6 +141,7 @@ IF(ENABLE_TEST)
     test_read_format_cpio_svr4_gzip.c
     test_read_format_cpio_svr4_gzip_rpm.c
     test_read_format_cpio_svr4c_Z.c
+    test_read_format_cpio_symlink_trailer.c
     test_read_format_empty.c
     test_read_format_gtar_filename.c
     test_read_format_gtar_gz.c

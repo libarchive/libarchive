@@ -512,6 +512,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_cpio_svr4_gzip.c \
 	libarchive/test/test_read_format_cpio_svr4_gzip_rpm.c \
 	libarchive/test/test_read_format_cpio_svr4c_Z.c \
+	libarchive/test/test_read_format_cpio_symlink_trailer.c \
 	libarchive/test/test_read_format_empty.c \
 	libarchive/test/test_read_format_gtar_filename.c \
 	libarchive/test/test_read_format_gtar_gz.c \
@@ -936,6 +937,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cpio_filename_utf8_ru.cpio.uu \
 	libarchive/test/test_read_format_cpio_svr4_bzip2_rpm.rpm.uu \
 	libarchive/test/test_read_format_cpio_svr4_gzip_rpm.rpm.uu \
+	libarchive/test/test_read_format_cpio_symlink_trailer.cpio.uu \
 	libarchive/test/test_read_format_gtar_filename_cp866.tar.Z.uu \
 	libarchive/test/test_read_format_gtar_filename_eucjp.tar.Z.uu \
 	libarchive/test/test_read_format_gtar_filename_koi8r.tar.Z.uu \
