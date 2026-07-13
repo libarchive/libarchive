@@ -1040,3 +1040,38 @@ DEFINE_TEST(test_read_format_xar_atou64_overread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * parse_time() reads a fixed 20-byte timestamp and handed atou64() a width
+ * of 4 for every field.  The trailing seconds field sits at offset 17, so a
+ * value whose last three bytes are all digits (here "...00:00:123") made
+ * atou64() read one byte past the 20-byte value.  This archive carries such
+ * an <mtime>; reading it must stay within the value.
+ */
+DEFINE_TEST(test_read_format_xar_parse_time_overread)
+{
+	const char *reffile = "test_read_format_xar_parse_time_overread.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("num", archive_entry_pathname(ae));
+	assertEqualInt(1234567890, archive_entry_ino64(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

@@ -1164,31 +1164,31 @@ parse_time(const char *p, size_t n)
 	p += 4;
 	if (*p++ != '-')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data < 1 || data > 12)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data < 1 || data > 12)
 		return (t);
 	tm.tm_mon = (int)data -1;
 	p += 2;
 	if (*p++ != '-')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data < 1 || data > 31)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data < 1 || data > 31)
 		return (t);
 	tm.tm_mday = (int)data;
 	p += 2;
 	if (*p++ != 'T')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data > 23)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data > 23)
 		return (t);
 	tm.tm_hour = (int)data;
 	p += 2;
 	if (*p++ != ':')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data > 59)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data > 59)
 		return (t);
 	tm.tm_min = (int)data;
 	p += 2;
 	if (*p++ != ':')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data > 60)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data > 60)
 		return (t);
 	tm.tm_sec = (int)data;
 #if 0
