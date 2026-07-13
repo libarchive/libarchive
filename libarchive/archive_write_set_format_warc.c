@@ -313,8 +313,15 @@ _warc_finish_entry(struct archive_write *a)
 	struct warc_s *w = a->format_data;
 
 	if (w->typ == AE_IFREG) {
-		int rc = __archive_write_output(a, _eor, sizeof(_eor) - 1U);
+		int rc;
 
+		if (w->entry_bytes_remaining != 0U) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "WARC entry is shorter than Content-Length");
+			return (ARCHIVE_FATAL);
+		}
+
+		rc = __archive_write_output(a, _eor, sizeof(_eor) - 1U);
 		if (rc != ARCHIVE_OK) {
 			return rc;
 		}
