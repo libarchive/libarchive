@@ -13,7 +13,7 @@ jobs:
         bs: [autotools, cmake]
     steps:
     - name: Build and test on a FreeBSD 15 firecracker VM
-      uses: acj/freebsd-firecracker-action@da029f050a7a2535fce96385727cf3d5768bd8bf # v0.10.1
+      uses: acj/freebsd-firecracker-action@53cfec625fd81cfb34160e6d9ec19c9d9baa8adf # v0.10.3
       with:
         run-in-vm: |
           chflags -R noschg / && \
