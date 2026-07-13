@@ -370,7 +370,9 @@ verify_sparse_file(struct archive *a, const char *path,
 		/* Block that overlaps beginning of data */
 		if (expected_offset < offset
 		    && expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
-			const char *end = (const char *)buff + (expected_offset - offset) + (size_t)sparse->size;
+			/* Avoid forming an intermediate pointer before buff. */
+			const char *end = (const char *)buff
+			    + ((expected_offset - offset) + (int64_t)sparse->size);
 #if DEBUG
 			fprintf(stderr, "    overlapping hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
 #endif
@@ -385,7 +387,8 @@ verify_sparse_file(struct archive *a, const char *path,
 		}
 		/* Blocks completely contained in data we just read. */
 		while (expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
-			const char *end = (const char *)buff + (expected_offset - offset) + (size_t)sparse->size;
+			const char *end = (const char *)buff
+			    + ((expected_offset - offset) + (int64_t)sparse->size);
 			if (sparse->type == HOLE) {
 #if DEBUG
 				fprintf(stderr, "    contained hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
