@@ -723,6 +723,8 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
 			continue;
 		edit_mtime(bsdtar, in_entry);
+		/* Apply --xattrs-include / --xattrs-exclude masks. */
+		edit_xattrs(bsdtar, in_entry);
 		if (bsdtar->verbose > 1) {
 			safe_fprintf(stderr, "a ");
 			list_item_verbose(bsdtar, stderr, in_entry);
@@ -951,6 +953,9 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 
 		/* Rewrite the mtime. */
 		edit_mtime(bsdtar, entry);
+
+		/* Apply --xattrs-include / --xattrs-exclude masks. */
+		edit_xattrs(bsdtar, entry);
 
 		/* Display entry as we process it. */
 		if (bsdtar->verbose > 1) {

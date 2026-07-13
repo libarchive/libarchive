@@ -336,6 +336,9 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			if (edit_pathname(bsdtar, entry))
 				continue; /* Excluded by a rewrite failure. */
 
+			/* Apply --xattrs-include / --xattrs-exclude masks. */
+			edit_xattrs(bsdtar, entry);
+
 			if ((bsdtar->flags & OPTFLAG_INTERACTIVE) &&
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;
