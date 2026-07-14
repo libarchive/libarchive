@@ -415,7 +415,7 @@ static int	archive_read_format_cab_read_data_skip(struct archive_read *);
 static int	archive_read_format_cab_cleanup(struct archive_read *);
 
 static int	cab_skip_sfx(struct archive_read *);
-static time_t	cab_dos_time(const unsigned char *);
+static time_t	cab_dos_time(const char *);
 static int	cab_read_data(struct archive_read *, const void **,
 		    size_t *, int64_t *);
 static int	cab_read_header(struct archive_read *);
@@ -641,19 +641,21 @@ truncated_error(struct archive_read *a)
 	return (ARCHIVE_FATAL);
 }
 
-static ssize_t
-cab_strnlen(const unsigned char *p, size_t maxlen)
+#ifdef HAVE_STRNLEN
+#define cab_strnlen(a,b) strnlen(a,b)
+#else
+static size_t
+cab_strnlen(const char *p, size_t maxlen)
 {
 	size_t i;
 
-	for (i = 0; i <= maxlen; i++) {
+	for (i = 0; i < maxlen; i++) {
 		if (p[i] == 0)
 			break;
 	}
-	if (i > maxlen)
-		return (-1);/* invalid */
-	return ((ssize_t)i);
+	return (i);
 }
+#endif
 
 /* Read up to max remaining bytes. */
 static const void *
@@ -723,11 +725,11 @@ cab_convert_path_separator_2(struct cab *cab, struct archive_entry *entry)
 static int
 cab_read_header(struct archive_read *a)
 {
-	const unsigned char *p;
+	const char *p;
 	struct cab *cab;
 	struct cfheader *hd;
-	size_t bytes, used;
-	ssize_t avail, len;
+	size_t bytes, len, maxlen, used;
+	ssize_t avail;
 	int64_t skip;
 	int err, i;
 	int cur_folder, prev_folder;
@@ -792,7 +794,9 @@ cab_read_header(struct archive_read *a)
 		if ((p = cab_read_ahead_remaining(a, used + 256,
 		    &avail)) == NULL || (size_t)avail <= used)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p + used, avail - used - 1)) <= 0) {
+		maxlen = avail - used;
+		len = cab_strnlen(p + used, maxlen);
+		if (len == 0 || len == maxlen) {
 			goto invalid;
 		}
 		used += len + 1;
@@ -800,7 +804,9 @@ cab_read_header(struct archive_read *a)
 		if ((p = cab_read_ahead_remaining(a, used + 256,
 		    &avail)) == NULL || (size_t)avail <= used)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p + used, avail - used - 1)) < 0)
+		maxlen = avail - used;
+		len = cab_strnlen(p + used, maxlen);
+		if (len == maxlen)
 			goto invalid;
 		used += len + 1;
 	}
@@ -809,14 +815,18 @@ cab_read_header(struct archive_read *a)
 		if ((p = cab_read_ahead_remaining(a, used + 256,
 		    &avail)) == NULL || (size_t)avail <= used)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p + used, avail - used - 1)) <= 0)
+		maxlen = avail - used;
+		len = cab_strnlen(p + used, maxlen);
+		if (len == 0 || len == maxlen)
 			goto invalid;
 		used += len + 1;
 		/* How many bytes are used for szDiskNext. */
 		if ((p = cab_read_ahead_remaining(a, used + 256,
 		    &avail)) == NULL || (size_t)avail <= used)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p + used, avail - used - 1)) < 0)
+		maxlen = avail - used;
+		len = cab_strnlen(p + used, maxlen);
+		if (len == maxlen)
 			goto invalid;
 		used += len + 1;
 	}
@@ -911,7 +921,9 @@ cab_read_header(struct archive_read *a)
 		cab->cab_offset += 16;
 		if ((p = cab_read_ahead_remaining(a, 256, &avail)) == NULL)
 			return (truncated_error(a));
-		if ((len = cab_strnlen(p, avail-1)) <= 0)
+		maxlen = avail;
+		len = cab_strnlen(p, maxlen);
+		if (len == 0 || len == maxlen)
 			goto invalid;
 
 		/* Copy a pathname.  */
@@ -2147,7 +2159,7 @@ archive_read_format_cab_cleanup(struct archive_read *a)
 
 /* Convert an MSDOS-style date/time into Unix-style time. */
 static time_t
-cab_dos_time(const unsigned char *p)
+cab_dos_time(const char *p)
 {
 	int msTime, msDate;
 	struct tm ts;
