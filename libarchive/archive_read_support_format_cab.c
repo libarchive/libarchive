@@ -896,7 +896,8 @@ cab_read_header(struct archive_read *a)
 		return (ARCHIVE_FATAL);
 	}
 	if (skip) {
-		__archive_read_consume(a, skip);
+		if (__archive_read_consume(a, skip) < 0)
+			return (truncated_error(a));
 		cab->cab_offset += skip;
 	}
 	/* Allocate memory for CFDATA */
