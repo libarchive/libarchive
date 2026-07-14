@@ -1646,24 +1646,9 @@ is_mac_metadata_entry(struct archive_entry *entry) {
 	const char *p, *name;
 	const wchar_t *wp, *wname;
 
-	wname = wp = archive_entry_pathname_w(entry);
-	if (wp != NULL) {
+	name = p = archive_entry_pathname(entry);
+	if (p != NULL) {
 		/* Find the last path element. */
-		for (; *wp != L'\0'; ++wp) {
-			if (wp[0] == '/' && wp[1] != L'\0')
-				wname = wp + 1;
-		}
-		/*
-		 * If last path element starts with "._", then
-		 * this is a Mac extension.
-		 */
-		if (wname[0] == L'.' && wname[1] == L'_' && wname[2] != L'\0')
-			return 1;
-	} else {
-		/* Find the last path element. */
-		name = p = archive_entry_pathname(entry);
-		if (p == NULL)
-			return (ARCHIVE_FAILED);
 		for (; *p != '\0'; ++p) {
 			if (p[0] == '/' && p[1] != '\0')
 				name = p + 1;
@@ -1673,6 +1658,21 @@ is_mac_metadata_entry(struct archive_entry *entry) {
 		 * this is a Mac extension.
 		 */
 		if (name[0] == '.' && name[1] == '_' && name[2] != '\0')
+			return 1;
+	} else {
+		/* Find the last path element. */
+		wname = wp = archive_entry_pathname_w(entry);
+		if (wp == NULL)
+			return 0;
+		for (; *wp != L'\0'; ++wp) {
+			if (wp[0] == L'/' && wp[1] != L'\0')
+				wname = wp + 1;
+		}
+		/*
+		 * If last path element starts with "._", then
+		 * this is a Mac extension.
+		 */
+		if (wname[0] == L'.' && wname[1] == L'_' && wname[2] != L'\0')
 			return 1;
 	}
 	/* Not a mac extension */
