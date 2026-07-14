@@ -193,6 +193,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 	/* Emit the warcinfo record if needed. */
 	if (!w->omit_warcinfo) {
 		ssize_t r;
+		int rc;
 		warc_essential_hdr_t wi = {
 			WT_INFO,
 			/* URI */NULL,
@@ -207,17 +208,27 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 
 		archive_string_init(&hdr);
 		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, wi);
-		if (r >= 0) {
-			/* Header was populated successfully. */
-			/* Reuse the header buffer for the warcinfo payload. */
-			archive_strncat(&hdr, warcinfo, sizeof(warcinfo) -1);
-
-			/* Append the end-of-record indicator. */
-			archive_strncat(&hdr, "\r\n\r\n", 4);
-
-			/* Write the warcinfo record to the output stream. */
-			__archive_write_output(a, hdr.s, archive_strlen(&hdr));
+		if (r < 0) {
+			archive_string_free(&hdr);
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Cannot archive warcinfo record");
+			return (ARCHIVE_FAILED);
 		}
+
+		/* Reuse the header buffer for the warcinfo payload. */
+		archive_strncat(&hdr, warcinfo, sizeof(warcinfo) -1);
+
+		/* Append the end-of-record indicator. */
+		archive_strncat(&hdr, "\r\n\r\n", 4);
+
+		/* Write the warcinfo record to the output stream. */
+		rc = __archive_write_output(a, hdr.s, archive_strlen(&hdr));
+		if (rc != ARCHIVE_OK) {
+			archive_string_free(&hdr);
+			return (rc);
+		}
+
 		/* Mark the file header as written. */
 		w->omit_warcinfo = 1U;
 		archive_string_free(&hdr);
@@ -242,6 +253,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			/* Content length */0,
 		};
 		ssize_t r;
+		int rc;
 		int64_t size;
 		rh.tgturi = archive_entry_pathname(entry);
 		rh.rtime = w->now;
@@ -267,11 +279,15 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			archive_set_error(
 				&a->archive,
 				ARCHIVE_ERRNO_FILE_FORMAT,
-				"cannot archive file");
-			return (ARCHIVE_WARN);
+				"WARC resource header is too large");
+			return (ARCHIVE_FATAL);
 		}
 		/* Append the header to the output stream. */
-		__archive_write_output(a, hdr.s, r);
+		rc = __archive_write_output(a, hdr.s, r);
+		if (rc != ARCHIVE_OK) {
+			archive_string_free(&hdr);
+			return (rc);
+		}
 		/* Save the remaining size for subsequent _data() calls. */
 		w->entry_bytes_remaining = rh.cntlen;
 		archive_string_free(&hdr);

@@ -197,3 +197,55 @@ DEFINE_TEST(test_write_format_warc_incomplete)
 	    archive_error_string(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
+
+DEFINE_TEST(test_write_format_warc_warcinfo_output_error)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[1];
+	size_t used;
+
+	memset(buff, 0, sizeof(buff));
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_warc(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 1);
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
+
+DEFINE_TEST(test_write_format_warc_resource_output_error)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[1];
+	size_t used;
+
+	memset(buff, 0, sizeof(buff));
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_warc(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_format_option(a, NULL, "omit-warcinfo", NULL));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "test");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 1);
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
