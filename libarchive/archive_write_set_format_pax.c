@@ -2134,9 +2134,16 @@ base64_encode(const char *s, size_t len)
 	      '8','9','+','/' };
 	uint32_t v;
 	char *d, *out;
+	size_t out_len;
 
 	/* 3 bytes becomes 4 chars, but round up and allow for trailing NUL */
-	out = malloc((len * 4 + 2) / 3 + 1);
+	if (archive_ckd_mul_size(&out_len, len, 4) ||
+	    archive_ckd_add_size(&out_len, out_len, 2))
+		return (NULL);
+	out_len = out_len / 3;
+	if (archive_ckd_add_size(&out_len, out_len, 1))
+		return (NULL);
+	out = malloc(out_len);
 	if (out == NULL)
 		return (NULL);
 	d = out;
