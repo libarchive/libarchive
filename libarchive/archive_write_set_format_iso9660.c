@@ -6059,16 +6059,18 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	for (np = isoent->children.first; np != NULL; np = np->chnext) {
 		char *dot, *xdot;
 		int ext_off, noff, weight;
+		size_t basename_length = np->file->basename.length;
 
-		l = (int)np->file->basename.length;
-		p = malloc(l + num_size + dot_size + version_size + null_size);
+		l = basename_length > INT_MAX ? INT_MAX : (int)basename_length;
+		p = malloc(basename_length + num_size + dot_size
+		    + version_size + null_size);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
 			return (ARCHIVE_FATAL);
 		}
-		memcpy(p, np->file->basename.s, l);
-		p[l] = '\0';
+		memcpy(p, np->file->basename.s, basename_length);
+		p[basename_length] = '\0';
 		np->identifier = p;
 
 		dot = xdot = NULL;
