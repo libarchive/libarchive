@@ -2921,10 +2921,10 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 			extra_tell_used_size(&ctl, length);
 			if (extra_space(&ctl) < 6) {
 				bp = extra_next_record(&ctl, 6);
-				nmmax = extra_space(&ctl);
-				if (nmmax > 0xff)
-					nmmax = 0xff;
 			}
+			nmmax = extra_space(&ctl);
+			if (nmmax > 0xff)
+				nmmax = 0xff;
 			if (bp != NULL) {
 				bp[1] = 'N';
 				bp[2] = 'M';
