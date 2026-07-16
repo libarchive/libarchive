@@ -6062,15 +6062,15 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 		size_t basename_length = np->file->basename.length;
 
 		l = basename_length > INT_MAX ? INT_MAX : (int)basename_length;
-		p = malloc(basename_length + num_size + dot_size
+		p = malloc((size_t)l + num_size + dot_size
 		    + version_size + null_size);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
 			return (ARCHIVE_FATAL);
 		}
-		memcpy(p, np->file->basename.s, basename_length);
-		p[basename_length] = '\0';
+		memcpy(p, np->file->basename.s, (size_t)l);
+		p[l] = '\0';
 		np->identifier = p;
 
 		dot = xdot = NULL;
