@@ -354,7 +354,7 @@ system_unlink(const char *pathname) {
 
 /*
  * Create the specified directory with the specified mode, taking certain
- * precautions on they way.
+ * precautions on the way.
  */
 static void
 make_dir(const char *path, int mode)

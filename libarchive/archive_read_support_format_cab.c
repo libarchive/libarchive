@@ -179,7 +179,7 @@ struct lzx_dec {
 #define ST_COPY			22
 
 	/*
-	 * Window to see last decoded data, from 32KBi to 2MBi.
+	 * Window to see last decoded data, from 32 KiB to 2 MiB.
 	 */
 	size_t			 w_size;
 	size_t			 w_mask;
@@ -1405,7 +1405,7 @@ cab_next_cfdata(struct archive_read *a)
 			}
 		}
 		/* If CFDATA is not last in a folder, an uncompressed
-		 * size must be 0x8000(32KBi) */
+		 * size must be 0x8000 (32 KiB) */
 		if ((cab->entry_cffolder->cfdata_index <
 		     cab->entry_cffolder->cfdata_count) &&
 		       cfdata->uncompressed_size != MAX_UNCOMPRESS_SIZE)
@@ -2210,7 +2210,7 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 	ds = strm->ds;
 	ds->error = ARCHIVE_FAILED;
 
-	/* Allow bits from 15(32KBi) up to 21(2MBi) */
+	/* Allow bits from 15 (32 KiB) up to 21 (2 MiB) */
 	if (w_bits < SLOT_BASE || w_bits > SLOT_MAX)
 		return (ARCHIVE_FAILED);
 
@@ -2682,7 +2682,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			/* FALL THROUGH */
 		case ST_COPY_UNCOMP1:
 			/*
-			 * Copy bytes form next_in to next_out directly.
+			 * Copy bytes from next_in to next_out directly.
 			 */
 			while (ds->block_bytes_avail) {
 				size_t l;

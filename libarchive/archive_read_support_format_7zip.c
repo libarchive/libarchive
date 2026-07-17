@@ -3332,7 +3332,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	next_header_crc = archive_le32dec(p + 28);
 
 	if (next_header_size == 0)
-		/* There is no entry in an archive file. */
+		/* There is no entry in the archive file. */
 		return (ARCHIVE_EOF);
 
 	__archive_read_consume(a, 32);

@@ -4348,7 +4348,7 @@ static int rar5_read_data_skip(struct archive_read *a) {
 		 * extract it, and dispose the result. The side effect of this
 		 * operation will be setting up the initial window buffer state
 		 * needed to be able to extract the selected file. Note that
-		 * this is only possible when data withing this solid block is
+		 * this is only possible when data within this solid block is
 		 * not encrypted, in which case we'll skip and fail if the user
 		 * tries to read data. */
 

@@ -800,7 +800,7 @@ archive_read_header_position(struct archive *_a)
 
 /*
  * Returns 1 if the archive contains at least one encrypted entry.
- * If the archive format not support encryption at all
+ * If the archive format does not support encryption at all,
  * ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED is returned.
  * If for any other reason (e.g. not enough data read so far)
  * we cannot say whether there are encrypted entries, then
