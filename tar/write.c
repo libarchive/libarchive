@@ -598,8 +598,8 @@ cleanup:
 	bsdtar->diskreader = NULL;
 
 	if (bsdtar->flags & OPTFLAG_TOTALS) {
-		fprintf(stderr, "Total bytes written: %s\n",
-		    tar_i64toa(archive_filter_bytes(a, -1)));
+		fprintf(stderr, "Total bytes written: %jd\n",
+		    (intmax_t)archive_filter_bytes(a, -1));
 	}
 
 	archive_write_free(a);
@@ -1043,21 +1043,20 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 		fprintf(stderr, "\n");
 	comp = archive_filter_bytes(a, -1);
 	uncomp = archive_filter_bytes(a, 0);
-	fprintf(stderr, "In: %d files, %s bytes;",
-	    archive_file_count(a), tar_i64toa(uncomp));
+	fprintf(stderr, "In: %d files, %ju bytes;",
+	    archive_file_count(a), (uintmax_t)uncomp);
 	if (comp >= uncomp)
 		compression = 0;
 	else
 		compression = (int)((uncomp - comp) * 100 / uncomp);
 	fprintf(stderr,
-	    " Out: %s bytes, compression %d%%\n",
-	    tar_i64toa(comp), compression);
-	/* Can't have two calls to tar_i64toa() pending, so split the output. */
-	safe_fprintf(stderr, "Current: %s (%s",
+	    " Out: %ju bytes, compression %d%%\n",
+	    (uintmax_t)comp, compression);
+	safe_fprintf(stderr, "Current: %s (%jd",
 	    archive_entry_pathname(entry),
-	    tar_i64toa(progress));
-	fprintf(stderr, "/%s bytes)\n",
-	    tar_i64toa(archive_entry_size(entry)));
+	    (intmax_t)progress);
+	fprintf(stderr, "/%jd bytes)\n",
+	    (intmax_t)archive_entry_size(entry));
 }
 
 static void
