@@ -111,6 +111,7 @@ static int archive_compressor_compress_write(struct archive_write_filter *,
 		    const void *, size_t);
 static int archive_compressor_compress_close(struct archive_write_filter *);
 static int archive_compressor_compress_free(struct archive_write_filter *);
+static void free_data(struct private_data *);
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 int
@@ -125,17 +126,35 @@ archive_write_set_compression_compress(struct archive *a)
  * Add a compress filter to this write handle.
  */
 int
-archive_write_add_filter_compress(struct archive *_a)
+archive_write_add_filter_compress(struct archive *a)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
+	struct archive_write_filter *f;
+	struct private_data *state;
 
-	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_compress");
-	f->open = &archive_compressor_compress_open;
-	f->code = ARCHIVE_FILTER_COMPRESS;
+
+	state = calloc(1, sizeof(*state));
+	if (state == NULL)
+		goto memerr;
+
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
 	f->name = "compress";
+	f->code = ARCHIVE_FILTER_COMPRESS;
+	f->data = state;
+	f->open = archive_compressor_compress_open;
+	f->write = archive_compressor_compress_write;
+	f->close = archive_compressor_compress_close;
+	f->free = archive_compressor_compress_free;
+
 	return (ARCHIVE_OK);
+memerr:
+	free_data(state);
+	archive_set_error(a, ENOMEM,
+	    "Can't allocate data for compression");
+	return (ARCHIVE_FATAL);
 }
 
 /*
@@ -144,18 +163,8 @@ archive_write_add_filter_compress(struct archive *_a)
 static int
 archive_compressor_compress_open(struct archive_write_filter *f)
 {
-	struct private_data *state;
+	struct private_data *state = f->data;
 	size_t bs = 65536, bpb;
-
-	f->code = ARCHIVE_FILTER_COMPRESS;
-	f->name = "compress";
-
-	state = calloc(1, sizeof(*state));
-	if (state == NULL) {
-		archive_set_error(f->archive, ENOMEM,
-		    "Can't allocate data for compression");
-		return (ARCHIVE_FATAL);
-	}
 
 	if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
 		/* Buffer size should be a multiple number of the bytes
@@ -172,13 +181,8 @@ archive_compressor_compress_open(struct archive_write_filter *f)
 	if (state->compressed == NULL) {
 		archive_set_error(f->archive, ENOMEM,
 		    "Can't allocate data for compression buffer");
-		free(state);
 		return (ARCHIVE_FATAL);
 	}
-
-	f->write = archive_compressor_compress_write;
-	f->close = archive_compressor_compress_close;
-	f->free = archive_compressor_compress_free;
 
 	state->max_maxcode = 0x10000;	/* Should NEVER generate this code. */
 	state->in_count = 0;		/* Length of input. */
@@ -199,7 +203,6 @@ archive_compressor_compress_open(struct archive_write_filter *f)
 	state->compressed[2] = 0x90; /* Block mode, 16bit max */
 	state->compressed_offset = 3;
 
-	f->data = state;
 	return (ARCHIVE_OK);
 }
 
@@ -437,9 +440,16 @@ archive_compressor_compress_close(struct archive_write_filter *f)
 static int
 archive_compressor_compress_free(struct archive_write_filter *f)
 {
-	struct private_data *state = (struct private_data *)f->data;
-
-	free(state->compressed);
-	free(state);
+	free_data(f->data);
+	f->data = NULL;
 	return (ARCHIVE_OK);
+}
+
+static void
+free_data(struct private_data *data)
+{
+	if (data != NULL) {
+		free(data->compressed);
+		free(data);
+	}
 }

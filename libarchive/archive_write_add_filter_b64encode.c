@@ -64,6 +64,7 @@ static int archive_filter_b64encode_close(struct archive_write_filter *);
 static int archive_filter_b64encode_free(struct archive_write_filter *);
 static void la_b64_encode(struct archive_string *, const unsigned char *, size_t);
 static int64_t atol8(const char *, size_t);
+static void free_data(struct private_b64encode *);
 
 static const char base64[] = {
 	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
@@ -80,34 +81,38 @@ static const char base64[] = {
  * Add a compress filter to this write handle.
  */
 int
-archive_write_add_filter_b64encode(struct archive *_a)
+archive_write_add_filter_b64encode(struct archive *a)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
+	struct archive_write_filter *f;
 	struct private_b64encode *state;
 
-	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_b64encode");
 
 	state = calloc(1, sizeof(*state));
-	if (state == NULL) {
-		archive_set_error(f->archive, ENOMEM,
-		    "Can't allocate data for b64encode filter");
-		return (ARCHIVE_FATAL);
-	}
+	if (state == NULL)
+		goto memerr;
 	archive_strcpy(&state->name, "-");
 	state->mode = 0644;
 
-	f->data = state;
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
 	f->name = "b64encode";
 	f->code = ARCHIVE_FILTER_UU;
-	f->open = archive_filter_b64encode_open;
+	f->data = state;
 	f->options = archive_filter_b64encode_options;
+	f->open = archive_filter_b64encode_open;
 	f->write = archive_filter_b64encode_write;
 	f->close = archive_filter_b64encode_close;
 	f->free = archive_filter_b64encode_free;
 
 	return (ARCHIVE_OK);
+memerr:
+	free_data(state);
+	archive_set_error(a, ENOMEM,
+	    "Can't allocate data for b64encode filter");
+	return (ARCHIVE_FATAL);
 }
 
 /*
@@ -180,7 +185,6 @@ archive_filter_b64encode_open(struct archive_write_filter *f)
 	archive_string_sprintf(&state->encoded_buff, "begin-base64 %o %s\n",
 	    (unsigned int)state->mode, state->name.s);
 
-	f->data = state;
 	return (ARCHIVE_OK);
 }
 
@@ -285,11 +289,8 @@ archive_filter_b64encode_close(struct archive_write_filter *f)
 static int
 archive_filter_b64encode_free(struct archive_write_filter *f)
 {
-	struct private_b64encode *state = (struct private_b64encode *)f->data;
-
-	archive_string_free(&state->name);
-	archive_string_free(&state->encoded_buff);
-	free(state);
+	free_data(f->data);
+	f->data = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -316,3 +317,12 @@ atol8(const char *p, size_t char_cnt)
 	return (l);
 }
 
+static void
+free_data(struct private_b64encode *data)
+{
+	if (data != NULL) {
+		archive_string_free(&data->name);
+		archive_string_free(&data->encoded_buff);
+		free(data);
+	}
+}

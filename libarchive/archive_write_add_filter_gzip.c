@@ -89,63 +89,64 @@ static int archive_compressor_gzip_free(struct archive_write_filter *);
 static int drive_compressor(struct archive_write_filter *,
 		    struct private_data *, int finishing);
 #endif
+static void free_data(struct private_data *);
 
 
 /*
  * Add a gzip compression filter to this write handle.
  */
 int
-archive_write_add_filter_gzip(struct archive *_a)
+archive_write_add_filter_gzip(struct archive *a)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
+	struct archive_write_filter *f;
 	struct private_data *data;
-	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	int r;
+
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_gzip");
 
 	data = calloc(1, sizeof(*data));
-	if (data == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
-	f->data = data;
-	f->open = &archive_compressor_gzip_open;
-	f->options = &archive_compressor_gzip_options;
-	f->close = &archive_compressor_gzip_close;
-	f->free = &archive_compressor_gzip_free;
-	f->code = ARCHIVE_FILTER_GZIP;
-	f->name = "gzip";
-
+	if (data == NULL)
+		goto memerr;
 	data->original_filename = NULL;
 #ifdef HAVE_ZLIB_H
 	data->compression_level = Z_DEFAULT_COMPRESSION;
-	return (ARCHIVE_OK);
+
+	r = ARCHIVE_OK;
 #else
 	data->pdata = __archive_write_program_allocate("gzip");
-	if (data->pdata == NULL) {
-		free(data);
-		archive_set_error(&a->archive, ENOMEM, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
+	if (data->pdata == NULL)
+		goto memerr;
 	data->compression_level = 0;
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
 	    "Using external gzip program");
-	return (ARCHIVE_WARN);
+	r = ARCHIVE_WARN;
 #endif
+
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
+	f->name = "gzip";
+	f->code = ARCHIVE_FILTER_GZIP;
+	f->data = data;
+	f->options = archive_compressor_gzip_options;
+	f->open = archive_compressor_gzip_open;
+	f->write = archive_compressor_gzip_write;
+	f->close = archive_compressor_gzip_close;
+	f->free = archive_compressor_gzip_free;
+
+	return (r);
+memerr:
+	free_data(data);
+	archive_set_error(a, ENOMEM, "Out of memory");
+	return (ARCHIVE_FATAL);
 }
 
 static int
 archive_compressor_gzip_free(struct archive_write_filter *f)
 {
-	struct private_data *data = (struct private_data *)f->data;
-
-#ifdef HAVE_ZLIB_H
-	free(data->compressed);
-#else
-	__archive_write_program_free(data->pdata);
-#endif
-	free((void*)data->original_filename);
-	free(data);
+	free_data(f->data);
 	f->data = NULL;
 	return (ARCHIVE_OK);
 }
@@ -273,8 +274,6 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		}
 	}
 
-	f->write = archive_compressor_gzip_write;
-
 	/* Initialize compression library. */
 	init_success = deflateInit2(&(data->stream),
 	    data->compression_level,
@@ -284,7 +283,6 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	    Z_DEFAULT_STRATEGY);
 
 	if (init_success == Z_OK) {
-		f->data = data;
 		return (ret);
 	}
 
@@ -427,6 +425,16 @@ drive_compressor(struct archive_write_filter *f,
 	}
 }
 
+static void
+free_data(struct private_data *data)
+{
+	if (data != NULL) {
+		free(data->compressed);
+		free(data->original_filename);
+		free(data);
+	}
+}
+
 #else /* HAVE_ZLIB_H */
 
 static int
@@ -451,7 +459,6 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		/* Save timestamp. */
 		archive_strcat(&as, " -N");
 
-	f->write = archive_compressor_gzip_write;
 	r = __archive_write_program_open(f, data->pdata, as.s);
 	archive_string_free(&as);
 	return (r);
@@ -474,4 +481,13 @@ archive_compressor_gzip_close(struct archive_write_filter *f)
 	return __archive_write_program_close(f, data->pdata);
 }
 
+static void
+free_data(struct private_data *data)
+{
+	if (data != NULL) {
+		__archive_write_program_free(data->pdata);
+		free(data->original_filename);
+		free(data);
+	}
+}
 #endif /* HAVE_ZLIB_H */

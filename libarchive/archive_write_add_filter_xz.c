@@ -122,6 +122,7 @@ static int	archive_compressor_xz_close(struct archive_write_filter *);
 static int	archive_compressor_xz_free(struct archive_write_filter *);
 static int	drive_compressor(struct archive_write_filter *,
 		    struct private_data *, int finishing);
+static void	free_data(struct private_data *);
 
 struct option_value {
 	uint32_t dict_size;
@@ -142,80 +143,67 @@ static const struct option_value option_values[] = {
 };
 
 static int
-common_setup(struct archive_write_filter *f)
+common_setup(struct archive *a, const char *name, int code)
 {
 	struct private_data *data;
-	struct archive_write *a = (struct archive_write *)f->archive;
+	struct archive_write_filter *f;
+
 	data = calloc(1, sizeof(*data));
-	if (data == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
-	f->data = data;
+	if (data == NULL)
+		goto memerr;
 	data->compression_level = LZMA_PRESET_DEFAULT;
 	data->threads = 1;
-	f->open = &archive_compressor_xz_open;
+
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
+	f->name = name;
+	f->code = code;
+	f->data = data;
+	f->options = archive_compressor_xz_options;
+	f->open = archive_compressor_xz_open;
+	f->write = archive_compressor_xz_write;
 	f->close = archive_compressor_xz_close;
 	f->free = archive_compressor_xz_free;
-	f->options = &archive_compressor_xz_options;
+
 	return (ARCHIVE_OK);
+memerr:
+	free_data(data);
+	archive_set_error(a, ENOMEM, "Out of memory");
+	return (ARCHIVE_FATAL);
 }
 
 /*
  * Add an xz compression filter to this write handle.
  */
 int
-archive_write_add_filter_xz(struct archive *_a)
+archive_write_add_filter_xz(struct archive *a)
 {
-	struct archive_write_filter *f;
-	int r;
-
-	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_xz");
-	f = __archive_write_allocate_filter(_a);
-	r = common_setup(f);
-	if (r == ARCHIVE_OK) {
-		f->code = ARCHIVE_FILTER_XZ;
-		f->name = "xz";
-	}
-	return (r);
+
+	return common_setup(a, "xz", ARCHIVE_FILTER_XZ);
 }
 
 /* LZMA is handled identically, we just need a different compression
  * code set.  (The liblzma setup looks at the code to determine
  * the one place that XZ and LZMA require different handling.) */
 int
-archive_write_add_filter_lzma(struct archive *_a)
+archive_write_add_filter_lzma(struct archive *a)
 {
-	struct archive_write_filter *f;
-	int r;
-
-	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_lzma");
-	f = __archive_write_allocate_filter(_a);
-	r = common_setup(f);
-	if (r == ARCHIVE_OK) {
-		f->code = ARCHIVE_FILTER_LZMA;
-		f->name = "lzma";
-	}
-	return (r);
+
+	return common_setup(a, "lzma", ARCHIVE_FILTER_LZMA);
 }
 
 int
-archive_write_add_filter_lzip(struct archive *_a)
+archive_write_add_filter_lzip(struct archive *a)
 {
-	struct archive_write_filter *f;
-	int r;
-
-	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_lzip");
-	f = __archive_write_allocate_filter(_a);
-	r = common_setup(f);
-	if (r == ARCHIVE_OK) {
-		f->code = ARCHIVE_FILTER_LZIP;
-		f->name = "lzip";
-	}
-	return (r);
+
+	return common_setup(a, "lzip", ARCHIVE_FILTER_LZIP);
 }
 
 static int
@@ -330,8 +318,6 @@ archive_compressor_xz_open(struct archive_write_filter *f)
 		}
 	}
 
-	f->write = archive_compressor_xz_write;
-
 	/* Initialize compression library. */
 	if (f->code == ARCHIVE_FILTER_LZIP) {
 		const struct option_value *val =
@@ -362,7 +348,6 @@ archive_compressor_xz_open(struct archive_write_filter *f)
 	}
 	ret = archive_compressor_xz_init_stream(f, data);
 	if (ret == LZMA_OK) {
-		f->data = data;
 		return (ARCHIVE_OK);
 	}
 	return (ARCHIVE_FATAL);
@@ -478,9 +463,7 @@ archive_compressor_xz_close(struct archive_write_filter *f)
 static int
 archive_compressor_xz_free(struct archive_write_filter *f)
 {
-	struct private_data *data = (struct private_data *)f->data;
-	free(data->compressed);
-	free(data);
+	free_data(f->data);
 	f->data = NULL;
 	return (ARCHIVE_OK);
 }
@@ -549,6 +532,15 @@ drive_compressor(struct archive_write_filter *f,
 			    ret);
 			return (ARCHIVE_FATAL);
 		}
+	}
+}
+
+static void
+free_data(struct private_data *data)
+{
+	if (data != NULL) {
+		free(data->compressed);
+		free(data);
 	}
 }
 

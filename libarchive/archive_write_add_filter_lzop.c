@@ -80,6 +80,7 @@ static int archive_write_lzop_write(struct archive_write_filter *,
 		    const void *, size_t);
 static int archive_write_lzop_close(struct archive_write_filter *);
 static int archive_write_lzop_free(struct archive_write_filter *);
+static void free_data(struct write_lzop *);
 
 #if defined(HAVE_LZO_LZOCONF_H) && defined(HAVE_LZO_LZO1X_H)
 /* Maximum block size. */
@@ -133,73 +134,72 @@ static const unsigned char header[] = {
 #endif
 
 int
-archive_write_add_filter_lzop(struct archive *_a)
+archive_write_add_filter_lzop(struct archive *a)
 {
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
+	struct archive_write_filter *f;
 	struct write_lzop *data;
+	int r;
 
-	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_lzop");
 
 	data = calloc(1, sizeof(*data));
-	if (data == NULL) {
-		archive_set_error(_a, ENOMEM, "Can't allocate memory");
-		return (ARCHIVE_FATAL);
-	}
-
-	f->name = "lzop";
-	f->code = ARCHIVE_FILTER_LZOP;
-	f->data = data;
-	f->open = archive_write_lzop_open;
-	f->options = archive_write_lzop_options;
-	f->write = archive_write_lzop_write;
-	f->close = archive_write_lzop_close;
-	f->free = archive_write_lzop_free;
+	if (data == NULL)
+		goto memerr;
 #if defined(HAVE_LZO_LZOCONF_H) && defined(HAVE_LZO_LZO1X_H)
 	if (lzo_init() != LZO_E_OK) {
-		free(data);
-		archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+		free_data(data);
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "lzo_init(type check) failed");
 		return (ARCHIVE_FATAL);
 	}
 	if (lzo_version() < 0x940) {
-		free(data);
-		archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+		free_data(data);
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "liblzo library is too old(%s < 0.940)",
 		    lzo_version_string());
 		return (ARCHIVE_FATAL);
 	}
 	data->compression_level = 5;
-	return (ARCHIVE_OK);
+
+	r = ARCHIVE_OK;
 #else
 	data->pdata = __archive_write_program_allocate("lzop");
-	if (data->pdata == NULL) {
-		free(data);
-		archive_set_error(_a, ENOMEM, "Can't allocate memory");
-		return (ARCHIVE_FATAL);
-	}
+	if (data->pdata == NULL)
+		goto memerr;
 	data->compression_level = 0;
+
 	/* Note: We return "warn" to inform of using an external lzop
 	 * program. */
-	archive_set_error(_a, ARCHIVE_ERRNO_MISC,
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
 	    "Using external lzop program for lzop compression");
-	return (ARCHIVE_WARN);
+	r = ARCHIVE_WARN;
 #endif
+
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
+	f->name = "lzop";
+	f->code = ARCHIVE_FILTER_LZOP;
+	f->data = data;
+	f->options = archive_write_lzop_options;
+	f->open = archive_write_lzop_open;
+	f->write = archive_write_lzop_write;
+	f->close = archive_write_lzop_close;
+	f->free = archive_write_lzop_free;
+
+	return (r);
+memerr:
+	free_data(data);
+	archive_set_error(a, ENOMEM, "Can't allocate memory");
+	return (ARCHIVE_FATAL);
 }
 
 static int
 archive_write_lzop_free(struct archive_write_filter *f)
 {
-	struct write_lzop *data = (struct write_lzop *)f->data;
-
-#if defined(HAVE_LZO_LZOCONF_H) && defined(HAVE_LZO_LZO1X_H)
-	free(data->uncompressed);
-	free(data->compressed);
-	free(data->work_buffer);
-#else
-	__archive_write_program_free(data->pdata);
-#endif
-	free(data);
+	free_data(f->data);
+	f->data = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -439,6 +439,17 @@ archive_write_lzop_close(struct archive_write_filter *f)
 	return __archive_write_filter(f->next_filter, &endmark, sizeof(endmark));
 }
 
+static void
+free_data(struct write_lzop *data)
+{
+	if (data != NULL) {
+		free(data->uncompressed);
+		free(data->compressed);
+		free(data->work_buffer);
+		free(data);
+	}
+}
+
 #else
 static int
 archive_write_lzop_open(struct archive_write_filter *f)
@@ -476,5 +487,14 @@ archive_write_lzop_close(struct archive_write_filter *f)
 	struct write_lzop *data = (struct write_lzop *)f->data;
 
 	return __archive_write_program_close(f, data->pdata);
+}
+
+static void
+free_data(struct write_lzop *data)
+{
+	if (data != NULL) {
+		__archive_write_program_free(data->pdata);
+		free(data);
+	}
 }
 #endif

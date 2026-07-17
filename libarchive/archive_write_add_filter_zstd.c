@@ -105,33 +105,25 @@ static int archive_compressor_zstd_free(struct archive_write_filter *);
 static int drive_compressor(struct archive_write_filter *,
 		    struct private_data *, int, const void *, size_t);
 #endif
+static void free_data(struct private_data *);
 
 
 /*
  * Add a zstd compression filter to this write handle.
  */
 int
-archive_write_add_filter_zstd(struct archive *_a)
+archive_write_add_filter_zstd(struct archive *a)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
+	struct archive_write_filter *f;
 	struct private_data *data;
-	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	int r;
+
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_zstd");
 
 	data = calloc(1, sizeof(*data));
-	if (data == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
-	f->data = data;
-	f->open = &archive_compressor_zstd_open;
-	f->options = &archive_compressor_zstd_options;
-	f->flush = &archive_compressor_zstd_flush;
-	f->close = &archive_compressor_zstd_close;
-	f->free = &archive_compressor_zstd_free;
-	f->code = ARCHIVE_FILTER_ZSTD;
-	f->name = "zstd";
+	if (data == NULL)
+		goto memerr;
 	data->compression_level = CLEVEL_DEFAULT;
 	data->threads = 0;
 	data->long_distance = 0;
@@ -144,38 +136,44 @@ archive_write_add_filter_zstd(struct archive *_a)
 	data->cur_frame_in = 0;
 	data->cur_frame_out = 0;
 	data->cstream = ZSTD_createCStream();
-	if (data->cstream == NULL) {
-		free(data);
-		archive_set_error(&a->archive, ENOMEM,
-		    "Failed to allocate zstd compressor object");
-		return (ARCHIVE_FATAL);
-	}
+	if (data->cstream == NULL)
+		goto memerr;
 
-	return (ARCHIVE_OK);
+	r = ARCHIVE_OK;
 #else
 	data->pdata = __archive_write_program_allocate("zstd");
-	if (data->pdata == NULL) {
-		free(data);
-		archive_set_error(&a->archive, ENOMEM, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	if (data->pdata == NULL)
+		goto memerr;
+
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
 	    "Using external zstd program");
-	return (ARCHIVE_WARN);
+	r = ARCHIVE_WARN;
 #endif
+
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
+	f->name = "zstd";
+	f->code = ARCHIVE_FILTER_ZSTD;
+	f->data = data;
+	f->options = archive_compressor_zstd_options;
+	f->open = archive_compressor_zstd_open;
+	f->write = archive_compressor_zstd_write;
+	f->flush = archive_compressor_zstd_flush;
+	f->close = archive_compressor_zstd_close;
+	f->free = archive_compressor_zstd_free;
+
+	return (r);
+memerr:
+	free_data(data);
+	archive_set_error(a, ENOMEM, "Out of memory");
+	return (ARCHIVE_FATAL);
 }
 
 static int
 archive_compressor_zstd_free(struct archive_write_filter *f)
 {
-	struct private_data *data = (struct private_data *)f->data;
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
-	ZSTD_freeCStream(data->cstream);
-	free(data->out.dst);
-#else
-	__archive_write_program_free(data->pdata);
-#endif
-	free(data);
+	free_data(f->data);
 	f->data = NULL;
 	return (ARCHIVE_OK);
 }
@@ -403,8 +401,6 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 		}
 	}
 
-	f->write = archive_compressor_zstd_write;
-
 	if (ZSTD_isError(ZSTD_initCStream(data->cstream,
 	    data->compression_level))) {
 		archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
@@ -529,6 +525,16 @@ fatal:
 	return (ARCHIVE_FATAL);
 }
 
+static void
+free_data(struct private_data *data)
+{
+	if (data != NULL) {
+		ZSTD_freeCStream(data->cstream);
+		free(data->out.dst);
+		free(data);
+	}
+}
+
 #else /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream */
 
 static int
@@ -560,7 +566,6 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 		archive_string_sprintf(&as, " --long=%d", data->long_distance);
 	}
 
-	f->write = archive_compressor_zstd_write;
 	r = __archive_write_program_open(f, data->pdata, as.s);
 	archive_string_free(&as);
 	return (r);
@@ -589,6 +594,15 @@ archive_compressor_zstd_close(struct archive_write_filter *f)
 	struct private_data *data = (struct private_data *)f->data;
 
 	return __archive_write_program_close(f, data->pdata);
+}
+
+static void
+free_data(struct private_data *data)
+{
+	if (data != NULL) {
+		__archive_write_program_free(data->pdata);
+		free(data);
+	}
 }
 
 #endif /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream */

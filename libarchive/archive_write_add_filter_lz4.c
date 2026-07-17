@@ -85,30 +85,27 @@ static int archive_filter_lz4_options(struct archive_write_filter *,
 		    const char *, const char *);
 static int archive_filter_lz4_write(struct archive_write_filter *,
 		    const void *, size_t);
+static void free_data(struct private_data *);
 
 /*
  * Add an lz4 compression filter to this write handle.
  */
 int
-archive_write_add_filter_lz4(struct archive *_a)
+archive_write_add_filter_lz4(struct archive *a)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
+	struct archive_write_filter *f;
 	struct private_data *data;
+	int r;
 
-	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_lz4");
 
 	data = calloc(1, sizeof(*data));
-	if (data == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
-
+	if (data == NULL)
+		goto memerr;
 	/*
 	 * Setup default settings.
 	 */
-	data->compression_level = 1;
 	data->version_number = 0x01;
 	data->block_independence = 1;
 	data->block_checksum = 0;
@@ -116,35 +113,53 @@ archive_write_add_filter_lz4(struct archive *_a)
 	data->stream_checksum = 1;
 	data->preset_dictionary = 0;
 	data->block_maximum_size = 7;
-
-	/*
-	 * Setup a filter setting.
-	 */
-	f->data = data;
-	f->options = &archive_filter_lz4_options;
-	f->close = &archive_filter_lz4_close;
-	f->free = &archive_filter_lz4_free;
-	f->open = &archive_filter_lz4_open;
-	f->code = ARCHIVE_FILTER_LZ4;
-	f->name = "lz4";
 #if defined(HAVE_LIBLZ4) && LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 2
-	return (ARCHIVE_OK);
+	data->compression_level = 1;
+
+	r = ARCHIVE_OK;
 #else
 	/*
 	 * We don't have lz4 library, and execute external lz4 program
 	 * instead.
 	 */
 	data->pdata = __archive_write_program_allocate("lz4");
-	if (data->pdata == NULL) {
-		free(data);
-		archive_set_error(&a->archive, ENOMEM, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
+	if (data->pdata == NULL)
+		goto memerr;
 	data->compression_level = 0;
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
 	    "Using external lz4 program");
-	return (ARCHIVE_WARN);
+	r = ARCHIVE_WARN;
 #endif
+
+	/*
+	 * Setup a filter setting.
+	 */
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
+	f->name = "lz4";
+	f->code = ARCHIVE_FILTER_LZ4;
+	f->data = data;
+	f->options = archive_filter_lz4_options;
+	f->open = archive_filter_lz4_open;
+	f->write = archive_filter_lz4_write;
+	f->close = archive_filter_lz4_close;
+	f->free = archive_filter_lz4_free;
+
+	return (r);
+memerr:
+	free_data(data);
+	archive_set_error(a, ENOMEM, "Out of memory");
+	return (ARCHIVE_FATAL);
+}
+
+static int
+archive_filter_lz4_free(struct archive_write_filter *f)
+{
+	free_data(f->data);
+	f->data = NULL;
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -277,8 +292,6 @@ archive_filter_lz4_open(struct archive_write_filter *f)
 		return (ARCHIVE_FATAL);
 	}
 
-	f->write = archive_filter_lz4_write;
-
 	return (ARCHIVE_OK);
 }
 
@@ -362,35 +375,6 @@ archive_filter_lz4_close(struct archive_write_filter *f)
 			    data->out_buffer, data->out - data->out_buffer);
 	}
 	return ret;
-}
-
-static int
-archive_filter_lz4_free(struct archive_write_filter *f)
-{
-	struct private_data *data = (struct private_data *)f->data;
-
-	if (data->lz4_stream != NULL) {
-#ifdef HAVE_LZ4HC_H
-		if (data->compression_level >= 3)
-#if LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 7
-			LZ4_freeStreamHC(data->lz4_stream);
-#else
-			LZ4_freeHC(data->lz4_stream);
-#endif
-		else
-#endif
-#if LZ4_VERSION_MINOR >= 3
-			LZ4_freeStream(data->lz4_stream);
-#else
-			LZ4_free(data->lz4_stream);
-#endif
-	}
-	free(data->out_buffer);
-	free(data->in_buffer_allocated);
-	free(data->xxh32_state);
-	free(data);
-	f->data = NULL;
-	return (ARCHIVE_OK);
 }
 
 static int
@@ -637,6 +621,33 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 	return (ARCHIVE_OK);
 }
 
+static void
+free_data(struct private_data *data)
+{
+	if (data != NULL) {
+		if (data->lz4_stream != NULL) {
+#ifdef HAVE_LZ4HC_H
+			if (data->compression_level >= 3)
+#if LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 7
+				LZ4_freeStreamHC(data->lz4_stream);
+#else
+				LZ4_freeHC(data->lz4_stream);
+#endif
+			else
+#endif
+#if LZ4_VERSION_MINOR >= 3
+				LZ4_freeStream(data->lz4_stream);
+#else
+				LZ4_free(data->lz4_stream);
+#endif
+		}
+		free(data->out_buffer);
+		free(data->in_buffer_allocated);
+		free(data->xxh32_state);
+		free(data);
+	}
+}
+
 #else /* HAVE_LIBLZ4 */
 
 static int
@@ -665,8 +676,6 @@ archive_filter_lz4_open(struct archive_write_filter *f)
 	if (data->block_independence == 0)
 		archive_strcat(&as, " -BD");
 
-	f->write = archive_filter_lz4_write;
-
 	r = __archive_write_program_open(f, data->pdata, as.s);
 	archive_string_free(&as);
 	return (r);
@@ -689,14 +698,13 @@ archive_filter_lz4_close(struct archive_write_filter *f)
 	return __archive_write_program_close(f, data->pdata);
 }
 
-static int
-archive_filter_lz4_free(struct archive_write_filter *f)
+static void
+free_data(struct private_data *data)
 {
-	struct private_data *data = (struct private_data *)f->data;
-
-	__archive_write_program_free(data->pdata);
-	free(data);
-	return (ARCHIVE_OK);
+	if (data != NULL) {
+		__archive_write_program_free(data->pdata);
+		free(data);
+	}
 }
 
 #endif /* HAVE_LIBLZ4 */
