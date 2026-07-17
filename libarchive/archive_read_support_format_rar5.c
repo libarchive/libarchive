@@ -873,10 +873,16 @@ static void free_filters(struct rar5* rar) {
 }
 
 static void reset_file_context(struct rar5* rar) {
+	/* Preserve solid_window_size across the memset so the consistency
+	 * check in process_head_file() can detect window size changes
+	 * between solid archive entries. */
+	ssize_t saved_solid_window_size = rar->file.solid_window_size;
+
 	memset(&rar->file, 0, sizeof(rar->file));
 	blake2sp_init(&rar->file.b2state, 32);
 
 	if(rar->main.solid) {
+		rar->file.solid_window_size = saved_solid_window_size;
 		rar->cstate.solid_offset += rar->cstate.write_ptr;
 	} else {
 		rar->cstate.solid_offset = 0;
