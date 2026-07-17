@@ -2893,52 +2893,39 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		 *    +----+----+----+----+----+----+----+----+
 		 *    <----------------- len ----------------->
 		 */
-		size_t nmlen = file->basename.length;
+		size_t reclen, nmlen = file->basename.length;
 		const char *nm = file->basename.s;
 		size_t nmmax;
 
-		if (extra_space(&ctl) < 6)
-			bp = extra_next_record(&ctl, 6);
-		if (bp != NULL) {
-			bp[1] = 'N';
-			bp[2] = 'M';
-			bp[4] = 1;	    /* version	*/
-		}
-		nmmax = extra_space(&ctl);
-		if (nmmax > 0xff)
-			nmmax = 0xff;
-		while (nmlen + 5 > nmmax) {
-			length = (int)nmmax;
-			if (bp != NULL) {
-				bp[3] = length;
-				bp[5] = 0x01;/* Alternate Name continues
-					       * in next "NM" field */
-				memcpy(bp+6, nm, length - 5);
-				bp += length;
-			}
-			nmlen -= length - 5;
-			nm += length - 5;
-			extra_tell_used_size(&ctl, length);
-			if (extra_space(&ctl) < 6) {
+		while (nmlen) {
+			/* We need at least six bytes (five header, one content) */
+			if (extra_space(&ctl) < 6)
 				bp = extra_next_record(&ctl, 6);
+			reclen = extra_space(&ctl);
+			if (reclen > 0xff)
+				reclen = 0xff; /* We can only fit 255 bytes in each NM record */
+			nmmax = reclen - 5; /* Record length is guaranteed to be >= 6 */
+			if (nmmax > nmlen) {
+				/* ... but the name is shorter. */
+				nmmax = nmlen;
+				reclen = nmmax + 5;
 			}
-			nmmax = extra_space(&ctl);
-			if (nmmax > 0xff)
-				nmmax = 0xff;
+
 			if (bp != NULL) {
+				/* Fill out the new record */
 				bp[1] = 'N';
 				bp[2] = 'M';
-				bp[4] = 1;    /* version */
+				bp[3] = reclen;  /* record length */
+				bp[4] = 1;       /* version */
+				bp[5] = (nmlen > nmmax) ? 0x01 : 0x00; /* continues in next NM record */
+				memcpy(bp + 6, nm, nmmax);
+				bp += reclen;
 			}
+
+			nmlen -= nmmax;
+			nm += nmmax;
+			extra_tell_used_size(&ctl, reclen);
 		}
-		length = 5 + (int)nmlen;
-		if (bp != NULL) {
-			bp[3] = length;
-			bp[5] = 0;
-			memcpy(bp+6, nm, nmlen);
-			bp += length;
-		}
-		extra_tell_used_size(&ctl, length);
 	}
 
 	/* Write "PX" System Use Entry. */
