@@ -683,6 +683,29 @@ __archive_write_filters_free(struct archive *_a)
 	a->filter_last = NULL;
 }
 
+int
+__archive_write_unregister_format(struct archive_write *a)
+{
+	int r = ARCHIVE_OK;
+
+	if (a->format_free != NULL)
+		r = (a->format_free)(a);
+
+	a->format_data = NULL;
+	a->format_name = NULL;
+	a->format_init = NULL;
+	a->format_options = NULL;
+	a->format_finish_entry = NULL;
+	a->format_write_header = NULL;
+	a->format_write_data = NULL;
+	a->format_close = NULL;
+	a->format_free = NULL;
+	a->archive.archive_format = 0;
+	a->archive.archive_format_name = NULL;
+
+	return (r);
+}
+
 /*
  * Destroy the archive structure.
  *
@@ -705,11 +728,9 @@ _archive_write_free(struct archive *_a)
 		r = archive_write_close(&a->archive);
 
 	/* Release format resources. */
-	if (a->format_free != NULL) {
-		r1 = (a->format_free)(a);
-		if (r1 < r)
-			r = r1;
-	}
+	r1 = __archive_write_unregister_format(a);
+	if (r1 < r)
+		r = r1;
 
 	__archive_write_filters_free(_a);
 

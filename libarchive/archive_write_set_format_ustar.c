@@ -172,8 +172,7 @@ archive_write_set_format_ustar(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_ustar");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	/* Basic internal sanity test. */
 	if (sizeof(template_header) != 512) {

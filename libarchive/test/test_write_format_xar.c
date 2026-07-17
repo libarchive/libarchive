@@ -25,6 +25,9 @@
  */
 #include "test.h"
 
+#define __LIBARCHIVE_TEST
+#include "archive_write_private.h"
+
 #include <locale.h>
 
 static void
@@ -378,5 +381,45 @@ DEFINE_TEST(test_write_format_xar_entry_trunc)
 	assertEqualIntA(a, 3, archive_write_data(a, "foo", 3));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
+
+DEFINE_TEST(test_write_format_xar_unregister)
+{
+	struct archive *a;
+	struct archive_write *aw;
+
+	assert((a = archive_write_new()) != NULL);
+	if (archive_write_set_format_xar(a) != ARCHIVE_OK) {
+		skipping("xar is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		return;
+	}
+
+	aw = (struct archive_write *)a;
+	assert(aw->format_data != NULL);
+	assert(aw->format_free != NULL);
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    __archive_write_unregister_format(aw));
+
+	assert(aw->format_data == NULL);
+	assert(aw->format_name == NULL);
+	assert(aw->format_init == NULL);
+	assert(aw->format_options == NULL);
+	assert(aw->format_finish_entry == NULL);
+	assert(aw->format_write_header == NULL);
+	assert(aw->format_write_data == NULL);
+	assert(aw->format_close == NULL);
+	assert(aw->format_free == NULL);
+	assertEqualInt(0, aw->archive.archive_format);
+	assert(aw->archive.archive_format_name == NULL);
+
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_format_option(a, NULL, "compression",
+	        "gzip"));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    __archive_write_unregister_format(aw));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }

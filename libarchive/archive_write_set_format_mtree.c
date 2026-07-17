@@ -1433,8 +1433,7 @@ archive_write_set_format_mtree_default(struct archive *_a, const char *fn)
 
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW, fn);
 
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	if ((mtree = calloc(1, sizeof(*mtree))) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,

@@ -132,6 +132,8 @@ struct archive_write {
 	void		*passphrase_client_data;
 };
 
+int	__archive_write_unregister_format(struct archive_write *);
+
 /*
  * Utility function to format a USTAR header into a buffer.  If
  * "strict" is set, this tries to create the absolutely most portable

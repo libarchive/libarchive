@@ -174,6 +174,11 @@ archive_write_set_format_gnutar(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct gnutar *gnutar;
 
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_gnutar");
+
+	(void)__archive_write_unregister_format(a);
+
 	gnutar = calloc(1, sizeof(*gnutar));
 	if (gnutar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,

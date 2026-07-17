@@ -730,8 +730,7 @@ archive_write_set_format_zip(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_zip");
 
 	/* If another format was already registered, unregister it. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {

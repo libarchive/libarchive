@@ -55,8 +55,7 @@ archive_write_set_format_raw(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_raw");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	raw = calloc(1, sizeof(*raw));
 	if (raw == NULL) {

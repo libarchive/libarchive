@@ -123,8 +123,7 @@ archive_write_set_format_ar(struct archive_write *a)
 	struct ar_w *ar;
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	ar = calloc(1, sizeof(*ar));
 	if (ar == NULL) {

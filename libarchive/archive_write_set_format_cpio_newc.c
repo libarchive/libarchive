@@ -113,8 +113,7 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_cpio_newc");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {

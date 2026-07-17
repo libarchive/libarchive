@@ -145,8 +145,7 @@ archive_write_set_format_pax(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_pax");
 
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	pax = calloc(1, sizeof(*pax));
 	if (pax == NULL) {

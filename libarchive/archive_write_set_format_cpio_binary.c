@@ -183,8 +183,7 @@ archive_write_set_format_cpio_binary(struct archive *_a, int format)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_cpio_binary");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
