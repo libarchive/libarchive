@@ -729,6 +729,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Gname");
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive,
@@ -744,6 +745,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Uname");
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive,
@@ -758,6 +760,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Pathname");
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive,
@@ -774,6 +777,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Linkname");
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive,
@@ -1787,8 +1791,11 @@ file_new(struct archive_read *a, struct xar *xar, struct xmlattr_list *list)
 	}
 	xar->file = file;
 	file->nlink = 1;
-	if (heap_add_entry(a, &(xar->file_queue), file) != ARCHIVE_OK)
+	if (heap_add_entry(a, &(xar->file_queue), file) != ARCHIVE_OK) {
+		xar->file = file->parent;
+		file_free(file);
 		return (ARCHIVE_FATAL);
+	}
 	return (ARCHIVE_OK);
 }
 

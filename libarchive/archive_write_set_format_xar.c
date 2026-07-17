@@ -581,8 +581,10 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	r2 = file_gen_utility_names(a, file);
-	if (r2 < ARCHIVE_WARN)
+	if (r2 < ARCHIVE_WARN) {
+		file_free(file);
 		return (r2);
+	}
 
 	/*
 	 * Ignore a path which looks like the top of directory name
@@ -671,9 +673,15 @@ xar_write_header(struct archive_write *a, struct archive_entry *entry)
 	checksum_init(&(xar->e_sumwrk), xar->opt_sumalg);
 	r = xar_compression_init_encoder(a);
 
-	if (r != ARCHIVE_OK)
+	if (r != ARCHIVE_OK) {
+		struct chksumval sumval;
+
+		checksum_final(&(xar->a_sumwrk), &sumval);
+		checksum_final(&(xar->e_sumwrk), &sumval);
+		xar->a_sumwrk.alg = CKSUM_NONE;
+		xar->e_sumwrk.alg = CKSUM_NONE;
 		return (r);
-	else
+	} else
 		return (r2);
 }
 
@@ -2413,8 +2421,12 @@ file_tree(struct archive_write *a, struct file **filepp)
 				return (ARCHIVE_FATAL);
 			}
 			archive_string_free(&as);
-			if (file_gen_utility_names(a, vp) <= ARCHIVE_FAILED)
+			if (file_gen_utility_names(a, vp) <= ARCHIVE_FAILED) {
+				file_free(vp);
+				file_free(file);
+				*filepp = NULL;
 				return (ARCHIVE_FATAL);
+			}
 			file_add_child_tail(dent, vp);
 			file_register(xar, vp);
 			np = vp;
@@ -3210,6 +3222,12 @@ save_xattrs(struct archive_write *a, struct file *file)
 
 		heap = calloc(1, sizeof(*heap));
 		if (heap == NULL) {
+			struct chksumval sumval;
+
+			checksum_final(&(xar->a_sumwrk), &sumval);
+			checksum_final(&(xar->e_sumwrk), &sumval);
+			xar->a_sumwrk.alg = CKSUM_NONE;
+			xar->e_sumwrk.alg = CKSUM_NONE;
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for xattr");
 			return (ARCHIVE_FATAL);
@@ -3247,6 +3265,10 @@ save_xattrs(struct archive_write *a, struct file *file)
 		 */
 		r = xar_compression_init_encoder(a);
 		if (r != ARCHIVE_OK) {
+			struct chksumval sumval;
+
+			checksum_final(&(xar->a_sumwrk), &sumval);
+			xar->a_sumwrk.alg = CKSUM_NONE;
 			free(heap);
 			return (ARCHIVE_FATAL);
 		}
