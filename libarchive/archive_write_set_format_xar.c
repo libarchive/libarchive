@@ -379,22 +379,19 @@ archive_write_set_format_xar(struct archive *_a)
 	file_init_hardlinks(xar);
 	archive_string_init(&(xar->tstr));
 	archive_string_init(&(xar->vstr));
+	archive_string_init(&(xar->cur_dirstr));
 
 	/*
 	 * Create the root directory.
 	 */
 	xar->root = file_create_virtual_dir(a, xar, "");
-	if (xar->root == NULL) {
-		free(xar);
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate xar data");
-		return (ARCHIVE_FATAL);
-	}
+	if (xar->root == NULL)
+		goto memerr;
 	xar->root->parent = xar->root;
 	file_register(xar, xar->root);
 	xar->cur_dirent = xar->root;
-	archive_string_init(&(xar->cur_dirstr));
-	archive_string_ensure(&(xar->cur_dirstr), 1);
+	if (archive_string_ensure(&(xar->cur_dirstr), 1) == NULL)
+		goto memerr;
 	xar->cur_dirstr.s[0] = 0;
 
 	/*
@@ -421,6 +418,17 @@ archive_write_set_format_xar(struct archive *_a)
 	a->archive.archive_format_name = "xar";
 
 	return (ARCHIVE_OK);
+
+memerr:
+	archive_string_free(&(xar->cur_dirstr));
+	archive_string_free(&(xar->tstr));
+	archive_string_free(&(xar->vstr));
+	file_free_hardlinks(xar);
+	file_free_register(xar);
+	free(xar);
+	archive_set_error(&a->archive, ENOMEM,
+	    "Can't allocate xar data");
+	return (ARCHIVE_FATAL);
 }
 
 static int
