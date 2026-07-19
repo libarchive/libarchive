@@ -621,6 +621,12 @@ out:
 	return res;
 }
 
+static int
+warc_isdigit(const char c)
+{
+	return c >= '0' && c <= '9';
+}
+
 static unsigned int
 warc_read_version(const char *buf, size_t bsz)
 {
@@ -636,10 +642,9 @@ warc_read_version(const char *buf, size_t bsz)
 	/* Parse the version number. */
 	buf += sizeof(magic) - 1U;
 
-	if (isdigit((unsigned char)buf[0U]) && (buf[1U] == '.') &&
-	    isdigit((unsigned char)buf[2U])) {
+	if (warc_isdigit(buf[0]) && buf[1] == '.' && warc_isdigit(buf[2])) {
 		/* Support at most two digits in the minor version. */
-		if (isdigit((unsigned char)buf[3U]))
+		if (warc_isdigit(buf[3]))
 			end = 1U;
 		/* Set up the major version. */
 		ver = (buf[0U] - '0') * 10000U;
