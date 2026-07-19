@@ -508,6 +508,6 @@ archive_write_odc_finish_entry(struct archive_write *a)
 	struct cpio *cpio;
 
 	cpio = (struct cpio *)a->format_data;
-	return (__archive_write_nulls(a,
-		(size_t)cpio->entry_bytes_remaining));
+	return (__archive_write_nulls(a, 
+	    cpio->entry_bytes_remaining));
 }

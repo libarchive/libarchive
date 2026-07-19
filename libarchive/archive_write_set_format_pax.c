@@ -1628,7 +1628,7 @@ archive_write_pax_header(struct archive_write *a,
 			return (ARCHIVE_FATAL);
 		}
 		/* Pad out the end of the entry. */
-		r = __archive_write_nulls(a, (size_t)pax->entry_padding);
+		r = __archive_write_nulls(a, pax->entry_padding);
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
 			archive_entry_free(entry_main);
@@ -1996,7 +1996,7 @@ archive_write_pax_finish_entry(struct archive_write *a)
 			pax->sparse_list = sb;
 		}
 	}
-	ret = __archive_write_nulls(a, (size_t)(remaining + pax->entry_padding));
+	ret = __archive_write_nulls(a, remaining + pax->entry_padding);
 	pax->entry_bytes_remaining = pax->entry_padding = 0;
 	return (ret);
 }

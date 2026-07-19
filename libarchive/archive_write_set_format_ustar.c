@@ -751,7 +751,7 @@ archive_write_ustar_finish_entry(struct archive_write *a)
 
 	ustar = (struct ustar *)a->format_data;
 	ret = __archive_write_nulls(a,
-	    (size_t)(ustar->entry_bytes_remaining + ustar->entry_padding));
+	    ustar->entry_bytes_remaining + ustar->entry_padding);
 	ustar->entry_bytes_remaining = ustar->entry_padding = 0;
 	return (ret);
 }

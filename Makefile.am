@@ -673,6 +673,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_cpio_odc.c \
 	libarchive/test/test_write_format_gnutar.c \
 	libarchive/test/test_write_format_gnutar_filenames.c \
+	libarchive/test/test_write_format_gnutar_huge.c \
 	libarchive/test/test_write_format_iso9660.c \
 	libarchive/test/test_write_format_iso9660_boot.c \
 	libarchive/test/test_write_format_iso9660_bugs.c \

@@ -631,7 +631,7 @@ archive_write_v7tar_finish_entry(struct archive_write *a)
 
 	v7tar = (struct v7tar *)a->format_data;
 	ret = __archive_write_nulls(a,
-	    (size_t)(v7tar->entry_bytes_remaining + v7tar->entry_padding));
+	    v7tar->entry_bytes_remaining + v7tar->entry_padding);
 	v7tar->entry_bytes_remaining = v7tar->entry_padding = 0;
 	return (ret);
 }

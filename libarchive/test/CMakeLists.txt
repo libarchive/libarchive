@@ -302,6 +302,7 @@ IF(ENABLE_TEST)
     test_write_format_cpio_odc.c
     test_write_format_gnutar.c
     test_write_format_gnutar_filenames.c
+    test_write_format_gnutar_huge.c
     test_write_format_iso9660.c
     test_write_format_iso9660_boot.c
     test_write_format_iso9660_empty.c

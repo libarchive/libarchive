@@ -458,5 +458,5 @@ archive_write_newc_finish_entry(struct archive_write *a)
 
 	cpio = (struct cpio *)a->format_data;
 	return (__archive_write_nulls(a,
-		(size_t)cpio->entry_bytes_remaining + cpio->padding));
+	    cpio->entry_bytes_remaining + cpio->padding));
 }

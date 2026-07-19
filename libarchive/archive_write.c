@@ -240,8 +240,10 @@ __archive_write_filter(struct archive_write_filter *f,
 		/* If unset, a fatal error has already occurred, so this filter
 		 * didn't open. We cannot write anything. */
 		return(ARCHIVE_FATAL);
+	if (length > (uint64_t)(INT64_MAX - f->bytes_written))
+		return(ARCHIVE_FATAL);
 	r = (f->write)(f, buff, length);
-	f->bytes_written += length;
+	f->bytes_written += (int64_t)length;
 	return (r);
 }
 
@@ -338,7 +340,7 @@ __archive_write_filters_flush(struct archive_write *a)
 }
 
 int
-__archive_write_nulls(struct archive_write *a, size_t length)
+__archive_write_nulls(struct archive_write *a, uint64_t length)
 {
 	if (length == 0)
 		return (ARCHIVE_OK);
