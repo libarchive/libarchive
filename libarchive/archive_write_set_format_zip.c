@@ -235,7 +235,6 @@ static int archive_write_zip_header(struct archive_write *,
 	      struct archive_entry *);
 static int archive_write_zip_options(struct archive_write *,
 	      const char *, const char *);
-static size_t path_length(struct archive_entry *);
 static int write_path(struct archive_entry *, struct archive_write *);
 static void copy_path(struct archive_entry *, unsigned char *);
 static struct archive_string_conv *get_sconv(struct archive_write *, struct zip *);
@@ -958,8 +957,6 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 #endif
 		}
 	}
-	filename_length = path_length(zip->entry);
-
 	/* Reject empty or overlong pathnames */
 	path = archive_entry_pathname(zip->entry);
 	if (path == NULL || path[0] == '\0') {
@@ -967,6 +964,10 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		    "ZIP format requires a non-empty pathname");
 		return (ARCHIVE_FAILED);
 	}
+	filename_length = strlen(path);
+	/* Include the trailing slash added to directories. */
+	if (type == AE_IFDIR && path[filename_length - 1] != '/')
+		filename_length++;
 	if (filename_length > 0xffff) {
 		archive_set_error(&a->archive, ENAMETOOLONG,
 		    "Pathname too long for ZIP format");
@@ -2281,24 +2282,6 @@ archive_write_zip_free(struct archive_write *a)
 	free(zip);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
-}
-
-static size_t
-path_length(struct archive_entry *entry)
-{
-	mode_t type;
-	const char *path;
-	size_t len;
-
-	type = archive_entry_filetype(entry);
-	path = archive_entry_pathname(entry);
-
-	if (path == NULL)
-		return (0);
-	len = strlen(path);
-	if (type == AE_IFDIR && (path[0] == '\0' || path[len - 1] != '/'))
-		++len; /* Space for the trailing / */
-	return len;
 }
 
 static int
