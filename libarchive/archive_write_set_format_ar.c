@@ -40,6 +40,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_string.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
@@ -78,7 +79,6 @@ static ssize_t		 archive_write_ar_data(struct archive_write *,
 static int		 archive_write_ar_free(struct archive_write *);
 static int		 archive_write_ar_close(struct archive_write *);
 static int		 archive_write_ar_finish_entry(struct archive_write *);
-static const char	*ar_basename(const char *path);
 static int		 format_octal(int64_t v, char *p, int s);
 static int		 format_decimal(int64_t v, char *p, int s);
 
@@ -146,16 +146,19 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 {
 	int ret, append_fn;
 	char buff[60];
-	char *ss, *se;
+	char *ss;
 	struct ar_w *ar;
+	struct archive_string se;
 	const char *pathname;
 	const char *filename;
+	size_t filename_length;
 	int64_t size;
 
 	append_fn = 0;
 	ar = (struct ar_w *)a->format_data;
 	ar->is_strtab = 0;
 	filename = NULL;
+	filename_length = 0;
 	size = archive_entry_size(entry);
 
 
@@ -214,12 +217,17 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 	 * Otherwise, entry is a normal archive member.
 	 * Strip leading paths from filenames, if any.
 	 */
-	if ((filename = ar_basename(pathname)) == NULL) {
+	filename = strrchr(pathname, '/');
+	if (filename == NULL)
+		filename = pathname;
+	else if (filename[1] == '\0') {
 		/* Reject filenames with trailing "/" */
 		archive_set_error(&a->archive, EINVAL,
 		    "Invalid filename");
 		return (ARCHIVE_WARN);
-	}
+	} else
+		filename++;
+	filename_length = strlen(filename);
 
 	if (a->archive.archive_format == ARCHIVE_FORMAT_AR_GNU) {
 		/*
@@ -228,10 +236,10 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		 * So, the longest filename here (without extension) is
 		 * actually 15 bytes.
 		 */
-		if (strlen(filename) <= 15) {
+		if (filename_length <= 15) {
 			memcpy(&buff[AR_name_offset],
-			    filename, strlen(filename));
-			buff[AR_name_offset + strlen(filename)] = '/';
+			    filename, filename_length);
+			buff[AR_name_offset + filename_length] = '/';
 		} else {
 			/*
 			 * For filename longer than 15 bytes, GNU variant
@@ -245,18 +253,10 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 				return (ARCHIVE_WARN);
 			}
 
-			se = malloc(strlen(filename) + 3);
-			if (se == NULL) {
-				archive_set_error(&a->archive, ENOMEM,
-				    "Can't allocate filename buffer");
-				return (ARCHIVE_FATAL);
-			}
-
-			memcpy(se, filename, strlen(filename));
-			strcpy(se + strlen(filename), "/\n");
-
-			ss = strstr(ar->strtab, se);
-			free(se);
+			archive_string_init(&se);
+			archive_string_sprintf(&se, "%s/\n", filename);
+			ss = strstr(ar->strtab, se.s);
+			archive_string_free(&se);
 
 			if (ss == NULL) {
 				archive_set_error(&a->archive, EINVAL,
@@ -288,13 +288,13 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		 * The name is then written immediately following the
 		 * archive header.
 		 */
-		if (strlen(filename) <= 16 && strchr(filename, ' ') == NULL) {
-			memcpy(&buff[AR_name_offset], filename, strlen(filename));
-			buff[AR_name_offset + strlen(filename)] = ' ';
+		if (filename_length <= 16 && strchr(filename, ' ') == NULL) {
+			memcpy(&buff[AR_name_offset], filename, filename_length);
+			buff[AR_name_offset + filename_length] = ' ';
 		}
 		else {
 			memcpy(buff + AR_name_offset, "#1/", 3);
-			if (format_decimal(strlen(filename),
+			if (format_decimal(filename_length,
 			    buff + AR_name_offset + 3,
 			    AR_name_size - 3)) {
 				archive_set_error(&a->archive, ERANGE,
@@ -302,7 +302,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 				return (ARCHIVE_WARN);
 			}
 			append_fn = 1;
-			size += strlen(filename);
+			size += filename_length;
 		}
 	}
 
@@ -352,10 +352,10 @@ size:
 	ar->entry_padding = ar->entry_bytes_remaining % 2;
 
 	if (append_fn > 0) {
-		ret = __archive_write_output(a, filename, strlen(filename));
+		ret = __archive_write_output(a, filename, filename_length);
 		if (ret != ARCHIVE_OK)
 			return (ret);
-		ar->entry_bytes_remaining -= strlen(filename);
+		ar->entry_bytes_remaining -= filename_length;
 	}
 
 	return (ARCHIVE_OK);
@@ -544,25 +544,4 @@ format_decimal(int64_t v, char *p, int s)
 		*p++ = '9';
 
 	return (-1);
-}
-
-static const char *
-ar_basename(const char *path)
-{
-	const char *endp, *startp;
-
-	endp = path + strlen(path) - 1;
-	/*
-	 * For filename with trailing slash(es), we return
-	 * NULL indicating an error.
-	 */
-	if (*endp == '/')
-		return (NULL);
-
-	/* Find the start of the base */
-	startp = endp;
-	while (startp > path && *(startp - 1) != '/')
-		startp--;
-	
-	return (startp);
 }

@@ -900,7 +900,7 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 {
 	const unsigned char *p;
 	size_t extdsize;
-	int i, err, err2;
+	int err, err2;
 	int namelen, padding;
 	unsigned char headersum, sum_calculated;
 
@@ -925,10 +925,9 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 	if ((p = __archive_read_ahead(a, lha->header_size, NULL)) == NULL)
 		return (truncated_error(a));
 
-	for (i = 0; i < namelen; i++) {
-		if (p[i + H1_FILE_NAME_OFFSET] == 0xff)
-			goto invalid;/* Invalid filename. */
-	}
+	if (memchr(p + H1_FILE_NAME_OFFSET, 0xff,
+	    (size_t)namelen) != NULL)
+		goto invalid; /* Invalid filename. */
 	archive_strncpy(&lha->filename, p + H1_FILE_NAME_OFFSET, namelen);
 	lha->crc = archive_le16dec(p + H1_FILE_NAME_OFFSET + namelen);
 	lha->setflag |= CRC_IS_SET;

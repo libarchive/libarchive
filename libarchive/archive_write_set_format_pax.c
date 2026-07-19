@@ -1700,18 +1700,21 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	char *p;
 	int need_slash = 0; /* Was there a trailing slash? */
 	size_t suffix_length = 98; /* 99 - 1 for trailing slash */
-	size_t insert_length;
+	size_t insert_length, insert_name_length;
 
 	/* Length of additional dir element to be added. */
-	if (insert == NULL)
+	if (insert == NULL) {
+		insert_name_length = 0;
 		insert_length = 0;
-	else
+	} else {
+		insert_name_length = strlen(insert);
 		/* +2 here allows for '/' before and after the insert. */
-		insert_length = strlen(insert) + 2;
+		insert_length = insert_name_length + 2;
+	}
 
 	/* Step 0: Quick bailout in a common case. */
 	if (src_length < 100 && insert == NULL) {
-		strncpy(dest, src, src_length);
+		memcpy(dest, src, src_length);
 		dest[src_length] = '\0';
 		return (dest);
 	}
@@ -1793,24 +1796,22 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 		suffix_end++;
 
 	/* Step 4: Build the new name. */
-	/* The OpenBSD strlcpy function is safer, but less portable. */
-	/* Rather than maintain two versions, just use the strncpy version. */
 	p = dest;
 	if (prefix_end > prefix) {
-		strncpy(p, prefix, prefix_end - prefix);
+		memcpy(p, prefix, (size_t)(prefix_end - prefix));
 		p += prefix_end - prefix;
 	}
 	if (suffix_end > suffix) {
-		strncpy(p, suffix, suffix_end - suffix);
+		memcpy(p, suffix, (size_t)(suffix_end - suffix));
 		p += suffix_end - suffix;
 	}
 	if (insert != NULL) {
 		/* Note: assume insert does not have leading or trailing '/' */
-		strcpy(p, insert);
-		p += strlen(insert);
+		memcpy(p, insert, insert_name_length);
+		p += insert_name_length;
 		*p++ = '/';
 	}
-	strncpy(p, filename, filename_end - filename);
+	memcpy(p, filename, (size_t)(filename_end - filename));
 	p += filename_end - filename;
 	if (need_slash)
 		*p++ = '/';
