@@ -166,3 +166,39 @@ DEFINE_TEST(test_read_format_warc_skip_after_extract)
 	free(warc);
 #undef WARC_APPEND
 }
+
+DEFINE_TEST(test_read_format_warc_truncated_body)
+{
+	static const char warc[] =
+	    "WARC/1.0\r\n"
+	    "WARC-Type: resource\r\n"
+	    "WARC-Date: 2014-06-10T10:10:10Z\r\n"
+	    "WARC-Target-URI: file://test.txt\r\n"
+	    "Content-Length: 10\r\n"
+	    "\r\n"
+	    "ABC";
+	char body[3];
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, warc, sizeof(warc) - 1U));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualInt(3,
+	    archive_read_data(a, body, sizeof(body)));
+	assertEqualMem(body, "ABC", sizeof(body));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_data(a, body, sizeof(body)));
+	assertEqualString("Truncated WARC file data",
+	    archive_error_string(a));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

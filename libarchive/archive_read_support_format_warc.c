@@ -409,7 +409,6 @@ archive_read_format_warc_read_data(struct archive_read *a, const void **buf,
 	}
 
 	if (w->cntoff >= w->cntlen) {
-	eof:
 		/* No data is available to return for this entry. */
 		*buf = NULL;
 		*bsz = 0U;
@@ -423,7 +422,9 @@ archive_read_format_warc_read_data(struct archive_read *a, const void **buf,
 		/* Propagate the read error. */
 		return (int)nrd;
 	} else if (nrd == 0) {
-		goto eof;
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated WARC file data");
+		return (ARCHIVE_FATAL);
 	} else if ((int64_t)nrd > w->cntlen - w->cntoff) {
 		/* Clamp reads to Content-Length. */
 		nrd = w->cntlen - w->cntoff;
