@@ -450,6 +450,8 @@ default_iconv_charset(const char *charset) {
 	return locale_charset();
 #elif HAVE_NL_LANGINFO
 	return nl_langinfo(CODESET);
+#elif defined(__BIONIC__)
+	return "UTF-8";
 #else
 	return "";
 #endif
