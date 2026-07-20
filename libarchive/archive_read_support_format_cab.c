@@ -566,10 +566,9 @@ static int
 archive_read_format_cab_options(struct archive_read *a,
     const char *key, const char *val)
 {
-	struct cab *cab;
+	struct cab *cab = a->format->data;
 	int ret = ARCHIVE_FAILED;
 
-	cab = (struct cab *)(a->format->data);
 	if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -725,8 +724,8 @@ cab_convert_path_separator_2(struct cab *cab, struct archive_entry *entry)
 static int
 cab_read_header(struct archive_read *a)
 {
+	struct cab *cab = a->format->data;
 	const char *p;
-	struct cab *cab;
 	struct cfheader *hd;
 	size_t bytes, len, maxlen, used;
 	ssize_t avail;
@@ -742,7 +741,6 @@ cab_read_header(struct archive_read *a)
 	if ((p = __archive_read_ahead(a, 42, NULL)) == NULL)
 		return (truncated_error(a));
 
-	cab = (struct cab *)(a->format->data);
 	if (cab->found_header == 0 &&
 	    p[0] == 'M' && p[1] == 'Z') {
 		/* This is an executable?  Must be self-extracting... */
@@ -1005,14 +1003,13 @@ static int
 archive_read_format_cab_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct cab *cab;
+	struct cab *cab = a->format->data;
 	struct cfheader *hd;
 	struct cffolder *prev_folder;
 	struct cffile *file;
 	struct archive_string_conv *sconv;
 	int err = ARCHIVE_OK, r;
-	
-	cab = (struct cab *)(a->format->data);
+
 	if (cab->found_header == 0) {
 		err = cab_read_header(a); 
 		if (err < ARCHIVE_WARN)
@@ -1127,7 +1124,7 @@ static int
 archive_read_format_cab_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	int r;
 
 	switch (cab->entry_cffile->folder) {
@@ -1227,7 +1224,7 @@ cab_checksum_cfdata(const void *p, size_t bytes, uint32_t seed)
 static void
 cab_checksum_update(struct archive_read *a, size_t bytes)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfdata *cfdata = cab->entry_cfdata;
 	const unsigned char *p;
 	size_t sumbytes;
@@ -1267,7 +1264,7 @@ cab_checksum_update(struct archive_read *a, size_t bytes)
 static int
 cab_checksum_finish(struct archive_read *a)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfdata *cfdata = cab->entry_cfdata;
 	int l;
 
@@ -1312,7 +1309,7 @@ cab_checksum_finish(struct archive_read *a)
 static int
 cab_next_cfdata(struct archive_read *a)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfdata *cfdata = cab->entry_cfdata;
 
 	/* There are remaining bytes in current CFDATA, use it first. */
@@ -1460,7 +1457,7 @@ invalid:
 static const void *
 cab_read_ahead_cfdata(struct archive_read *a, ssize_t *avail)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	int err;
 
 	err = cab_next_cfdata(a);
@@ -1491,7 +1488,7 @@ cab_read_ahead_cfdata(struct archive_read *a, ssize_t *avail)
 static const void *
 cab_read_ahead_cfdata_none(struct archive_read *a, ssize_t *avail)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfdata *cfdata;
 	const void *d;
 
@@ -1523,7 +1520,7 @@ cab_read_ahead_cfdata_none(struct archive_read *a, ssize_t *avail)
 static const void *
 cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfdata *cfdata;
 	const void *d;
 	int r, mszip;
@@ -1751,7 +1748,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 static const void *
 cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfdata *cfdata;
 	const void *d;
 	int r;
@@ -1881,7 +1878,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 static int64_t
 cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfdata *cfdata;
 	int64_t cbytes, rbytes;
 	int err;
@@ -1974,7 +1971,7 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 static int64_t
 cab_minimum_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfdata *cfdata;
 	int64_t cbytes, rbytes;
 	int err;
@@ -2031,7 +2028,7 @@ static int
 cab_read_data(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	ssize_t bytes_avail;
 
 	if (cab->entry_bytes_remaining == 0) {
@@ -2077,11 +2074,9 @@ cab_read_data(struct archive_read *a, const void **buff,
 static int
 archive_read_format_cab_read_data_skip(struct archive_read *a)
 {
-	struct cab *cab;
+	struct cab *cab = a->format->data;
 	int64_t bytes_skipped;
 	int r;
-
-	cab = (struct cab *)(a->format->data);
 
 	if (cab->end_of_archive)
 		return (ARCHIVE_EOF);
@@ -2132,7 +2127,7 @@ archive_read_format_cab_read_data_skip(struct archive_read *a)
 static int
 archive_read_format_cab_cleanup(struct archive_read *a)
 {
-	struct cab *cab = (struct cab *)(a->format->data);
+	struct cab *cab = a->format->data;
 	struct cfheader *hd = &cab->cfheader;
 	uint16_t i;
 
@@ -2154,7 +2149,7 @@ archive_read_format_cab_cleanup(struct archive_read *a)
 	archive_wstring_free(&cab->ws);
 	free(cab->uncompressed_buffer);
 	free(cab);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
 

@@ -105,7 +105,7 @@ typedef struct {
 	char *str;
 } warc_strbuf_t;
 
-struct warc_s {
+struct warc {
 	/* Content length of the current record */
 	int64_t cntlen;
 	/* Bytes processed from the current record */
@@ -143,20 +143,20 @@ int
 archive_read_support_format_warc(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct warc_s *w;
+	struct warc *warc;
 	int r;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_warc");
 
-	if ((w = calloc(1, sizeof(*w))) == NULL) {
+	if ((warc = calloc(1, sizeof(*warc))) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate warc data");
 		return (ARCHIVE_FATAL);
 	}
 
 	r = __archive_read_register_format(a,
-	    w,
+	    warc,
 	    "warc",
 	    archive_read_format_warc_bid,
 	    NULL,
@@ -169,7 +169,7 @@ archive_read_support_format_warc(struct archive *_a)
 	    NULL);
 
 	if (r != ARCHIVE_OK) {
-		free(w);
+		free(warc);
 		return (r);
 	}
 	return (ARCHIVE_OK);
@@ -178,13 +178,13 @@ archive_read_support_format_warc(struct archive *_a)
 static int
 archive_read_format_warc_cleanup(struct archive_read *a)
 {
-	struct warc_s *w = a->format->data;
+	struct warc *warc = a->format->data;
 
-	if (w->pool.len > 0U) {
-		free(w->pool.str);
+	if (warc->pool.len > 0U) {
+		free(warc->pool.str);
 	}
-	archive_string_free(&w->sver);
-	free(w);
+	archive_string_free(&warc->sver);
+	free(warc);
 	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
@@ -220,7 +220,7 @@ archive_read_format_warc_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
 #define HDR_PROBE_LEN		(12U)
-	struct warc_s *w = a->format->data;
+	struct warc *warc = a->format->data;
 	unsigned int ver;
 	const char *buf;
 	ssize_t nrd;
@@ -295,18 +295,18 @@ start_over:
 
 	/* Report this archive as WARC. */
 	a->archive.archive_format = ARCHIVE_FORMAT_WARC;
-	if (ver != w->pver) {
+	if (ver != warc->pver) {
 		/* Format this entry's WARC version. */
-		archive_string_sprintf(&w->sver,
+		archive_string_sprintf(&warc->sver,
 			"WARC/%u.%u", ver / 10000, (ver % 10000) / 100);
 		/* Remember the version for later entries. */
-		w->pver = ver;
+		warc->pver = ver;
 	}
 	/* Parse the record type. */
 	ftyp = warc_read_type(buf, eoh - buf);
 	/* Save content state for subsequent read calls. */
-	w->cntlen = cntlen;
-	w->cntoff = 0;
+	warc->cntlen = cntlen;
+	warc->cntoff = 0;
 	mtime = 0;/* Avoid compiler warnings on some platforms. */
 
 	switch (ftyp) {
@@ -324,21 +324,21 @@ start_over:
 		}
 		/* Copy the name into the reusable string pool to avoid a malloc/free
 		 * roundtrip for each entry. */
-		if (fnam.len + 1U > w->pool.len) {
-			w->pool.len = ((fnam.len + 64U) / 64U) * 64U;
-			tmp = realloc(w->pool.str, w->pool.len);
+		if (fnam.len + 1U > warc->pool.len) {
+			warc->pool.len = ((fnam.len + 64U) / 64U) * 64U;
+			tmp = realloc(warc->pool.str, warc->pool.len);
 			if (tmp == NULL) {
 				archive_set_error(
 					&a->archive, ENOMEM,
 					"Out of memory");
 				return (ARCHIVE_FATAL);
 			}
-			w->pool.str = tmp;
+			warc->pool.str = tmp;
 		}
-		memcpy(w->pool.str, fnam.str, fnam.len);
-		w->pool.str[fnam.len] = '\0';
+		memcpy(warc->pool.str, fnam.str, fnam.len);
+		warc->pool.str[fnam.len] = '\0';
 		/* Hide the pool implementation behind the parsed string. */
-		fnam.str = w->pool.str;
+		fnam.str = warc->pool.str;
 
 		/* Use a Last-Modified record header when present; otherwise fall back
 		 * to WARC-Date. */
@@ -399,20 +399,20 @@ static int
 archive_read_format_warc_read_data(struct archive_read *a, const void **buf,
     size_t *bsz, int64_t *off)
 {
-	struct warc_s *w = a->format->data;
+	struct warc *warc = a->format->data;
 	const char *rab;
 	ssize_t nrd;
 
-	if (w->unconsumed) {
-		__archive_read_consume(a, w->unconsumed);
-		w->unconsumed = 0;
+	if (warc->unconsumed) {
+		__archive_read_consume(a, warc->unconsumed);
+		warc->unconsumed = 0;
 	}
 
-	if (w->cntoff >= w->cntlen) {
+	if (warc->cntoff >= warc->cntlen) {
 		/* No data is available to return for this entry. */
 		*buf = NULL;
 		*bsz = 0U;
-		*off = w->cntoff;
+		*off = warc->cntoff;
 		return (ARCHIVE_EOF);
 	}
 
@@ -425,35 +425,35 @@ archive_read_format_warc_read_data(struct archive_read *a, const void **buf,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated WARC file data");
 		return (ARCHIVE_FATAL);
-	} else if ((int64_t)nrd > w->cntlen - w->cntoff) {
+	} else if ((int64_t)nrd > warc->cntlen - warc->cntoff) {
 		/* Clamp reads to Content-Length. */
-		nrd = w->cntlen - w->cntoff;
+		nrd = warc->cntlen - warc->cntoff;
 	}
-	*off = w->cntoff;
+	*off = warc->cntoff;
 	*bsz = nrd;
 	*buf = rab;
 
-	w->cntoff += nrd;
-	w->unconsumed = nrd;
+	warc->cntoff += nrd;
+	warc->unconsumed = nrd;
 	return (ARCHIVE_OK);
 }
 
 static int
 archive_read_format_warc_skip(struct archive_read *a)
 {
-	struct warc_s *w = a->format->data;
+	struct warc *warc = a->format->data;
 
-	if (w->cntoff > w->cntlen)
+	if (warc->cntoff > warc->cntlen)
 		return (ARCHIVE_FATAL);
-	if (w->unconsumed) {
-		__archive_read_consume(a, w->unconsumed);
-		w->unconsumed = 0;
+	if (warc->unconsumed) {
+		__archive_read_consume(a, warc->unconsumed);
+		warc->unconsumed = 0;
 	}
-	if (__archive_read_consume(a, w->cntlen - w->cntoff) < 0 ||
+	if (__archive_read_consume(a, warc->cntlen - warc->cntoff) < 0 ||
 	    __archive_read_consume(a, 4U/*\r\n\r\n separator*/) < 0)
 		return (ARCHIVE_FATAL);
-	w->cntlen = 0;
-	w->cntoff = 0;
+	warc->cntlen = 0;
+	warc->cntoff = 0;
 	return (ARCHIVE_OK);
 }
 

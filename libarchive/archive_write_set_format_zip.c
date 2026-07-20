@@ -789,9 +789,9 @@ is_all_ascii(const char *p)
 static int
 archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 {
+	struct zip *zip = a->format_data;
 	unsigned char local_header[32];
 	unsigned char local_extra[144];
-	struct zip *zip = a->format_data;
 	unsigned char *e;
 	unsigned char *cd_extra;
 	size_t filename_length;
@@ -1520,8 +1520,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 static ssize_t
 archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 {
-	int ret;
 	struct zip *zip = a->format_data;
+	int ret;
 
 	if ((int64_t)s > zip->entry_uncompressed_limit)
 		s = (size_t)zip->entry_uncompressed_limit;
@@ -2189,9 +2189,9 @@ archive_write_zip_finish_entry(struct archive_write *a)
 static int
 archive_write_zip_close(struct archive_write *a)
 {
+	struct zip *zip = a->format_data;
 	uint8_t buff[64];
 	int64_t offset_start, offset_end;
-	struct zip *zip = a->format_data;
 	struct cd_segment *segment;
 	int ret;
 
@@ -2261,10 +2261,9 @@ archive_write_zip_close(struct archive_write *a)
 static int
 archive_write_zip_free(struct archive_write *a)
 {
-	struct zip *zip;
+	struct zip *zip = a->format_data;
 	struct cd_segment *segment;
 
-	zip = a->format_data;
 	while (zip->central_directory != NULL) {
 		segment = zip->central_directory;
 		zip->central_directory = segment->next;

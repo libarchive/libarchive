@@ -536,7 +536,7 @@ xar_bid(struct archive_read *a, int best_bid)
 static int
 read_toc(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	struct xar_file *file;
 	const unsigned char *b;
 	uint64_t toc_compressed_size;
@@ -544,8 +544,6 @@ read_toc(struct archive_read *a)
 	uint32_t toc_chksum_alg;
 	ssize_t bytes;
 	int r;
-
-	xar = (struct xar *)(a->format->data);
 
 	/*
 	 * Read xar header.
@@ -674,12 +672,11 @@ read_toc(struct archive_read *a)
 static int
 xar_read_header(struct archive_read *a, struct archive_entry *entry)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	struct xar_file *file;
 	struct xattr *xattr;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	r = ARCHIVE_OK;
 
 	if (xar->offset == 0) {
@@ -878,11 +875,9 @@ static int
 xar_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	size_t used = 0;
 	int r;
-
-	xar = (struct xar *)(a->format->data);
 
 	if (xar->entry_unconsumed) {
 		__archive_read_consume(a, xar->entry_unconsumed);
@@ -941,10 +936,9 @@ abort_read_data:
 static int
 xar_read_data_skip(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	int64_t bytes_skipped;
 
-	xar = (struct xar *)(a->format->data);
 	if (xar->end_of_file)
 		return (ARCHIVE_EOF);
 	bytes_skipped = __archive_read_consume(a, xar->entry_remaining +
@@ -959,12 +953,11 @@ xar_read_data_skip(struct archive_read *a)
 static int
 xar_cleanup(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	struct hdlink *hdlink;
 	size_t i;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	checksum_cleanup(a);
 	r = decompression_cleanup(a);
 	hdlink = xar->hdlink_list;
@@ -994,9 +987,8 @@ xar_cleanup(struct archive_read *a)
 static int
 move_reading_point(struct archive_read *a, uint64_t offset)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 
-	xar = (struct xar *)(a->format->data);
 	if (xar->offset - xar->h_base != offset) {
 		/* Seek forward to the start of file contents. */
 		int64_t step;
@@ -1398,9 +1390,8 @@ _checksum_final(struct chksumwork *sumwrk, const void *val, size_t len)
 static void
 checksum_init(struct archive_read *a, int a_sum_alg, int e_sum_alg)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 
-	xar = (struct xar *)(a->format->data);
 	_checksum_init(&(xar->a_sumwrk), a_sum_alg);
 	_checksum_init(&(xar->e_sumwrk), e_sum_alg);
 }
@@ -1409,9 +1400,8 @@ static void
 checksum_update(struct archive_read *a, const void *abuff, size_t asize,
     const void *ebuff, size_t esize)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 
-	xar = (struct xar *)(a->format->data);
 	_checksum_update(&(xar->a_sumwrk), abuff, asize);
 	_checksum_update(&(xar->e_sumwrk), ebuff, esize);
 }
@@ -1420,10 +1410,9 @@ static int
 checksum_final(struct archive_read *a, const void *a_sum_val,
     size_t a_sum_len, const void *e_sum_val, size_t e_sum_len)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	r = _checksum_final(&(xar->a_sumwrk), a_sum_val, a_sum_len);
 	if (r == ARCHIVE_OK)
 		r = _checksum_final(&(xar->e_sumwrk), e_sum_val, e_sum_len);
@@ -1436,11 +1425,10 @@ checksum_final(struct archive_read *a, const void *a_sum_val,
 static int
 decompression_init(struct archive_read *a, enum enctype encoding)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	const char *detail;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	xar->rd_encoding = encoding;
 	switch (encoding) {
 	case NONE:
@@ -1576,12 +1564,11 @@ static int
 decompress(struct archive_read *a, const void **buff, size_t *outbytes,
     const void *b, size_t *used)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	void *outbuff;
 	size_t avail_in, avail_out;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	avail_in = *used;
 	outbuff = (void *)(uintptr_t)*buff;
 	if (outbuff == NULL) {
@@ -1704,10 +1691,9 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 static int
 decompression_cleanup(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	r = ARCHIVE_OK;
 	if (xar->stream_valid) {
 		if (inflateEnd(&(xar->stream)) != Z_OK) {
@@ -1736,9 +1722,7 @@ decompression_cleanup(struct archive_read *a)
 
 static void
 checksum_cleanup(struct archive_read *a) {
-	struct xar *xar;
-
-	xar = (struct xar *)(a->format->data);
+	struct xar *xar = a->format->data;
 
 	_checksum_final(&(xar->a_sumwrk), NULL, 0);
 	_checksum_final(&(xar->e_sumwrk), NULL, 0);
@@ -1960,10 +1944,8 @@ unknowntag_end(struct xar *xar, const char *name)
 static int
 xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	struct xmlattr *attr;
-
-	xar = (struct xar *)(a->format->data);
 
 #if DEBUG
 	fprintf(stderr, "xml_sta:[%s]\n", name);
@@ -2256,11 +2238,8 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 static void
 xml_end(void *userData, const char *name)
 {
-	struct archive_read *a;
-	struct xar *xar;
-
-	a = (struct archive_read *)userData;
-	xar = (struct xar *)(a->format->data);
+	struct archive_read *a = (struct archive_read *)userData;
+	struct xar *xar = a->format->data;
 
 #if DEBUG
 	fprintf(stderr, "xml_end:[%s]\n", name);
@@ -2682,13 +2661,10 @@ is_string(const char *known, const char *data, size_t len)
 static int
 xml_data(void *userData, const char *s, size_t len)
 {
+	struct archive_read *a = (struct archive_read *)userData;
+	struct xar *xar = a->format->data;
 	uint64_t val;
-	struct archive_read *a;
-	struct xar *xar;
 	int r;
-
-	a = (struct archive_read *)userData;
-	xar = (struct xar *)(a->format->data);
 
 #if DEBUG
 	{
@@ -3169,15 +3145,12 @@ xml2_xmlattr_setup(struct archive_read *a,
 static int
 xml2_read_cb(void *context, char *buffer, int len)
 {
-	struct archive_read *a;
-	struct xar *xar;
+	struct archive_read *a = (struct archive_read *)context;
+	struct xar *xar = a->format->data;
 	const void *d;
 	size_t outbytes;
 	size_t used = 0;
 	int r;
-
-	a = (struct archive_read *)context;
-	xar = (struct xar *)(a->format->data);
 
 	if (xar->toc_remaining <= 0)
 		return (0);
@@ -3207,10 +3180,9 @@ static void
 xml2_error_hdr(void *arg, const char *msg, xmlParserSeverities severity,
     xmlTextReaderLocatorPtr locator)
 {
-	struct archive_read *a;
+	struct archive_read *a = (struct archive_read *)arg;
 
 	(void)locator; /* UNUSED */
-	a = (struct archive_read *)arg;
 	switch (severity) {
 	case XML_PARSER_SEVERITY_VALIDITY_WARNING:
 	case XML_PARSER_SEVERITY_WARNING:
@@ -3360,14 +3332,12 @@ expat_data_cb(void *userData, const XML_Char *s, int len)
 static int
 expat_read_toc(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	XML_Parser parser;
 	struct expat_userData ud;
 
 	ud.state = ARCHIVE_OK;
 	ud.archive = a;
-
-	xar = (struct xar *)(a->format->data);
 
 	/* Initialize XML Parser library. */
 	parser = XML_ParserCreate(NULL);
@@ -3452,15 +3422,12 @@ static HRESULT STDMETHODCALLTYPE
 asaRead(ISequentialStream *this, void *pv, ULONG cb, ULONG *pcbRead)
 {
 	struct ArchiveStreamAdapter *asa = (struct ArchiveStreamAdapter *)this;
-	struct archive_read *a;
-	struct xar *xar;
+	struct archive_read *a = asa->a;
+	struct xar *xar = a->format->data;
 	const void *d = pv;
 	size_t outbytes = cb;
 	size_t used = 0;
 	int r;
-
-	a = asa->a;
-	xar = (struct xar *)(a->format->data);
 
 	*pcbRead = 0;
 

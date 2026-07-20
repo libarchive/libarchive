@@ -235,7 +235,7 @@ static int
 archive_write_binary_options(struct archive_write *a, const char *key,
     const char *val)
 {
-	struct cpio *cpio = (struct cpio *)a->format_data;
+	struct cpio *cpio = a->format_data;
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "hdrcharset")  == 0) {
@@ -335,10 +335,9 @@ synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
 static struct archive_string_conv *
 get_sconv(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 	struct archive_string_conv *sconv;
 
-	cpio = (struct cpio *)a->format_data;
 	sconv = cpio->opt_sconv;
 	if (sconv == NULL) {
 		if (!cpio->init_default_conversion) {
@@ -384,7 +383,7 @@ archive_write_binary_header(struct archive_write *a, struct archive_entry *entry
 static int
 write_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 	const char *p, *path;
 	int ret, ret_final;
 	int64_t	ino;
@@ -393,7 +392,6 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	struct archive_entry *entry_main;
 	size_t len, pathlength;
 
-	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
 	sconv = get_sconv(a);
 
@@ -567,10 +565,9 @@ exit_write_header:
 static ssize_t
 archive_write_binary_data(struct archive_write *a, const void *buff, size_t s)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 	int ret;
 
-	cpio = (struct cpio *)a->format_data;
 	if (s > cpio->entry_bytes_remaining)
 		s = (size_t)cpio->entry_bytes_remaining;
 
@@ -604,9 +601,8 @@ archive_write_binary_close(struct archive_write *a)
 static int
 archive_write_binary_free(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 
-	cpio = (struct cpio *)a->format_data;
 	free(cpio->ino_list);
 	free(cpio);
 	a->format_data = NULL;
@@ -616,8 +612,7 @@ archive_write_binary_free(struct archive_write *a)
 static int
 archive_write_binary_finish_entry(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 
-	cpio = (struct cpio *)a->format_data;
 	return (__archive_write_nulls(a, cpio->entry_bytes_remaining));
 }

@@ -35,7 +35,7 @@
 #include "archive.h"
 #include "archive_write_private.h"
 
-struct write_grzip {
+struct grzip {
 	struct archive_write_program_data *pdata;
 };
 
@@ -46,22 +46,22 @@ static int archive_write_grzip_write(struct archive_write_filter *,
 		    const void *, size_t);
 static int archive_write_grzip_close(struct archive_write_filter *);
 static int archive_write_grzip_free(struct archive_write_filter *);
-static void free_data(struct write_grzip *);
+static void free_data(struct grzip *);
 
 int
 archive_write_add_filter_grzip(struct archive *a)
 {
 	struct archive_write_filter *f;
-	struct write_grzip *data;
+	struct grzip *grzip;
 
 	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_grzip");
 
-	data = calloc(1, sizeof(*data));
-	if (data == NULL)
+	grzip = calloc(1, sizeof(*grzip));
+	if (grzip == NULL)
 		goto memerr;
-	data->pdata = __archive_write_program_allocate("grzip");
-	if (data->pdata == NULL)
+	grzip->pdata = __archive_write_program_allocate("grzip");
+	if (grzip->pdata == NULL)
 		goto memerr;
 
 	f = __archive_write_allocate_filter(a);
@@ -69,7 +69,7 @@ archive_write_add_filter_grzip(struct archive *a)
 		goto memerr;
 	f->name = "grzip";
 	f->code = ARCHIVE_FILTER_GRZIP;
-	f->data = data;
+	f->data = grzip;
 	f->options = archive_write_grzip_options;
 	f->open = archive_write_grzip_open;
 	f->write = archive_write_grzip_write;
@@ -82,7 +82,7 @@ archive_write_add_filter_grzip(struct archive *a)
 	    "Using external grzip program for grzip compression");
 	return (ARCHIVE_WARN);
 memerr:
-	free_data(data);
+	free_data(grzip);
 	archive_set_error(a, ENOMEM, "Can't allocate memory");
 	return (ARCHIVE_FATAL);
 }
@@ -103,26 +103,26 @@ archive_write_grzip_options(struct archive_write_filter *f, const char *key,
 static int
 archive_write_grzip_open(struct archive_write_filter *f)
 {
-	struct write_grzip *data = (struct write_grzip *)f->data;
+	struct grzip *grzip = f->data;
 
-	return __archive_write_program_open(f, data->pdata, "grzip");
+	return __archive_write_program_open(f, grzip->pdata, "grzip");
 }
 
 static int
 archive_write_grzip_write(struct archive_write_filter *f,
     const void *buff, size_t length)
 {
-	struct write_grzip *data = (struct write_grzip *)f->data;
+	struct grzip *grzip = f->data;
 
-	return __archive_write_program_write(f, data->pdata, buff, length);
+	return __archive_write_program_write(f, grzip->pdata, buff, length);
 }
 
 static int
 archive_write_grzip_close(struct archive_write_filter *f)
 {
-	struct write_grzip *data = (struct write_grzip *)f->data;
+	struct grzip *grzip = f->data;
 
-	return __archive_write_program_close(f, data->pdata);
+	return __archive_write_program_close(f, grzip->pdata);
 }
 
 static int
@@ -134,10 +134,10 @@ archive_write_grzip_free(struct archive_write_filter *f)
 }
 
 static void
-free_data(struct write_grzip *data)
+free_data(struct grzip *grzip)
 {
-	if (data != NULL) {
-		__archive_write_program_free(data->pdata);
-		free(data);
+	if (grzip != NULL) {
+		__archive_write_program_free(grzip->pdata);
+		free(grzip);
 	}
 }

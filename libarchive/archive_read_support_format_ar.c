@@ -135,7 +135,7 @@ archive_read_support_format_ar(struct archive *_a)
 static int
 archive_read_format_ar_cleanup(struct archive_read *a)
 {
-	struct ar *ar = (struct ar *)(a->format->data);
+	struct ar *ar = a->format->data;
 
 	free(ar->strtab);
 	free(ar);
@@ -399,7 +399,7 @@ static int
 archive_read_format_ar_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct ar *ar = (struct ar *)(a->format->data);
+	struct ar *ar = a->format->data;
 	int64_t unconsumed;
 	const void *header_data;
 	int ret;
@@ -459,7 +459,7 @@ static int
 archive_read_format_ar_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	struct ar *ar = (struct ar *)(a->format->data);
+	struct ar *ar = a->format->data;
 	ssize_t bytes_read;
 
 	if (ar->entry_bytes_unconsumed) {
@@ -498,7 +498,7 @@ archive_read_format_ar_read_data(struct archive_read *a,
 static int
 archive_read_format_ar_skip(struct archive_read *a)
 {
-	struct ar *ar = (struct ar *)(a->format->data);
+	struct ar *ar = a->format->data;
 
 	if (__archive_read_consume(a,
 	    ar->entry_bytes_remaining + ar->entry_padding +
@@ -515,7 +515,7 @@ archive_read_format_ar_skip(struct archive_read *a)
 static int
 ar_parse_gnu_filename_table(struct archive_read *a)
 {
-	struct ar *ar = (struct ar *)(a->format->data);
+	struct ar *ar = a->format->data;
 	char *p;
 	size_t size;
 

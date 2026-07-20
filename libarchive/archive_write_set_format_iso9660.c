@@ -1528,12 +1528,10 @@ invalid_value:
 static int
 iso9660_write_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	struct isofile *file;
 	struct isoent *isoent;
 	int r, ret = ARCHIVE_OK;
-
-	iso9660 = a->format_data;
 
 	iso9660->cur_file = NULL;
 	iso9660->bytes_remaining = 0;
@@ -1676,7 +1674,7 @@ wb_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 	 * order to reduce a extra memory copy.
 	 */
 	if (wb_remaining(a) == wb_buffmax() && s > (1024 * 16)) {
-		struct iso9660 *iso9660 = (struct iso9660 *)a->format_data;
+		struct iso9660 *iso9660 = a->format_data;
 		xs = s % LOGICAL_BLOCK_SIZE;
 		iso9660->wbuff_offset += s - xs;
 		if (write_to_temp(a, buff, s - xs) != ARCHIVE_OK)
@@ -1858,10 +1856,8 @@ iso9660_finish_entry(struct archive_write *a)
 static int
 iso9660_close(struct archive_write *a)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	int ret, blocks;
-
-	iso9660 = a->format_data;
 
 	/*
 	 * Write remaining data out to the temporary file.
@@ -2120,10 +2116,8 @@ iso9660_close(struct archive_write *a)
 static int
 iso9660_free(struct archive_write *a)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	int i, ret;
-
-	iso9660 = a->format_data;
 
 	/* Close the temporary file. */
 	if (iso9660->temp_fd >= 0)
@@ -3618,7 +3612,7 @@ get_dir_rec_size(struct iso9660 *iso9660, struct isoent *isoent,
 static inline unsigned char *
 wb_buffptr(struct archive_write *a)
 {
-	struct iso9660 *iso9660 = (struct iso9660 *)a->format_data;
+	struct iso9660 *iso9660 = a->format_data;
 
 	return (&(iso9660->wbuff[sizeof(iso9660->wbuff)
 		- iso9660->wbuff_remaining]));
@@ -3627,7 +3621,7 @@ wb_buffptr(struct archive_write *a)
 static int
 wb_write_out(struct archive_write *a)
 {
-	struct iso9660 *iso9660 = (struct iso9660 *)a->format_data;
+	struct iso9660 *iso9660 = a->format_data;
 	size_t wsize, nw;
 	int r;
 
@@ -3652,7 +3646,7 @@ wb_write_out(struct archive_write *a)
 static int
 wb_consume(struct archive_write *a, size_t size)
 {
-	struct iso9660 *iso9660 = (struct iso9660 *)a->format_data;
+	struct iso9660 *iso9660 = a->format_data;
 
 	if (size > iso9660->wbuff_remaining ||
 	    iso9660->wbuff_remaining == 0) {
@@ -3673,7 +3667,7 @@ wb_consume(struct archive_write *a, size_t size)
 static int
 wb_set_offset(struct archive_write *a, int64_t off)
 {
-	struct iso9660 *iso9660 = (struct iso9660 *)a->format_data;
+	struct iso9660 *iso9660 = a->format_data;
 	int64_t used, ext_bytes;
 
 	if (iso9660->wbuff_type != WB_TO_TEMP) {
@@ -3840,7 +3834,7 @@ set_file_identifier(unsigned char *bp, int from, int to, enum vdc vdc,
 static int
 write_VD(struct archive_write *a, struct vdd *vdd)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	unsigned char *bp;
 	uint16_t volume_set_size = 1;
 	char identifier[256];
@@ -3849,7 +3843,6 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	unsigned char vd_ver, fst_ver;
 	int r;
 
-	iso9660 = a->format_data;
 	switch (vdd->vdd_type) {
 	case VDD_JOLIET:
 		vdt = VDT_SUPPLEMENTARY;
@@ -3987,10 +3980,9 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 static int
 write_VD_boot_record(struct archive_write *a)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	unsigned char *bp;
 
-	iso9660 = a->format_data;
 	bp = wb_buffptr(a) -1;
 	/* Volume Descriptor Type */
 	set_VD_bp(bp, VDT_BOOT_RECORD, 1);
@@ -4058,7 +4050,7 @@ set_option_info(struct archive_string *info, int *opt, const char *key,
 static int
 write_information_block(struct archive_write *a)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	char buf[128];
 	const char *v;
 	int opt, r;
@@ -4066,7 +4058,6 @@ write_information_block(struct archive_write *a)
 	size_t info_size = LOGICAL_BLOCK_SIZE *
 			       NON_ISO_FILE_SYSTEM_INFORMATION_BLOCK;
 
-	iso9660 = (struct iso9660 *)a->format_data;
 	if (info_size > wb_remaining(a)) {
 		r = wb_write_out(a);
 		if (r != ARCHIVE_OK)
@@ -4716,13 +4707,11 @@ cleanup_backslash_2(wchar_t *p)
 static int
 isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	const char *pathname;
 	char *p, *dirname, *slash;
 	size_t len;
 	int ret = ARCHIVE_OK;
-
-	iso9660 = a->format_data;
 
 	archive_string_empty(&(file->parentdir));
 	archive_string_empty(&(file->basename));
@@ -5562,6 +5551,7 @@ get_path_component(char *name, size_t n, const char *fn)
 static int
 isoent_tree(struct archive_write *a, struct isoent **isoentpp)
 {
+	struct iso9660 *iso9660 = a->format_data;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char name[_MAX_FNAME];/* Included null terminator size. */
 #elif defined(NAME_MAX) && NAME_MAX >= 255
@@ -5569,7 +5559,6 @@ isoent_tree(struct archive_write *a, struct isoent **isoentpp)
 #else
 	char name[256];
 #endif
-	struct iso9660 *iso9660 = a->format_data;
 	struct isoent *dent, *isoent, *np;
 	struct isofile *f1, *f2;
 	const char *fn, *p;
@@ -5997,7 +5986,7 @@ static int
 isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
     struct idr *idr)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	struct isoent *np;
 	char *p;
 	int l, r;
@@ -6015,7 +6004,6 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	if (isoent->children.cnt == 0)
 		return (ARCHIVE_OK);
 
-	iso9660 = a->format_data;
 	char_map = idr->char_map;
 	if (iso9660->opt.iso_level <= 3) {
 		allow_ldots = 0;
@@ -6257,7 +6245,7 @@ static int
 isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
     struct idr *idr)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format_data;
 	struct isoent *np;
 	unsigned char *p;
 	size_t l;
@@ -6272,7 +6260,6 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	if (isoent->children.cnt == 0)
 		return (ARCHIVE_OK);
 
-	iso9660 = a->format_data;
 	if (iso9660->opt.joliet == OPT_JOLIET_LONGNAME)
 		ffmax = 206;
 	else

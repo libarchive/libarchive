@@ -161,9 +161,8 @@ static int
 archive_read_format_mtree_options(struct archive_read *a,
     const char *key, const char *val)
 {
-	struct mtree *mtree;
+	struct mtree *mtree = a->format->data;
 
-	mtree = (struct mtree *)(a->format->data);
 	if (strcmp(key, "checkfs")  == 0) {
 		/* Allows to read information missing from the mtree from the file system */
 		if (val == NULL || val[0] == 0) {
@@ -245,11 +244,9 @@ archive_read_support_format_mtree(struct archive *_a)
 static int
 cleanup(struct archive_read *a)
 {
-	struct mtree *mtree;
+	struct mtree *mtree = a->format->data;
 	struct mtree_entry *p, *q;
 
-	mtree = (struct mtree *)(a->format->data);
-	
 	/* Close any dangling file descriptor before freeing */
     if (mtree->fd >= 0) {
         close(mtree->fd);
@@ -270,7 +267,7 @@ cleanup(struct archive_read *a)
 
 	free(mtree->buff);
 	free(mtree);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -1069,11 +1066,9 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 static int
 read_header(struct archive_read *a, struct archive_entry *entry)
 {
-	struct mtree *mtree;
+	struct mtree *mtree = a->format->data;
 	char *p;
 	int r, use_next;
-
-	mtree = (struct mtree *)(a->format->data);
 
 	if (mtree->fd >= 0) {
 		close(mtree->fd);
@@ -1838,11 +1833,10 @@ static int
 read_data(struct archive_read *a, const void **buff, size_t *size,
     int64_t *offset)
 {
+	struct mtree *mtree = a->format->data;
 	size_t bytes_to_read;
 	ssize_t bytes_read;
-	struct mtree *mtree;
 
-	mtree = (struct mtree *)(a->format->data);
 	if (mtree->fd < 0) {
 		*buff = NULL;
 		*offset = 0;
@@ -1883,9 +1877,8 @@ read_data(struct archive_read *a, const void **buff, size_t *size,
 static int
 skip(struct archive_read *a)
 {
-	struct mtree *mtree;
+	struct mtree *mtree = a->format->data;
 
-	mtree = (struct mtree *)(a->format->data);
 	if (mtree->fd >= 0) {
 		close(mtree->fd);
 		mtree->fd = -1;

@@ -46,7 +46,7 @@
 
 #define LBYTES 45
 
-struct private_uuencode {
+struct uuencode {
 	int			mode;
 	struct archive_string	name;
 	struct archive_string	encoded_buff;
@@ -64,7 +64,7 @@ static int archive_filter_uuencode_close(struct archive_write_filter *);
 static int archive_filter_uuencode_free(struct archive_write_filter *);
 static void uu_encode(struct archive_string *, const unsigned char *, size_t);
 static int64_t atol8(const char *, size_t);
-static void free_data(struct private_uuencode *);
+static void free_data(struct uuencode *);
 
 /*
  * Add a compress filter to this write handle.
@@ -73,23 +73,23 @@ int
 archive_write_add_filter_uuencode(struct archive *a)
 {
 	struct archive_write_filter *f;
-	struct private_uuencode *state;
+	struct uuencode *uuencode;
 
 	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_uuencode");
 
-	state = calloc(1, sizeof(*state));
-	if (state == NULL)
+	uuencode = calloc(1, sizeof(*uuencode));
+	if (uuencode == NULL)
 		goto memerr;
-	archive_strcpy(&state->name, "-");
-	state->mode = 0644;
+	archive_strcpy(&uuencode->name, "-");
+	uuencode->mode = 0644;
 
 	f = __archive_write_allocate_filter(a);
 	if (f == NULL)
 		goto memerr;
 	f->name = "uuencode";
 	f->code = ARCHIVE_FILTER_UU;
-	f->data = state;
+	f->data = uuencode;
 	f->options = archive_filter_uuencode_options;
 	f->open = archive_filter_uuencode_open;
 	f->write = archive_filter_uuencode_write;
@@ -98,7 +98,7 @@ archive_write_add_filter_uuencode(struct archive *a)
 
 	return (ARCHIVE_OK);
 memerr:
-	free_data(state);
+	free_data(uuencode);
 	archive_set_error(a, ENOMEM,
 	    "Can't allocate data for uuencode filter");
 	return (ARCHIVE_FATAL);
@@ -111,7 +111,7 @@ static int
 archive_filter_uuencode_options(struct archive_write_filter *f, const char *key,
     const char *value)
 {
-	struct private_uuencode *state = (struct private_uuencode *)f->data;
+	struct uuencode *uuencode = f->data;
 
 	if (strcmp(key, "mode") == 0) {
 		int64_t val;
@@ -127,7 +127,7 @@ archive_filter_uuencode_options(struct archive_write_filter *f, const char *key,
 			    "invalid mode option");
 			return (ARCHIVE_FAILED);
 		}
-		state->mode = (int)val & 0777;
+		uuencode->mode = (int)val & 0777;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "name") == 0) {
 		if (value == NULL) {
@@ -135,7 +135,7 @@ archive_filter_uuencode_options(struct archive_write_filter *f, const char *key,
 			    "name option requires a string");
 			return (ARCHIVE_FAILED);
 		}
-		archive_strcpy(&state->name, value);
+		archive_strcpy(&uuencode->name, value);
 		return (ARCHIVE_OK);
 	}
 
@@ -151,7 +151,7 @@ archive_filter_uuencode_options(struct archive_write_filter *f, const char *key,
 static int
 archive_filter_uuencode_open(struct archive_write_filter *f)
 {
-	struct private_uuencode *state = (struct private_uuencode *)f->data;
+	struct uuencode *uuencode = f->data;
 	size_t bs = 65536, bpb;
 
 	if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
@@ -164,15 +164,15 @@ archive_filter_uuencode_open(struct archive_write_filter *f)
 			bs -= bs % bpb;
 	}
 
-	state->bs = bs;
-	if (archive_string_ensure(&state->encoded_buff, bs + 512) == NULL) {
+	uuencode->bs = bs;
+	if (archive_string_ensure(&uuencode->encoded_buff, bs + 512) == NULL) {
 		archive_set_error(f->archive, ENOMEM,
 		    "Can't allocate data for uuencode buffer");
 		return (ARCHIVE_FATAL);
 	}
 
-	archive_string_sprintf(&state->encoded_buff, "begin %o %s\n",
-	    (unsigned int)state->mode, state->name.s);
+	archive_string_sprintf(&uuencode->encoded_buff, "begin %o %s\n",
+	    (unsigned int)uuencode->mode, uuencode->name.s);
 
 	return (ARCHIVE_OK);
 }
@@ -220,39 +220,39 @@ static int
 archive_filter_uuencode_write(struct archive_write_filter *f, const void *buff,
     size_t length)
 {
-	struct private_uuencode *state = (struct private_uuencode *)f->data;
+	struct uuencode *uuencode = f->data;
 	const unsigned char *p = buff;
 	int ret = ARCHIVE_OK;
 
 	if (length == 0)
 		return (ret);
 
-	if (state->hold_len) {
-		while (state->hold_len < LBYTES && length > 0) {
-			state->hold[state->hold_len++] = *p++;
+	if (uuencode->hold_len) {
+		while (uuencode->hold_len < LBYTES && length > 0) {
+			uuencode->hold[uuencode->hold_len++] = *p++;
 			length--;
 		}
-		if (state->hold_len < LBYTES)
+		if (uuencode->hold_len < LBYTES)
 			return (ret);
-		uu_encode(&state->encoded_buff, state->hold, LBYTES);
-		state->hold_len = 0;
+		uu_encode(&uuencode->encoded_buff, uuencode->hold, LBYTES);
+		uuencode->hold_len = 0;
 	}
 
 	for (; length >= LBYTES; length -= LBYTES, p += LBYTES)
-		uu_encode(&state->encoded_buff, p, LBYTES);
+		uu_encode(&uuencode->encoded_buff, p, LBYTES);
 
 	/* Save remaining bytes. */
 	if (length > 0) {
-		memcpy(state->hold, p, length);
-		state->hold_len = length;
+		memcpy(uuencode->hold, p, length);
+		uuencode->hold_len = length;
 	}
-	while (archive_strlen(&state->encoded_buff) >= state->bs) {
+	while (archive_strlen(&uuencode->encoded_buff) >= uuencode->bs) {
 		ret = __archive_write_filter(f->next_filter,
-		    state->encoded_buff.s, state->bs);
-		memmove(state->encoded_buff.s,
-		    state->encoded_buff.s + state->bs,
-		    state->encoded_buff.length - state->bs);
-		state->encoded_buff.length -= state->bs;
+		    uuencode->encoded_buff.s, uuencode->bs);
+		memmove(uuencode->encoded_buff.s,
+		    uuencode->encoded_buff.s + uuencode->bs,
+		    uuencode->encoded_buff.length - uuencode->bs);
+		uuencode->encoded_buff.length -= uuencode->bs;
 	}
 
 	return (ret);
@@ -265,16 +265,17 @@ archive_filter_uuencode_write(struct archive_write_filter *f, const void *buff,
 static int
 archive_filter_uuencode_close(struct archive_write_filter *f)
 {
-	struct private_uuencode *state = (struct private_uuencode *)f->data;
+	struct uuencode *uuencode = f->data;
 
 	/* Flush remaining bytes. */
-	if (state->hold_len != 0)
-		uu_encode(&state->encoded_buff, state->hold, state->hold_len);
-	archive_string_sprintf(&state->encoded_buff, "`\nend\n");
+	if (uuencode->hold_len != 0)
+		uu_encode(&uuencode->encoded_buff, uuencode->hold,
+		    uuencode->hold_len);
+	archive_string_sprintf(&uuencode->encoded_buff, "`\nend\n");
 	/* Write the last block */
 	archive_write_set_bytes_in_last_block(f->archive, 1);
 	return __archive_write_filter(f->next_filter,
-	    state->encoded_buff.s, archive_strlen(&state->encoded_buff));
+	    uuencode->encoded_buff.s, archive_strlen(&uuencode->encoded_buff));
 }
 
 static int
@@ -309,11 +310,11 @@ atol8(const char *p, size_t char_cnt)
 }
 
 static void
-free_data(struct private_uuencode *data)
+free_data(struct uuencode *uuencode)
 {
-	if (data != NULL) {
-		archive_string_free(&data->name);
-		archive_string_free(&data->encoded_buff);
-		free(data);
+	if (uuencode != NULL) {
+		archive_string_free(&uuencode->name);
+		archive_string_free(&uuencode->encoded_buff);
+		free(uuencode);
 	}
 }

@@ -504,7 +504,7 @@ archive_read_support_format_iso9660(struct archive *_a)
 static int
 archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	ssize_t bytes_read;
 	const unsigned char *p;
 	int seenTerminator;
@@ -513,8 +513,6 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	   make, don't bother testing. */
 	if (best_bid > 48)
 		return (-1);
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	/*
 	 * Skip the first 32k (reserved area) and get the first
@@ -577,9 +575,7 @@ static int
 archive_read_format_iso9660_options(struct archive_read *a,
 		const char *key, const char *val)
 {
-	struct iso9660 *iso9660;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
+	struct iso9660 *iso9660 = a->format->data;
 
 	if (strcmp(key, "joliet") == 0) {
 		if (val == NULL || strcmp(val, "off") == 0 ||
@@ -1035,12 +1031,11 @@ isRootDirectoryRecord(const unsigned char *p) {
 static int
 read_children(struct archive_read *a, struct file_info *parent)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	const unsigned char *b, *p;
 	struct file_info *multi;
 	size_t step, skip_size;
 
-	iso9660 = (struct iso9660 *)(a->format->data);
 	/* flush any remaining bytes from the last round to ensure
 	 * we're positioned */
 	if (iso9660->entry_bytes_unconsumed) {
@@ -1248,11 +1243,9 @@ static int
 archive_read_format_iso9660_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	struct file_info *file;
 	int r, rd_r = ARCHIVE_OK;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	if (!a->archive.archive_format) {
 		a->archive.archive_format = ARCHIVE_FORMAT_ISO9660;
@@ -1500,7 +1493,7 @@ static int
 zisofs_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	struct zisofs  *zisofs;
 	const unsigned char *p;
 	size_t avail;
@@ -1508,7 +1501,6 @@ zisofs_read_data(struct archive_read *a,
 	size_t uncompressed_size;
 	int r;
 
-	iso9660 = (struct iso9660 *)(a->format->data);
 	zisofs = &iso9660->entry_zisofs;
 
 	p = __archive_read_ahead(a, 1, &bytes_read);
@@ -1739,10 +1731,8 @@ static int
 archive_read_format_iso9660_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
+	struct iso9660 *iso9660 = a->format->data;
 	ssize_t bytes_read;
-	struct iso9660 *iso9660;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	if (iso9660->entry_bytes_unconsumed) {
 		__archive_read_consume(a, iso9660->entry_bytes_unconsumed);
@@ -1806,10 +1796,9 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 static int
 archive_read_format_iso9660_cleanup(struct archive_read *a)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	int r = ARCHIVE_OK;
 
-	iso9660 = (struct iso9660 *)(a->format->data);
 	release_files(iso9660);
 	free(iso9660->read_ce_req.reqs);
 	archive_string_free(&iso9660->pathname);
@@ -1829,7 +1818,7 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	free(iso9660->utf16be_path);
 	free(iso9660->utf16be_previous_path);
 	free(iso9660);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (r);
 }
 
@@ -1841,7 +1830,7 @@ static struct file_info *
 parse_file_info(struct archive_read *a, struct file_info *parent,
     const unsigned char *isodirrec, size_t reclen)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	struct file_info *file, *filep;
 	size_t name_len;
 	const unsigned char *rr_start, *rr_end;
@@ -1850,8 +1839,6 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	uint64_t fsize, offset;
 	int32_t location;
 	int flags;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	if (reclen != 0)
 		dr_len = (size_t)isodirrec[DR_length_offset];
@@ -2193,10 +2180,8 @@ static int
 parse_rockridge(struct archive_read *a, struct file_info *file,
     const unsigned char *p, const unsigned char *end)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	int entry_seen = 0;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	while (p + 4 <= end  /* Enough space for another entry. */
 	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
@@ -2367,12 +2352,11 @@ static int
 register_CE(struct archive_read *a, int32_t location,
     struct file_info *file)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	struct read_ce_queue *heap;
 	uint64_t offset, parent_offset;
 	size_t hole, parent;
 
-	iso9660 = (struct iso9660 *)(a->format->data);
 	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
 	if (((file->mode & AE_IFMT) == AE_IFREG &&
 	    offset >= file->offset) ||

@@ -202,7 +202,7 @@ static int
 archive_write_gnutar_options(struct archive_write *a, const char *key,
     const char *val)
 {
-	struct gnutar *gnutar = (struct gnutar *)a->format_data;
+	struct gnutar *gnutar = a->format_data;
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "hdrcharset")  == 0) {
@@ -236,9 +236,8 @@ archive_write_gnutar_close(struct archive_write *a)
 static int
 archive_write_gnutar_free(struct archive_write *a)
 {
-	struct gnutar *gnutar;
+	struct gnutar *gnutar = a->format_data;
 
-	gnutar = (struct gnutar *)a->format_data;
 	free(gnutar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
@@ -247,10 +246,9 @@ archive_write_gnutar_free(struct archive_write *a)
 static int
 archive_write_gnutar_finish_entry(struct archive_write *a)
 {
-	struct gnutar *gnutar;
+	struct gnutar *gnutar = a->format_data;
 	int ret;
 
-	gnutar = (struct gnutar *)a->format_data;
 	ret = __archive_write_nulls(a,
 	    gnutar->entry_bytes_remaining + gnutar->entry_padding);
 	gnutar->entry_bytes_remaining = gnutar->entry_padding = 0;
@@ -260,10 +258,9 @@ archive_write_gnutar_finish_entry(struct archive_write *a)
 static ssize_t
 archive_write_gnutar_data(struct archive_write *a, const void *buff, size_t s)
 {
-	struct gnutar *gnutar;
+	struct gnutar *gnutar = a->format_data;
 	int ret;
 
-	gnutar = (struct gnutar *)a->format_data;
 	if (s > gnutar->entry_bytes_remaining)
 		s = (size_t)gnutar->entry_bytes_remaining;
 	ret = __archive_write_output(a, buff, s);
@@ -277,14 +274,12 @@ static int
 archive_write_gnutar_header(struct archive_write *a,
      struct archive_entry *entry)
 {
+	struct gnutar *gnutar = a->format_data;
 	char buff[512];
 	int r, ret, ret2 = ARCHIVE_OK;
 	char tartype;
-	struct gnutar *gnutar;
 	struct archive_string_conv *sconv;
 	struct archive_entry *entry_main;
-
-	gnutar = (struct gnutar *)a->format_data;
 
 	/* Setup default string conversion. */
 	if (gnutar->opt_sconv == NULL) {
@@ -608,13 +603,11 @@ static int
 archive_format_gnutar_header(struct archive_write *a, char h[512],
     struct archive_entry *entry, char tartype)
 {
+	struct gnutar *gnutar = a->format_data;
 	unsigned int checksum;
 	int i, ret;
 	size_t copy_length;
 	const char *p;
-	struct gnutar *gnutar;
-
-	gnutar = (struct gnutar *)a->format_data;
 
 	ret = 0;
 

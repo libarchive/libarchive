@@ -172,7 +172,7 @@ static int
 archive_write_pax_options(struct archive_write *a, const char *key,
     const char *val)
 {
-	struct pax *pax = (struct pax *)a->format_data;
+	struct pax *pax = a->format_data;
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "hdrcharset")  == 0) {
@@ -680,6 +680,7 @@ static int
 archive_write_pax_header(struct archive_write *a,
     struct archive_entry *entry_original)
 {
+	struct pax *pax = a->format_data;
 	struct archive_entry *entry_main;
 	const char *p;
 	const char *suffix;
@@ -687,7 +688,6 @@ archive_write_pax_header(struct archive_write *a,
 	int acl_types;
 	int sparse_count;
 	uint64_t sparse_total, real_size;
-	struct pax *pax;
 	const char *hardlink;
 	const char *path = NULL, *linkpath = NULL;
 	const char *uname = NULL, *gname = NULL;
@@ -707,7 +707,6 @@ archive_write_pax_header(struct archive_write *a,
 
 	ret = ARCHIVE_OK;
 	need_extension = 0;
-	pax = (struct pax *)a->format_data;
 
 	const time_t ustar_max_mtime = get_ustar_max_mtime();
 
@@ -1962,9 +1961,8 @@ archive_write_pax_close(struct archive_write *a)
 static int
 archive_write_pax_free(struct archive_write *a)
 {
-	struct pax *pax;
+	struct pax *pax = a->format_data;
 
-	pax = (struct pax *)a->format_data;
 	if (pax == NULL)
 		return (ARCHIVE_OK);
 
@@ -1980,11 +1978,10 @@ archive_write_pax_free(struct archive_write *a)
 static int
 archive_write_pax_finish_entry(struct archive_write *a)
 {
-	struct pax *pax;
+	struct pax *pax = a->format_data;
 	uint64_t remaining;
 	int ret;
 
-	pax = (struct pax *)a->format_data;
 	remaining = pax->entry_bytes_remaining;
 	if (remaining == 0) {
 		while (pax->sparse_list) {
@@ -2004,12 +2001,10 @@ archive_write_pax_finish_entry(struct archive_write *a)
 static ssize_t
 archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 {
-	struct pax *pax;
+	struct pax *pax = a->format_data;
 	size_t ws;
 	size_t total;
 	int ret;
-
-	pax = (struct pax *)a->format_data;
 
 	/*
 	 * According to GNU PAX format 1.0, write a sparse map

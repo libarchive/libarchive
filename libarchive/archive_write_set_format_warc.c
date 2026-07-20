@@ -59,7 +59,7 @@
  * Content-Length header.
  */
 
-struct warc_s {
+struct warc {
 	unsigned int omit_warcinfo:1;
 
 	time_t now;
@@ -127,7 +127,7 @@ int
 archive_write_set_format_warc(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
-	struct warc_s *w;
+	struct warc *warc;
 
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_warc");
@@ -135,20 +135,20 @@ archive_write_set_format_warc(struct archive *_a)
 	/* If another format was already registered, unregister it. */
 	(void)__archive_write_unregister_format(a);
 
-	w = malloc(sizeof(*w));
-	if (w == NULL) {
+	warc = malloc(sizeof(*warc));
+	if (warc == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate warc data");
 		return (ARCHIVE_FATAL);
 	}
 	/* Emit a warcinfo record by default. */
-	w->omit_warcinfo = 0U;
+	warc->omit_warcinfo = 0U;
 	/* Use the current time for WARC-Date values. */
-	w->now = time(NULL);
+	warc->now = time(NULL);
 	/* Reset file type information. */
-	w->typ = 0;
+	warc->typ = 0;
 
-	a->format_data = w;
+	a->format_data = warc;
 	a->format_name = "WARC/1.0";
 	a->format_options = _warc_options;
 	a->format_write_header = _warc_header;
@@ -166,12 +166,12 @@ archive_write_set_format_warc(struct archive *_a)
 static int
 _warc_options(struct archive_write *a, const char *key, const char *val)
 {
-	struct warc_s *w = a->format_data;
+	struct warc *warc = a->format_data;
 
 	if (strcmp(key, "omit-warcinfo") == 0) {
 		if (val == NULL || strcmp(val, "true") == 0) {
 			/* Option accepted. */
-			w->omit_warcinfo = 1U;
+			warc->omit_warcinfo = 1U;
 			return (ARCHIVE_OK);
 		}
 	}
@@ -184,12 +184,12 @@ _warc_options(struct archive_write *a, const char *key, const char *val)
 static int
 _warc_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct warc_s *w = a->format_data;
+	struct warc *warc = a->format_data;
 	struct archive_string hdr;
 #define MAX_HDR_SIZE 512
 
 	/* Emit the warcinfo record if needed. */
-	if (!w->omit_warcinfo) {
+	if (!warc->omit_warcinfo) {
 		ssize_t r;
 		int rc;
 		warc_essential_hdr_t wi = {
@@ -201,8 +201,8 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			/* Content type */"application/warc-fields",
 			/* Content length */sizeof(warcinfo) - 1U,
 		};
-		wi.rtime = w->now;
-		wi.mtime = w->now;
+		wi.rtime = warc->now;
+		wi.mtime = warc->now;
 
 		archive_string_init(&hdr);
 		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, wi);
@@ -228,7 +228,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		}
 
 		/* Mark the file header as written. */
-		w->omit_warcinfo = 1U;
+		warc->omit_warcinfo = 1U;
 		archive_string_free(&hdr);
 	}
 
@@ -238,9 +238,9 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_WARN);
 	}
 
-	w->typ = archive_entry_filetype(entry);
-	w->entry_bytes_remaining = 0U;
-	if (w->typ == AE_IFREG) {
+	warc->typ = archive_entry_filetype(entry);
+	warc->entry_bytes_remaining = 0U;
+	if (warc->typ == AE_IFREG) {
 		warc_essential_hdr_t rh = {
 			WT_RSRC,
 			/* URI */NULL,
@@ -254,7 +254,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		int rc;
 		int64_t size;
 		rh.tgturi = archive_entry_pathname(entry);
-		rh.rtime = w->now;
+		rh.rtime = warc->now;
 		rh.mtime = archive_entry_mtime(entry);
 		if (!archive_entry_size_is_set(entry)) {
 			archive_set_error(&a->archive, -1,
@@ -287,7 +287,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 			return (rc);
 		}
 		/* Save the remaining size for subsequent _data() calls. */
-		w->entry_bytes_remaining = rh.cntlen;
+		warc->entry_bytes_remaining = rh.cntlen;
 		archive_string_free(&hdr);
 		return (ARCHIVE_OK);
 	}
@@ -300,14 +300,14 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 static ssize_t
 _warc_data(struct archive_write *a, const void *buf, size_t len)
 {
-	struct warc_s *w = a->format_data;
+	struct warc *warc = a->format_data;
 
-	if (w->typ == AE_IFREG) {
+	if (warc->typ == AE_IFREG) {
 		int rc;
 
 		/* Never write more bytes than announced. */
-		if ((uint64_t)len > w->entry_bytes_remaining) {
-			len = (size_t)w->entry_bytes_remaining;
+		if ((uint64_t)len > warc->entry_bytes_remaining) {
+			len = (size_t)warc->entry_bytes_remaining;
 		}
 
 		/* Write the entry data. */
@@ -315,7 +315,7 @@ _warc_data(struct archive_write *a, const void *buf, size_t len)
 		if (rc != ARCHIVE_OK) {
 			return rc;
 		}
-		w->entry_bytes_remaining -= len;
+		warc->entry_bytes_remaining -= len;
 	}
 	return len;
 }
@@ -324,12 +324,12 @@ static int
 _warc_finish_entry(struct archive_write *a)
 {
 	static const char _eor[] = "\r\n\r\n";
-	struct warc_s *w = a->format_data;
+	struct warc *warc = a->format_data;
 
-	if (w->typ == AE_IFREG) {
+	if (warc->typ == AE_IFREG) {
 		int rc;
 
-		if (w->entry_bytes_remaining != 0U) {
+		if (warc->entry_bytes_remaining != 0U) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "WARC entry is shorter than Content-Length");
 			return (ARCHIVE_FATAL);
@@ -341,7 +341,7 @@ _warc_finish_entry(struct archive_write *a)
 		}
 	}
 	/* reset type info */
-	w->typ = 0;
+	warc->typ = 0;
 	return (ARCHIVE_OK);
 }
 
@@ -355,9 +355,9 @@ _warc_close(struct archive_write *a)
 static int
 _warc_free(struct archive_write *a)
 {
-	struct warc_s *w = a->format_data;
+	struct warc *warc = a->format_data;
 
-	free(w);
+	free(warc);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
 }

@@ -300,9 +300,8 @@ archive_read_support_format_tar(struct archive *_a)
 static int
 archive_read_format_tar_cleanup(struct archive_read *a)
 {
-	struct tar *tar;
+	struct tar *tar = a->format->data;
 
-	tar = (struct tar *)(a->format->data);
 	gnu_clear_sparse_list(tar);
 	archive_string_free(&tar->entry_pathname);
 	archive_string_free(&tar->entry_pathname_override);
@@ -312,7 +311,7 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	archive_string_free(&tar->line);
 	archive_string_free(&tar->localname);
 	free(tar);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -439,10 +438,9 @@ static int
 archive_read_format_tar_options(struct archive_read *a,
     const char *key, const char *val)
 {
-	struct tar *tar;
+	struct tar *tar = a->format->data;
 	int ret = ARCHIVE_FAILED;
 
-	tar = (struct tar *)(a->format->data);
 	if (strcmp(key, "compat-2x")  == 0) {
 		/* Handle UTF-8 filenames as libarchive 2.x */
 		tar->compat_2x = (val != NULL && val[0] != 0);
@@ -525,14 +523,12 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	 * probably not worthwhile just to support the relatively
 	 * obscure tar->cpio conversion case.
 	 */
-	struct tar *tar;
+	struct tar *tar = a->format->data;
 	const char *p;
 	const wchar_t *wp;
 	int r;
 	size_t l;
 	int64_t unconsumed = 0;
-
-	tar = (struct tar *)(a->format->data);
 
 	/* Assign default device/inode values. */
 	archive_entry_set_dev(entry, 1 + tar->default_dev); /* Don't use zero. */
@@ -609,11 +605,9 @@ static int
 archive_read_format_tar_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
+	struct tar *tar = a->format->data;
 	ssize_t bytes_read;
-	struct tar *tar;
 	struct sparse_block *p;
-
-	tar = (struct tar *)(a->format->data);
 
 	for (;;) {
 		/* Remove exhausted entries from sparse list. */
@@ -673,10 +667,8 @@ archive_read_format_tar_read_data(struct archive_read *a,
 static int
 archive_read_format_tar_skip(struct archive_read *a)
 {
+	struct tar *tar = a->format->data;
 	int64_t request;
-	struct tar* tar;
-
-	tar = (struct tar *)(a->format->data);
 
 	request = tar->entry_bytes_remaining + tar->entry_padding +
 	    tar->entry_bytes_unconsumed;

@@ -76,10 +76,10 @@ struct archive_read_filter_bidder {
 struct archive_read_filter_vtable {
 	/* Return next block. */
 	ssize_t (*read)(struct archive_read_filter *, const void **);
-	/* Close (just this filter) and free(self). */
-	int (*close)(struct archive_read_filter *self);
+	/* Close (just this filter) and free(filter). */
+	int (*close)(struct archive_read_filter *);
 	/* Read any header metadata if available. */
-	int (*read_header)(struct archive_read_filter *self, struct archive_entry *entry);
+	int (*read_header)(struct archive_read_filter *, struct archive_entry *);
 };
 
 /*
