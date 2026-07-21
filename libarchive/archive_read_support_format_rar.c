@@ -1288,6 +1288,12 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
               "Error during seek of RAR file");
             return (ARCHIVE_FAILED);
           }
+          if (rar->cursor == 0)
+          {
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+              "Invalid RAR seek cursor state");
+            return (ARCHIVE_FAILED);
+          }
           client_offset += rar->dbo[rar->cursor].start_offset -
             rar->dbo[rar->cursor-1].end_offset;
           continue;
