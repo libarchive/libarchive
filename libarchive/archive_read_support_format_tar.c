@@ -3024,6 +3024,7 @@ static int
 header_gnutar(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, int64_t *unconsumed)
 {
+	struct archive_entry_header_gnutar header_copy;
 	const struct archive_entry_header_gnutar *header;
 	int64_t t;
 	int err = ARCHIVE_OK;
@@ -3034,8 +3035,14 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	 * filename is stored as in old-style archives.
 	 */
 
+	/*
+	 * Sparse extension reads can reuse the callback buffer containing h,
+	 * so preserve the main header until common fields are parsed.
+	 */
+	memcpy(&header_copy, h, sizeof(header_copy));
+	header = &header_copy;
+
 	/* Copy filename over (to ensure null termination). */
-	header = (const struct archive_entry_header_gnutar *)h;
 	const char *existing_pathname = archive_entry_pathname(entry);
 	const wchar_t *existing_wcs_pathname = archive_entry_pathname_w(entry);
 	if ((existing_pathname == NULL || existing_pathname[0] == '\0')
@@ -3114,7 +3121,7 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	}
 
 	/* Grab fields common to all tar variants. */
-	err = header_common(a, tar, entry, h);
+	err = header_common(a, tar, entry, header);
 	if (err == ARCHIVE_FATAL)
 		return (err);
 
