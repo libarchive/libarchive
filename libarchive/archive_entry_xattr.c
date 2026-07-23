@@ -82,6 +82,7 @@ archive_entry_xattr_clear(struct archive_entry *entry)
 	}
 
 	entry->xattr_head = NULL;
+	entry->xattr_p = NULL;
 }
 
 void
@@ -96,11 +97,11 @@ archive_entry_xattr_add_entry(struct archive_entry *entry,
 	if ((xp->name = strdup(name)) == NULL)
 		__archive_errx(1, "Out of memory");
 
-	if ((xp->value = malloc(size)) != NULL) {
-		memcpy(xp->value, value, size);
-		xp->size = size;
-	} else
-		xp->size = 0;
+	if ((xp->value = malloc(size)) == NULL)
+		__archive_errx(1, "Out of memory");
+
+	memcpy(xp->value, value, size);
+	xp->size = size;
 
 	xp->next = entry->xattr_head;
 	entry->xattr_head = xp;

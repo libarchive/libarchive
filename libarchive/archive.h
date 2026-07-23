@@ -655,7 +655,6 @@ __LA_DECL int archive_read_data_block(struct archive *a,
 /*-
  * Some convenience functions that are built on archive_read_data:
  *  'skip': skips entire entry
- *  'into_buffer': writes data into memory buffer that you provide
  *  'into_fd': writes data to specified filedes
  */
 __LA_DECL int archive_read_data_skip(struct archive *);
@@ -1236,7 +1235,7 @@ __LA_DECL int	archive_match_exclude_entry(struct archive *,
 		    int _flag, struct archive_entry *);
 
 /*
- * Test if a file is excluded by its uid ,gid, uname or gname.
+ * Test if a file is excluded by its uid, gid, uname or gname.
  * The conditions are set by following functions.
  */
 __LA_DECL int	archive_match_owner_excluded(struct archive *,

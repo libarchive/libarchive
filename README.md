@@ -37,10 +37,13 @@ The top-level directory contains the following information files:
 * **CMakeLists.txt** - input for "cmake" build tool, see INSTALL
 * **configure** - configuration script, see INSTALL for details.  If your copy of the source lacks a `configure` script, you can try to construct it by running the script in `build/autogen.sh` (or use `cmake`).
 
-The following files in the top-level directory are used by the 'configure' script:
+The following files in the top-level directory are related to the 'configure' script and are only needed by maintainers:
 
-* `Makefile.am`, `aclocal.m4`, `configure.ac` - used to build this distribution, only needed by maintainers
-* `Makefile.in`, `config.h.in` - templates used by configure script
+* `configure.ac` - used (by autoconf) to build the configure script and related files
+* `Makefile.am` - used (by automake) to generate Makefile.in
+* `aclocal.m4` - auto-generated file (created by aclocal) used to build the configure script
+* `Makefile.in` - auto-generated template (created by automake) used by the configure script to create Makefile
+* `config.h.in` - auto-generated template (created by autoheader) used by the configure script to create config.h
 
 ## Documentation
 
@@ -191,7 +194,7 @@ questions we are asked about libarchive:
   libraries.  This also reduces the size of statically-linked
   binaries in environments where that matters.
 
-* The library is generally _thread safe_ depending on the platform:
+* The library is generally _thread-safe_ depending on the platform:
   it does not define any global variables of its own.  However, some
   platforms do not provide fully thread-safe versions of key C library
   functions.  On those platforms, libarchive will use the non-thread-safe
@@ -214,7 +217,7 @@ questions we are asked about libarchive:
   multiple threads.  Of course, those modules are completely
   optional and you can use the rest of libarchive without them.
 
-* The library is _not_ thread aware, however.  It does no locking
+* The library is _not_ thread-aware, however.  It does no locking
   or thread management of any kind.  If you create a libarchive
   object and need to access it from multiple threads, you will
   need to provide your own locking.

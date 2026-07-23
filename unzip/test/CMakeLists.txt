@@ -13,10 +13,14 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_basic.c
     test_doubledash.c
     test_glob.c
+    test_not_exist.c
     test_singlefile.c
+    test_symlink.c
+    test_symlink_dotdot.c
     test_C.c
     test_p.c
     test_d.c
+    test_f.c
     test_j.c
     test_L.c
     test_n.c
@@ -24,6 +28,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_q.c
     test_t.c
     test_t_bad.c
+    test_u.c
     test_version.c
     test_x.c
     test_Z1.c
@@ -51,25 +56,12 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
   # Generate list.h by grepping DEFINE_TEST() lines out of the C sources.
   #
   GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/list.h
-    ${CMAKE_CURRENT_LIST_FILE} ${bsdunzip_test_SOURCES})
+    ${CMAKE_CURRENT_LIST_FILE} bsdunzip_test ${bsdunzip_test_SOURCES})
   SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR})
 
-  # list.h has a line DEFINE_TEST(testname) for every
-  # test.  We can use that to define the tests for cmake by
-  # defining a DEFINE_TEST macro and reading list.h in.
-  MACRO (DEFINE_TEST _testname)
-    ADD_TEST(
-      NAME bsdunzip_${_testname}
-      COMMAND bsdunzip_test -vv
-                           -p $<TARGET_FILE:bsdunzip>
-                           -r ${CMAKE_CURRENT_SOURCE_DIR}
-                           -s
-                           ${_testname})
-    SET_TESTS_PROPERTIES(bsdunzip_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
-  ENDMACRO (DEFINE_TEST _testname)
+  DISCOVER_TESTS(bsdunzip ${bsdunzip_test_SOURCES})
 
-  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/unzip/test)

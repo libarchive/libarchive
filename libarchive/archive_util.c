@@ -42,13 +42,11 @@
 #include <string.h>
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#if defined(HAVE_BCRYPT_H)
 #include <bcrypt.h>
 
 /* Common in other bcrypt implementations, but missing from VS2008. */
 #ifndef BCRYPT_SUCCESS
 #define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
-#endif
 #endif
 #endif
 #ifdef HAVE_ZLIB_H
@@ -106,8 +104,7 @@ archive_errno(struct archive *a)
 const char *
 archive_error_string(struct archive *a)
 {
-
-	if (a->error != NULL  &&  *a->error != '\0')
+	if (a->error != NULL && *a->error != '\0')
 		return (a->error);
 	else
 		return (NULL);
@@ -254,22 +251,36 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 	if (template == NULL) {
 		/* Get a temporary directory. */
 		if (tmpdir == NULL) {
-			size_t l;
-			wchar_t *tmp;
+			wchar_t buf[MAX_PATH + 1];
+			wchar_t *p = buf, *buf2 = NULL;
+			size_t l, s;
 
-			l = GetTempPathW(0, NULL);
+			s = MAX_PATH + 1;
+			l = GetTempPathW((DWORD)s, buf);
 			if (l == 0) {
 				la_dosmaperr(GetLastError());
 				goto exit_tmpfile;
 			}
-			tmp = malloc(l*sizeof(wchar_t));
-			if (tmp == NULL) {
-				errno = ENOMEM;
-				goto exit_tmpfile;
+			while (l > s) {
+				wchar_t *tmp;
+
+				s = l;
+				tmp = realloc(buf2, s * sizeof(wchar_t));
+				if (tmp == NULL) {
+					free(buf2);
+					errno = ENOMEM;
+					goto exit_tmpfile;
+				}
+				p = buf2 = tmp;
+				l = GetTempPathW((DWORD)s, buf2);
+				if (l == 0) {
+					free(buf2);
+					la_dosmaperr(GetLastError());
+					goto exit_tmpfile;
+				}
 			}
-			GetTempPathW((DWORD)l, tmp);
-			archive_wstrcpy(&temp_name, tmp);
-			free(tmp);
+			archive_wstrcpy(&temp_name, p);
+			free(buf2);
 		} else {
 			if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
 			    strlen(tmpdir)) < 0)
@@ -427,7 +438,7 @@ __archive_issetugid(void)
 		return (-1);
 	if (ruid != euid || ruid != suid)
 		return (1);
-	if (getresgid(&ruid, &egid, &sgid) != 0)
+	if (getresgid(&rgid, &egid, &sgid) != 0)
 		return (-1);
 	if (rgid != egid || rgid != sgid)
 		return (1);

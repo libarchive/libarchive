@@ -46,6 +46,7 @@ archive_entry_sparse_clear(struct archive_entry *entry)
 		entry->sparse_head = sp;
 	}
 	entry->sparse_tail = NULL;
+	entry->sparse_p = NULL;
 }
 
 void
@@ -127,9 +128,10 @@ archive_entry_sparse_count(struct archive_entry *entry)
 int
 archive_entry_sparse_reset(struct archive_entry * entry)
 {
+	/* Counting can change sparse_head, so do it first */
+	int count = archive_entry_sparse_count(entry);
 	entry->sparse_p = entry->sparse_head;
-
-	return archive_entry_sparse_count(entry);
+	return (count);
 }
 
 int
