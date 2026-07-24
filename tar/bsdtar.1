@@ -421,6 +421,13 @@ is run in x mode as root.
 Currently supported only for pax formats
 .Po including "pax restricted", the default tar format for
 .Nm bsdtar Pc
+.It Fl Fl mode Ar permissions
+(c, r, u modes only)
+Modify the file mode bits stored in the archive.
+Permissions can be absolute (an octal number) or symbolic.
+See
+.Xr chmod 1
+for more information and examples of both types.
 .It Fl Fl mtime Ar date
 (c, r, u modes only)
 Set the modification times of added files to the specified date.

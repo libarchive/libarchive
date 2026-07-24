@@ -1215,12 +1215,14 @@ noinst_HEADERS+= \
 	libarchive_fe/lafe_fnmatch.h \
 	libarchive_fe/lafe_getline.h \
 	libarchive_fe/lafe_platform.h \
+	libarchive_fe/lafe_setmode.h \
 	libarchive_fe/line_reader.h \
 	libarchive_fe/passphrase.h
 libarchive_fe_la_SOURCES= \
 	libarchive_fe/lafe_err.c \
 	libarchive_fe/lafe_fnmatch.c \
 	libarchive_fe/lafe_getline.c \
+	libarchive_fe/lafe_setmode.c \
 	libarchive_fe/line_reader.c \
 	libarchive_fe/passphrase.c
 
@@ -1348,6 +1350,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_lz4.c \
 	tar/test/test_option_lzma.c \
 	tar/test/test_option_lzop.c \
+	tar/test/test_option_mode.c \
 	tar/test/test_option_mtime.c \
 	tar/test/test_option_n.c \
 	tar/test/test_option_newer_than.c \
