@@ -135,9 +135,9 @@ sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
 
 		if (cnt > 0) {
 			if (aclp == NULL)
-				aclp = malloc(cnt * size);
+				aclp = calloc(cnt, size);
 			else
-				aclp = realloc(NULL, cnt * size);
+				aclp = calloc(cnt, size);
 			if (aclp != NULL) {
 				if (path != NULL)
 					cnt = acl(path, cmd, cnt, aclp);
@@ -470,12 +470,12 @@ set_acl(struct archive *a, int fd, const char *name,
 	switch (ae_requested_type) {
 	case ARCHIVE_ENTRY_ACL_TYPE_POSIX1E:
 		cmd = SETACL;
-		aclp = malloc(entries * sizeof(aclent_t));
+		aclp = calloc(entries, sizeof(aclent_t));
 		break;
 #if ARCHIVE_ACL_SUNOS_NFS4
 	case ARCHIVE_ENTRY_ACL_TYPE_NFS4:
 		cmd = ACE_SETACL;
-		aclp = malloc(entries * sizeof(ace_t));
+		aclp = calloc(entries, sizeof(ace_t));
 
 		break;
 #endif

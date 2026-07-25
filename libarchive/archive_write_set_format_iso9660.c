@@ -6554,7 +6554,7 @@ isoent_make_sorted_files(struct archive_write *a, struct isoent *isoent,
 	struct archive_rb_node *rn;
 	struct isoent **children;
 
-	children = malloc(isoent->children.cnt * sizeof(struct isoent *));
+	children = calloc(isoent->children.cnt, sizeof(struct isoent *));
 	if (children == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate memory");
@@ -6971,7 +6971,7 @@ isoent_make_path_table_2(struct archive_write *a, struct vdd *vdd,
 		pt->sorted = NULL;
 		return (ARCHIVE_OK);
 	}
-	enttbl = malloc(pt->cnt * sizeof(struct isoent *));
+	enttbl = calloc(pt->cnt, sizeof(struct isoent *));
 	if (enttbl == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate memory");

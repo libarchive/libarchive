@@ -2224,7 +2224,7 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 		if (ds->w_buff == NULL)
 			return (ARCHIVE_FATAL);
 		free(ds->pos_tbl);
-		ds->pos_tbl = malloc(sizeof(ds->pos_tbl[0]) * w_slot);
+		ds->pos_tbl = calloc(w_slot, sizeof(ds->pos_tbl[0]));
 		if (ds->pos_tbl == NULL)
 			return (ARCHIVE_FATAL);
 	}

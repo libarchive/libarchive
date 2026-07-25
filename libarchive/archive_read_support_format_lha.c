@@ -2563,7 +2563,7 @@ lzh_huffman_init(struct huffman *hf, size_t len_size, int tbl_bits)
 	int bits;
 
 	if (hf->bitlen == NULL) {
-		hf->bitlen = malloc(len_size * sizeof(hf->bitlen[0]));
+		hf->bitlen = calloc(len_size, sizeof(hf->bitlen[0]));
 		if (hf->bitlen == NULL)
 			return (ARCHIVE_FATAL);
 	}
@@ -2572,13 +2572,13 @@ lzh_huffman_init(struct huffman *hf, size_t len_size, int tbl_bits)
 			bits = tbl_bits;
 		else
 			bits = HTBL_BITS;
-		hf->tbl = malloc(((size_t)1 << bits) * sizeof(hf->tbl[0]));
+		hf->tbl = calloc((size_t)1 << bits, sizeof(hf->tbl[0]));
 		if (hf->tbl == NULL)
 			return (ARCHIVE_FATAL);
 	}
 	if (hf->tree == NULL && tbl_bits > HTBL_BITS) {
 		hf->tree_avail = 1 << (tbl_bits - HTBL_BITS + 4);
-		hf->tree = malloc(hf->tree_avail * sizeof(hf->tree[0]));
+		hf->tree = calloc(hf->tree_avail, sizeof(hf->tree[0]));
 		if (hf->tree == NULL)
 			return (ARCHIVE_FATAL);
 	}
