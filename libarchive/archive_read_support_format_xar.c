@@ -406,7 +406,7 @@ static int	heap_add_entry(struct archive_read *a,
 static struct xar_file *heap_get_entry(struct heap_queue *);
 static int	add_link(struct archive_read *,
     struct xar *, struct xar_file *);
-static void	checksum_init(struct archive_read *, int, int);
+static int	checksum_init(struct archive_read *, int, int);
 static void	checksum_update(struct archive_read *, const void *,
 		    size_t, const void *, size_t);
 static int	checksum_final(struct archive_read *, const void *,
@@ -1035,8 +1035,7 @@ rd_contents_init(struct archive_read *a, enum enctype encoding,
 	if ((r = decompression_init(a, encoding)) != ARCHIVE_OK)
 		return (r);
 	/* Init checksum library. */
-	checksum_init(a, a_sum_alg, e_sum_alg);
-	return (ARCHIVE_OK);
+	return (checksum_init(a, a_sum_alg, e_sum_alg));
 }
 
 static int
@@ -1342,7 +1341,7 @@ add_link(struct archive_read *a, struct xar *xar, struct xar_file *file)
 	return (ARCHIVE_OK);
 }
 
-static void
+static int
 _checksum_init(struct chksumwork *sumwrk, int sum_alg)
 {
 	sumwrk->alg = sum_alg;
@@ -1365,7 +1364,10 @@ _checksum_init(struct chksumwork *sumwrk, int sum_alg)
 		archive_sha512_init(&(sumwrk->sha512ctx));
 		break;
 #endif
+	default:
+		return (ARCHIVE_FATAL);
 	}
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -1431,17 +1433,24 @@ _checksum_final(struct chksumwork *sumwrk, const void *val, size_t len)
 			r = ARCHIVE_FAILED;
 		break;
 #endif
+	default:
+		r = ARCHIVE_FAILED;
 	}
 	return (r);
 }
 
-static void
+static int
 checksum_init(struct archive_read *a, int a_sum_alg, int e_sum_alg)
 {
 	struct xar *xar = a->format->data;
 
-	_checksum_init(&(xar->a_sumwrk), a_sum_alg);
-	_checksum_init(&(xar->e_sumwrk), e_sum_alg);
+	if (_checksum_init(&(xar->a_sumwrk), a_sum_alg) != ARCHIVE_OK ||
+	    _checksum_init(&(xar->e_sumwrk), e_sum_alg) != ARCHIVE_OK) {
+		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+		    "Unsupported checksum");
+		return (ARCHIVE_FATAL);
+	}
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -1459,15 +1468,14 @@ checksum_final(struct archive_read *a, const void *a_sum_val,
     size_t a_sum_len, const void *e_sum_val, size_t e_sum_len)
 {
 	struct xar *xar = a->format->data;
-	int r;
 
-	r = _checksum_final(&(xar->a_sumwrk), a_sum_val, a_sum_len);
-	if (r == ARCHIVE_OK)
-		r = _checksum_final(&(xar->e_sumwrk), e_sum_val, e_sum_len);
-	if (r != ARCHIVE_OK)
+	if (_checksum_final(&(xar->a_sumwrk), a_sum_val, a_sum_len) != ARCHIVE_OK ||
+	    _checksum_final(&(xar->e_sumwrk), e_sum_val, e_sum_len) != ARCHIVE_OK) {
 		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
-		    "Sumcheck error");
-	return (r);
+		    "Checksum error");
+		return (ARCHIVE_FATAL);
+	}
+	return (ARCHIVE_OK);
 }
 
 static int
