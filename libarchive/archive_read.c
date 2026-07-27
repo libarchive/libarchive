@@ -1003,11 +1003,9 @@ archive_seek_data(struct archive *_a, int64_t offset, int whence)
 	    "archive_seek_data_block");
 
 	if (a->format->seek_data == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "Internal error: "
-		    "No format_seek_data_block function registered");
-		a->archive.state = ARCHIVE_STATE_FATAL;
-		return (ARCHIVE_FATAL);
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Cannot seek data with this format");
+		return (ARCHIVE_FAILED);
 	}
 
 	r = (a->format->seek_data)(a, offset, whence);
