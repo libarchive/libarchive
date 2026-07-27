@@ -411,6 +411,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_read_open2.c \
 	libarchive/test/test_archive_read_set_options.c \
 	libarchive/test/test_archive_read_support.c \
+	libarchive/test/test_archive_seek_data_unsupported.c \
 	libarchive/test/test_archive_set_error.c \
 	libarchive/test/test_archive_string.c \
 	libarchive/test/test_archive_string_conversion.c \

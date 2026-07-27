@@ -40,6 +40,7 @@ IF(ENABLE_TEST)
     test_archive_read_open2.c
     test_archive_read_set_options.c
     test_archive_read_support.c
+    test_archive_seek_data_unsupported.c
     test_archive_set_error.c
     test_archive_string.c
     test_archive_string_conversion.c

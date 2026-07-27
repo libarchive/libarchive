@@ -4396,13 +4396,15 @@ static int rar5_read_data_skip(struct archive_read *a) {
 static int64_t rar5_seek_data(struct archive_read *a, int64_t offset,
     int whence)
 {
-	(void) a;
 	(void) offset;
 	(void) whence;
 
-	/* We're a streaming unpacker, and we don't support seeking. */
+	/* We're a streaming unpacker, and we don't support seeking.
+	 * That's a capability gap, not a fatal error. */
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "Seeking of RAR5 files is unsupported");
 
-	return ARCHIVE_FATAL;
+	return (ARCHIVE_FAILED);
 }
 
 static int rar5_cleanup(struct archive_read *a) {
