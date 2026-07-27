@@ -34,7 +34,7 @@ static void
 test_xar(const char *option)
 {
 	char buff2[64];
-	size_t buffsize = 1500;
+	size_t buffsize = 4096;
 	char *buff;
 	struct archive_entry *ae;
 	struct archive *a;
@@ -325,6 +325,10 @@ DEFINE_TEST(test_write_format_xar)
 	test_xar("toc-checksum=sha1");
 	/* Specify TOC checksum type to md5. */
 	test_xar("toc-checksum=md5");
+	/* Specify TOC checksum type to sha256. */
+	test_xar("toc-checksum=sha256");
+	/* Specify TOC checksum type to sha512. */
+	test_xar("toc-checksum=sha512");
 
 	/* Disable file checksum. */
 	test_xar("!checksum");
@@ -333,6 +337,10 @@ DEFINE_TEST(test_write_format_xar)
 	test_xar("checksum=sha1");
 	/* Specify file checksum type to md5. */
 	test_xar("checksum=md5");
+	/* Specify file checksum type to sha256. */
+	test_xar("checksum=sha256");
+	/* Specify file checksum type to sha512. */
+	test_xar("checksum=sha512");
 
 	/* Disable compression. */
 	test_xar("!compression");

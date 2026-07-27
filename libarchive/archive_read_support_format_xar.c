@@ -108,10 +108,14 @@ archive_read_support_format_xar(struct archive *_a)
 #define CKSUM_NONE	0
 #define CKSUM_SHA1	1
 #define CKSUM_MD5	2
+#define CKSUM_SHA256	3
+#define CKSUM_SHA512	4
 
 #define MD5_SIZE	16
 #define SHA1_SIZE	20
-#define MAX_SUM_SIZE	20
+#define SHA256_SIZE	32
+#define SHA512_SIZE	64
+#define MAX_SUM_SIZE	64
 
 enum enctype {
 	NONE,
@@ -134,6 +138,12 @@ struct chksumwork {
 #endif
 #ifdef ARCHIVE_HAS_SHA1
 	archive_sha1_ctx	 sha1ctx;
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	archive_sha256_ctx	 sha256ctx;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	archive_sha512_ctx	 sha512ctx;
 #endif
 };
 
@@ -524,6 +534,8 @@ xar_bid(struct archive_read *a, int best_bid)
 	case CKSUM_NONE:
 	case CKSUM_SHA1:
 	case CKSUM_MD5:
+	case CKSUM_SHA256:
+	case CKSUM_SHA512:
 		bid += 32;
 		break;
 	default:
@@ -1343,6 +1355,16 @@ _checksum_init(struct chksumwork *sumwrk, int sum_alg)
 	case CKSUM_MD5:
 		archive_md5_init(&(sumwrk->md5ctx));
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_init(&(sumwrk->sha256ctx));
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_init(&(sumwrk->sha512ctx));
+		break;
+#endif
 	}
 }
 
@@ -1359,6 +1381,16 @@ _checksum_update(struct chksumwork *sumwrk, const void *buff, size_t size)
 	case CKSUM_MD5:
 		archive_md5_update(&(sumwrk->md5ctx), buff, size);
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_update(&(sumwrk->sha256ctx), buff, size);
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_update(&(sumwrk->sha512ctx), buff, size);
+		break;
+#endif
 	}
 }
 
@@ -1383,6 +1415,22 @@ _checksum_final(struct chksumwork *sumwrk, const void *val, size_t len)
 		    memcmp(val, sum, MD5_SIZE) != 0)
 			r = ARCHIVE_FAILED;
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_final(&(sumwrk->sha256ctx), sum);
+		if (len != SHA256_SIZE ||
+		    memcmp(val, sum, SHA256_SIZE) != 0)
+			r = ARCHIVE_FAILED;
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_final(&(sumwrk->sha512ctx), sum);
+		if (len != SHA512_SIZE ||
+		    memcmp(val, sum, SHA512_SIZE) != 0)
+			r = ARCHIVE_FAILED;
+		break;
+#endif
 	}
 	return (r);
 }
@@ -1884,9 +1932,16 @@ getsumalgorithm(struct xmlattr_list *list)
 			const char *v = attr->value;
 			if ((v[0] == 'S' || v[0] == 's') &&
 			    (v[1] == 'H' || v[1] == 'h') &&
-			    (v[2] == 'A' || v[2] == 'a') &&
-			    v[3] == '1' && v[4] == '\0')
-				alg = CKSUM_SHA1;
+			    (v[2] == 'A' || v[2] == 'a')) {
+				if (v[3] == '1' && v[4] == '\0')
+					alg = CKSUM_SHA1;
+				else if (v[3] == '2' && v[4] == '5' &&
+				    v[5] == '6' && v[6] == '\0')
+					alg = CKSUM_SHA256;
+				else if (v[3] == '5' && v[4] == '1' &&
+				    v[5] == '2' && v[6] == '\0')
+					alg = CKSUM_SHA512;
+			}
 			if ((v[0] == 'M' || v[0] == 'm') &&
 			    (v[1] == 'D' || v[1] == 'd') &&
 			    v[2] == '5' && v[3] == '\0')
