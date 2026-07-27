@@ -622,9 +622,11 @@ as file checksum method.
 Supported values are
 .Dq none ,
 .Dq md5 ,
-and
 .Dq sha1
-.Pq default .
+.Pq default ,
+.Dq sha256 ,
+and
+.Dq sha512 .
 .It Cm compression Ns = Ns Ar type
 Use
 .Ar type
@@ -645,10 +647,12 @@ Use
 as table of contents checksum method.
 Supported values are
 .Dq none ,
-.Dq md5
-and
+.Dq md5 ,
 .Dq sha1
-.Pq default .
+.Pq default ,
+.Dq sha256 ,
+and
+.Dq sha512 .
 .El
 .It Format zip
 .Bl -tag -compact -width indent
