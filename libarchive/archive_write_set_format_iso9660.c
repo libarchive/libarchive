@@ -3481,6 +3481,16 @@ set_directory_record(unsigned char *p, size_t n, struct isoent *isoent,
 		file = isoent->file;
 		if (file->hardlink_target != NULL)
 			file = file->hardlink_target;
+		/*
+		 * A Rockridge relocated ("CL") directory placeholder shares
+		 * its file object with the real directory that was moved to
+		 * "rr_moved", and an earlier directory traversal can advance
+		 * that shared cur_content to NULL.  Restore it to the first
+		 * content so a non-directory record is written from valid
+		 * data instead of dereferencing a NULL pointer.
+		 */
+		if (file->cur_content == NULL)
+			file->cur_content = &(file->content);
 		/* Make a file flag. */
 		if (xisoent->dir)
 			flag = FILE_FLAG_DIRECTORY;
