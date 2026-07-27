@@ -380,8 +380,6 @@ struct iso9660 {
 	size_t		 utf16be_path_len;
 	unsigned char *utf16be_previous_path;
 	size_t		 utf16be_previous_path_len;
-	/* Null buffer used in bidder to improve its performance. */
-	unsigned char	 null[2048];
 };
 
 static int	archive_read_format_iso9660_bid(struct archive_read *, int);
@@ -404,12 +402,12 @@ static time_t	isodate17(const unsigned char *);
 static int	isodate17_valid(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
 static int	isodate7_valid(const unsigned char *);
-static int	isBootRecord(struct iso9660 *, const unsigned char *);
+static int	isBootRecord(const unsigned char *);
 static int	isVolumePartition(struct iso9660 *, const unsigned char *);
-static int	isVDSetTerminator(struct iso9660 *, const unsigned char *);
+static int	isVDSetTerminator(const unsigned char *);
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
-static int	isSVD(struct iso9660 *, const unsigned char *);
-static int	isEVD(struct iso9660 *, const unsigned char *);
+static int	isSVD(const unsigned char *);
+static int	isEVD(const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static int	isRootDirectoryRecord(const unsigned char *);
 static int	isValid723Integer(const unsigned char *);
@@ -546,15 +544,15 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 			if (isJolietSVD(iso9660, p))
 				continue;
 		}
-		if (isBootRecord(iso9660, p))
+		if (isBootRecord(p))
 			continue;
-		if (isEVD(iso9660, p))
+		if (isEVD(p))
 			continue;
-		if (isSVD(iso9660, p))
+		if (isSVD(p))
 			continue;
 		if (isVolumePartition(iso9660, p))
 			continue;
-		if (isVDSetTerminator(iso9660, p)) {
+		if (isVDSetTerminator(p)) {
 			seenTerminator = 1;
 			break;
 		}
@@ -600,26 +598,23 @@ archive_read_format_iso9660_options(struct archive_read *a,
 }
 
 static int
-isNull(struct iso9660 *iso9660, const unsigned char *h, unsigned offset,
-unsigned bytes)
+isNull(const unsigned char *h, unsigned offset, unsigned bytes)
 {
-
-	while (bytes >= sizeof(iso9660->null)) {
-		if (!memcmp(iso9660->null, h + offset, sizeof(iso9660->null)))
-			return (0);
-		offset += sizeof(iso9660->null);
-		bytes -= sizeof(iso9660->null);
-	}
-	if (bytes)
-		return memcmp(iso9660->null, h + offset, bytes) == 0;
-	else
+	if (bytes == 0)
 		return (1);
+
+	/*
+	 * If the first byte is zero and every byte equals the following
+	 * byte, the entire range is zero.
+	 */
+	return (h[offset] == 0 &&
+	    (bytes == 1 ||
+	    memcmp(h + offset, h + offset + 1, bytes - 1) == 0));
 }
 
 static int
-isBootRecord(struct iso9660 *iso9660, const unsigned char *h)
+isBootRecord(const unsigned char *h)
 {
-	(void)iso9660; /* UNUSED */
 
 	/* Type of the Volume Descriptor Boot Record must be 0. */
 	if (h[0] != 0)
@@ -659,9 +654,8 @@ isVolumePartition(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
+isVDSetTerminator(const unsigned char *h)
 {
-	(void)iso9660; /* UNUSED */
 
 	/* Type of the Volume Descriptor Set Terminator must be 255. */
 	if (h[0] != 255)
@@ -672,7 +666,7 @@ isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, 7, 2048-7))
+	if (!isNull(h, 7, 2048-7))
 		return (0);
 
 	return (1);
@@ -687,7 +681,7 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Check if current sector is a kind of Supplementary Volume
 	 * Descriptor. */
-	if (!isSVD(iso9660, h))
+	if (!isSVD(h))
 		return (0);
 
 	/* FIXME: do more validations according to joliet spec. */
@@ -728,25 +722,24 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isSVD(struct iso9660 *iso9660, const unsigned char *h)
+isSVD(const unsigned char *h)
 {
 	const unsigned char *p;
 	ssize_t logical_block_size;
 	int32_t volume_block;
 	int32_t location;
 
-	(void)iso9660; /* UNUSED */
 
 	/* Type 2 means it's a SVD. */
 	if (h[SVD_type_offset] != 2)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, SVD_reserved1_offset, SVD_reserved1_size))
+	if (!isNull(h, SVD_reserved1_offset, SVD_reserved1_size))
 		return (0);
-	if (!isNull(iso9660, h, SVD_reserved2_offset, SVD_reserved2_size))
+	if (!isNull(h, SVD_reserved2_offset, SVD_reserved2_size))
 		return (0);
-	if (!isNull(iso9660, h, SVD_reserved3_offset, SVD_reserved3_size))
+	if (!isNull(h, SVD_reserved3_offset, SVD_reserved3_size))
 		return (0);
 
 	/* File structure version must be 1 for ISO9660/ECMA119. */
@@ -788,14 +781,13 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isEVD(struct iso9660 *iso9660, const unsigned char *h)
+isEVD(const unsigned char *h)
 {
 	const unsigned char *p;
 	ssize_t logical_block_size;
 	int32_t volume_block;
 	int32_t location;
 
-	(void)iso9660; /* UNUSED */
 
 	/* Type of the Enhanced Volume Descriptor must be 2. */
 	if (h[PVD_type_offset] != 2)
@@ -810,11 +802,11 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved2_offset, PVD_reserved2_size))
+	if (!isNull(h, PVD_reserved2_offset, PVD_reserved2_size))
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved3_offset, PVD_reserved3_size))
+	if (!isNull(h, PVD_reserved3_offset, PVD_reserved3_size))
 		return (0);
 
 	/* Logical block size must be > 0. */
@@ -850,11 +842,11 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved4_offset, PVD_reserved4_size))
+	if (!isNull(h, PVD_reserved4_offset, PVD_reserved4_size))
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved5_offset, PVD_reserved5_size))
+	if (!isNull(h, PVD_reserved5_offset, PVD_reserved5_size))
 		return (0);
 
 	/* Read Root Directory Record in Volume Descriptor. */
@@ -888,7 +880,7 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved2_offset, PVD_reserved2_size))
+	if (!isNull(h, PVD_reserved2_offset, PVD_reserved2_size))
 		return (0);
 
 	/* Volume space size must be encoded according to 7.3.3 */
@@ -900,7 +892,7 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved3_offset, PVD_reserved3_size))
+	if (!isNull(h, PVD_reserved3_offset, PVD_reserved3_size))
 		return (0);
 
 	/* Volume set size must be encoded according to 7.2.3 */
@@ -958,7 +950,7 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 			return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved5_offset, PVD_reserved5_size))
+	if (!isNull(h, PVD_reserved5_offset, PVD_reserved5_size))
 		return (0);
 
 	/* XXX TODO: Check other values for sanity; reject more
