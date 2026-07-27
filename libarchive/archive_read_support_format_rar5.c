@@ -44,6 +44,7 @@
 
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_ppmd7_private.h"
 #include "archive_entry_private.h"
 #include "archive_time_private.h"
@@ -942,23 +943,30 @@ static int consume(struct archive_read* a, int64_t how_many) {
 static int read_var(struct archive_read* a, uint64_t* pvalue,
     uint64_t* pvalue_len)
 {
+	uint64_t multiplier;
 	uint64_t result = 0;
-	size_t shift, i;
+	size_t i;
 	const uint8_t* p;
-	uint8_t b;
 
-	/* We will read maximum of 8 bytes. We don't have to handle the
+	/* We will read maximum of 10 bytes. We don't have to handle the
 	 * situation to read the RAR5 variable-sized value stored at the end of
 	 * the file, because such situation will never happen. */
-	if(!read_ahead(a, 8, &p))
+	if(!read_ahead(a, 10, &p))
 		return 0;
 
-	for(shift = 0, i = 0; i < 8; i++, shift += 7) {
+	for(multiplier = 1, i = 0; i < 10; i++, multiplier *= 128) {
+		uint64_t val;
+		uint8_t b;
+
 		b = p[i];
 
 		/* Strip the MSB from the input byte and add the resulting
 		 * number to the `result`. */
-		result += (b & (uint64_t)0x7F) << shift;
+		if(archive_ckd_mul_u64(&val, b & 0x7F, multiplier) ||
+		   archive_ckd_add_u64(&result, result, val)) {
+			/* Integer overflow occurred. */
+			return 0;
+		}
 
 		/* MSB set to 1 means we need to continue decoding process.
 		 * MSB set to 0 means we're done.
@@ -992,22 +1000,8 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
 		}
 	}
 
-	/* The decoded value takes the maximum number of 8 bytes.
-	 * It's a maximum number of bytes, so end decoding process here
-	 * even if the first bit of last byte is 1. */
-	if(pvalue) {
-		*pvalue = result;
-	}
-
-	if(pvalue_len) {
-		*pvalue_len = 9;
-	} else {
-		if(ARCHIVE_OK != consume(a, 9)) {
-			return 0;
-		}
-	}
-
-	return 1;
+	/* All continuation bits were set. This is an error. */
+	return 0;
 }
 
 static int read_var_sized(struct archive_read* a, size_t* pvalue,
