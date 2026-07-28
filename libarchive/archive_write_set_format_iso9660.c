@@ -4358,6 +4358,8 @@ calculate_directory_descriptors(struct iso9660 *iso9660, struct vdd *vdd,
 				bs += dr_l;
 			file->cur_content = file->cur_content->next;
 		} while (file->cur_content != NULL);
+		/* Reset cur_content for later set_directory_record() calls. */
+		file->cur_content = &(file->content);
 	}
 	return (block);
 }
@@ -5464,8 +5466,8 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 		size = fd_boot_image_size(iso9660->el_torito.media_type);
 		if (size == 0)
 			size = (size_t)archive_entry_size(isoent->file->entry);
-		block = ((int)size + LOGICAL_BLOCK_SIZE -1)
-		    >> LOGICAL_BLOCK_BITS;
+		block = (int)((size + (size_t)LOGICAL_BLOCK_SIZE -1)
+		    >> LOGICAL_BLOCK_BITS);
 		location += block;
 		iso9660->total_file_block += block;
 		isoent->file->content.blocks = block;

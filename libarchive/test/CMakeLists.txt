@@ -314,6 +314,7 @@ IF(ENABLE_TEST)
     test_write_format_iso9660_zisofs.c
     test_write_format_iso9660_zisofs_overflow.c
     test_write_format_iso9660_bugs.c
+    test_write_format_iso9660_rr_crash.c
     test_write_format_mtree.c
     test_write_format_mtree_absolute.c
     test_write_format_mtree_absolute_path.c
