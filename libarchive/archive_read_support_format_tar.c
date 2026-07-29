@@ -194,6 +194,8 @@ static int	header_gnu_longlink(struct archive_read *, struct tar *,
 static int	header_gnu_longname(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h, int64_t *);
 static int	is_mac_metadata_entry(struct archive_entry *entry);
+static int	mac_metadata_matches_next_entry(struct archive_read *, struct tar *,
+		    struct archive_entry *, int64_t);
 static int	read_mac_metadata_blob(struct archive_read *,
 		    struct archive_entry *, int64_t *);
 static int	header_volume(struct archive_read *, struct tar *,
@@ -927,7 +929,9 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			 */
 			if (tar->process_mac_extensions
 			    && ((seen_headers & seen_mac_metadata) == 0)
-			    && is_mac_metadata_entry(entry)) {
+			    && is_mac_metadata_entry(entry)
+			    && mac_metadata_matches_next_entry(a, tar, entry,
+			    *unconsumed)) {
 				err2 = read_mac_metadata_blob(a, entry, unconsumed);
 				if (err2 < ARCHIVE_WARN) {
 					return (ARCHIVE_FATAL);
@@ -1669,6 +1673,113 @@ is_mac_metadata_entry(struct archive_entry *entry) {
 	}
 	/* Not a mac extension */
 	return 0;
+}
+
+/*
+ * Return false if the next ordinary header definitively does not match the
+ * AppleDouble entry.  Extension headers need the full tar parser, so retain
+ * the existing behavior when one of those follows.
+ */
+static int
+mac_metadata_matches_next_entry(struct archive_read *a,
+    struct tar *tar, struct archive_entry *entry, int64_t unconsumed)
+{
+	const struct archive_entry_header_gnutar *gnuheader;
+	const struct archive_entry_header_ustar *header;
+	struct archive_entry *next_entry;
+	const char *h, *metadata_base, *metadata_name, *name_end, *next_pathname;
+	char next_name[257];
+	int matches;
+	int64_t offset, size;
+	size_t base_offset, metadata_length, name_length, next_length;
+	size_t prefix_length, target_length;
+
+	metadata_name = archive_entry_pathname(entry);
+	if (metadata_name == NULL)
+		return 1;
+
+	size = archive_entry_size(entry);
+	if (size < 0 || size > (int64_t)xattr_limit)
+		return 1;
+	offset = unconsumed + ((size + 511) & ~511);
+	h = __archive_read_ahead(a, (size_t)offset + 512, NULL);
+	if (h == NULL)
+		return 1;
+	h += offset;
+
+	if (h[0] == 0 && archive_block_is_null(h))
+		return 0;
+	if (!checksum(a, h))
+		return 1;
+
+	header = (const struct archive_entry_header_ustar *)h;
+	switch (header->typeflag[0]) {
+	case 'A':
+	case 'g':
+	case 'K':
+	case 'L':
+	case 'V':
+	case 'X':
+	case 'x':
+		return 1;
+	}
+
+	gnuheader = (const struct archive_entry_header_gnutar *)h;
+	name_end = memchr(header->name, '\0', sizeof(header->name));
+	name_length = name_end != NULL
+	    ? (size_t)(name_end - header->name) : sizeof(header->name);
+	prefix_length = 0;
+	if (memcmp(gnuheader->magic, "ustar  \0", 8) != 0
+	    && memcmp(header->magic, "ustar", 5) == 0) {
+		const char *prefix_end = memchr(header->prefix, '\0',
+		    sizeof(header->prefix));
+		prefix_length = prefix_end != NULL
+		    ? (size_t)(prefix_end - header->prefix) : sizeof(header->prefix);
+	}
+	if (prefix_length > 0) {
+		memcpy(next_name, header->prefix, prefix_length);
+		next_name[prefix_length] = '/';
+		memcpy(next_name + prefix_length + 1, header->name, name_length);
+		next_length = prefix_length + 1 + name_length;
+	} else {
+		memcpy(next_name, header->name, name_length);
+		next_length = name_length;
+	}
+
+	next_entry = archive_entry_new();
+	if (next_entry == NULL)
+		return 1;
+	if (archive_entry_copy_pathname_l(next_entry, next_name, next_length,
+	    tar->sconv) != 0) {
+		archive_entry_free(next_entry);
+		return 1;
+	}
+	next_pathname = archive_entry_pathname(next_entry);
+	if (next_pathname == NULL) {
+		archive_entry_free(next_entry);
+		return 1;
+	}
+	while (metadata_name[0] == '.' && metadata_name[1] == '/')
+		metadata_name += 2;
+	while (next_pathname[0] == '.' && next_pathname[1] == '/')
+		next_pathname += 2;
+	metadata_length = strlen(metadata_name);
+	next_length = strlen(next_pathname);
+	metadata_base = strrchr(metadata_name, '/');
+	metadata_base = metadata_base == NULL ? metadata_name : metadata_base + 1;
+	base_offset = (size_t)(metadata_base - metadata_name);
+	target_length = metadata_length - 2;
+	if (next_length != target_length
+	    && !(next_length == target_length + 1
+	    && next_pathname[next_length - 1] == '/')) {
+		matches = 0;
+	} else {
+		matches = memcmp(next_pathname, metadata_name, base_offset) == 0
+		    && memcmp(next_pathname + base_offset, metadata_base + 2,
+		    metadata_length - base_offset - 2) == 0;
+	}
+	archive_entry_free(next_entry);
+	return matches;
 }
 
 /*
