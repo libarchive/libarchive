@@ -6,10 +6,51 @@
  */
 #include "test.h"
 
+/* Compare the mode column of tar's list output with an array of expected
+ * values.
+ */
+static void check_modes(const char* testname, const char *buf, const char *lines[])
+{
+	int line = 1;
+	while (*buf && *lines != NULL)
+	{
+		failure("On line %d of test %s", line, testname);
+		assertEqualMem(buf, *lines, strlen(*lines));
+		while (*buf && !(*buf == '\r'|| *buf == '\n'))
+			buf++;
+		while (*buf == '\r' || *buf == '\n')
+			buf++;
+		lines++;
+		line++;
+	}
+	if (*lines && ! *buf)
+	{
+		failure("On line %d of test %s: unexpected end of file", line, testname);
+		assert(0);
+	}
+}
+
 DEFINE_TEST(test_option_mode)
 {
 	int rv;
 	char *p;
+
+	const char *test3mtree =
+		"#mtree\n"
+		"in/all mode=777 type=file\n"
+		"in/minimal mode=500 type=file\n";
+
+	const char *test3aExpected[] = {
+		"-rw-r--r--",
+		"-rw-r--r--",
+		NULL
+	};
+
+	const char *test3bExpected[] = {
+		"-rw-rwxr-x",
+		"-rw---x---",
+		NULL
+	};
 
 	assertMakeDir("in", 0755);
 
@@ -52,5 +93,27 @@ DEFINE_TEST(test_option_mode)
 	assertEqualString(p + 612,"000610 ");
 	free(p);
 #endif
+
+	/* Create an archive file with custom modes.  Using mtree here is
+	 * simpler than building a tar file from files, and also works on
+	 * Windows.
+	 */
+	assertMakeFile("archive3.mtree", 0644, test3mtree);
+
+	/* list, overriding with absolute mode */
+	assertEqualInt(0,
+		systemf("%s --mode 644 -tvf archive3.mtree > 3a.out",
+			testprog));
+	p = slurpfile(NULL, "3a.out");
+	check_modes("3a", p, test3aExpected);
+	free(p);
+
+	/* list, overriding with relative mode */
+	assertEqualInt(0,
+		systemf("%s --mode u+rw-x,g+X,o-w -tvf archive3.mtree > 3b.out",
+			testprog));
+	p = slurpfile(NULL, "3b.out");
+	check_modes("3b", p, test3bExpected);
+	free(p);
 
 }

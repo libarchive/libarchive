@@ -422,8 +422,10 @@ Currently supported only for pax formats
 .Po including "pax restricted", the default tar format for
 .Nm bsdtar Pc
 .It Fl Fl mode Ar permissions
-(c, r, u modes only)
-Modify the file mode bits stored in the archive.
+Modify the file mode bits.
+On create, this takes the on-disk mode and modifies it before storing
+in the archive.
+On extract, the mode from the archive is modified before writing to disk.
 Permissions can be absolute (an octal number) or symbolic.
 See
 .Xr chmod 1
