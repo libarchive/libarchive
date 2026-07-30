@@ -35,7 +35,7 @@ static const char *short_options = "h";
  * The symbolic names for options that lack a short equivalent are
  * defined in bsdcat.h.  Also note that so far I've found no need
  * to support optional arguments to long options.  That would be
- * a small change to the code below.
+ * a small change to the code below (see bsdtar for reference).
  */
 
 static const struct bsdcat_option {

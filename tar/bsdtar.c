@@ -646,6 +646,11 @@ main(int argc, char **argv)
 			bsdtar->readdisk_flags |=
 			    ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS;
 			break;
+		case OPTION_ONE_TOP_LEVEL: /* GNU tar */
+			bsdtar->flags |= OPTFLAG_ONE_TOP_LEVEL;
+			bsdtar->top_level = bsdtar->argument
+			    ? strdup(bsdtar->argument) : NULL;
+			break;
 		case OPTION_OPTIONS:
 			if (bsdtar->option_options != NULL) {
 				lafe_warnc(0,
@@ -932,6 +937,8 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+	if (bsdtar->flags & OPTFLAG_ONE_TOP_LEVEL)
+		only_mode(bsdtar, "--one-top-level", "x");
 	if (bsdtar->flags & OPTFLAG_STDOUT)
 		only_mode(bsdtar, "-O", "xt");
 	if (bsdtar->flags & OPTFLAG_UNLINK_FIRST)
@@ -999,6 +1006,15 @@ main(int argc, char **argv)
 	if (strcmp(bsdtar->filename, "-") == 0)
 		bsdtar->filename = NULL;
 
+	/* Infer default directory name for --one-top-level. */
+	if ((bsdtar->flags & OPTFLAG_ONE_TOP_LEVEL) &&
+	    bsdtar->top_level == NULL) {
+		if (bsdtar->filename == NULL)
+			lafe_errc(1, 0, "Archive name unknown, can't infer a "
+			                 "default value for --one-top-level.");
+		bsdtar->top_level = archive_basename(bsdtar->filename);
+	}
+
 	switch(bsdtar->mode) {
 	case 'c':
 		tar_mode_c(bsdtar);
@@ -1023,6 +1039,7 @@ main(int argc, char **argv)
 #endif
 	cset_free(bsdtar->cset);
 	passphrase_free(bsdtar->ppbuff);
+	free(bsdtar->top_level);
 
 	if (bsdtar->return_value != 0)
 		lafe_warnc(0,
