@@ -688,6 +688,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	size_t			 sw;
 	const char		*p;
 	const char		*fmt;
+	double			 age;
 	time_t			 tim;
 	static time_t		 now;
 	struct tm		*ltime;
@@ -756,13 +757,14 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = archive_entry_mtime(entry);
-#define	HALF_YEAR (time_t)365 * 86400 / 2
+	age = difftime(tim, now);
+#define	HALF_YEAR (365.0 * 86400 / 2)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	DAY_FMT  "%d"  /* Windows' strftime function does not support %e format. */
 #else
 #define	DAY_FMT  "%e"  /* Day number without leading zeros */
 #endif
-	if (tim < now - HALF_YEAR || tim > now + HALF_YEAR)
+	if (age < -HALF_YEAR || age > HALF_YEAR)
 		fmt = bsdtar->day_first ? DAY_FMT " %b  %Y" : "%b " DAY_FMT "  %Y";
 	else
 		fmt = bsdtar->day_first ? DAY_FMT " %b %H:%M" : "%b " DAY_FMT " %H:%M";
