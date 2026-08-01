@@ -1160,6 +1160,7 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	const char 		*uname, *gname;
 	FILE			*out = stdout;
 	const char		*fmt;
+	double			 age;
 	time_t			 mtime;
 	static time_t		 now;
 	struct tm		*ltime;
@@ -1199,16 +1200,15 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	mtime = archive_entry_mtime(entry);
+	age = difftime(mtime, now);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Windows' strftime function does not support %e format. */
-	if (mtime - now > 365*86400/2
-		|| mtime - now < -365*86400/2)
+	if (age > 365.0 * 86400 / 2 || age < -365.0 * 86400 / 2)
 		fmt = cpio->day_first ? "%d %b  %Y" : "%b %d  %Y";
 	else
 		fmt = cpio->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
 #else
-	if (mtime - now > 365*86400/2
-		|| mtime - now < -365*86400/2)
+	if (age > 365.0 * 86400 / 2 || age < -365.0 * 86400 / 2)
 		fmt = cpio->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
