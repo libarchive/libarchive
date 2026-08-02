@@ -47,6 +47,7 @@ struct bsdtar {
 	const char	 *gname; /* --gname */
 	int		  uid;  /* --uid */
 	const char	 *uname; /* --uname */
+	void 		 *file_mode; /* --mode */
 	const char	 *passphrase; /* --passphrase */
 	int		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
@@ -186,6 +187,7 @@ enum {
 	OPTION_ZSTD,
 	OPTION_MTIME,
 	OPTION_CLAMP_MTIME,
+	OPTION_MODE,
 };
 
 int	bsdtar_getopt(struct bsdtar *);
