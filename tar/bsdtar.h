@@ -192,6 +192,7 @@ enum {
 
 int	bsdtar_getopt(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
+int	edit_entry(struct bsdtar *, struct archive_entry *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
 void	edit_mtime(struct bsdtar *, struct archive_entry *);
 int	need_report(void);
