@@ -174,7 +174,6 @@ archive_read_append_filter_program_signature(struct archive *_a,
     __archive_read_free_filters(a);
     return (ARCHIVE_FATAL);
   }
-  b->name = a->filter->name;
 
   a->bypass_filter_bidding = 1;
   return r;
