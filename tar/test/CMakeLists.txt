@@ -59,6 +59,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_lz4.c
     test_option_lzma.c
     test_option_lzop.c
+    test_option_mode.c
     test_option_mtime.c
     test_option_n.c
     test_option_newer_than.c

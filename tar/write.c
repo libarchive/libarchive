@@ -59,6 +59,7 @@
 
 #include "bsdtar.h"
 #include "lafe_err.h"
+#include "lafe_setmode.h"
 #include "line_reader.h"
 
 #ifndef O_BINARY
@@ -941,6 +942,12 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			archive_entry_set_uname(entry, bsdtar->uname);
 		if (bsdtar->gname)
 			archive_entry_set_gname(entry, bsdtar->gname);
+
+		if (bsdtar->file_mode) {
+			mode_t m = archive_entry_mode(entry);
+			m = lafe_getmode(bsdtar->file_mode, m);
+			archive_entry_set_mode(entry, m);
+		}
 
 		/*
 		 * Rewrite the pathname to be archived.  If rewrite
