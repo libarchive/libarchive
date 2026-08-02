@@ -266,25 +266,6 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			continue;
 		}
 
-		if (bsdtar->uid >= 0) {
-			archive_entry_set_uid(entry, bsdtar->uid);
-			archive_entry_set_uname(entry, NULL);
-		}
-		if (bsdtar->gid >= 0) {
-			archive_entry_set_gid(entry, bsdtar->gid);
-			archive_entry_set_gname(entry, NULL);
-		}
-		if (bsdtar->uname)
-			archive_entry_set_uname(entry, bsdtar->uname);
-		if (bsdtar->gname)
-			archive_entry_set_gname(entry, bsdtar->gname);
-
-		if (bsdtar->file_mode) {
-			mode_t m = archive_entry_mode(entry);
-			m = lafe_getmode(bsdtar->file_mode, m);
-			archive_entry_set_mode(entry, m);
-		}
-
 		/*
 		 * Note that pattern exclusions are checked before
 		 * pathname rewrites are handled.  This gives more
@@ -300,6 +281,10 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 				    archive_error_string(bsdtar->matching));
 		if (r)
 			continue; /* Excluded by a pattern test. */
+
+		/* Note: some rewrite failures prevent extraction. */
+		if (edit_entry(bsdtar, entry))
+			continue; /* Excluded by a rewrite failure. */
 
 		if (mode == 't') {
 			/* Perversely, gtar uses -O to mean "send to stderr"
@@ -339,10 +324,6 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			}
 			fprintf(out, "\n");
 		} else {
-			/* Note: some rewrite failures prevent extraction. */
-			if (edit_pathname(bsdtar, entry))
-				continue; /* Excluded by a rewrite failure. */
-
 			if ((bsdtar->flags & OPTFLAG_INTERACTIVE) &&
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;
