@@ -43,6 +43,9 @@ static const char *tvf_out =
 "-rw-r--r--  0 1000            1000            0 Jan  1  1980 f\n";
 #endif
 
+static const char *edit_out =
+"-rwxr-s-w-  0 123    456         0 Jan 11  1970 d/f\n";
+
 DEFINE_TEST(test_list_item)
 {
 	extract_reference_file("test_list_item.tar");
@@ -60,4 +63,16 @@ DEFINE_TEST(test_list_item)
 	failure("'t' mode with 'v' should write more results to stdout");
 	assertTextFileContents(tvf_out, "tvf.out");
 	assertEmptyFile("tvf.err");
+
+	/*
+	 * Run 'tvf' with editing options and check output.  -s is not supported
+	 * on all systems, so that is checked in the test_option_s tests.
+	 */
+	assertEqualInt(0,
+	    systemf("%s tvf test_list_item.tar "
+	    	"--mode 2752 --owner 123 --group 456 "
+	    	"--mtime \"1970-01-11 00:00:01\" "
+	    	"d/f >edit.out 2>edit.err", testprog));
+	assertTextFileContents(edit_out, "edit.out");
+	assertEmptyFile("edit.err");
 }

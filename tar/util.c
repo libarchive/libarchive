@@ -42,6 +42,7 @@
 
 #include "bsdtar.h"
 #include "lafe_err.h"
+#include "lafe_setmode.h"
 #include "passphrase.h"
 
 static size_t	bsdtar_expand_char(char *, size_t, size_t, char);
@@ -583,6 +584,47 @@ edit_mtime(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (!bsdtar->clamp_mtime || entry_mtime > bsdtar->mtime)
 		archive_entry_set_mtime(entry, bsdtar->mtime, 0);
 }
+
+/*
+ * Apply entry-modifying options.  Return non-zero on error.
+ */
+int
+edit_entry(struct bsdtar *bsdtar, struct archive_entry *entry)
+{
+	if (bsdtar->uid >= 0) {
+		archive_entry_set_uid(entry, bsdtar->uid);
+		if (bsdtar->diskreader)
+			archive_entry_set_uname(entry,
+			    archive_read_disk_uname(bsdtar->diskreader,
+				bsdtar->uid));
+		else
+			archive_entry_set_uname(entry, NULL);
+	}
+	if (bsdtar->gid >= 0) {
+		archive_entry_set_gid(entry, bsdtar->gid);
+		if (bsdtar->diskreader)
+			archive_entry_set_gname(entry,
+			    archive_read_disk_gname(bsdtar->diskreader,
+				bsdtar->gid));
+		else
+			archive_entry_set_gname(entry, NULL);
+	}
+	if (bsdtar->uname)
+		archive_entry_set_uname(entry, bsdtar->uname);
+	if (bsdtar->gname)
+		archive_entry_set_gname(entry, bsdtar->gname);
+
+	if (bsdtar->file_mode) {
+		mode_t m = archive_entry_mode(entry);
+		m = lafe_getmode(bsdtar->file_mode, m);
+		archive_entry_set_mode(entry, m);
+	}
+
+	edit_mtime(bsdtar, entry);
+
+	return edit_pathname(bsdtar, entry);
+}
+
 
 /*
  * Like strcmp(), but try to be a little more aware of the fact that
