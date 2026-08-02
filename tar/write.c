@@ -681,6 +681,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	if (archive_read_open_filename(ina, filename,
 					bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
+		archive_read_free(ina);
 		bsdtar->return_value = 1;
 		return (0);
 	}
