@@ -2277,15 +2277,8 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 		archive_strncpy(&(file->symlink), pp, len2);
 		cleanup_backslash(file->symlink.s, file->symlink.length);
 	}
-	/*
-	 * - Count up directory elements.
-	 * - Find out the position which points the last position of
-	 *   path separator('/').
-	 */
-	slash = NULL;
-	for (; *p != '\0'; p++)
-		if (*p == '/')
-			slash = p;
+	/* Find the last path separator. */
+	slash = strrchr(p, '/');
 	if (slash == NULL) {
 		/* The pathname doesn't have a parent directory. */
 		file->parentdir.length = len;
