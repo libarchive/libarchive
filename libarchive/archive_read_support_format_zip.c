@@ -3911,7 +3911,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(zip);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -4704,7 +4704,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(zip);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 /*# vim:set noet:*/

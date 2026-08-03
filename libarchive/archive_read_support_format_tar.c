@@ -294,7 +294,7 @@ archive_read_support_format_tar(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(tar);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int

@@ -505,7 +505,7 @@ archive_read_support_format_7zip(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(zip);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int

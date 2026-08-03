@@ -254,7 +254,7 @@ archive_read_support_format_cpio(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(cpio);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 

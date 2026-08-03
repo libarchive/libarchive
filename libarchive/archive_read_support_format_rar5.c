@@ -4497,5 +4497,5 @@ int archive_read_support_format_rar5(struct archive *_a) {
 		free(rar5);
 	}
 
-	return ARCHIVE_OK;
+	return ret;
 }

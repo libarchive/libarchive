@@ -488,7 +488,7 @@ archive_read_support_format_cab(struct archive *_a)
 		archive_wstring_free(&cab->ws);
 		free(cab);
 	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int

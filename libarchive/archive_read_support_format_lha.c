@@ -285,7 +285,7 @@ archive_read_support_format_lha(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(lha);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static size_t

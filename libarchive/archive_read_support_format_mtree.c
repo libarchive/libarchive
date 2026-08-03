@@ -238,7 +238,7 @@ archive_read_support_format_mtree(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(mtree);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
