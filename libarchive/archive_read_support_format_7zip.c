@@ -478,8 +478,7 @@ archive_read_support_format_7zip(struct archive *_a)
 
 	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate 7zip data");
+		archive_set_error(_a, ENOMEM, "Can't allocate 7zip data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -488,7 +487,6 @@ archive_read_support_format_7zip(struct archive *_a)
 	 * any encrypted entries yet.
 	 */
 	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
-
 
 	r = __archive_read_register_format(a,
 	    zip,
@@ -505,7 +503,7 @@ archive_read_support_format_7zip(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(zip);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int

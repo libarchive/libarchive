@@ -464,8 +464,7 @@ archive_read_support_format_iso9660(struct archive *_a)
 
 	iso9660 = calloc(1, sizeof(*iso9660));
 	if (iso9660 == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate iso9660 data");
+		archive_set_error(_a, ENOMEM, "Can't allocate iso9660 data");
 		return (ARCHIVE_FATAL);
 	}
 	iso9660->magic = ISO9660_MAGIC;
@@ -491,11 +490,9 @@ archive_read_support_format_iso9660(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(iso9660);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 
