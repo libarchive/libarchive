@@ -491,11 +491,9 @@ archive_read_support_format_iso9660(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(iso9660);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 

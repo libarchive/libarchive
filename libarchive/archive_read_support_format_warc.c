@@ -168,11 +168,9 @@ archive_read_support_format_warc(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(warc);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int

@@ -125,11 +125,9 @@ archive_read_support_format_ar(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(ar);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
