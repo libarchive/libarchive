@@ -314,7 +314,9 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FILTER_LZMA	5
 #define	ARCHIVE_FILTER_XZ	6
 #define	ARCHIVE_FILTER_UU	7
+#if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_FILTER_RPM	8
+#endif
 #define	ARCHIVE_FILTER_LZIP	9
 #define	ARCHIVE_FILTER_LRZIP	10
 #define	ARCHIVE_FILTER_LZOP	11
@@ -385,6 +387,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FORMAT_7ZIP			0xE0000
 #define	ARCHIVE_FORMAT_WARC			0xF0000
 #define	ARCHIVE_FORMAT_RAR_V5			0x100000
+#define	ARCHIVE_FORMAT_RPM			0x110000
 
 /*
  * Codes returned by archive_read_format_capabilities().
@@ -478,7 +481,9 @@ __LA_DECL int archive_read_support_filter_program(struct archive *,
 __LA_DECL int archive_read_support_filter_program_signature
 		(struct archive *, const char * /* cmd */,
 				    const void * /* match */, size_t);
+#if ARCHIVE_VERSION_NUMBER < 4000000
 __LA_DECL int archive_read_support_filter_rpm(struct archive *);
+#endif
 __LA_DECL int archive_read_support_filter_uu(struct archive *);
 __LA_DECL int archive_read_support_filter_xz(struct archive *);
 __LA_DECL int archive_read_support_filter_zstd(struct archive *);
@@ -499,6 +504,7 @@ __LA_DECL int archive_read_support_format_mtree(struct archive *);
 __LA_DECL int archive_read_support_format_rar(struct archive *);
 __LA_DECL int archive_read_support_format_rar5(struct archive *);
 __LA_DECL int archive_read_support_format_raw(struct archive *);
+__LA_DECL int archive_read_support_format_rpm(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
 __LA_DECL int archive_read_support_format_warc(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
