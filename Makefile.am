@@ -404,6 +404,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_pathmatch_oob.c \
 	libarchive/test/test_archive_read.c \
 	libarchive/test/test_archive_read_add_passphrase.c \
+	libarchive/test/test_archive_read_append_filter.c \
 	libarchive/test/test_archive_read_close_twice.c \
 	libarchive/test/test_archive_read_multiple_data_objects.c \
 	libarchive/test/test_archive_read_next_header_empty.c \
