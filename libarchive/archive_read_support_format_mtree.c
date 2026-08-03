@@ -1067,7 +1067,6 @@ static int
 read_header(struct archive_read *a, struct archive_entry *entry)
 {
 	struct mtree *mtree = a->format->data;
-	char *p;
 	int r, use_next;
 
 	if (mtree->fd >= 0) {
@@ -1096,14 +1095,9 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 			mtree->this_entry->used = 1;
 			if (archive_strlen(&mtree->current_dir) > 0) {
 				/* Roll back current path. */
-				p = mtree->current_dir.s
-				    + mtree->current_dir.length - 1;
-				while (p >= mtree->current_dir.s && *p != '/')
-					--p;
-				if (p >= mtree->current_dir.s)
-					--p;
-				mtree->current_dir.length
-				    = p - mtree->current_dir.s + 1;
+				archive_string_dirname(&mtree->current_dir);
+				if (strcmp(mtree->current_dir.s, ".") == 0)
+					archive_string_empty(&mtree->current_dir);
 			}
 		}
 		if (!mtree->this_entry->used) {
