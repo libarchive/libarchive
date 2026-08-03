@@ -517,23 +517,6 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->crc32func = fake_crc32;
 		}
 		return (ARCHIVE_OK);
-	} else if (strcmp(key, "hdrcharset")  == 0) {
-		/*
-		 * Set the character set used in translating filenames.
-		 */
-		if (val == NULL || val[0] == 0) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "%s: hdrcharset option needs a character-set name",
-			    a->format_name);
-		} else {
-			zip->opt_sconv = archive_string_conversion_to_charset(
-			    &a->archive, val, 0);
-			if (zip->opt_sconv != NULL)
-				ret = ARCHIVE_OK;
-			else
-				ret = ARCHIVE_FATAL;
-		}
-		return (ret);
 	} else if (strcmp(key, "zip64") == 0) {
 		/*
 		 * Bias decisions about Zip64: force them to be
@@ -554,7 +537,8 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 	/* Note: The "warn" return is just to inform the options
 	 * supervisor that we didn't handle it.  It will generate
 	 * a suitable error if no one used this option. */
-	return (ARCHIVE_WARN);
+	return (__archive_write_option_header_charset(a, key, val,
+	    &zip->opt_sconv));
 }
 
 int
