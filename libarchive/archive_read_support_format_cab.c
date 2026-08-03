@@ -459,14 +459,13 @@ archive_read_support_format_cab(struct archive *_a)
 
 	cab = calloc(1, sizeof(*cab));
 	if (cab == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
+		archive_set_error(_a, ENOMEM,
 		    "Can't allocate CAB data");
 		return (ARCHIVE_FATAL);
 	}
 	archive_string_init(&cab->ws);
 	if (archive_wstring_ensure(&cab->ws, 256) == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate memory");
+		archive_set_error(_a, ENOMEM, "Can't allocate memory");
 		free(cab);
 		return (ARCHIVE_FATAL);
 	}

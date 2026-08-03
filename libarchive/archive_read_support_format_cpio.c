@@ -234,7 +234,7 @@ archive_read_support_format_cpio(struct archive *_a)
 
 	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
+		archive_set_error(_a, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
 	cpio->magic = CPIO_MAGIC;

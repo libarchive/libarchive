@@ -150,8 +150,7 @@ archive_read_support_format_warc(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_warc");
 
 	if ((warc = calloc(1, sizeof(*warc))) == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate warc data");
+		archive_set_error(_a, ENOMEM, "Can't allocate warc data");
 		return (ARCHIVE_FATAL);
 	}
 

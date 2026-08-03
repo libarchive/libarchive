@@ -264,8 +264,7 @@ archive_read_support_format_lha(struct archive *_a)
 
 	lha = calloc(1, sizeof(*lha));
 	if (lha == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate lha data");
+		archive_set_error(_a, ENOMEM, "Can't allocate lha data");
 		return (ARCHIVE_FATAL);
 	}
 	archive_string_init(&lha->ws);

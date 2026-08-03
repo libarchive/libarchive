@@ -106,8 +106,7 @@ archive_read_support_format_ar(struct archive *_a)
 
 	ar = calloc(1, sizeof(*ar));
 	if (ar == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate ar data");
+		archive_set_error(_a, ENOMEM, "Can't allocate ar data");
 		return (ARCHIVE_FATAL);
 	}
 	ar->strtab = NULL;

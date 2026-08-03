@@ -460,8 +460,8 @@ static int	xmllite_read_toc(struct archive_read *);
 int
 archive_read_support_format_xar(struct archive *_a)
 {
-	struct xar *xar;
 	struct archive_read *a = (struct archive_read *)_a;
+	struct xar *xar;
 	int r;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
@@ -469,8 +469,7 @@ archive_read_support_format_xar(struct archive *_a)
 
 	xar = calloc(1, sizeof(*xar));
 	if (xar == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate xar data");
+		archive_set_error(_a, ENOMEM, "Can't allocate xar data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -491,6 +490,7 @@ archive_read_support_format_xar(struct archive *_a)
 	    xar_cleanup,
 	    NULL,
 	    NULL);
+
 	if (r != ARCHIVE_OK)
 		free(xar);
 	return (r);
