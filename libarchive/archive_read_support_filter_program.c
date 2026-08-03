@@ -156,7 +156,7 @@ archive_read_support_filter_program_signature(struct archive *_a,
 		memcpy(state->signature, signature, signature_len);
 	}
 
-	if (__archive_read_register_bidder(a, state, NULL,
+	if (__archive_read_register_bidder(a, state,
 				&program_bidder_vtable) != ARCHIVE_OK) {
 		free_state(state);
 		return (ARCHIVE_FATAL);
