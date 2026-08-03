@@ -889,16 +889,6 @@ static void reset_file_context(struct rar5 *rar5) {
 	free_filters(rar5);
 }
 
-static inline int get_archive_read(struct archive* a,
-    struct archive_read** ar)
-{
-	*ar = (struct archive_read*) a;
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
-	    "archive_read_support_format_rar5");
-
-	return ARCHIVE_OK;
-}
-
 static int read_ahead(struct archive_read* a, size_t how_many,
     const uint8_t** ptr)
 {
@@ -4458,12 +4448,12 @@ static void rar5_deinit(struct rar5 *rar5) {
 }
 
 int archive_read_support_format_rar5(struct archive *_a) {
-	struct archive_read* ar;
-	int ret;
+	struct archive_read* ar = (struct archive_read*)_a;
 	struct rar5 *rar5;
+	int r;
 
-	if(ARCHIVE_OK != (ret = get_archive_read(_a, &ar)))
-		return ret;
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_support_format_rar5");
 
 	rar5 = malloc(sizeof(*rar5));
 	if(rar5 == NULL) {
@@ -4479,7 +4469,7 @@ int archive_read_support_format_rar5(struct archive *_a) {
 		return ARCHIVE_FATAL;
 	}
 
-	ret = __archive_read_register_format(ar,
+	r = __archive_read_register_format(ar,
 	    rar5,
 	    "rar5",
 	    rar5_bid,
@@ -4492,10 +4482,9 @@ int archive_read_support_format_rar5(struct archive *_a) {
 	    rar5_capabilities,
 	    rar5_has_encrypted_entries);
 
-	if(ret != ARCHIVE_OK) {
+	if(r != ARCHIVE_OK) {
 		rar5_deinit(rar5);
 		free(rar5);
 	}
-
-	return ARCHIVE_OK;
+	return r;
 }

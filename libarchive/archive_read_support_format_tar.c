@@ -272,8 +272,7 @@ archive_read_support_format_tar(struct archive *_a)
 
 	tar = calloc(1, sizeof(*tar));
 	if (tar == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate tar data");
+		archive_set_error(_a, ENOMEM, "Can't allocate tar data");
 		return (ARCHIVE_FATAL);
 	}
 #ifdef HAVE_COPYFILE_H
@@ -281,7 +280,9 @@ archive_read_support_format_tar(struct archive *_a)
 	tar->process_mac_extensions = 1;
 #endif
 
-	r = __archive_read_register_format(a, tar, "tar",
+	r = __archive_read_register_format(a,
+	    tar,
+	    "tar",
 	    archive_read_format_tar_bid,
 	    archive_read_format_tar_options,
 	    archive_read_format_tar_read_header,
@@ -294,7 +295,7 @@ archive_read_support_format_tar(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(tar);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int

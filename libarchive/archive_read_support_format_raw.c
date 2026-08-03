@@ -64,8 +64,7 @@ archive_read_support_format_raw(struct archive *_a)
 
 	raw = calloc(1, sizeof(*raw));
 	if (raw == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate raw data");
+		archive_set_error(_a, ENOMEM, "Can't allocate raw data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -81,6 +80,7 @@ archive_read_support_format_raw(struct archive *_a)
 	    archive_read_format_raw_cleanup,
 	    NULL,
 	    NULL);
+
 	if (r != ARCHIVE_OK)
 		free(raw);
 	return (r);
