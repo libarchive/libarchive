@@ -2433,7 +2433,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	case AE_IFREG:
 		a->tmpname = NULL;
 		a->fd = open(a->name,
-		    O_WRONLY | O_CREAT | O_EXCL | O_BINARY | O_CLOEXEC, mode);
+		    O_WRONLY | O_CREAT | O_EXCL | O_BINARY | O_CLOEXEC | O_NOFOLLOW, mode);
 		__archive_ensure_cloexec_flag(a->fd);
 		r = (a->fd < 0);
 		break;
