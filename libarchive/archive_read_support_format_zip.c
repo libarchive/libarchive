@@ -1955,11 +1955,17 @@ zipx_xz_init(struct archive_read *a, struct zip *zip)
 	return (ARCHIVE_OK);
 }
 
+/* Maximum LZMA dictionary size to allocate (128 MiB).
+ * Prevents resource exhaustion from malicious archives
+ * that advertise an enormous dictionary size (CWE-400). */
+#define ZIPX_LZMA_MAX_DICT_SIZE (128 * 1024 * 1024)
+
 static int
 zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 {
 	lzma_ret r;
 	const uint8_t* p;
+	uint32_t dict_size;
 
 #pragma pack(push)
 #pragma pack(1)
@@ -2073,6 +2079,18 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	/* Prepare an lzma alone header: copy the lzma_params blob into
 	 * a proper place into the lzma alone header. */
 	memcpy(&alone_header.bytes[0], p + 4, 5);
+
+	/* Sanity check: LZMA dictionary size is encoded as a 32-bit
+	 * little-endian value in bytes 1-4 of the lzma_params blob
+	 * (i.e. p[5..8]).  A huge value would cause liblzma to attempt
+	 * an unfettered allocation leading to OOM (CWE-400 / CWE-770). */
+	dict_size = archive_le32dec(p + 5);
+	if (dict_size > ZIPX_LZMA_MAX_DICT_SIZE) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "LZMA dictionary size too large (%u > %u)",
+		    dict_size, ZIPX_LZMA_MAX_DICT_SIZE);
+		return (ARCHIVE_FAILED);
+	}
 
 	/* Initialize the 'uncompressed size' field to unknown; we'll manually
 	 * monitor how many bytes there are still to be uncompressed. */
