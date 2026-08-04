@@ -48,6 +48,7 @@ static const struct bsdtar_option {
 	{ "append",               0, 'r' },
 	{ "acls",                 0, OPTION_ACLS },
 	{ "auto-compress",        0, 'a' },
+	{ "auto-rename",          0, OPTION_AUTO_RENAME },
 	{ "b64encode",            0, OPTION_B64ENCODE },
 	{ "block-size",           1, 'b' },
 	{ "blocking-factor",	  1, 'b' },
