@@ -821,6 +821,9 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	if (r2 < ret)
 		ret = r2;
 
+	/* Record start-of-header offset in format output stream. */
+	a->header_position = a->filter_first->bytes_written;
+
 	/* Format and write header. */
 	r2 = ((a->format_write_header)(a, entry));
 	if (r2 == ARCHIVE_FAILED) {
@@ -913,4 +916,17 @@ _archive_filter_bytes(struct archive *_a, int n)
 {
 	struct archive_write_filter *f = filter_lookup(_a, n);
 	return f == NULL ? -1 : f->bytes_written;
+}
+
+/*
+ * Return the byte offset in the format output stream where the
+ * last-written header started.  Symmetric with archive_read_header_position().
+ */
+la_int64_t
+archive_write_header_position(struct archive *_a)
+{
+	struct archive_write *a = (struct archive_write *)_a;
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_write_header_position");
+	return (a->header_position);
 }
