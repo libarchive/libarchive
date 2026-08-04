@@ -174,6 +174,8 @@ mode_t umasked(mode_t expected_mode)
 
 /* Path to working directory for current test */
 const char *testworkdir;
+/* Path to directory containing the test program */
+const char *testprogdir;
 #ifdef PROGRAM
 /* Pathname of exe to be tested. */
 const char *testprogfile;
@@ -4073,7 +4075,7 @@ main(int argc, char **argv)
 #else
 	char tmpdir[256];
 #endif
-	char *pwd, *testprogdir, *tmp2 = NULL, *vlevel = NULL;
+	char *pwd, *testprogdir_alloc, *tmp2 = NULL, *vlevel = NULL;
 	char tmpdir_timestamp[32];
 #ifdef RUN_TEST_UNPRIV
 	struct passwd *pw;
@@ -4103,12 +4105,12 @@ main(int argc, char **argv)
 	 */
 	progname = p = argv[0];
 	testprogdir_len = strlen(progname) + 1;
-	if ((testprogdir = malloc(testprogdir_len)) == NULL)
+	if ((testprogdir_alloc = malloc(testprogdir_len)) == NULL)
 	{
 		fprintf(stderr, "ERROR: Out of memory.");
 		exit(1);
 	}
-	strncpy(testprogdir, progname, testprogdir_len);
+	strncpy(testprogdir_alloc, progname, testprogdir_len);
 	while (*p != '\0') {
 		/* Support \ or / dir separators for Windows compat. */
 		if (*p == '/' || *p == '\\')
@@ -4119,29 +4121,30 @@ main(int argc, char **argv)
 		++p;
 		j++;
 	}
-	testprogdir[i] = '\0';
+	testprogdir_alloc[i] = '\0';
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	if (testprogdir[0] != '/' && testprogdir[0] != '\\' &&
-	    !(((testprogdir[0] >= 'a' && testprogdir[0] <= 'z') ||
-	       (testprogdir[0] >= 'A' && testprogdir[0] <= 'Z')) &&
-		testprogdir[1] == ':' &&
-		(testprogdir[2] == '/' || testprogdir[2] == '\\')))
+	if (testprogdir_alloc[0] != '/' && testprogdir_alloc[0] != '\\' &&
+	    !(((testprogdir_alloc[0] >= 'a' && testprogdir_alloc[0] <= 'z') ||
+	       (testprogdir_alloc[0] >= 'A' && testprogdir_alloc[0] <= 'Z')) &&
+		testprogdir_alloc[1] == ':' &&
+		(testprogdir_alloc[2] == '/' || testprogdir_alloc[2] == '\\')))
 #else
-	if (testprogdir[0] != '/')
+	if (testprogdir_alloc[0] != '/')
 #endif
 	{
 		/* Fixup path for relative directories. */
-		if ((testprogdir = realloc(testprogdir,
-			strlen(pwd) + 1 + strlen(testprogdir) + 1)) == NULL)
+		if ((testprogdir_alloc = realloc(testprogdir_alloc,
+			strlen(pwd) + 1 + strlen(testprogdir_alloc) + 1)) == NULL)
 		{
 			fprintf(stderr, "ERROR: Out of memory.");
 			exit(1);
 		}
-		memmove(testprogdir + strlen(pwd) + 1, testprogdir,
-		    strlen(testprogdir) + 1);
-		memcpy(testprogdir, pwd, strlen(pwd));
-		testprogdir[strlen(pwd)] = '/';
+		memmove(testprogdir_alloc + strlen(pwd) + 1, testprogdir_alloc,
+		    strlen(testprogdir_alloc) + 1);
+		memcpy(testprogdir_alloc, pwd, strlen(pwd));
+		testprogdir_alloc[strlen(pwd)] = '/';
 	}
+	testprogdir = testprogdir_alloc;
 
 #ifdef PROGRAM
 	/* Get the target program from environment, if available. */
@@ -4425,7 +4428,7 @@ main(int argc, char **argv)
 			if (test_num < 0) {
 				printf("*** INVALID Test %s\n", *argv);
 				free(refdir_alloc);
-				free(testprogdir);
+				free(testprogdir_alloc);
 				usage(progname);
 			}
 			for (i = 0; i < test_num; i++) {
@@ -4444,7 +4447,7 @@ main(int argc, char **argv)
 finish:
 	/* Must be freed after all tests run */
 	free(tmp2);
-	free(testprogdir);
+	free(testprogdir_alloc);
 	free(pwd);
 
 	/*
