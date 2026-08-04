@@ -71,8 +71,8 @@ struct ustat {
 	int64_t		st_mtime;
 	uint32_t	st_mtime_nsec;
 	gid_t		st_gid;
-	/* 64bits ino */
-	int64_t		st_ino;
+	/* 64-bit file ID. */
+	uint64_t		st_ino;
 	mode_t		st_mode;
 	uint32_t	st_nlink;
 	uint64_t	st_size;
@@ -540,7 +540,7 @@ static int
 __hstat(HANDLE handle, struct ustat *st)
 {
 	BY_HANDLE_FILE_INFORMATION info;
-	ULARGE_INTEGER ino64;
+	ULARGE_INTEGER ino64, size64;
 	DWORD ftype;
 	mode_t mode;
 
@@ -601,17 +601,20 @@ __hstat(HANDLE handle, struct ustat *st)
 	ntfs_to_unix(FILETIME_to_ntfs(&info.ftLastAccessTime), &st->st_atime, &st->st_atime_nsec);
 	ntfs_to_unix(FILETIME_to_ntfs(&info.ftLastWriteTime), &st->st_mtime, &st->st_mtime_nsec);
 	ntfs_to_unix(FILETIME_to_ntfs(&info.ftCreationTime), &st->st_ctime, &st->st_ctime_nsec);
-	st->st_size =
-	    ((int64_t)(info.nFileSizeHigh) * ((int64_t)MAXDWORD + 1))
-		+ (int64_t)(info.nFileSizeLow);
+	size64.HighPart = info.nFileSizeHigh;
+	size64.LowPart = info.nFileSizeLow;
+	st->st_size = size64.QuadPart;
+	if (st->st_size > (uint64_t)INT64_MAX) {
+		errno = EOVERFLOW;
+		return (-1);
+	}
 #ifdef SIMULATE_WIN_STAT
 	st->st_ino = 0;
 	st->st_nlink = 1;
 	st->st_dev = 0;
 #else
-	/* Getting FileIndex as i-node. We should remove a sequence which
-	 * is high-16-bits of nFileIndexHigh. */
-	ino64.HighPart = info.nFileIndexHigh & 0x0000FFFFUL;
+	/* Preserve the complete opaque file ID. */
+	ino64.HighPart = info.nFileIndexHigh;
 	ino64.LowPart  = info.nFileIndexLow;
 	st->st_ino = ino64.QuadPart;
 	st->st_nlink = info.nNumberOfLinks;

@@ -123,7 +123,7 @@ struct archive_write_disk {
 	int64_t			 user_uid;
 	int			 skip_file_set;
 	int64_t			 skip_file_dev;
-	int64_t			 skip_file_ino;
+	uint64_t			 skip_file_ino;
 	time_t			 start_time;
 
 	int64_t (*lookup_gid)(void *private, const char *gname, int64_t gid);
@@ -237,14 +237,6 @@ static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
 		    size_t, int64_t);
 
 #define bhfi_dev(bhfi)	((bhfi)->dwVolumeSerialNumber)
-/* Treat FileIndex as i-node. We should remove a sequence number
- * which is high-16-bits of nFileIndexHigh. */
-#define bhfi_ino(bhfi)	\
-	((((int64_t)((bhfi)->nFileIndexHigh & 0x0000FFFFUL)) << 32) \
-    | (bhfi)->nFileIndexLow)
-#define bhfi_size(bhfi)	\
-    ((((int64_t)(bhfi)->nFileSizeHigh) << 32) | (bhfi)->nFileSizeLow)
-
 static int
 file_information(wchar_t *path, BY_HANDLE_FILE_INFORMATION *st,
     mode_t *mode, int sim_lstat)
@@ -1040,7 +1032,7 @@ archive_write_disk_set_skip_file(struct archive *_a, la_int64_t d, la_int64_t i)
 	    ARCHIVE_STATE_ANY, "archive_write_disk_set_skip_file");
 	a->skip_file_set = 1;
 	a->skip_file_dev = d;
-	a->skip_file_ino = i;
+	a->skip_file_ino = (uint64_t)i;
 	return (ARCHIVE_OK);
 }
 

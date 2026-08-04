@@ -70,6 +70,12 @@
 #endif
 #define NOCRYPT
 #include <windows.h>
+
+/* Treat the complete Windows file index as an opaque 64-bit value. */
+#define bhfi_ino(bhfi) \
+	((((ULONGLONG)(bhfi)->nFileIndexHigh) << 32) | \
+	    (bhfi)->nFileIndexLow)
+
 //#define	EFTYPE 7
 
 #include "archive_platform_stat.h"

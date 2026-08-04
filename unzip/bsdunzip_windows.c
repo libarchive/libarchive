@@ -262,7 +262,7 @@ unzip_stat_w(const wchar_t *path, int stat_link, struct stat *st)
 	int is_link, r;
 	DWORD ftype;
 	BY_HANDLE_FILE_INFORMATION info;
-	ULARGE_INTEGER ino64;
+	ULARGE_INTEGER ino64, size64;
 
 	h = unzip_get_handle(path, 0, stat_link, &is_link);
 	if (h == INVALID_HANDLE_VALUE) {
@@ -352,9 +352,14 @@ unzip_stat_w(const wchar_t *path, int stat_link, struct stat *st)
 	st->st_atime = unzip_FILETIME_to_unix(&info.ftLastAccessTime);
 	st->st_mtime = unzip_FILETIME_to_unix(&info.ftLastWriteTime);
 	st->st_ctime = unzip_FILETIME_to_unix(&info.ftCreationTime);
-	st->st_size =
-	    ((int64_t)(info.nFileSizeHigh) * ((int64_t)MAXDWORD + 1))
-		+ (int64_t)(info.nFileSizeLow);
+	size64.HighPart = info.nFileSizeHigh;
+	size64.LowPart = info.nFileSizeLow;
+	st->st_size = (off_t)size64.QuadPart;
+	if (st->st_size < 0 ||
+	    (uint64_t)st->st_size != size64.QuadPart) {
+		errno = EOVERFLOW;
+		return (-1);
+	}
 #ifdef SIMULATE_WIN_STAT
 	st->st_ino = 0;
 	st->st_nlink = 1;

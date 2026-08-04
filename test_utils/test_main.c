@@ -1727,8 +1727,16 @@ assertion_file_size(const char *file, int line, const char *pathname, long size)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	{
 		BY_HANDLE_FILE_INFORMATION bhfi;
+		uint64_t size64;
+
 		r = !my_GetFileInformationByName(pathname, &bhfi);
-		filesize = ((int64_t)bhfi.nFileSizeHigh << 32) + bhfi.nFileSizeLow;
+		if (r == 0) {
+			size64 = ((uint64_t)bhfi.nFileSizeHigh << 32) |
+			    bhfi.nFileSizeLow;
+			filesize = size64 > INT64_MAX ? INT64_MAX :
+			    (int64_t)size64;
+		} else
+			filesize = 0;
 	}
 #else
 	{
