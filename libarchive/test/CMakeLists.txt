@@ -170,6 +170,7 @@ IF(ENABLE_TEST)
     test_read_format_iso_rockridge_zf_overflow.c
     test_read_format_iso_zisofs_overflow.c
     test_read_format_lha.c
+    test_read_format_lha_amiga_script.c
     test_read_format_lha_bugfix_0.c
     test_read_format_lha_filename.c
     test_read_format_lha_filename_utf16.c
