@@ -101,6 +101,9 @@ esac
 AM_CONDITIONAL([INC_WINDOWS_FILES], [test $inc_windows_files = yes])
 AM_CONDITIONAL([INC_CYGWIN_FILES], [test $inc_cygwin_files = yes])
 
+dnl On native Windows (MinGW), embedding the manifest needs windres
+AS_IF([test $inc_windows_files = yes], [AC_CHECK_TOOL([WINDRES], [windres])])
+
 dnl Defines that are required for specific platforms (e.g. -D_POSIX_SOURCE, etc)
 PLATFORMCPPFLAGS=
 case "$host_os" in
@@ -365,15 +368,16 @@ AS_VAR_IF([ac_cv_have_decl_FS_IOC_GETFLAGS], [yes],
     [AC_DEFINE_UNQUOTED([HAVE_WORKING_FS_IOC_GETFLAGS], [1],
                     [Define to 1 if you have a working FS_IOC_GETFLAGS])])
 
-AC_CHECK_HEADERS([locale.h membership.h paths.h poll.h pthread.h pwd.h])
-AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
-AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([intsafe.h locale.h membership.h paths.h poll.h pthread.h])
+AC_CHECK_HEADERS([pwd.h readpassphrase.h signal.h spawn.h])
+AC_CHECK_HEADERS([stdarg.h stdckdint.h stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/ea.h sys/extattr.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/richacl.h])
-AC_CHECK_HEADERS([sys/select.h sys/statfs.h sys/statvfs.h sys/sysmacros.h])
-AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h sys/xattr.h])
-AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
+AC_CHECK_HEADERS([sys/select.h sys/statfs.h sys/statvfs.h sys/sysctl.h])
+AC_CHECK_HEADERS([sys/sysmacros.h sys/time.h sys/utime.h sys/utsname.h])
+AC_CHECK_HEADERS([sys/vfs.h sys/xattr.h time.h unistd.h utime.h wchar.h])
+AC_CHECK_HEADERS([wctype.h])
 AC_CHECK_TYPE([suseconds_t])
 AC_CHECK_HEADERS([windows.h])
 # check windows.h first; the other headers require it.
@@ -836,7 +840,7 @@ AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
 AC_CHECK_FUNCS([getegid geteuid getline getpid getresgid getresuid])
 AC_CHECK_FUNCS([getgrgid_r getgrnam_r getpwnam_r getpwuid_r])
-AC_CHECK_FUNCS([getvfsbyname gmtime_r])
+AC_CHECK_FUNCS([gettimeofday getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([issetugid])
 AC_CHECK_FUNCS([lchflags lchmod lchown link linkat localtime_r lstat lutimes])
 AC_CHECK_FUNCS([mbrtowc memmove memset])
@@ -1299,24 +1303,26 @@ main(int argc, char **argv)
 case "$host_os" in
   *mingw* | *cygwin* | *msys*)
 	;;
+  *darwin*)
+	CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
+	CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
+	CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
+	CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
+	CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
+	;;
   *)
 	CRYPTO_CHECK(MD5, LIBC, md5)
-	CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
 	CRYPTO_CHECK(RMD160, LIBC, rmd160)
 	CRYPTO_CHECK(SHA1, LIBC, sha1)
-	CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
 	CRYPTO_CHECK(SHA256, LIBC, sha256)
 	CRYPTO_CHECK(SHA256, LIBC2, sha256)
 	CRYPTO_CHECK(SHA256, LIBC3, sha256)
-	CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
 	CRYPTO_CHECK(SHA384, LIBC, sha384)
 	CRYPTO_CHECK(SHA384, LIBC2, sha384)
 	CRYPTO_CHECK(SHA384, LIBC3, sha384)
-	CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
 	CRYPTO_CHECK(SHA512, LIBC, sha512)
 	CRYPTO_CHECK(SHA512, LIBC2, sha512)
 	CRYPTO_CHECK(SHA512, LIBC3, sha512)
-	CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
 	;;
 esac
 
@@ -1381,9 +1387,8 @@ AC_SUBST(LIBSREQUIRED)
 
 # Probe libmd AFTER OpenSSL/libcrypto.
 # The two are incompatible and OpenSSL is more complete.
-AC_CHECK_HEADERS([md5.h ripemd.h sha.h sha256.h sha512.h])
 saved_LIBS=$LIBS
-AC_CHECK_LIB(md,MD5Init)
+AC_CHECK_LIB(md, MD5Init)
 CRYPTO_CHECK(MD5, LIBMD, md5)
 CRYPTO_CHECK(RMD160, LIBMD, rmd160)
 CRYPTO_CHECK(SHA1, LIBMD, sha1)

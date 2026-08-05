@@ -59,6 +59,7 @@
 
 #include "bsdtar.h"
 #include "lafe_err.h"
+#include "lafe_setmode.h"
 #include "line_reader.h"
 
 #ifndef O_BINARY
@@ -163,7 +164,7 @@ set_writer_options(struct bsdtar *bsdtar, struct archive *a)
 		 * a format or filters which are not added to
 		 * the archive write object. */
 		memcpy(p, IGNORE_WRONG_MODULE_NAME, module_len);
-		memcpy(p, writer_options, opt_len);
+		memcpy(p + module_len, writer_options, opt_len);
 		r = archive_write_set_options(a, p);
 		free(p);
 		if (r < ARCHIVE_WARN)
@@ -190,13 +191,12 @@ set_reader_options(struct bsdtar *bsdtar, struct archive *a)
 		char *p;
 		/* Set default write options. */
 		if ((p = malloc(module_len + opt_len)) == NULL)
-		if (p == NULL)
 			lafe_errc(1, errno, "Out of memory");
 		/* Prepend magic code to ignore options for
 		 * a format or filters which are not added to
 		 * the archive write object. */
 		memcpy(p, IGNORE_WRONG_MODULE_NAME, module_len);
-		memcpy(p, reader_options, opt_len);
+		memcpy(p + module_len, reader_options, opt_len);
 		r = archive_read_set_options(a, p);
 		free(p);
 		if (r < ARCHIVE_WARN)
@@ -302,7 +302,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
-			    "Cannot append to compressed archive.");
+			    "Cannot append to compressed archive");
 		}
 		/* Keep going until we hit end-of-archive */
 		format = archive_format(a);
@@ -330,7 +330,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		if (format != (int)(archive_format(a) & ARCHIVE_FORMAT_BASE_MASK)
 		    && format != ARCHIVE_FORMAT_EMPTY) {
 			lafe_errc(1, 0,
-			    "Format %s is incompatible with the archive %s.",
+			    "Format %s is incompatible with the archive %s",
 			    cset_get_format(bsdtar->cset), bsdtar->filename);
 		}
 	} else {
@@ -395,12 +395,12 @@ tar_mode_u(struct bsdtar *bsdtar)
 			archive_read_free(a);
 			close(bsdtar->fd);
 			lafe_errc(1, 0,
-			    "Cannot append to compressed archive.");
+			    "Cannot append to compressed archive");
 		}
 		if (archive_match_exclude_entry(bsdtar->matching,
 		    ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_OLDER |
 		    ARCHIVE_MATCH_EQUAL, entry) != ARCHIVE_OK)
-			lafe_errc(1, 0, "Error : %s",
+			lafe_errc(1, 0, "%s",
 			    archive_error_string(bsdtar->matching));
 		/* Record the last format determination we see */
 		format = archive_format(a);
@@ -451,8 +451,11 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 
 	/* Choose a suitable copy buffer size */
 	bsdtar->buff_size = 64 * 1024;
-	while (bsdtar->buff_size < (size_t)bsdtar->bytes_per_block)
-	  bsdtar->buff_size *= 2;
+	while (bsdtar->buff_size < (size_t)bsdtar->bytes_per_block) {
+		bsdtar->buff_size *= 2;
+		if (bsdtar->buff_size < 64 * 1024)
+			lafe_errc(1, 0, "cannot allocate memory");
+	}
 	/* Try to compensate for space we'll lose to alignment. */
 	bsdtar->buff_size += 16 * 1024;
 
@@ -561,6 +564,8 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		 * without failure.
 		 */
 		entry2 = archive_entry_new();
+		if (entry2 == NULL)
+			lafe_errc(1, errno, "Out of memory");
 		r = archive_read_next_header2(disk, entry2);
 		archive_entry_free(entry2);
 		if (r != ARCHIVE_OK) {
@@ -594,8 +599,8 @@ cleanup:
 	bsdtar->diskreader = NULL;
 
 	if (bsdtar->flags & OPTFLAG_TOTALS) {
-		fprintf(stderr, "Total bytes written: %s\n",
-		    tar_i64toa(archive_filter_bytes(a, -1)));
+		fprintf(stderr, "Total bytes written: %jd\n",
+		    (intmax_t)archive_filter_bytes(a, -1));
 	}
 
 	archive_write_free(a);
@@ -668,15 +673,16 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	set_reader_options(bsdtar, ina);
 	archive_read_set_options(ina, "mtree:checkfs");
 	if (bsdtar->passphrase != NULL)
-		rc = archive_read_add_passphrase(a, bsdtar->passphrase);
+		rc = archive_read_add_passphrase(ina, bsdtar->passphrase);
 	else
 		rc = archive_read_set_passphrase_callback(ina, bsdtar,
 			&passphrase_callback);
 	if (rc != ARCHIVE_OK)
-		lafe_errc(1, 0, "%s", archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(ina));
 	if (archive_read_open_filename(ina, filename,
 					bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
+		archive_read_free(ina);
 		bsdtar->return_value = 1;
 		return (0);
 	}
@@ -700,7 +706,18 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 	int e;
 
 	while (ARCHIVE_OK == (e = archive_read_next_header(ina, &in_entry))) {
-		if (archive_match_excluded(bsdtar->matching, in_entry))
+		e = archive_match_excluded(bsdtar->matching, in_entry);
+		if (e < 0) {
+			if (!bsdtar->verbose)
+				lafe_errc(1, 0, "%s",
+				    archive_error_string(bsdtar->matching));
+			else {
+				fprintf(stderr, ": %s",
+				    archive_error_string(bsdtar->matching));
+				exit(1);
+			}
+		}
+		if (e)
 			continue;
 		if(edit_pathname(bsdtar, in_entry))
 			continue;
@@ -787,7 +804,7 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 					 * continue. */
 					lafe_warnc(0,
 					    "%s: Truncated write; file may "
-					    "have grown while being archived.",
+					    "have grown while being archived",
 					    archive_entry_pathname(entry));
 					return (0);
 				}
@@ -806,7 +823,7 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 			/* Write was truncated; warn but continue. */
 			lafe_warnc(0,
 			    "%s: Truncated write; file may have grown "
-			    "while being archived.",
+			    "while being archived",
 			    archive_entry_pathname(entry));
 			return (0);
 		}
@@ -927,6 +944,12 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		if (bsdtar->gname)
 			archive_entry_set_gname(entry, bsdtar->gname);
 
+		if (bsdtar->file_mode) {
+			mode_t m = archive_entry_mode(entry);
+			m = lafe_getmode(bsdtar->file_mode, m);
+			archive_entry_set_mode(entry, m);
+		}
+
 		/*
 		 * Rewrite the pathname to be archived.  If rewrite
 		 * fails, skip the entry.
@@ -1028,21 +1051,20 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 		fprintf(stderr, "\n");
 	comp = archive_filter_bytes(a, -1);
 	uncomp = archive_filter_bytes(a, 0);
-	fprintf(stderr, "In: %d files, %s bytes;",
-	    archive_file_count(a), tar_i64toa(uncomp));
+	fprintf(stderr, "In: %d files, %ju bytes;",
+	    archive_file_count(a), (uintmax_t)uncomp);
 	if (comp >= uncomp)
 		compression = 0;
 	else
 		compression = (int)((uncomp - comp) * 100 / uncomp);
 	fprintf(stderr,
-	    " Out: %s bytes, compression %d%%\n",
-	    tar_i64toa(comp), compression);
-	/* Can't have two calls to tar_i64toa() pending, so split the output. */
-	safe_fprintf(stderr, "Current: %s (%s",
+	    " Out: %ju bytes, compression %d%%\n",
+	    (uintmax_t)comp, compression);
+	safe_fprintf(stderr, "Current: %s (%jd",
 	    archive_entry_pathname(entry),
-	    tar_i64toa(progress));
-	fprintf(stderr, "/%s bytes)\n",
-	    tar_i64toa(archive_entry_size(entry)));
+	    (intmax_t)progress);
+	fprintf(stderr, "/%jd bytes)\n",
+	    (intmax_t)archive_entry_size(entry));
 }
 
 static void
@@ -1053,14 +1075,14 @@ test_for_append(struct bsdtar *bsdtar)
 	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
 		lafe_errc(1, 0, "no files or directories specified");
 	if (bsdtar->filename == NULL)
-		lafe_errc(1, 0, "Cannot append to stdout.");
+		lafe_errc(1, 0, "Cannot append to stdout");
 
 	if (stat(bsdtar->filename, &s) != 0)
 		return;
 
 	if (!S_ISREG(s.st_mode) && !S_ISBLK(s.st_mode))
 		lafe_errc(1, 0,
-		    "Cannot append to %s: not a regular file.",
+		    "Cannot append to %s: not a regular file",
 		    bsdtar->filename);
 
 /* Is this an appropriate check here on Windows? */

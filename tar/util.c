@@ -585,27 +585,6 @@ edit_mtime(struct bsdtar *bsdtar, struct archive_entry *entry)
 }
 
 /*
- * It would be nice to just use printf() for formatting large numbers,
- * but the compatibility problems are quite a headache.  Hence the
- * following simple utility function.
- */
-const char *
-tar_i64toa(int64_t n0)
-{
-	static char buff[24];
-	uint64_t n = n0 < 0 ? -n0 : n0;
-	char *p = buff + sizeof(buff);
-
-	*--p = '\0';
-	do {
-		*--p = '0' + (int)(n % 10);
-	} while (n /= 10);
-	if (n0 < 0)
-		*--p = '-';
-	return p;
-}
-
-/*
  * Like strcmp(), but try to be a little more aware of the fact that
  * we're comparing two paths.  Right now, it just handles leading
  * "./" and trailing '/' specially, so that "a/b/" == "./a/b"
@@ -688,6 +667,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	size_t			 sw;
 	const char		*p;
 	const char		*fmt;
+	double			 age;
 	time_t			 tim;
 	static time_t		 now;
 	struct tm		*ltime;
@@ -715,8 +695,8 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	/* Use uname if it's present, else uid. */
 	p = archive_entry_uname(entry);
 	if ((p == NULL) || (*p == '\0')) {
-		snprintf(tmp, sizeof(tmp), "%lu ",
-		    (unsigned long)archive_entry_uid(entry));
+		snprintf(tmp, sizeof(tmp), "%lld ",
+		    (long long)archive_entry_uid(entry));
 		p = tmp;
 	}
 	w = strlen(p);
@@ -730,8 +710,8 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		fprintf(out, "%s", p);
 		w = strlen(p);
 	} else {
-		snprintf(tmp, sizeof(tmp), "%lu",
-		    (unsigned long)archive_entry_gid(entry));
+		snprintf(tmp, sizeof(tmp), "%lld",
+		    (long long)archive_entry_gid(entry));
 		w = strlen(tmp);
 		fprintf(out, "%s", tmp);
 	}
@@ -746,22 +726,26 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		snprintf(tmp, sizeof(tmp), "%lu,%lu",
 		    (unsigned long)archive_entry_rdevmajor(entry),
 		    (unsigned long)archive_entry_rdevminor(entry));
+		p = tmp;
 	} else {
-		strcpy(tmp, tar_i64toa(archive_entry_size(entry)));
+		snprintf(tmp, sizeof(tmp), "%jd",
+		    (intmax_t)archive_entry_size(entry));
+		p = tmp;
 	}
-	if (w + strlen(tmp) >= bsdtar->gs_width)
-		bsdtar->gs_width = w+strlen(tmp)+1;
-	fprintf(out, "%*s", (int)(bsdtar->gs_width - w), tmp);
+	if (w + strlen(p) >= bsdtar->gs_width)
+		bsdtar->gs_width = w + strlen(p) + 1;
+	fprintf(out, "%*s", (int)(bsdtar->gs_width - w), p);
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = archive_entry_mtime(entry);
-#define	HALF_YEAR (time_t)365 * 86400 / 2
+	age = difftime(tim, now);
+#define	HALF_YEAR (365.0 * 86400 / 2)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	DAY_FMT  "%d"  /* Windows' strftime function does not support %e format. */
 #else
 #define	DAY_FMT  "%e"  /* Day number without leading zeros */
 #endif
-	if (tim < now - HALF_YEAR || tim > now + HALF_YEAR)
+	if (age < -HALF_YEAR || age > HALF_YEAR)
 		fmt = bsdtar->day_first ? DAY_FMT " %b  %Y" : "%b " DAY_FMT "  %Y";
 	else
 		fmt = bsdtar->day_first ? DAY_FMT " %b %H:%M" : "%b " DAY_FMT " %H:%M";
@@ -772,11 +756,13 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 #else
 	ltime = localtime(&tim);
 #endif
-	if (ltime)
+	if (ltime) {
 		sw = strftime(tmp, sizeof(tmp), fmt, ltime);
+		p = tmp;
+	}
 	if (!ltime || !sw)
-		sprintf(tmp, "-- -- ----");
-	fprintf(out, " %s ", tmp);
+		p = "-- -- ----";
+	fprintf(out, " %s ", p);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
 
 	/* Extra information for links. */

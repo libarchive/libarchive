@@ -58,6 +58,7 @@
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
+#include "archive_write_set_format_private.h"
 
 static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
@@ -69,7 +70,7 @@ static int	_archive_write_header(struct archive *, struct archive_entry *);
 static int	_archive_write_finish_entry(struct archive *);
 static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
 
-struct archive_none {
+struct client {
 	size_t buffer_size;
 	size_t avail;
 	char *buffer;
@@ -88,6 +89,25 @@ archive_write_vtable = {
 	.archive_write_finish_entry = _archive_write_finish_entry,
 	.archive_write_data = _archive_write_data,
 };
+
+int
+__archive_write_option_header_charset(struct archive_write *a,
+    const char *key, const char *val,
+    struct archive_string_conv **opt_sconv)
+{
+	if (strcmp(key, "hdrcharset") != 0)
+		return (ARCHIVE_WARN);
+	if (val == NULL || val[0] == '\0') {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "%s: hdrcharset option needs a character-set name",
+		    a->format_name);
+		return (ARCHIVE_FAILED);
+	}
+
+	*opt_sconv = archive_string_conversion_to_charset(
+	    &a->archive, val, 0);
+	return (*opt_sconv != NULL ? ARCHIVE_OK : ARCHIVE_FATAL);
+}
 
 /*
  * Allocate, initialize and return an archive object.
@@ -135,7 +155,7 @@ archive_write_set_bytes_per_block(struct archive *_a, int bytes_per_block)
 
 	if (bytes_per_block < 0) {
 		// Do nothing if the bytes_per_block is negative
-		return 0;
+		return ARCHIVE_OK;
 	}
 	a->bytes_per_block = bytes_per_block;
 	return (ARCHIVE_OK);
@@ -240,8 +260,10 @@ __archive_write_filter(struct archive_write_filter *f,
 		/* If unset, a fatal error has already occurred, so this filter
 		 * didn't open. We cannot write anything. */
 		return(ARCHIVE_FATAL);
+	if (length > (uint64_t)(INT64_MAX - f->bytes_written))
+		return(ARCHIVE_FATAL);
 	r = (f->write)(f, buff, length);
-	f->bytes_written += length;
+	f->bytes_written += (int64_t)length;
 	return (r);
 }
 
@@ -338,7 +360,7 @@ __archive_write_filters_flush(struct archive_write *a)
 }
 
 int
-__archive_write_nulls(struct archive_write *a, size_t length)
+__archive_write_nulls(struct archive_write *a, uint64_t length)
 {
 	if (length == 0)
 		return (ARCHIVE_OK);
@@ -357,7 +379,7 @@ static int
 archive_write_client_open(struct archive_write_filter *f)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
-	struct archive_none *state;
+	struct client *client;
 	void *buffer;
 	size_t buffer_size;
 
@@ -366,21 +388,21 @@ archive_write_client_open(struct archive_write_filter *f)
 	    archive_write_get_bytes_in_last_block(f->archive);
 	buffer_size = f->bytes_per_block;
 
-	state = calloc(1, sizeof(*state));
+	client = calloc(1, sizeof(*client));
 	buffer = malloc(buffer_size);
-	if (state == NULL || buffer == NULL) {
-		free(state);
+	if (client == NULL || buffer == NULL) {
+		free(client);
 		free(buffer);
 		archive_set_error(f->archive, ENOMEM,
 		    "Can't allocate data for output buffering");
 		return (ARCHIVE_FATAL);
 	}
 
-	state->buffer_size = buffer_size;
-	state->buffer = buffer;
-	state->next = state->buffer;
-	state->avail = state->buffer_size;
-	f->data = state;
+	client->buffer_size = buffer_size;
+	client->buffer = buffer;
+	client->next = client->buffer;
+	client->avail = client->buffer_size;
+	f->data = client;
 
 	if (a->client_opener == NULL)
 		return (ARCHIVE_OK);
@@ -392,7 +414,7 @@ archive_write_client_write(struct archive_write_filter *f,
     const void *_buff, size_t length)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
-        struct archive_none *state = (struct archive_none *)f->data;
+	struct client *client = f->data;
 	const char *buff = (const char *)_buff;
 	ssize_t remaining, to_copy;
 	ssize_t bytes_written;
@@ -405,7 +427,7 @@ archive_write_client_write(struct archive_write_filter *f,
 	 * particular, this supports "no write delay" operation for
 	 * special applications.  Just set the block size to zero.
 	 */
-	if (state->buffer_size == 0) {
+	if (client->buffer_size == 0) {
 		while (remaining > 0) {
 			bytes_written = (a->client_writer)(&a->archive,
 			    a->client_data, buff, remaining);
@@ -418,20 +440,20 @@ archive_write_client_write(struct archive_write_filter *f,
 	}
 
 	/* If the copy buffer isn't empty, try to fill it. */
-	if (state->avail < state->buffer_size) {
+	if (client->avail < client->buffer_size) {
 		/* If buffer is not empty... */
 		/* ... copy data into buffer ... */
-		to_copy = ((size_t)remaining > state->avail) ?
-			state->avail : (size_t)remaining;
-		memcpy(state->next, buff, to_copy);
-		state->next += to_copy;
-		state->avail -= to_copy;
+		to_copy = ((size_t)remaining > client->avail) ?
+			client->avail : (size_t)remaining;
+		memcpy(client->next, buff, to_copy);
+		client->next += to_copy;
+		client->avail -= to_copy;
 		buff += to_copy;
 		remaining -= to_copy;
 		/* ... if it's full, write it out. */
-		if (state->avail == 0) {
-			char *p = state->buffer;
-			size_t to_write = state->buffer_size;
+		if (client->avail == 0) {
+			char *p = client->buffer;
+			size_t to_write = client->buffer_size;
 			while (to_write > 0) {
 				bytes_written = (a->client_writer)(&a->archive,
 				    a->client_data, p, to_write);
@@ -445,15 +467,15 @@ archive_write_client_write(struct archive_write_filter *f,
 				p += bytes_written;
 				to_write -= bytes_written;
 			}
-			state->next = state->buffer;
-			state->avail = state->buffer_size;
+			client->next = client->buffer;
+			client->avail = client->buffer_size;
 		}
 	}
 
-	while ((size_t)remaining >= state->buffer_size) {
+	while ((size_t)remaining >= client->buffer_size) {
 		/* Write out full blocks directly to client. */
 		bytes_written = (a->client_writer)(&a->archive,
-		    a->client_data, buff, state->buffer_size);
+		    a->client_data, buff, client->buffer_size);
 		if (bytes_written <= 0)
 			return (ARCHIVE_FATAL);
 		buff += bytes_written;
@@ -462,9 +484,9 @@ archive_write_client_write(struct archive_write_filter *f,
 
 	if (remaining > 0) {
 		/* Copy last bit into copy buffer. */
-		memcpy(state->next, buff, remaining);
-		state->next += remaining;
-		state->avail -= remaining;
+		memcpy(client->next, buff, remaining);
+		client->next += remaining;
+		client->avail -= remaining;
 	}
 	return (ARCHIVE_OK);
 }
@@ -473,7 +495,7 @@ static int
 archive_write_client_free(struct archive_write_filter *f)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
-	struct archive_none *state = (struct archive_none *)f->data;
+	struct client *client = f->data;
 
 	if (a->client_freer)
 		(*a->client_freer)(&a->archive, a->client_data);
@@ -487,9 +509,9 @@ archive_write_client_free(struct archive_write_filter *f)
 	}
 
 	/* Free state. */
-	if (state != NULL) {
-		free(state->buffer);
-		free(state);
+	if (client != NULL) {
+		free(client->buffer);
+		free(client);
 		f->data = NULL;
 	}
 
@@ -500,7 +522,7 @@ static int
 archive_write_client_close(struct archive_write_filter *f)
 {
 	struct archive_write *a = (struct archive_write *)f->archive;
-	struct archive_none *state = (struct archive_none *)f->data;
+	struct client *client = f->data;
 	ssize_t block_length;
 	ssize_t target_block_length;
 	ssize_t bytes_written;
@@ -509,8 +531,8 @@ archive_write_client_close(struct archive_write_filter *f)
 	int ret = ARCHIVE_OK;
 
 	/* If there's pending data, pad and write the last block */
-	if (state->next != state->buffer) {
-		block_length = state->buffer_size - state->avail;
+	if (client->next != client->buffer) {
+		block_length = client->buffer_size - client->avail;
 
 		/* Tricky calculation to determine size of last block */
 		if (a->bytes_in_last_block <= 0)
@@ -524,11 +546,11 @@ archive_write_client_close(struct archive_write_filter *f)
 		if (target_block_length > a->bytes_per_block)
 			target_block_length = a->bytes_per_block;
 		if (block_length < target_block_length) {
-			memset(state->next, 0,
+			memset(client->next, 0,
 			    target_block_length - block_length);
 			block_length = target_block_length;
 		}
-		p = state->buffer;
+		p = client->buffer;
 		to_write = block_length;
 		while (to_write > 0) {
 			bytes_written = (a->client_writer)(&a->archive,
@@ -683,6 +705,29 @@ __archive_write_filters_free(struct archive *_a)
 	a->filter_last = NULL;
 }
 
+int
+__archive_write_unregister_format(struct archive_write *a)
+{
+	int r = ARCHIVE_OK;
+
+	if (a->format_free != NULL)
+		r = (a->format_free)(a);
+
+	a->format_data = NULL;
+	a->format_name = NULL;
+	a->format_init = NULL;
+	a->format_options = NULL;
+	a->format_finish_entry = NULL;
+	a->format_write_header = NULL;
+	a->format_write_data = NULL;
+	a->format_close = NULL;
+	a->format_free = NULL;
+	a->archive.archive_format = 0;
+	a->archive.archive_format_name = NULL;
+
+	return (r);
+}
+
 /*
  * Destroy the archive structure.
  *
@@ -705,11 +750,9 @@ _archive_write_free(struct archive *_a)
 		r = archive_write_close(&a->archive);
 
 	/* Release format resources. */
-	if (a->format_free != NULL) {
-		r1 = (a->format_free)(a);
-		if (r1 < r)
-			r = r1;
-	}
+	r1 = __archive_write_unregister_format(a);
+	if (r1 < r)
+		r = r1;
 
 	__archive_write_filters_free(_a);
 
@@ -742,7 +785,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 
 	if (a->format_write_header == NULL) {
 		archive_set_error(&(a->archive), -1,
-		    "Format must be set before you can write to an archive.");
+		    "Format must be set before you can write to an archive");
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
@@ -761,7 +804,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	    archive_entry_ino_is_set(entry) &&
 	    archive_entry_dev(entry) == (dev_t)a->skip_file_dev &&
 	    archive_entry_ino64(entry) == a->skip_file_ino) {
-		archive_set_error(&a->archive, 0,
+		archive_set_error(&a->archive, EIO,
 		    "Can't add archive to itself");
 		return (ARCHIVE_FAILED);
 	}

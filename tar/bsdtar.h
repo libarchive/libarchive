@@ -47,6 +47,7 @@ struct bsdtar {
 	const char	 *gname; /* --gname */
 	int		  uid;  /* --uid */
 	const char	 *uname; /* --uname */
+	void 		 *file_mode; /* --mode */
 	const char	 *passphrase; /* --passphrase */
 	int		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
@@ -67,7 +68,7 @@ struct bsdtar {
 	/* Miscellaneous state information */
 	int		  argc;
 	char		**argv;
-	const char	 *argument;
+	char		 *argument;
 	size_t		  gs_width; /* For 'list_item' in read.c */
 	size_t		  u_width; /* for 'list_item' in read.c */
 	uid_t		  user_uid; /* UID running this program */
@@ -186,6 +187,7 @@ enum {
 	OPTION_ZSTD,
 	OPTION_MTIME,
 	OPTION_CLAMP_MTIME,
+	OPTION_MODE,
 };
 
 int	bsdtar_getopt(struct bsdtar *);
@@ -196,7 +198,6 @@ int	need_report(void);
 int	pathcmp(const char *a, const char *b);
 void	safe_fprintf(FILE * ARCHIVE_RESTRICT, const char * ARCHIVE_RESTRICT fmt, ...) __LA_PRINTF(2, 3);
 void	set_chdir(struct bsdtar *, const char *newdir);
-const char *tar_i64toa(int64_t);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);

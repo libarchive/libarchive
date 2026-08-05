@@ -51,6 +51,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_entry_private.h"
+#include "archive_integer.h"
 #include "archive_platform_stat.h"
 #include "archive_private.h"
 #include "archive_rb.h"
@@ -140,56 +141,6 @@ static int64_t	mtree_atol(char **, int base);
 static size_t	mtree_strnlen(const char *, size_t);
 #endif
 
-/*
- * There's no standard for TIME_T_MAX/TIME_T_MIN.  So we compute them
- * here.  TODO: Move this to configure time, but be careful
- * about cross-compile environments.
- */
-static int64_t
-get_time_t_max(void)
-{
-#if defined(TIME_T_MAX)
-	return TIME_T_MAX;
-#else
-	/* ISO C allows time_t to be a floating-point type,
-	   but POSIX requires an integer type.  The following
-	   should work on any system that follows the POSIX
-	   conventions. */
-	if (((time_t)0) < ((time_t)-1)) {
-		/* Time_t is unsigned */
-		return (~(time_t)0);
-	} else {
-		/* Time_t is signed. */
-		/* Assume it's the same as int64_t or int32_t */
-		if (sizeof(time_t) == sizeof(int64_t)) {
-			return (time_t)INT64_MAX;
-		} else {
-			return (time_t)INT32_MAX;
-		}
-	}
-#endif
-}
-
-static int64_t
-get_time_t_min(void)
-{
-#if defined(TIME_T_MIN)
-	return TIME_T_MIN;
-#else
-	if (((time_t)0) < ((time_t)-1)) {
-		/* Time_t is unsigned */
-		return (time_t)0;
-	} else {
-		/* Time_t is signed. */
-		if (sizeof(time_t) == sizeof(int64_t)) {
-			return (time_t)INT64_MIN;
-		} else {
-			return (time_t)INT32_MIN;
-		}
-	}
-#endif
-}
-
 #ifdef HAVE_STRNLEN
 #define mtree_strnlen(a,b) strnlen(a,b)
 #else
@@ -198,12 +149,10 @@ mtree_strnlen(const char *p, size_t maxlen)
 {
 	size_t i;
 
-	for (i = 0; i <= maxlen; i++) {
+	for (i = 0; i < maxlen; i++) {
 		if (p[i] == 0)
 			break;
 	}
-	if (i > maxlen)
-		return (-1);/* invalid */
 	return (i);
 }
 #endif
@@ -212,9 +161,8 @@ static int
 archive_read_format_mtree_options(struct archive_read *a,
     const char *key, const char *val)
 {
-	struct mtree *mtree;
+	struct mtree *mtree = a->format->data;
 
-	mtree = (struct mtree *)(a->format->data);
 	if (strcmp(key, "checkfs")  == 0) {
 		/* Allows to read information missing from the mtree from the file system */
 		if (val == NULL || val[0] == 0) {
@@ -276,8 +224,7 @@ archive_read_support_format_mtree(struct archive *_a)
 
 	mtree = calloc(1, sizeof(*mtree));
 	if (mtree == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate mtree data");
+		archive_set_error(_a, ENOMEM, "Can't allocate mtree data");
 		return (ARCHIVE_FATAL);
 	}
 	mtree->checkfs = 0;
@@ -285,22 +232,35 @@ archive_read_support_format_mtree(struct archive *_a)
 
 	__archive_rb_tree_init(&mtree->rbtree, &rb_ops);
 
-	r = __archive_read_register_format(a, mtree, "mtree",
-           mtree_bid, archive_read_format_mtree_options, read_header, read_data, skip, NULL, cleanup, NULL, NULL);
+	r = __archive_read_register_format(a,
+	    mtree,
+	    "mtree",
+	    mtree_bid,
+	    archive_read_format_mtree_options,
+	    read_header,
+	    read_data,
+	    skip,
+	    NULL,
+	    cleanup,
+	    NULL,
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(mtree);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
 cleanup(struct archive_read *a)
 {
-	struct mtree *mtree;
+	struct mtree *mtree = a->format->data;
 	struct mtree_entry *p, *q;
 
-	mtree = (struct mtree *)(a->format->data);
-
+	/* Close any dangling file descriptor before freeing */
+    if (mtree->fd >= 0) {
+        close(mtree->fd);
+        mtree->fd = -1;
+    }
 	p = mtree->entries;
 	while (p != NULL) {
 		q = p->next;
@@ -316,7 +276,7 @@ cleanup(struct archive_read *a)
 
 	free(mtree->buff);
 	free(mtree);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -381,7 +341,7 @@ next_line(struct archive_read *a,
 	 */
 	while (*nl == 0 && len == *avail && !quit) {
 		ssize_t diff = *ravail - *avail;
-		size_t nbytes_req = (*ravail+1023) & ~1023U;
+		size_t nbytes_req = ((size_t)*ravail + 1023) & ~1023U;
 		ssize_t tested;
 
 		/*
@@ -392,8 +352,8 @@ next_line(struct archive_read *a,
 		if (len >= MAX_LINE_LEN)
 			return (-1);
 
-		/* Increase reading bytes if it is not enough to at least
-		 * new two lines. */
+		/* Increase reading bytes if it is not enough for at least
+		 * two new lines. */
 		if (nbytes_req < (size_t)*ravail + 160)
 			nbytes_req <<= 1;
 
@@ -568,8 +528,8 @@ bid_keyword_list(const char *p,  ssize_t len, int unset, int last_is_path)
 				--len;
 				value = 1;
 			}
-			/* A keyword should have a its value unless
-			 * "/unset" operation. */ 
+			/* A keyword should have a value unless this is
+			 * an "/unset" operation. */ 
 			if (!unset && value == 0)
 				return (-1);
 		}
@@ -752,7 +712,7 @@ detect_form(struct archive_read *a, int *is_form_d)
 				} else if (form_D == 1) {
 					if (!last_is_path && keywords > 0)
 						/* This this is not `form D'
-						 * and We cannot accept mixed
+						 * and we cannot accept mixed
 						 * format. */
 						break;
 				}
@@ -805,7 +765,7 @@ detect_form(struct archive_read *a, int *is_form_d)
  * to read the entire mtree file into memory up front.
  *
  * The parsing is done in two steps.  First, it is decided if a line
- * changes the global defaults and if it is, processed accordingly.
+ * changes the global defaults and if it does, it is processed accordingly.
  * Otherwise, the options of the line are merged with the current
  * global options.
  */
@@ -870,7 +830,7 @@ process_global_set(struct archive_read *a,
 		line = next;
 		next = line + strcspn(line, " \t\r\n");
 		eq = strchr(line, '=');
-		if (eq > next)
+		if (eq == NULL || eq > next)
 			len = next - line;
 		else
 			len = eq - line;
@@ -1115,11 +1075,8 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 static int
 read_header(struct archive_read *a, struct archive_entry *entry)
 {
-	struct mtree *mtree;
-	char *p;
+	struct mtree *mtree = a->format->data;
 	int r, use_next;
-
-	mtree = (struct mtree *)(a->format->data);
 
 	if (mtree->fd >= 0) {
 		close(mtree->fd);
@@ -1147,14 +1104,9 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 			mtree->this_entry->used = 1;
 			if (archive_strlen(&mtree->current_dir) > 0) {
 				/* Roll back current path. */
-				p = mtree->current_dir.s
-				    + mtree->current_dir.length - 1;
-				while (p >= mtree->current_dir.s && *p != '/')
-					--p;
-				if (p >= mtree->current_dir.s)
-					--p;
-				mtree->current_dir.length
-				    = p - mtree->current_dir.s + 1;
+				archive_string_dirname(&mtree->current_dir);
+				if (strcmp(mtree->current_dir.s, ".") == 0)
+					archive_string_empty(&mtree->current_dir);
 			}
 		}
 		if (!mtree->this_entry->used) {
@@ -1775,8 +1727,6 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		}
 		if (strcmp(key, "time") == 0) {
 			int64_t m;
-			int64_t my_time_t_max = get_time_t_max();
-			int64_t my_time_t_min = get_time_t_min();
 			long ns = 0;
 
 			*parsed_kws |= MTREE_HAS_MTIME;
@@ -1785,17 +1735,21 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			 * 123456789.1 represents 123456789
 			 * seconds and 1 nanosecond. */
 			if (*val == '.') {
+				int64_t v;
+
 				++val;
-				ns = (long)mtree_atol(&val, 10);
-				if (ns < 0)
+				v = mtree_atol(&val, 10);
+				if (v < 0)
 					ns = 0;
-				else if (ns > 999999999)
+				else if (v > 999999999)
 					ns = 999999999;
+				else
+					ns = (long)v;
 			}
-			if (m > my_time_t_max)
-				m = my_time_t_max;
-			else if (m < my_time_t_min)
-				m = my_time_t_min;
+			if (m > TIME_MAX)
+				m = TIME_MAX;
+			else if (m < TIME_MIN)
+				m = TIME_MIN;
 			archive_entry_set_mtime(entry, (time_t)m, ns);
 			return (ARCHIVE_OK);
 		}
@@ -1882,11 +1836,10 @@ static int
 read_data(struct archive_read *a, const void **buff, size_t *size,
     int64_t *offset)
 {
+	struct mtree *mtree = a->format->data;
 	size_t bytes_to_read;
 	ssize_t bytes_read;
-	struct mtree *mtree;
 
-	mtree = (struct mtree *)(a->format->data);
 	if (mtree->fd < 0) {
 		*buff = NULL;
 		*offset = 0;
@@ -1927,9 +1880,8 @@ read_data(struct archive_read *a, const void **buff, size_t *size,
 static int
 skip(struct archive_read *a)
 {
-	struct mtree *mtree;
+	struct mtree *mtree = a->format->data;
 
-	mtree = (struct mtree *)(a->format->data);
 	if (mtree->fd >= 0) {
 		close(mtree->fd);
 		mtree->fd = -1;
@@ -2024,9 +1976,9 @@ parsedigit(char c)
 	if (c >= '0' && c <= '9')
 		return c - '0';
 	else if (c >= 'a' && c <= 'f')
-		return c - 'a';
+		return 10 + c - 'a';
 	else if (c >= 'A' && c <= 'F')
-		return c - 'A';
+		return 10 + c - 'A';
 	else
 		return -1;
 }
@@ -2039,8 +1991,8 @@ parsedigit(char c)
 static int64_t
 mtree_atol(char **p, int base)
 {
-	int64_t l, limit;
-	int digit, last_digit_limit;
+	int64_t l;
+	int digit;
 
 	if (base == 0) {
 		if (**p != '0')
@@ -2054,29 +2006,24 @@ mtree_atol(char **p, int base)
 	}
 
 	if (**p == '-') {
-		limit = INT64_MIN / base;
-		last_digit_limit = -(INT64_MIN % base);
 		++(*p);
 
 		l = 0;
 		digit = parsedigit(**p);
 		while (digit >= 0 && digit < base) {
-			if (l < limit || (l == limit && digit >= last_digit_limit))
+			if (archive_ckd_mul_i64(&l, l, base) ||
+			    archive_ckd_sub_i64(&l, l, digit))
 				return INT64_MIN;
-			l = (l * base) - digit;
 			digit = parsedigit(*++(*p));
 		}
 		return l;
 	} else {
-		limit = INT64_MAX / base;
-		last_digit_limit = INT64_MAX % base;
-
 		l = 0;
 		digit = parsedigit(**p);
 		while (digit >= 0 && digit < base) {
-			if (l > limit || (l == limit && digit > last_digit_limit))
+			if (archive_ckd_mul_i64(&l, l, base) ||
+			    archive_ckd_add_i64(&l, l, digit))
 				return INT64_MAX;
-			l = (l * base) + digit;
 			digit = parsedigit(*++(*p));
 		}
 		return l;
@@ -2095,8 +2042,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 	ssize_t bytes_read;
 	ssize_t total_size = 0;
 	ssize_t find_off = 0;
-	const void *t;
-	void *nl;
+	const void *nl, *t;
 	char *u;
 
 	/* Accumulate line in a line buffer. */
