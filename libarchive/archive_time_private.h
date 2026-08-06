@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright © 2025 ARJANEN Loïc Jean David
  * All rights reserved.
  *

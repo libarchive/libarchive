@@ -1,4 +1,5 @@
-/* Ppmd.h -- PPMD codec common code
+/* SPDX-License-Identifier: LicenseRef-PublicDomain
+Ppmd.h -- PPMD codec common code
 2010-03-12 : Igor Pavlov : Public domain
 This code is based on PPMd var.H (2001): Dmitry Shkarin : Public domain */
 

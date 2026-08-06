@@ -1,4 +1,6 @@
 /*-
+* SPDX-License-Identifier: BSD-2-Clause
+*
 * Copyright (c) 2018 Grzegorz Antoniak (http://antoniak.org)
 * All rights reserved.
 *

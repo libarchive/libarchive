@@ -1,4 +1,6 @@
 /*
+   SPDX-License-Identifier: CC0-1.0 OR OpenSSL OR Apache-2.0
+
    BLAKE2 reference source code package - reference C implementations
 
    Copyright 2012, Samuel Neves <sneves@dei.uc.pt>.  You may use this under the

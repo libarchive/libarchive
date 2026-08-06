@@ -1,6 +1,8 @@
 /*	$NetBSD: pack_dev.c,v 1.12 2013/06/14 16:28:20 tsutsui Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 1998, 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
