@@ -778,7 +778,11 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 				/* We found a NULL block which indicates end-of-archive */
 
 				if (tar->read_concatenated_archives) {
-					/* We're ignoring NULL blocks, so keep going. */
+					/* Start the next archive with fresh header state. */
+					seen_headers = 0;
+					eof_fatal = 0;
+					err = ARCHIVE_OK;
+					tar_reset_header_state(tar);
 					continue;
 				}
 
@@ -893,6 +897,12 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			err2 = header_pax_extension(a, tar, entry, h, unconsumed);
 			break;
 		default: /* Regular header: Legacy tar, GNU tar, or ustar */
+			if (seen_headers & seen_g_header) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Unsupported pax global extended header");
+				return (ARCHIVE_FATAL);
+			}
 			gnuheader = (const struct archive_entry_header_gnutar *)h;
 			if (memcmp(gnuheader->magic, "ustar  \0", 8) == 0) {
 				a->archive.archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
