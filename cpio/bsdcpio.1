@@ -104,6 +104,11 @@ Read archive from or write archive to
 (i mode only)
 Ignore files that match
 .Ar pattern .
+Patterns and pathnames are also compared in Unicode Normalization Form D, so
+a name that differs only in canonical decomposition or in the order of its
+combining marks is ignored as well.
+This does not cover every canonical equivalence, and matching stays case
+sensitive.
 .It Fl H Ar format , Fl Fl format Ar format
 (o mode only)
 Produce the output archive in the specified format.

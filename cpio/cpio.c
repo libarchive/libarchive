@@ -179,6 +179,9 @@ main(int argc, char *argv[])
 	cpio->matching = archive_match_new();
 	if (cpio->matching == NULL)
 		lafe_errc(1, 0, "Out of memory");
+	/* Compare exclusions in Unicode Form D so an NFD spelling of an
+	 * excluded name is still excluded. */
+	archive_match_set_pattern_normalization(cpio->matching, 1);
 
 	while ((opt = cpio_getopt(cpio)) != -1) {
 		switch (opt) {
