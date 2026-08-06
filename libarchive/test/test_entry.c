@@ -30,7 +30,7 @@
 #include <linux/fs.h>   /* for Linux file flags */
 #endif
 
-#ifndef HAVE_WCSCPY
+#if !defined(HAVE_WCSCPY) && !defined(_MSC_VER)
 static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
 {
 	wchar_t *dest = s1;
