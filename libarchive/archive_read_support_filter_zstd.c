@@ -168,12 +168,10 @@ zstd_bidder_bid(struct archive_read_filter_bidder *b,
 		 * if this is zstd data.
 		 */
 		if (archive_ckd_add_size(&min,
-		    offset_in_buffer, min_zstd_frame_size))
+		    offset_in_buffer, min_zstd_frame_size) ||
+		    min > max_lookahead)
 			return (0);
 		if (min > (size_t)avail) {
-			if (min > max_lookahead)
-				return (0);
-
 			buffer = __archive_read_filter_ahead(f,
 			    min, &avail);
 			if (buffer == NULL)

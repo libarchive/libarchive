@@ -205,13 +205,11 @@ lz4_reader_bid(struct archive_read_filter_bidder *b,
 		 * if this is LZ4 data.
 		 */
 		if (archive_ckd_add_size(&min,
-		    offset_in_buffer, min_lz4_frame_size))
+		    offset_in_buffer, min_lz4_frame_size) ||
+		    min > max_lookahead)
 			return (0);
 		/* TODO: should this be >= ? */
 		if (min > (size_t)avail) {
-			if (min > max_lookahead)
-				return (0); 
-
 			buffer = __archive_read_filter_ahead(f,
 			    min, &avail);
 			if (buffer == NULL)
