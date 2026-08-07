@@ -1532,6 +1532,16 @@ static int parse_file_extra_owner(struct archive_read* a,
 	if ((flags & OWNER_USER_NAME) != 0) {
 		if(!read_var_sized(a, &name_size, NULL))
 			return ARCHIVE_EOF;
+
+		/* The name cannot be larger than the remaining extra data of
+		 * this field. Rejecting an oversized length here also avoids
+		 * requesting a huge allocation from read_ahead() below. */
+		if(*extra_data_size < 0 ||
+		    name_size > (size_t)*extra_data_size) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT, "Owner name is too long");
+			return ARCHIVE_FATAL;
+		}
 		*extra_data_size -= name_size + 1;
 
 		if(!read_ahead(a, name_size, &p))
@@ -1553,6 +1563,13 @@ static int parse_file_extra_owner(struct archive_read* a,
 	if ((flags & OWNER_GROUP_NAME) != 0) {
 		if(!read_var_sized(a, &name_size, NULL))
 			return ARCHIVE_EOF;
+
+		if(*extra_data_size < 0 ||
+		    name_size > (size_t)*extra_data_size) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT, "Group name is too long");
+			return ARCHIVE_FATAL;
+		}
 		*extra_data_size -= name_size + 1;
 
 		if(!read_ahead(a, name_size, &p))
