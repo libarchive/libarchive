@@ -70,13 +70,6 @@ DEFINE_TEST(test_option_ignore_zeros_mode_x)
 
 DEFINE_TEST(test_option_ignore_zeros_mode_c)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	// The first command run by systemf below prints this to stderr:
-	// bsdtar.exe: a: Can't translate uname '(null)' to UTF-8
-	// bsdtar.exe: b: Can't translate uname '(null)' to UTF-8
-	skipping("TODO: figure out why this test fails on github workflows with MSVC");
-	return;
-#else
 	if (make_files())
 		return;
 
@@ -96,7 +89,6 @@ DEFINE_TEST(test_option_ignore_zeros_mode_c)
 	assertEqualFile("out/a", "in/a");
 	assertEqualFile("out/b", "in/b");
 	assertEqualFile("out/c", "in/c");
-#endif
 }
 
 static void
