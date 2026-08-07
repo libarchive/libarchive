@@ -3654,6 +3654,12 @@ static int process_block(struct archive_read* a) {
 			return ret;
 	}
 
+	if(rar5->cstate.block_parsing_finished &&
+	    bf_is_last_block(&rar5->last_block_hdr) &&
+	    rar5->file.bytes_remaining == 0) {
+		return ARCHIVE_EOF;
+	}
+
 	if(rar5->cstate.block_parsing_finished) {
 		ssize_t block_size;
 		ssize_t to_skip;

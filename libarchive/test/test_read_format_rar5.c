@@ -172,6 +172,32 @@ DEFINE_TEST(test_read_format_rar5_compressed)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_last_block)
+{
+	const char reffile[] = "test_read_format_rar5_last_block.rar";
+	uint8_t buff[256 * 1024];
+	la_ssize_t bytes_read;
+	la_ssize_t total = 0;
+	uint32_t crc = 0;
+
+	PROLOGUE(reffile);
+
+	assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
+	assertEqualString("synthetic_payload.bin", archive_entry_pathname(ae));
+	assertEqualInt(632314, archive_entry_size(ae));
+
+	while((bytes_read = archive_read_data(a, buff, sizeof(buff))) > 0) {
+		total += bytes_read;
+		crc = bitcrc32(crc, buff, bytes_read);
+	}
+	assertEqualInt(0, bytes_read);
+	assertEqualInt(632314, total);
+	assertEqualInt(0x2d0f281c, crc);
+	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_multiple_files)
 {
 	const int DATA_SIZE = 4096;
