@@ -785,6 +785,10 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			r = WideCharToMultiByte(to_cp, 0, ws, (int)wslen,
 			    as->s + as->length,
 			    (int)(as->buffer_length - as->length - 1), NULL, dp);
+			if (r == 0 && wslen == 0) {
+				count = 0;
+				break;
+			}
 			if (r == 0 &&
 			    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 				/* Expand the MBS buffer and retry. */
