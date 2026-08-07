@@ -180,6 +180,7 @@ lz4_reader_bid(struct archive_read_filter_bidder *b,
 		uint32_t frame_data_size;
 
 		/* Skip over the magic number */
+		bits_checked += 28;
 		offset_in_buffer += 4;
 
 		/* Ensure that we can read another 4 bytes. */
@@ -224,7 +225,6 @@ lz4_reader_bid(struct archive_read_filter_bidder *b,
 	 * follows, or this isn't LZ4 data.
 	 */
 
-	bits_checked = offset_in_buffer;
 	buffer = buffer + offset_in_buffer;
 
 	if (magic_number == LZ4_MAGICNUMBER) {
