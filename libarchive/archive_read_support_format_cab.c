@@ -550,6 +550,8 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 					return (0);
 				continue;
 			}
+			if (bytes_avail > 1024 * 128)
+				bytes_avail = 1024 * 128;
 			while (offset <= bytes_avail - 8) {
 				size_t next = find_cab_magic(h + offset);
 				if (next == 0)

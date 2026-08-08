@@ -815,6 +815,8 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
           return (0);
         continue;
       }
+      if (bytes_avail > 1024 * 128)
+        bytes_avail = 1024 * 128;
       while (offset <= bytes_avail - 7) {
         if (memcmp(h + offset, RAR_SIGNATURE, 7) == 0)
           return (30);

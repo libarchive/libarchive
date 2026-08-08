@@ -1141,6 +1141,8 @@ static int bid_sfx(struct archive_read *a)
 					return 0;
 				continue;
 			}
+			if (bytes_avail > 1024 * 512)
+				bytes_avail = 1024 * 512;
 			while (offset <= bytes_avail - 8) {
 				if (memcmp(h + offset, signature,
 				    sizeof(signature)) == 0)

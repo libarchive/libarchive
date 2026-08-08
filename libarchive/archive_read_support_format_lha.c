@@ -373,6 +373,8 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 					return (0);
 				continue;
 			}
+			if (bytes_avail > 1024 * 24)
+				bytes_avail = 1024 * 24;
 			while (offset <= bytes_avail - H_SIZE) {
 				size_t next = lha_check_header_format(h + offset);
 				if (next == 0)

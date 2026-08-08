@@ -576,6 +576,8 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 				goto fail;
 			continue;
 		}
+		if (bytes_avail > sfx_offset + SFX_MAX_OFFSET)
+			bytes_avail = sfx_offset + SFX_MAX_OFFSET;
 		while (offset <= bytes_avail - 32) {
 			size_t step = check_7zip_header_in_sfx(h + offset);
 			if (step == 0) {
