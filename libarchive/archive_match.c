@@ -52,6 +52,10 @@ struct match {
 	struct match		*next;
 	int			 matched;
 	struct archive_mstring	 pattern;
+	/* Pattern in Unicode Form D, computed on first use. */
+	struct archive_string	 norm;
+	int			 norm_state;	/* 0 unset, 1 valid, -1 none. */
+	int			 norm_differs;	/* Form D changed the bytes. */
 };
 
 struct match_list {
@@ -96,6 +100,12 @@ struct archive_match {
 
 	/* Recursively include directory content? */
 	int			 recursive_include;
+
+	/* Also compare exclusions in Unicode Form D?  Off by default. */
+	int			 normalize;
+	int			 norm_path_valid;	/* norm_path is set. */
+	int			 norm_path_differs;	/* Form D changed it. */
+	struct archive_string	 norm_path;		/* Pathname in NFD. */
 
 	/*
 	 * Matching filename patterns.
@@ -159,11 +169,17 @@ static void	entry_list_add(struct entry_list *, struct match_file *);
 static void	entry_list_free(struct entry_list *);
 static void	entry_list_init(struct entry_list *);
 static int	error_nomem(struct archive_match *);
+static int	match_is_ascii_mbs(const char *);
+static int	match_is_ascii_wcs(const wchar_t *);
 static void	match_list_add(struct match_list *, struct match *);
 static void	match_list_free(struct match_list *);
 static void	match_list_init(struct match_list *);
 static int	match_list_unmatched_inclusions_next(struct archive_match *,
 		    struct match_list *, int, const void **);
+static int	match_normalize(struct archive_match *, int, const void *,
+		    size_t, struct archive_string *);
+static int	match_normalized(struct archive_match *, struct match *,
+		    int, const void *);
 static int	match_owner_id(struct id_array *, int64_t);
 #if !defined(_WIN32) || defined(__CYGWIN__)
 static int	match_owner_name_mbs(struct archive_match *,
@@ -176,6 +192,8 @@ static int	match_path_exclusion(struct archive_match *,
 		    struct match *, int, const void *);
 static int	match_path_inclusion(struct archive_match *,
 		    struct match *, int, const void *);
+static const char *match_pattern_norm(struct archive_match *, struct match *,
+		    int, const void *);
 static int	owner_excluded(struct archive_match *,
 		    struct archive_entry *);
 static int	path_excluded(struct archive_match *, int, const void *);
@@ -269,6 +287,10 @@ archive_match_free(struct archive *_a)
 	free(a->inclusion_gids.ids);
 	match_list_free(&(a->inclusion_unames));
 	match_list_free(&(a->inclusion_gnames));
+	archive_string_free(&(a->norm_path));
+	archive_string_free(&(a->archive.error_string));
+	/* Release the conversion objects cached on the embedded archive. */
+	__archive_clean(&(a->archive));
 	free(a);
 	return (ARCHIVE_OK);
 }
@@ -515,6 +537,22 @@ archive_match_set_inclusion_recursion(struct archive *_a, int enabled)
 }
 
 /*
+ * Enable or disable Unicode Form D matching of exclusion patterns.  The
+ * setting is read at match time, so it may be set after adding patterns.
+ */
+int
+archive_match_set_pattern_normalization(struct archive *_a, int enabled)
+{
+	struct archive_match *a;
+
+	archive_check_magic(_a, ARCHIVE_MATCH_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_match_set_pattern_normalization");
+	a = (struct archive_match *)_a;
+	a->normalize = enabled;
+	return (ARCHIVE_OK);
+}
+
+/*
  * Utility functions to get statistic information for inclusion patterns.
  */
 int
@@ -739,6 +777,30 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 	if (a == NULL)
 		return (0);
 
+	/* Normalize the pathname once so every exclusion can reuse it.  Form D
+	 * is the identity on ASCII, so the common case skips this. */
+	a->norm_path_valid = 0;
+	if (a->normalize && pathname != NULL && a->exclusions.first != NULL) {
+		size_t len;
+		int ascii;
+
+		if (mbs) {
+			ascii = match_is_ascii_mbs(pathname);
+			len = ascii ? 0 : strlen((const char *)pathname);
+		} else {
+			ascii = match_is_ascii_wcs(pathname);
+			len = ascii ? 0 :
+			    wcslen((const wchar_t *)pathname) * sizeof(wchar_t);
+		}
+		if (ascii == 0 && match_normalize(a, mbs, pathname, len,
+		    &(a->norm_path)) == 0) {
+			a->norm_path_valid = 1;
+			a->norm_path_differs = mbs == 0 ||
+			    a->norm_path.length != len ||
+			    memcmp(a->norm_path.s, pathname, len) != 0;
+		}
+	}
+
 	/* Mark off any unmatched inclusions. */
 	/* In particular, if a filename does appear in the archive and
 	 * is explicitly included and excluded, then we don't report
@@ -791,6 +853,114 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 	return (0);
 }
 
+/* True if the string is pure 7-bit ASCII, where Form D is the identity. */
+static int
+match_is_ascii_mbs(const char *s)
+{
+	const unsigned char *p = (const unsigned char *)s;
+
+	while (*p != '\0') {
+		if (*p++ >= 0x80)
+			return (0);
+	}
+	return (1);
+}
+
+static int
+match_is_ascii_wcs(const wchar_t *s)
+{
+	while (*s != L'\0') {
+		if ((uint32_t)*s++ >= 0x80)
+			return (0);
+	}
+	return (1);
+}
+
+/*
+ * Convert to UTF-8 in Unicode Form D.  The bytes are read as UTF-8, wide
+ * input as UTF-16LE, not in the locale charset.  Returns -1 when the input is
+ * not valid Unicode, and the caller then keeps the byte comparison.
+ */
+static int
+match_normalize(struct archive_match *a, int mbs, const void *s, size_t len,
+    struct archive_string *dest)
+{
+	struct archive_string_conv *sc;
+	const char *from;
+
+	if (mbs)
+		from = "UTF-8";
+	else {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		from = "UTF-16LE";
+#else
+		return (-1);		/* wchar_t is not UTF-16 here. */
+#endif
+	}
+	sc = archive_string_conversion_to_utf8_nfd(&(a->archive), from);
+	if (sc == NULL)
+		return (-1);
+
+	archive_string_empty(dest);
+	if (archive_strncat_l(dest, s, len, sc) != 0)
+		return (-1);
+	return (0);
+}
+
+/*
+ * Return the pattern in Form D, computed on first use and kept on the match.
+ * NULL when it has none, and then only the byte comparison applies.  A failed
+ * allocation is not cached, so it costs one entry, not the rest of the run.
+ */
+static const char *
+match_pattern_norm(struct archive_match *a, struct match *m, int mbs,
+    const void *p)
+{
+	size_t len;
+
+	if (m->norm_state == 0) {
+		len = mbs ? strlen((const char *)p) :
+		    wcslen((const wchar_t *)p) * sizeof(wchar_t);
+		if (match_normalize(a, mbs, p, len, &(m->norm)) != 0) {
+			if (errno == ENOMEM)
+				return (NULL);
+			m->norm_state = -1;
+		} else {
+			m->norm_state = 1;
+			m->norm_differs = mbs == 0 ||
+			    m->norm.length != len ||
+			    memcmp(m->norm.s, p, len) != 0;
+		}
+	}
+	return (m->norm_state == 1 ? m->norm.s : NULL);
+}
+
+/*
+ * True if the pattern also matches the pathname once both are in Form D.
+ * Only exclusions ask, since this can only add matches.
+ */
+static int
+match_normalized(struct archive_match *a, struct match *m, int mbs,
+    const void *p)
+{
+	const char *np;
+
+	if (a->norm_path_valid == 0 || p == NULL)
+		return (0);
+	np = match_pattern_norm(a, m, mbs, p);
+	if (np == NULL)
+		return (0);
+	/* If Form D changed neither side, this is the comparison that just
+	 * returned 0. */
+	if (m->norm_differs == 0 && a->norm_path_differs == 0)
+		return (0);
+	/* Wildcards count UTF-8 bytes here, which can only widen the
+	 * exclusion.  Drop the error return: the byte-exact answer above
+	 * stands, so this pass only ever adds a match. */
+	return (archive_pathmatch(np, a->norm_path.s,
+	    PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END) > 0);
+}
+
 /*
  * This is a little odd, but it matches the default behavior of
  * gtar.  In particular, 'a*b' will match 'foo/a1111/222b/bar'
@@ -806,14 +976,23 @@ match_path_exclusion(struct archive_match *a, struct match *m,
 	if (mbs) {
 		const char *p;
 		r = archive_mstring_get_mbs(&(a->archive), &(m->pattern), &p);
-		if (r == 0)
-			return (archive_pathmatch(p, (const char *)pn, flag));
+		if (r == 0) {
+			/* Keep the byte-exact result, error return included. */
+			int mr = archive_pathmatch(p, (const char *)pn, flag);
+			if (mr != 0)
+				return (mr);
+			return (match_normalized(a, m, mbs, p));
+		}
 	} else {
 		const wchar_t *p;
 		r = archive_mstring_get_wcs(&(a->archive), &(m->pattern), &p);
-		if (r == 0)
-			return (archive_pathmatch_w(p, (const wchar_t *)pn,
-				flag));
+		if (r == 0) {
+			int mr = archive_pathmatch_w(p, (const wchar_t *)pn,
+			    flag);
+			if (mr != 0)
+				return (mr);
+			return (match_normalized(a, m, mbs, p));
+		}
 	}
 	if (errno == ENOMEM)
 		return (error_nomem(a));
@@ -867,6 +1046,7 @@ match_list_free(struct match_list *list)
 		q = p;
 		p = p->next;
 		archive_mstring_clean(&(q->pattern));
+		archive_string_free(&(q->norm));
 		free(q);
 	}
 }

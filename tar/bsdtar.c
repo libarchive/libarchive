@@ -271,6 +271,9 @@ main(int argc, char **argv)
 	bsdtar->matching = archive_match_new();
 	if (bsdtar->matching == NULL)
 		lafe_errc(1, errno, "Out of memory");
+	/* Compare exclusions in Unicode Form D so an NFD spelling of an
+	 * excluded name is still excluded. */
+	archive_match_set_pattern_normalization(bsdtar->matching, 1);
 	bsdtar->cset = cset_new();
 	if (bsdtar->cset == NULL)
 		lafe_errc(1, errno, "Out of memory");
