@@ -41,6 +41,7 @@
 #include "archive.h"
 #include "archive_acl_private.h" /* For ACL parsing routines. */
 #include "archive_entry.h"
+#include "archive_entry_private.h"
 #include "archive_entry_locale.h"
 #include "archive_integer.h"
 #include "archive_private.h"
@@ -156,6 +157,21 @@ struct tar {
 	int			 read_concatenated_archives;
 	int			 default_inode;
 	int			 default_dev;
+
+	struct archive_entry	*mac_metadata_entry;
+	void			*mac_metadata;
+	size_t			 mac_metadata_size;
+	size_t			 mac_metadata_offset;
+	int			 mac_metadata_active;
+	int			 mac_metadata_status;
+	int64_t		 mac_metadata_header_position;
+	struct archive_string	 mac_metadata_error;
+	int			 mac_metadata_errno;
+	struct archive_entry	*pending_entry;
+	int			 pending_entry_status;
+	int64_t		 pending_header_position;
+	struct archive_string	 pending_error;
+	int			 pending_errno;
 };
 
 /* Track which size fields were present in the headers */
@@ -194,9 +210,9 @@ static int	header_gnu_longlink(struct archive_read *, struct tar *,
 static int	header_gnu_longname(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h, int64_t *);
 static int	is_mac_metadata_entry(struct archive_entry *entry);
-static int	mac_metadata_matches_next_entry(struct archive_read *, struct tar *,
-		    struct archive_entry *, int64_t);
-static int	read_mac_metadata_blob(struct archive_read *,
+static int	mac_metadata_matches_next_entry(struct archive_entry *,
+		    struct archive_entry *);
+static int	read_mac_metadata_blob(struct archive_read *, struct tar *,
 		    struct archive_entry *, int64_t *);
 static int	header_volume(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h, int64_t *);
@@ -236,6 +252,11 @@ static int64_t	tar_atol256(const char *, size_t);
 static int64_t	tar_atol8(const char *, size_t);
 static int	tar_read_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, int64_t *);
+static void	tar_assign_default_dev_ino(struct tar *, struct archive_entry *);
+static void	tar_clear_mac_metadata(struct tar *);
+static void	tar_restore_error(struct archive *, struct archive_string *, int);
+static void	tar_save_error(struct archive *, struct archive_string *, int *);
+static void	tar_swap_entries(struct archive_entry *, struct archive_entry *);
 static int	tohex(int c);
 static char	*url_decode(const char *, size_t);
 static int	tar_flush_unconsumed(struct archive_read *, int64_t *);
@@ -305,6 +326,10 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	struct tar *tar = a->format->data;
 
 	gnu_clear_sparse_list(tar);
+	tar_clear_mac_metadata(tar);
+	archive_entry_free(tar->pending_entry);
+	archive_string_free(&tar->mac_metadata_error);
+	archive_string_free(&tar->pending_error);
 	archive_string_free(&tar->entry_pathname);
 	archive_string_free(&tar->entry_pathname_override);
 	archive_string_free(&tar->entry_uname);
@@ -315,6 +340,67 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	free(tar);
 	a->format->data = NULL;
 	return (ARCHIVE_OK);
+}
+
+static void
+tar_assign_default_dev_ino(struct tar *tar, struct archive_entry *entry)
+{
+	archive_entry_set_dev(entry, 1 + tar->default_dev); /* Don't use zero. */
+	archive_entry_set_ino(entry, ++tar->default_inode); /* Don't use zero. */
+	/* Limit generated st_ino number to 16 bits. */
+	if (tar->default_inode >= 0xffff) {
+		++tar->default_dev;
+		tar->default_inode = 0;
+	}
+}
+
+static void
+tar_clear_mac_metadata(struct tar *tar)
+{
+	archive_entry_free(tar->mac_metadata_entry);
+	tar->mac_metadata_entry = NULL;
+	free(tar->mac_metadata);
+	tar->mac_metadata = NULL;
+	tar->mac_metadata_size = 0;
+	tar->mac_metadata_offset = 0;
+	tar->mac_metadata_active = 0;
+	tar->mac_metadata_status = ARCHIVE_OK;
+	archive_string_empty(&tar->mac_metadata_error);
+	tar->mac_metadata_errno = 0;
+}
+
+static void
+tar_save_error(struct archive *a, struct archive_string *error,
+    int *error_number)
+{
+	const char *message = archive_error_string(a);
+
+	archive_string_empty(error);
+	if (message != NULL)
+		archive_strcpy(error, message);
+	*error_number = archive_errno(a);
+}
+
+static void
+tar_restore_error(struct archive *a, struct archive_string *error,
+    int error_number)
+{
+	if (error->s != NULL && error->s[0] != '\0')
+		archive_set_error(a, error_number, "%s", error->s);
+	else {
+		archive_clear_error(a);
+		if (error_number != 0)
+			archive_set_error(a, error_number, NULL);
+	}
+}
+
+static void
+tar_swap_entries(struct archive_entry *a, struct archive_entry *b)
+{
+	struct archive_entry tmp = *a;
+
+	*a = *b;
+	*b = tmp;
 }
 
 /*
@@ -528,79 +614,180 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	struct tar *tar = a->format->data;
 	const char *p;
 	const wchar_t *wp;
-	int r;
+	int r, r2;
 	size_t l;
-	int64_t unconsumed = 0;
 
-	/* Assign default device/inode values. */
-	archive_entry_set_dev(entry, 1 + tar->default_dev); /* Don't use zero. */
-	archive_entry_set_ino(entry, ++tar->default_inode); /* Don't use zero. */
-	/* Limit generated st_ino number to 16 bits. */
-	if (tar->default_inode >= 0xffff) {
-		++tar->default_dev;
-		tar->default_inode = 0;
-	}
+	for (;;) {
+		int64_t entry_header_position;
+		int64_t unconsumed = 0;
 
-	tar->entry_offset = 0;
-	gnu_clear_sparse_list(tar);
-	tar->size_fields = 0; /* We don't have any size info yet */
+		if (tar->pending_entry != NULL) {
+			struct archive_entry *pending = tar->pending_entry;
 
-	/* Setup default string conversion. */
-	tar->sconv = tar->opt_sconv;
-	if (tar->sconv == NULL) {
-		if (!tar->init_default_conversion) {
-			tar->sconv_default =
-			    archive_string_default_conversion_for_read(&(a->archive));
-			tar->init_default_conversion = 1;
+			entry_header_position = tar->pending_header_position;
+			a->header_position = entry_header_position;
+			tar->pending_entry = NULL;
+			tar_swap_entries(entry, pending);
+			archive_entry_free(pending);
+			r = tar->pending_entry_status;
+			tar_restore_error(&a->archive, &tar->pending_error,
+			    tar->pending_errno);
+			archive_string_empty(&tar->pending_error);
+			tar->pending_errno = 0;
+		} else {
+			entry_header_position = a->filter->position;
+			tar_assign_default_dev_ino(tar, entry);
+			tar->entry_offset = 0;
+			gnu_clear_sparse_list(tar);
+			tar->size_fields = 0; /* We don't have any size info yet */
+
+			/* Setup default string conversion. */
+			tar->sconv = tar->opt_sconv;
+			if (tar->sconv == NULL) {
+				if (!tar->init_default_conversion) {
+					tar->sconv_default =
+					    archive_string_default_conversion_for_read(&(a->archive));
+					tar->init_default_conversion = 1;
+				}
+				tar->sconv = tar->sconv_default;
+			}
+
+			r = tar_read_header(a, tar, entry, &unconsumed);
+			if (tar_flush_unconsumed(a, &unconsumed) != ARCHIVE_OK) {
+				tar_clear_mac_metadata(tar);
+				return (ARCHIVE_FATAL);
+			}
+
+			if (tar->mac_metadata_entry != NULL && r == ARCHIVE_EOF) {
+				tar_swap_entries(entry, tar->mac_metadata_entry);
+				archive_entry_free(tar->mac_metadata_entry);
+				tar->mac_metadata_entry = NULL;
+				tar->mac_metadata_active = 1;
+				tar->mac_metadata_offset = 0;
+				a->header_position = tar->mac_metadata_header_position;
+				tar_restore_error(&a->archive, &tar->mac_metadata_error,
+				    tar->mac_metadata_errno);
+				return (tar->mac_metadata_status);
+			}
+
+			/*
+			 * "non-sparse" files are really just sparse files with
+			 * a single block.
+			 */
+			if (tar->sparse_list == NULL) {
+				if (gnu_add_sparse_entry(a, tar, 0,
+				    tar->entry_bytes_remaining) != ARCHIVE_OK) {
+					tar_clear_mac_metadata(tar);
+					return (ARCHIVE_FATAL);
+				}
+			} else {
+				struct sparse_block *sb;
+
+				for (sb = tar->sparse_list; sb != NULL; sb = sb->next) {
+					if (!sb->hole)
+						archive_entry_sparse_add_entry(entry,
+						    sb->offset, sb->remaining);
+				}
+			}
+
+			if (r == ARCHIVE_OK
+			    && archive_entry_filetype(entry) == AE_IFREG) {
+				/*
+				 * "Regular" entry with trailing '/' is really
+				 * directory: This is needed for certain old tar
+				 * variants and even for some broken newer ones.
+				 */
+				if ((p = archive_entry_pathname(entry)) != NULL) {
+					l = strlen(p);
+					if (l > 0 && p[l - 1] == '/') {
+						archive_entry_set_filetype(entry, AE_IFDIR);
+						tar->entry_bytes_remaining = 0;
+						tar->entry_padding = 0;
+					}
+				} else if ((wp = archive_entry_pathname_w(entry)) != NULL) {
+					l = wcslen(wp);
+					if (l > 0 && wp[l - 1] == L'/') {
+						archive_entry_set_filetype(entry, AE_IFDIR);
+						tar->entry_bytes_remaining = 0;
+						tar->entry_padding = 0;
+					}
+				}
+			}
 		}
-		tar->sconv = tar->sconv_default;
-	}
 
-	r = tar_read_header(a, tar, entry, &unconsumed);
+		if (tar->mac_metadata_entry != NULL) {
+			if (r != ARCHIVE_OK && r != ARCHIVE_WARN) {
+				tar_clear_mac_metadata(tar);
+				return (r);
+			}
+			if (mac_metadata_matches_next_entry(
+			    tar->mac_metadata_entry, entry)) {
+				archive_entry_copy_mac_metadata(entry,
+				    tar->mac_metadata, tar->mac_metadata_size);
+				if (tar->mac_metadata_status < r)
+					tar_restore_error(&a->archive,
+					    &tar->mac_metadata_error,
+					    tar->mac_metadata_errno);
+				r = err_combine(tar->mac_metadata_status, r);
+				tar_clear_mac_metadata(tar);
+				a->header_position = entry_header_position;
+				return (r);
+			}
 
-	tar_flush_unconsumed(a, &unconsumed);
+			tar_swap_entries(entry, tar->mac_metadata_entry);
+			tar->pending_entry = tar->mac_metadata_entry;
+			tar->mac_metadata_entry = NULL;
+			tar->pending_entry_status = r;
+			tar->pending_header_position = entry_header_position;
+			tar_save_error(&a->archive, &tar->pending_error,
+			    &tar->pending_errno);
+			tar->mac_metadata_active = 1;
+			tar->mac_metadata_offset = 0;
+			a->header_position = tar->mac_metadata_header_position;
+			tar_restore_error(&a->archive, &tar->mac_metadata_error,
+			    tar->mac_metadata_errno);
+			return (tar->mac_metadata_status);
+		}
 
-	/*
-	 * "non-sparse" files are really just sparse files with
-	 * a single block.
-	 */
-	if (tar->sparse_list == NULL) {
-		if (gnu_add_sparse_entry(a, tar, 0, tar->entry_bytes_remaining)
-		    != ARCHIVE_OK)
+		if (r != ARCHIVE_OK && r != ARCHIVE_WARN)
+			return (r);
+		if (!tar->process_mac_extensions || !is_mac_metadata_entry(entry)
+		    || archive_entry_filetype(entry) != AE_IFREG
+		    || tar->filetype == 'S' || tar->sparse_gnu_attributes_seen
+		    || !archive_entry_size_is_set(entry)
+		    || archive_entry_size(entry) < 0
+		    || archive_entry_size(entry) > (int64_t)xattr_limit
+		    || (archive_entry_size(entry) > 0
+		    && (tar->sparse_list == NULL || tar->sparse_list->next != NULL
+		    || tar->sparse_list->hole || tar->sparse_list->offset != 0
+		    || tar->sparse_list->remaining != tar->entry_bytes_remaining))) {
+			a->header_position = entry_header_position;
+			return (r);
+		}
+
+		tar->mac_metadata_entry = archive_entry_clone(entry);
+		if (tar->mac_metadata_entry == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate AppleDouble entry");
 			return (ARCHIVE_FATAL);
-	} else {
-		struct sparse_block *sb;
-
-		for (sb = tar->sparse_list; sb != NULL; sb = sb->next) {
-			if (!sb->hole)
-				archive_entry_sparse_add_entry(entry,
-				    sb->offset, sb->remaining);
 		}
-	}
-
-	if (r == ARCHIVE_OK && archive_entry_filetype(entry) == AE_IFREG) {
-		/*
-		 * "Regular" entry with trailing '/' is really
-		 * directory: This is needed for certain old tar
-		 * variants and even for some broken newer ones.
-		 */
-		if ((p = archive_entry_pathname(entry)) != NULL) {
-			l = strlen(p);
-			if (l > 0 && p[l - 1] == '/') {
-				archive_entry_set_filetype(entry, AE_IFDIR);
-				tar->entry_bytes_remaining = 0;
-				tar->entry_padding = 0;
-			}
-		} else if ((wp = archive_entry_pathname_w(entry)) != NULL) {
-			l = wcslen(wp);
-			if (l > 0 && wp[l - 1] == L'/') {
-				archive_entry_set_filetype(entry, AE_IFDIR);
-				tar->entry_bytes_remaining = 0;
-				tar->entry_padding = 0;
-			}
+		tar->mac_metadata_status = r;
+		tar->mac_metadata_header_position = entry_header_position;
+		tar_save_error(&a->archive, &tar->mac_metadata_error,
+		    &tar->mac_metadata_errno);
+		r2 = read_mac_metadata_blob(a, tar, entry, &unconsumed);
+		if (r2 < ARCHIVE_WARN
+		    || tar_flush_unconsumed(a, &unconsumed) != ARCHIVE_OK) {
+			tar_clear_mac_metadata(tar);
+			return (ARCHIVE_FATAL);
 		}
+		tar->entry_bytes_remaining = 0;
+		tar->entry_bytes_unconsumed = 0;
+		tar->entry_padding = 0;
+		gnu_clear_sparse_list(tar);
+		archive_entry_clear(entry);
+		archive_clear_error(&a->archive);
 	}
-	return (r);
 }
 
 static int
@@ -610,6 +797,20 @@ archive_read_format_tar_read_data(struct archive_read *a,
 	struct tar *tar = a->format->data;
 	ssize_t bytes_read;
 	struct sparse_block *p;
+
+	if (tar->mac_metadata_active) {
+		if (tar->mac_metadata_offset == tar->mac_metadata_size) {
+			*buff = NULL;
+			*size = 0;
+			*offset = (int64_t)tar->mac_metadata_size;
+			return (ARCHIVE_EOF);
+		}
+		*buff = (const char *)tar->mac_metadata + tar->mac_metadata_offset;
+		*size = tar->mac_metadata_size - tar->mac_metadata_offset;
+		*offset = (int64_t)tar->mac_metadata_offset;
+		tar->mac_metadata_offset = tar->mac_metadata_size;
+		return (ARCHIVE_OK);
+	}
 
 	for (;;) {
 		/* Remove exhausted entries from sparse list. */
@@ -672,6 +873,15 @@ archive_read_format_tar_skip(struct archive_read *a)
 	struct tar *tar = a->format->data;
 	int64_t request;
 
+	if (tar->mac_metadata_active) {
+		free(tar->mac_metadata);
+		tar->mac_metadata = NULL;
+		tar->mac_metadata_size = 0;
+		tar->mac_metadata_offset = 0;
+		tar->mac_metadata_active = 0;
+		return (ARCHIVE_OK);
+	}
+
 	request = tar->entry_bytes_remaining + tar->entry_padding +
 	    tar->entry_bytes_unconsumed;
 
@@ -727,7 +937,6 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	static const int32_t seen_L_header = 8;
 	static const int32_t seen_V_header = 16;
 	static const int32_t seen_x_header = 32; /* Also X */
-	static const int32_t seen_mac_metadata = 512;
 
 	tar_reset_header_state(tar);
 
@@ -915,34 +1124,6 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 			if (err < ARCHIVE_WARN) {
 				return (ARCHIVE_FATAL);
 			}
-			/* Filename of the form `._filename` is an AppleDouble
-			 * extension entry.  The body is the macOS metadata blob;
-			 * this is followed by another entry with the actual
-			 * regular file data.
-			 * This design has two drawbacks:
-			 * = it's brittle; you might just have a file with such a name
-			 * = it duplicates any long pathname extensions
-			 *
-			 * TODO: This probably shouldn't be here at all.  Consider
-			 * just returning the contents as a regular entry here and
-			 * then dealing with it when we write data to disk.
-			 */
-			if (tar->process_mac_extensions
-			    && ((seen_headers & seen_mac_metadata) == 0)
-			    && is_mac_metadata_entry(entry)
-			    && mac_metadata_matches_next_entry(a, tar, entry,
-			    *unconsumed)) {
-				err2 = read_mac_metadata_blob(a, entry, unconsumed);
-				if (err2 < ARCHIVE_WARN) {
-					return (ARCHIVE_FATAL);
-				}
-				err = err_combine(err, err2);
-				/* Note: Other headers can appear again. */
-				seen_headers = seen_mac_metadata;
-				tar_reset_header_state(tar);
-				break;
-			}
-
 			/* Reconcile GNU sparse attributes */
 			if (tar->sparse_gnu_attributes_seen) {
 				/* Only 'S' (GNU sparse) and ustar '0' regular files can be sparse */
@@ -1675,90 +1856,13 @@ is_mac_metadata_entry(struct archive_entry *entry) {
 	return 0;
 }
 
-/*
- * Return false if the next ordinary header definitively does not match the
- * AppleDouble entry.  Extension headers need the full tar parser, so retain
- * the existing behavior when one of those follows.
- */
 static int
-mac_metadata_matches_next_entry(struct archive_read *a,
-    struct tar *tar, struct archive_entry *entry, int64_t unconsumed)
+mac_metadata_path_matches(const char *metadata_name,
+    const char *next_pathname)
 {
-	const struct archive_entry_header_gnutar *gnuheader;
-	const struct archive_entry_header_ustar *header;
-	struct archive_entry *next_entry;
-	const char *h, *metadata_base, *metadata_name, *name_end, *next_pathname;
-	char next_name[257];
-	int matches;
-	int64_t offset, size;
-	size_t base_offset, metadata_length, name_length, next_length;
-	size_t prefix_length, target_length;
+	const char *metadata_base;
+	size_t base_offset, metadata_length, next_length, target_length;
 
-	metadata_name = archive_entry_pathname(entry);
-	if (metadata_name == NULL)
-		return 1;
-
-	size = archive_entry_size(entry);
-	if (size < 0 || size > (int64_t)xattr_limit)
-		return 1;
-	offset = unconsumed + ((size + 511) & ~511);
-	h = __archive_read_ahead(a, (size_t)offset + 512, NULL);
-	if (h == NULL)
-		return 1;
-	h += offset;
-
-	if (h[0] == 0 && archive_block_is_null(h))
-		return 0;
-	if (!checksum(a, h))
-		return 1;
-
-	header = (const struct archive_entry_header_ustar *)h;
-	switch (header->typeflag[0]) {
-	case 'A':
-	case 'g':
-	case 'K':
-	case 'L':
-	case 'V':
-	case 'X':
-	case 'x':
-		return 1;
-	}
-
-	gnuheader = (const struct archive_entry_header_gnutar *)h;
-	name_end = memchr(header->name, '\0', sizeof(header->name));
-	name_length = name_end != NULL
-	    ? (size_t)(name_end - header->name) : sizeof(header->name);
-	prefix_length = 0;
-	if (memcmp(gnuheader->magic, "ustar  \0", 8) != 0
-	    && memcmp(header->magic, "ustar", 5) == 0) {
-		const char *prefix_end = memchr(header->prefix, '\0',
-		    sizeof(header->prefix));
-		prefix_length = prefix_end != NULL
-		    ? (size_t)(prefix_end - header->prefix) : sizeof(header->prefix);
-	}
-	if (prefix_length > 0) {
-		memcpy(next_name, header->prefix, prefix_length);
-		next_name[prefix_length] = '/';
-		memcpy(next_name + prefix_length + 1, header->name, name_length);
-		next_length = prefix_length + 1 + name_length;
-	} else {
-		memcpy(next_name, header->name, name_length);
-		next_length = name_length;
-	}
-
-	next_entry = archive_entry_new();
-	if (next_entry == NULL)
-		return 1;
-	if (archive_entry_copy_pathname_l(next_entry, next_name, next_length,
-	    tar->sconv) != 0) {
-		archive_entry_free(next_entry);
-		return 1;
-	}
-	next_pathname = archive_entry_pathname(next_entry);
-	if (next_pathname == NULL) {
-		archive_entry_free(next_entry);
-		return 1;
-	}
 	while (metadata_name[0] == '.' && metadata_name[1] == '/')
 		metadata_name += 2;
 	while (next_pathname[0] == '.' && next_pathname[1] == '/')
@@ -1767,19 +1871,69 @@ mac_metadata_matches_next_entry(struct archive_read *a,
 	next_length = strlen(next_pathname);
 	metadata_base = strrchr(metadata_name, '/');
 	metadata_base = metadata_base == NULL ? metadata_name : metadata_base + 1;
+	if (metadata_base[0] != '.' || metadata_base[1] != '_'
+	    || metadata_base[2] == '\0')
+		return 0;
 	base_offset = (size_t)(metadata_base - metadata_name);
 	target_length = metadata_length - 2;
 	if (next_length != target_length
 	    && !(next_length == target_length + 1
-	    && next_pathname[next_length - 1] == '/')) {
-		matches = 0;
-	} else {
-		matches = memcmp(next_pathname, metadata_name, base_offset) == 0
-		    && memcmp(next_pathname + base_offset, metadata_base + 2,
-		    metadata_length - base_offset - 2) == 0;
-	}
-	archive_entry_free(next_entry);
-	return matches;
+	    && next_pathname[next_length - 1] == '/'))
+		return 0;
+	return memcmp(next_pathname, metadata_name, base_offset) == 0
+	    && memcmp(next_pathname + base_offset, metadata_base + 2,
+	    metadata_length - base_offset - 2) == 0;
+}
+
+static int
+mac_metadata_wpath_matches(const wchar_t *metadata_name,
+    const wchar_t *next_pathname)
+{
+	const wchar_t *metadata_base;
+	size_t base_offset, metadata_length, next_length, target_length;
+
+	while (metadata_name[0] == L'.' && metadata_name[1] == L'/')
+		metadata_name += 2;
+	while (next_pathname[0] == L'.' && next_pathname[1] == L'/')
+		next_pathname += 2;
+	metadata_length = wcslen(metadata_name);
+	next_length = wcslen(next_pathname);
+	metadata_base = wcsrchr(metadata_name, L'/');
+	metadata_base = metadata_base == NULL ? metadata_name : metadata_base + 1;
+	if (metadata_base[0] != L'.' || metadata_base[1] != L'_'
+	    || metadata_base[2] == L'\0')
+		return 0;
+	base_offset = (size_t)(metadata_base - metadata_name);
+	target_length = metadata_length - 2;
+	if (next_length != target_length
+	    && !(next_length == target_length + 1
+	    && next_pathname[next_length - 1] == L'/'))
+		return 0;
+	return wmemcmp(next_pathname, metadata_name, base_offset) == 0
+	    && wmemcmp(next_pathname + base_offset, metadata_base + 2,
+	    metadata_length - base_offset - 2) == 0;
+}
+
+/*
+ * An AppleDouble entry is metadata only when the following fully parsed tar
+ * entry has the corresponding pathname.  Parsing the next entry first lets
+ * pax and GNU pathname extensions participate in the comparison and avoids
+ * misidentifying an ordinary file whose basename merely starts with "._".
+ */
+static int
+mac_metadata_matches_next_entry(struct archive_entry *metadata_entry,
+    struct archive_entry *next_entry)
+{
+	const char *metadata_name = archive_entry_pathname(metadata_entry);
+	const char *next_pathname = archive_entry_pathname(next_entry);
+	const wchar_t *metadata_wname, *next_wpathname;
+
+	if (metadata_name != NULL && next_pathname != NULL)
+		return mac_metadata_path_matches(metadata_name, next_pathname);
+	metadata_wname = archive_entry_pathname_w(metadata_entry);
+	next_wpathname = archive_entry_pathname_w(next_entry);
+	return metadata_wname != NULL && next_wpathname != NULL
+	    && mac_metadata_wpath_matches(metadata_wname, next_wpathname);
 }
 
 /*
@@ -1793,11 +1947,12 @@ mac_metadata_matches_next_entry(struct archive_read *a,
  */
 static int
 read_mac_metadata_blob(struct archive_read *a,
-    struct archive_entry *entry, int64_t *unconsumed)
+    struct tar *tar, struct archive_entry *entry, int64_t *unconsumed)
 {
 	int64_t size;
 	size_t msize;
 	const void *data;
+	void *copy = NULL;
 
  	/* Read the body as a Mac OS metadata blob. */
 	size = archive_entry_size(entry);
@@ -1818,31 +1973,29 @@ read_mac_metadata_blob(struct archive_read *a,
 		return (ARCHIVE_FATAL);
 	}
 
-	/*
-	 * TODO: Look beyond the body here to peek at the next header.
-	 * If it's a regular header (not an extension header)
-	 * that has the wrong name, just return the current
-	 * entry as-is, without consuming the body here.
-	 * That would reduce the risk of us mis-identifying
-	 * an ordinary file that just happened to have
-	 * a name starting with "._".
-	 *
-	 * Q: Is the above idea really possible?  Even
-	 * when there are GNU or pax extension entries?
-	 */
 	if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
 		return (ARCHIVE_FATAL);
 	}
-	data = __archive_read_ahead(a, msize, NULL);
-	if (data == NULL) {
-		archive_set_error(&a->archive, EINVAL,
-		    "Truncated archive"
-		    " detected while reading macOS metadata");
-		*unconsumed = 0;
-		return (ARCHIVE_FATAL);
+	if (msize > 0) {
+		data = __archive_read_ahead(a, msize, NULL);
+		if (data == NULL) {
+			archive_set_error(&a->archive, EINVAL,
+			    "Truncated archive"
+			    " detected while reading macOS metadata");
+			*unconsumed = 0;
+			return (ARCHIVE_FATAL);
+		}
+		copy = malloc(msize);
+		if (copy == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate AppleDouble metadata");
+			*unconsumed = 0;
+			return (ARCHIVE_FATAL);
+		}
+		memcpy(copy, data, msize);
 	}
-	archive_entry_clear(entry);
-	archive_entry_copy_mac_metadata(entry, data, msize);
+	tar->mac_metadata = copy;
+	tar->mac_metadata_size = msize;
 	*unconsumed = (msize + 511) & ~ 511;
 	return (ARCHIVE_OK);
 }
