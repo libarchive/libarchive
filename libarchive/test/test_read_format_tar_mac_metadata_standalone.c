@@ -62,12 +62,14 @@ DEFINE_TEST(test_read_format_tar_mac_metadata_standalone)
 	    archive_read_data(a, data, sizeof(data)));
 	assertEqualMem("content of file C", data, sizeof("content of file C") - 1);
 
+	/* A mismatched sidecar remains a standalone entry with its data. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(entries[2].name, archive_entry_pathname(ae));
 	assertEqualIntA(a, (int)strlen(entries[2].data),
 	    (int)archive_read_data(a, data, sizeof(data)));
 	assertEqualMem(entries[2].data, data, strlen(entries[2].data));
 
+	/* The next sidecar is re-evaluated and attaches to fileB. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(entries[4].name, archive_entry_pathname(ae));
 	metadata = archive_entry_mac_metadata(ae, &metadata_size);
@@ -87,6 +89,7 @@ DEFINE_TEST(test_read_format_tar_mac_metadata_standalone)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	used = 0;
+	/* Build a matching pair whose names require PAX extensions. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_pax(a));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -109,6 +112,7 @@ DEFINE_TEST(test_read_format_tar_mac_metadata_standalone)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
+	/* Verify matching after the PAX pathname extensions are applied. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
 	assertEqualIntA(a, ARCHIVE_OK,
