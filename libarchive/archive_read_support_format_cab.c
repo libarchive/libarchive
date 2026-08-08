@@ -284,6 +284,7 @@ struct lzx_stream {
 #define MAX_UNCOMPRESS_SIZE	0x8000
 #define MAX_FILE_SIZE		(UINT16_MAX * MAX_UNCOMPRESS_SIZE)
 #define MAX_E8_TRANSLATION	(0x8000 * MAX_UNCOMPRESS_SIZE)
+#define SFX_MAX_READAHEAD	(1024 * 128)
 
 static const char * const compression_name[] = {
 	"NONE",
@@ -540,7 +541,7 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 
 		offset = 0;
 		window = 4096;
-		while (offset + window <= 1024 * 128) {
+		while (offset + window <= SFX_MAX_READAHEAD) {
 			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
 			if (h == NULL) {
@@ -551,8 +552,8 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 				}
 				return (0);
 			}
-			if (bytes_avail > 1024 * 128)
-				bytes_avail = 1024 * 128;
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
 			while (offset <= bytes_avail - 8) {
 				size_t next = find_cab_magic(h + offset);
 				if (next == 0)

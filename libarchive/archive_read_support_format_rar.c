@@ -136,6 +136,8 @@
 #define MAX_SYMBOL_LENGTH 0xF
 #define MAX_SYMBOLS       20
 
+#define SFX_MAX_READAHEAD (1024 * 128)
+
 /* Virtual Machine Properties */
 #define VM_MEMORY_SIZE 0x40000
 #define VM_MEMORY_MASK (VM_MEMORY_SIZE - 1)
@@ -806,7 +808,7 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
     ssize_t window = 4096;
     ssize_t bytes_avail;
 
-    while (offset + window <= 1024 * 128) {
+    while (offset + window <= SFX_MAX_READAHEAD) {
       h = __archive_read_ahead(a, offset + window, &bytes_avail);
       if (h == NULL) {
         if (bytes_avail >= offset + 0x10) {
@@ -816,8 +818,8 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
         }
         return (0);
       }
-      if (bytes_avail > 1024 * 128)
-        bytes_avail = 1024 * 128;
+      if (bytes_avail > SFX_MAX_READAHEAD)
+        bytes_avail = SFX_MAX_READAHEAD;
       while (offset <= bytes_avail - 7) {
         if (memcmp(h + offset, RAR_SIGNATURE, 7) == 0)
           return (30);

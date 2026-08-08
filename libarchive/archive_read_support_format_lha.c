@@ -210,6 +210,8 @@ struct lha {
 #define H_LEVEL_OFFSET	20	/* Header Level.  */
 #define H_SIZE		22	/* Minimum header size. */
 
+#define SFX_MAX_READAHEAD	(1024 * 24)
+
 static int      archive_read_format_lha_bid(struct archive_read *, int);
 static int      archive_read_format_lha_options(struct archive_read *,
 		    const char *, const char *);
@@ -361,7 +363,7 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 		/* PE file */
 		offset = 0;
 		window = 4096;
-		while (offset + window <= 1024 * 24) {
+		while (offset + window <= SFX_MAX_READAHEAD) {
 			ssize_t bytes_avail;
 
 			h = __archive_read_ahead(a, offset + window,
@@ -374,8 +376,8 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 				}
 				return (0);
 			}
-			if (bytes_avail > 1024 * 24)
-				bytes_avail = 1024 * 24;
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
 			while (offset <= bytes_avail - H_SIZE) {
 				size_t next = lha_check_header_format(h + offset);
 				if (next == 0)

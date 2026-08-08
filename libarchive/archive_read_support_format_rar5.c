@@ -152,6 +152,8 @@ enum REDIR_TYPE {
 #define	OWNER_GROUP_GID		0x08
 #define	OWNER_MAXNAMELEN	256
 
+#define	SFX_MAX_READAHEAD	(1024 * 512)
+
 enum FILTER_TYPE {
 	FILTER_DELTA = 0,   /* Generic pattern. */
 	FILTER_E8    = 1,   /* Intel x86 code. */
@@ -1130,7 +1132,7 @@ static int bid_sfx(struct archive_read *a)
 
 		rar5_signature(signature);
 
-		while (offset + window <= 1024 * 512) {
+		while (offset + window <= SFX_MAX_READAHEAD) {
 			ssize_t bytes_avail;
 
 			h = __archive_read_ahead(a, offset + window, &bytes_avail);
@@ -1142,8 +1144,8 @@ static int bid_sfx(struct archive_read *a)
 				}
 				return 0;
 			}
-			if (bytes_avail > 1024 * 512)
-				bytes_avail = 1024 * 512;
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
 			while (offset <= bytes_avail - 8) {
 				if (memcmp(h + offset, signature,
 				    sizeof(signature)) == 0)
