@@ -1101,15 +1101,15 @@ static char read_u64(struct archive_read* a, uint64_t* pvalue) {
 }
 
 static int bid_standard(struct archive_read* a) {
-	const uint8_t* p;
+	const uint8_t* h;
 	char signature[sizeof(rar5_signature_xor)];
 
 	rar5_signature(signature);
 
-	if(!read_ahead(a, sizeof(rar5_signature_xor), &p))
+	if(!read_ahead(a, sizeof(rar5_signature_xor), &h))
 		return -1;
 
-	if(!memcmp(signature, p, sizeof(rar5_signature_xor)))
+	if(!memcmp(h, signature, sizeof(rar5_signature_xor)))
 		return 30;
 
 	return -1;
@@ -1117,36 +1117,38 @@ static int bid_standard(struct archive_read* a) {
 
 static int bid_sfx(struct archive_read *a)
 {
-	const char *p;
+	const char *h;
 
-	if ((p = __archive_read_ahead(a, 7, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
 		return -1;
 
-	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
+	if ((h[0] == 'M' && h[1] == 'Z') || memcmp(h, "\x7F\x45LF", 4) == 0) {
 		/* This is a PE file */
 		char signature[sizeof(rar5_signature_xor)];
 		ssize_t offset = 0x10000;
 		ssize_t window = 4096;
-		ssize_t bytes_avail;
 
 		rar5_signature(signature);
 
 		while (offset + window <= (1024 * 512)) {
-			const char *buff = __archive_read_ahead(a, offset + window, &bytes_avail);
-			if (buff == NULL) {
+			ssize_t bytes_avail;
+			const char *p;
+
+			h = __archive_read_ahead(a, offset + window, &bytes_avail);
+			if (h == NULL) {
 				/* Remaining bytes are less than window. */
 				window >>= 1;
 				if (window < 0x40)
 					return 0;
 				continue;
 			}
-			p = buff + offset;
-			while (p + 8 < buff + bytes_avail) {
+			p = h + offset;
+			while (p + 8 < h + bytes_avail) {
 				if (memcmp(p, signature, sizeof(signature)) == 0)
 					return 30;
 				p += 0x10;
 			}
-			offset = p - buff;
+			offset = p - h;
 		}
 	}
 

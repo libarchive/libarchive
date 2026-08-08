@@ -516,18 +516,17 @@ find_cab_magic(const char *p)
 static int
 archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 {
-	const char *p;
-	ssize_t bytes_avail, offset, window;
+	const char *h;
 
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
 	if (best_bid > 64)
 		return (-1);
 
-	if ((p = __archive_read_ahead(a, 8, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, 8, NULL)) == NULL)
 		return (-1);
 
-	if (memcmp(p, "MSCF\0\0\0\0", 8) == 0)
+	if (memcmp(h, "MSCF\0\0\0\0", 8) == 0)
 		return (64);
 
 	/*
@@ -535,11 +534,15 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 	 * by noting a PE header and searching forward
 	 * up to 128k for an 'MSCF' marker.
 	 */
-	if (p[0] == 'M' && p[1] == 'Z') {
+	if (h[0] == 'M' && h[1] == 'Z') {
+		const char *p;
+		ssize_t bytes_avail;
+		ssize_t offset, window;
+
 		offset = 0;
 		window = 4096;
 		while (offset < (1024 * 128)) {
-			const char *h = __archive_read_ahead(a, offset + window,
+			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
 			if (h == NULL) {
 				/* Remaining bytes are less than window. */

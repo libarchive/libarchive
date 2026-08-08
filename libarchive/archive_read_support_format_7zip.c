@@ -529,11 +529,11 @@ archive_read_format_7zip_has_encrypted_entries(struct archive_read *a)
 static int
 get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 {
-	const unsigned char *p;
+	const unsigned char *h;
 	int64_t offset, sfx_offset;
 	int r, window;
 
-	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL) {
+	if ((h = __archive_read_ahead(a, 6, NULL)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated 7-Zip file body");
 		return (ARCHIVE_FATAL);
@@ -541,7 +541,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 
 	/* If first six bytes are the 7-Zip signature,
 	 * return the offset right now. */
-	if (memcmp(p, _7ZIP_SIGNATURE, 6) == 0) {
+	if (memcmp(h, _7ZIP_SIGNATURE, 6) == 0) {
 		*data_offset = 0;
 		return (ARCHIVE_OK);
 	}
@@ -554,9 +554,9 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 	 * performing a seek, get_elf_sfx_offset requires one,
 	 * thus a performance difference between the two is expected. 
 	 */
-	if ((p[0] == 'M' && p[1] == 'Z'))
+	if ((h[0] == 'M' && h[1] == 'Z'))
 		r = get_pe_sfx_offset(a, &sfx_offset);
-	else if (memcmp(p, "\x7F\x45LF", 4) == 0)
+	else if (memcmp(h, "\x7F\x45LF", 4) == 0)
 		r = get_elf_sfx_offset(a, &sfx_offset, compat);
 	else
 		r = ARCHIVE_FATAL;
@@ -567,25 +567,26 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 	window = 4096;
 	while (offset + window <= (sfx_offset + SFX_MAX_OFFSET)) {
 		ssize_t bytes_avail;
-		const unsigned char *buff = __archive_read_ahead(a,
-				offset + window, &bytes_avail);
-		if (buff == NULL) {
+		const unsigned char *p;
+
+		h = __archive_read_ahead(a, offset + window, &bytes_avail);
+		if (h == NULL) {
 			/* Remaining bytes are less than window. */
 			window >>= 1;
 			if (window < 0x40)
 				goto fail;
 			continue;
 		}
-		p = buff + offset;
-		while (buff + bytes_avail - p >= 32) {
+		p = h + offset;
+		while (h + bytes_avail - p >= 32) {
 			size_t step = check_7zip_header_in_sfx(p);
 			if (step == 0) {
-				*data_offset = p - buff;
+				*data_offset = p - h;
 				return (ARCHIVE_OK);
 			}
 			p += step;
 		}
-		offset = p - buff;
+		offset = p - h;
 	}
 fail:
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
