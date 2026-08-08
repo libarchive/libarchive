@@ -166,6 +166,10 @@ struct archive_read {
 	/* Callbacks to open/read/write/close client archive streams. */
 	struct archive_read_client client;
 
+	/* Single seekable source and its physical stream base. */
+	int		  client_fd;
+	int64_t		  client_fd_base;
+
 	/* Registered filter bidders. */
 	struct archive_read_filter_bidder bidders[16];
 
@@ -186,6 +190,9 @@ struct archive_read {
 	 * whether the format reader enforces that itself.
 	 */
 	int64_t		  entry_bytes_declared;
+
+	/* Physical offset of untouched contiguous entry data, else -1. */
+	int64_t		  entry_data_offset;
 
 	/* Nodes and offsets of compressed data block */
 	unsigned int data_start_node;
@@ -261,6 +268,9 @@ int __archive_read_header(struct archive_read *, struct archive_entry *);
 int __archive_read_program(struct archive_read_filter *, const char *);
 void __archive_read_free_filters(struct archive_read *);
 struct archive_read_extract *__archive_read_get_extract(struct archive_read *);
+void __archive_read_set_cloneable(struct archive_read *);
+void __archive_read_set_clone_source(struct archive_read *, int fd,
+    int64_t base);
 
 
 /*

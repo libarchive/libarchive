@@ -599,6 +599,14 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			}
 		}
 	}
+	if ((r == ARCHIVE_OK || r == ARCHIVE_WARN)
+	    && tar->sparse_list != NULL
+	    && tar->sparse_list->next == NULL
+	    && !tar->sparse_list->hole
+	    && tar->sparse_list->offset == 0
+	    && tar->entry_bytes_remaining == archive_entry_size(entry)
+	    && tar->sparse_list->remaining == archive_entry_size(entry))
+		__archive_read_set_cloneable(a);
 	return (r);
 }
 

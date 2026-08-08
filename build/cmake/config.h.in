@@ -414,6 +414,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <copyfile.h> header file. */
 #cmakedefine HAVE_COPYFILE_H 1
 
+/* Define to 1 if you have the `copy_file_range' function. */
+#cmakedefine HAVE_COPY_FILE_RANGE 1
+
 /* Define to 1 if you have the `ctime_r' function. */
 #cmakedefine HAVE_CTIME_R 1
 

@@ -826,7 +826,7 @@ AC_FUNC_VPRINTF
 # workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
 AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
 AC_CHECK_FUNCS([arc4random_buf chflags chown chroot])
-AC_CHECK_FUNCS([closefrom close_range ctime_r])
+AC_CHECK_FUNCS([closefrom close_range copy_file_range ctime_r])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fnmatch fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
