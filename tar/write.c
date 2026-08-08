@@ -719,12 +719,11 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		}
 		if (e)
 			continue;
-		if(edit_pathname(bsdtar, in_entry))
+		if(edit_entry(bsdtar, in_entry))
 			continue;
 		if ((bsdtar->flags & OPTFLAG_INTERACTIVE) &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
 			continue;
-		edit_mtime(bsdtar, in_entry);
 		if (bsdtar->verbose > 1) {
 			safe_fprintf(stderr, "a ");
 			list_item_verbose(bsdtar, stderr, in_entry);
@@ -925,40 +924,11 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 				continue;
 		}
 
-		if (bsdtar->uid >= 0) {
-			archive_entry_set_uid(entry, bsdtar->uid);
-			if (!bsdtar->uname)
-				archive_entry_set_uname(entry,
-				    archive_read_disk_uname(bsdtar->diskreader,
-					bsdtar->uid));
-		}
-		if (bsdtar->gid >= 0) {
-			archive_entry_set_gid(entry, bsdtar->gid);
-			if (!bsdtar->gname)
-				archive_entry_set_gname(entry,
-				    archive_read_disk_gname(bsdtar->diskreader,
-					bsdtar->gid));
-		}
-		if (bsdtar->uname)
-			archive_entry_set_uname(entry, bsdtar->uname);
-		if (bsdtar->gname)
-			archive_entry_set_gname(entry, bsdtar->gname);
-
-		if (bsdtar->file_mode) {
-			mode_t m = archive_entry_mode(entry);
-			m = lafe_getmode(bsdtar->file_mode, m);
-			archive_entry_set_mode(entry, m);
-		}
-
 		/*
-		 * Rewrite the pathname to be archived.  If rewrite
-		 * fails, skip the entry.
+		 * Rewrite entry attributes.  If rewrite fails, skip the entry.
 		 */
-		if (edit_pathname(bsdtar, entry))
+		if (edit_entry(bsdtar, entry))
 			continue;
-
-		/* Rewrite the mtime. */
-		edit_mtime(bsdtar, entry);
 
 		/* Display entry as we process it. */
 		if (bsdtar->verbose > 1) {
