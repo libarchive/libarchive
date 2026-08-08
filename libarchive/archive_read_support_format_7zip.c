@@ -1302,6 +1302,15 @@ ppmd_read(void *p)
 		 * and we are on boundary;
 		 * last resort to read using __archive_read_ahead.
 		 */
+		if (zip->pack_stream_inbytes_remaining <= 0 ||
+		    zip->ppstream.stream_in >=
+		    (uint64_t)zip->pack_stream_inbytes_remaining) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated 7z file data");
+			zip->ppstream.overconsumed = 1;
+			return (0);
+		}
 		const uint8_t *data = __archive_read_ahead(a,
 		    zip->ppstream.stream_in + 1, NULL);
 		if (data == NULL) {
@@ -1939,7 +1948,10 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	if (ret != ARCHIVE_OK && ret != ARCHIVE_EOF)
 		return (ret);
 
-	*used = o_avail_in - t_avail_in;
+	if (zip->codec == _7Z_PPMD)
+		*used = zip->ppstream.stream_in;
+	else
+		*used = o_avail_in - t_avail_in;
 	*outbytes = o_avail_out - t_avail_out;
 
 	/*
