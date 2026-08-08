@@ -149,6 +149,11 @@ archive_read_support_filter_program_signature(struct archive *_a,
 	archive_strcat(&state->description, cmd);
 
 	if (signature != NULL && signature_len > 0) {
+		if (signature_len > (size_t)INT_MAX / 8) {
+			free_state(state);
+			archive_set_error(_a, EINVAL, "Signature too large");
+			return (ARCHIVE_FATAL);
+		}
 		state->signature_len = signature_len;
 		state->signature = malloc(signature_len);
 		if (state->signature == NULL)
