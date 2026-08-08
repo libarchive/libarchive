@@ -1866,7 +1866,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 static time_t
 get_time(int ttime)
 {
-  struct tm tm;
+  struct tm tm = { };
   tm.tm_sec = 2 * (ttime & 0x1f);
   tm.tm_min = (ttime >> 5) & 0x3f;
   tm.tm_hour = (ttime >> 11) & 0x1f;
