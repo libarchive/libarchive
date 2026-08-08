@@ -187,6 +187,8 @@ struct lzx_dec {
 	uint8_t			*w_buff;
 	/* The insert position to the window. */
 	size_t			 w_pos;
+	/* The number of initialized bytes in the window. */
+	size_t			 w_filled;
 	/* The position where we can copy decoded code from the window. */
 	size_t			 copy_pos;
 	/* The length how many bytes we can copy decoded code from
@@ -2251,6 +2253,7 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 	}
 
 	ds->w_pos = 0;
+	ds->w_filled = 0;
 	ds->state = ST_RD_TRANSLATION;
 	ds->br.cache_buffer = 0;
 	ds->br.cache_avail = 0;
@@ -2706,6 +2709,11 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 				strm->avail_out -= l;
 				strm->total_out += l;
 				ds->w_pos = (ds->w_pos + l) & ds->w_mask;
+				if (ds->w_filled < ds->w_size) {
+					ds->w_filled += l;
+					if (ds->w_filled > ds->w_size)
+						ds->w_filled = ds->w_size;
+				}
 				ds->block_bytes_avail -= l;
 			}
 			/* FALL THROUGH */
@@ -2861,6 +2869,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 	uint8_t mt_lookup_bits = mt->lookup_bits;
 	size_t copy_len = ds->copy_len, copy_pos = ds->copy_pos;
 	size_t w_pos = ds->w_pos, w_mask = ds->w_mask, w_size = ds->w_size;
+	size_t w_filled = ds->w_filled;
 	uint8_t length_header = ds->length_header;
 	uint8_t offset_bits = ds->offset_bits;
 	uint16_t position_slot = ds->position_slot;
@@ -2885,6 +2894,7 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 					ds->position_slot = position_slot;
 					ds->r0 = r0; ds->r1 = r1; ds->r2 = r2;
 					ds->w_pos = w_pos;
+					ds->w_filled = w_filled;
 					strm->avail_out = endp - noutp;
 					return (ARCHIVE_EOF);
 				}
@@ -2921,6 +2931,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				 * afterward. */
 				w_buff[w_pos] = c;
 				w_pos = (w_pos + 1) & w_mask;
+				if (w_filled < w_size)
+					w_filled++;
 				/* Store the decoded code to output buffer. */
 				*noutp++ = c;
 				block_bytes_avail--;
@@ -3048,6 +3060,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 			/*
 			 * Compute a real position in window.
 			 */
+			if (copy_pos == 0 || copy_pos > w_filled)
+				goto failed;
 			copy_pos = (w_pos - copy_pos) & w_mask;
 			/* FALL THROUGH */
 		case ST_COPY:
@@ -3085,6 +3099,11 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				noutp += l;
 				copy_pos = (copy_pos + l) & w_mask;
 				w_pos = (w_pos + l) & w_mask;
+				if (w_filled < w_size) {
+					w_filled += l;
+					if (w_filled > w_size)
+						w_filled = w_size;
+				}
 				block_bytes_avail -= l;
 				if (copy_len <= l)
 					/* A copy of current pattern ended. */
@@ -3113,6 +3132,7 @@ next_data:
 	ds->r0 = r0; ds->r1 = r1; ds->r2 = r2;
 	ds->state = state;
 	ds->w_pos = w_pos;
+	ds->w_filled = w_filled;
 	strm->avail_out = endp - noutp;
 	return (ARCHIVE_OK);
 }
