@@ -284,6 +284,7 @@ struct lzx_stream {
 #define MAX_UNCOMPRESS_SIZE	0x8000
 #define MAX_FILE_SIZE		(UINT16_MAX * MAX_UNCOMPRESS_SIZE)
 #define MAX_E8_TRANSLATION	(0x8000 * MAX_UNCOMPRESS_SIZE)
+#define SFX_MAX_READAHEAD	(1024 * 128)
 
 static const char * const compression_name[] = {
 	"NONE",
@@ -490,7 +491,7 @@ archive_read_support_format_cab(struct archive *_a)
 	return (r);
 }
 
-static int
+static size_t
 find_cab_magic(const char *p)
 {
 	switch (p[4]) {
@@ -516,18 +517,17 @@ find_cab_magic(const char *p)
 static int
 archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 {
-	const char *p;
-	ssize_t bytes_avail, offset, window;
+	const char *h;
 
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
 	if (best_bid > 64)
 		return (-1);
 
-	if ((p = __archive_read_ahead(a, 8, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, 8, NULL)) == NULL)
 		return (-1);
 
-	if (memcmp(p, "MSCF\0\0\0\0", 8) == 0)
+	if (memcmp(h, "MSCF\0\0\0\0", 8) == 0)
 		return (64);
 
 	/*
@@ -535,27 +535,31 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 	 * by noting a PE header and searching forward
 	 * up to 128k for an 'MSCF' marker.
 	 */
-	if (p[0] == 'M' && p[1] == 'Z') {
+	if (h[0] == 'M' && h[1] == 'Z') {
+		ssize_t bytes_avail;
+		ssize_t offset, window;
+
 		offset = 0;
 		window = 4096;
-		while (offset < (1024 * 128)) {
-			const char *h = __archive_read_ahead(a, offset + window,
+		while (offset + window <= SFX_MAX_READAHEAD) {
+			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
 			if (h == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < 128)
-					return (0);
-				continue;
+				if (bytes_avail >= offset + 8) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return (0);
 			}
-			p = h + offset;
-			while (p + 8 < h + bytes_avail) {
-				int next;
-				if ((next = find_cab_magic(p)) == 0)
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
+			while (offset <= bytes_avail - 8) {
+				size_t next = find_cab_magic(h + offset);
+				if (next == 0)
 					return (64);
-				p += next;
+				offset += next;
 			}
-			offset = p - h;
 		}
 	}
 	return (0);
@@ -618,8 +622,8 @@ cab_skip_sfx(struct archive_read *a)
 		 * like the cab header.
 		 */
 		while (p + 8 < q) {
-			int next;
-			if ((next = find_cab_magic(p)) == 0) {
+			size_t next = find_cab_magic(p);
+			if (next == 0) {
 				skip = p - h;
 				__archive_read_consume(a, skip);
 				return (ARCHIVE_OK);

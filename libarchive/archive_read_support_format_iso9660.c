@@ -501,7 +501,7 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 {
 	struct iso9660 *iso9660 = a->format->data;
 	ssize_t bytes_read;
-	const unsigned char *p;
+	const unsigned char *h;
 	int seenTerminator;
 
 	/* If there's already a better bid than we can ever
@@ -515,41 +515,41 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	 * if the I/O layer gives us more, we'll take it.
 	 */
 #define RESERVED_AREA	(SYSTEM_AREA_BLOCK * LOGICAL_BLOCK_SIZE)
-	p = __archive_read_ahead(a,
+	h = __archive_read_ahead(a,
 	    RESERVED_AREA + 8 * LOGICAL_BLOCK_SIZE,
 	    &bytes_read);
-	if (p == NULL)
+	if (h == NULL)
 	    return (-1);
 
 	/* Skip the reserved area. */
 	bytes_read -= RESERVED_AREA;
-	p += RESERVED_AREA;
+	h += RESERVED_AREA;
 
 	/* Check each volume descriptor. */
 	seenTerminator = 0;
 	for (; bytes_read > LOGICAL_BLOCK_SIZE;
-	    bytes_read -= LOGICAL_BLOCK_SIZE, p += LOGICAL_BLOCK_SIZE) {
+	    bytes_read -= LOGICAL_BLOCK_SIZE, h += LOGICAL_BLOCK_SIZE) {
 		/* Do not handle undefined Volume Descriptor Type. */
-		if (p[0] >= 4 && p[0] <= 254)
+		if (h[0] >= 4 && h[0] <= 254)
 			return (0);
 		/* Standard Identifier must be "CD001" */
-		if (memcmp(p + 1, "CD001", 5) != 0)
+		if (memcmp(h + 1, "CD001", 5) != 0)
 			return (0);
-		if (isPVD(iso9660, p))
+		if (isPVD(iso9660, h))
 			continue;
 		if (!iso9660->joliet.location) {
-			if (isJolietSVD(iso9660, p))
+			if (isJolietSVD(iso9660, h))
 				continue;
 		}
-		if (isBootRecord(p))
+		if (isBootRecord(h))
 			continue;
-		if (isEVD(p))
+		if (isEVD(h))
 			continue;
-		if (isSVD(p))
+		if (isSVD(h))
 			continue;
-		if (isVolumePartition(iso9660, p))
+		if (isVolumePartition(iso9660, h))
 			continue;
-		if (isVDSetTerminator(p)) {
+		if (isVDSetTerminator(h)) {
 			seenTerminator = 1;
 			break;
 		}
