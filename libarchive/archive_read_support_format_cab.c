@@ -490,7 +490,7 @@ archive_read_support_format_cab(struct archive *_a)
 	return (r);
 }
 
-static int
+static size_t
 find_cab_magic(const char *p)
 {
 	switch (p[4]) {
@@ -550,8 +550,8 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 			}
 			p = h + offset;
 			while (p + 8 < h + bytes_avail) {
-				int next;
-				if ((next = find_cab_magic(p)) == 0)
+				size_t next = find_cab_magic(p);
+				if (next == 0)
 					return (64);
 				p += next;
 			}
@@ -618,8 +618,8 @@ cab_skip_sfx(struct archive_read *a)
 		 * like the cab header.
 		 */
 		while (p + 8 < q) {
-			int next;
-			if ((next = find_cab_magic(p)) == 0) {
+			size_t next = find_cab_magic(p);
+			if (next == 0) {
 				skip = p - h;
 				__archive_read_consume(a, skip);
 				return (ARCHIVE_OK);
