@@ -1130,7 +1130,7 @@ static int bid_sfx(struct archive_read *a)
 
 		rar5_signature(signature);
 
-		while (offset + window <= (1024 * 512)) {
+		while (offset + window <= 1024 * 512) {
 			ssize_t bytes_avail;
 
 			h = __archive_read_ahead(a, offset + window, &bytes_avail);

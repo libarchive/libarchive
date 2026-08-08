@@ -540,7 +540,7 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 
 		offset = 0;
 		window = 4096;
-		while (offset < (1024 * 128)) {
+		while (offset + window <= 1024 * 128) {
 			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
 			if (h == NULL) {

@@ -806,7 +806,7 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
     ssize_t window = 4096;
     ssize_t bytes_avail;
 
-    while (offset + window <= (1024 * 128)) {
+    while (offset + window <= 1024 * 128) {
       h = __archive_read_ahead(a, offset + window, &bytes_avail);
       if (h == NULL) {
         /* Remaining bytes are less than window. */

@@ -361,7 +361,7 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 		/* PE file */
 		offset = 0;
 		window = 4096;
-		while (offset < (1024 * 20)) {
+		while (offset + window <= 1024 * 24) {
 			ssize_t bytes_avail;
 
 			h = __archive_read_ahead(a, offset + window,

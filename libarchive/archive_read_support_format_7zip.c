@@ -565,7 +565,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 
 	offset = sfx_offset;
 	window = 4096;
-	while (offset + window <= (sfx_offset + SFX_MAX_OFFSET)) {
+	while (offset + window <= sfx_offset + SFX_MAX_OFFSET) {
 		ssize_t bytes_avail;
 
 		h = __archive_read_ahead(a, offset + window, &bytes_avail);
