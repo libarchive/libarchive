@@ -570,11 +570,12 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 
 		h = __archive_read_ahead(a, offset + window, &bytes_avail);
 		if (h == NULL) {
-			/* Remaining bytes are less than window. */
-			window >>= 1;
-			if (window < 0x40)
-				goto fail;
-			continue;
+			if (bytes_avail >= offset + 32) {
+				/* Remaining bytes are less than window. */
+				window = bytes_avail - offset;
+				continue;
+			}
+			goto fail;
 		}
 		if (bytes_avail > sfx_offset + SFX_MAX_OFFSET)
 			bytes_avail = sfx_offset + SFX_MAX_OFFSET;

@@ -367,11 +367,12 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
 			if (h == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < (H_SIZE + 3))
-					return (0);
-				continue;
+				if (bytes_avail >= offset + H_SIZE) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return (0);
 			}
 			if (bytes_avail > 1024 * 24)
 				bytes_avail = 1024 * 24;

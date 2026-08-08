@@ -544,11 +544,12 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
 			if (h == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < 128)
-					return (0);
-				continue;
+				if (bytes_avail >= offset + 8) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return (0);
 			}
 			if (bytes_avail > 1024 * 128)
 				bytes_avail = 1024 * 128;

@@ -1135,11 +1135,12 @@ static int bid_sfx(struct archive_read *a)
 
 			h = __archive_read_ahead(a, offset + window, &bytes_avail);
 			if (h == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < 0x40)
-					return 0;
-				continue;
+				if (bytes_avail >= offset + 0x10) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return 0;
 			}
 			if (bytes_avail > 1024 * 512)
 				bytes_avail = 1024 * 512;
