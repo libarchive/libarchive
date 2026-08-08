@@ -829,6 +829,45 @@ test_ppmd(void)
 }
 
 static void
+test_ppmd_small_block(void)
+{
+	const char *refname = "test_read_format_7zip_ppmd_small_block.7z";
+	const void *block;
+	struct archive_entry *ae;
+	struct archive *a;
+	int64_t offset;
+	size_t archive_size, size, total;
+	void *archive_data;
+	int i, r;
+
+	extract_reference_file(refname);
+	archive_data = slurpfile(&archive_size, "%s", refname);
+	assert(archive_data != NULL);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    read_open_memory_seek(a, archive_data, archive_size, 1000));
+
+	for (i = 0; i < 4; i++) {
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+		assertEqualInt(1024, archive_entry_size(ae));
+		total = 0;
+		while ((r = archive_read_data_block(a, &block, &size,
+		    &offset)) == ARCHIVE_OK)
+			total += size;
+		assertEqualIntA(a, ARCHIVE_EOF, r);
+		assertEqualInt(1024, total);
+	}
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(archive_data);
+}
+
+static void
 test_symname(void)
 {
 	const char *refname = "test_read_format_7zip_symbolic_name.7z";
@@ -1146,6 +1185,7 @@ DEFINE_TEST(test_read_format_7zip_lzma2_arm)
 DEFINE_TEST(test_read_format_7zip_ppmd)
 {
 	test_ppmd();
+	test_ppmd_small_block();
 }
 
 static void
