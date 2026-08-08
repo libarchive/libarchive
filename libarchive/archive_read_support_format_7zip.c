@@ -567,7 +567,6 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 	window = 4096;
 	while (offset + window <= (sfx_offset + SFX_MAX_OFFSET)) {
 		ssize_t bytes_avail;
-		const unsigned char *p;
 
 		h = __archive_read_ahead(a, offset + window, &bytes_avail);
 		if (h == NULL) {
@@ -577,16 +576,14 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 				goto fail;
 			continue;
 		}
-		p = h + offset;
-		while (h + bytes_avail - p >= 32) {
-			size_t step = check_7zip_header_in_sfx(p);
+		while (offset <= bytes_avail - 32) {
+			size_t step = check_7zip_header_in_sfx(h + offset);
 			if (step == 0) {
-				*data_offset = p - h;
+				*data_offset = offset;
 				return (ARCHIVE_OK);
 			}
-			p += step;
+			offset += step;
 		}
-		offset = p - h;
 	}
 fail:
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,

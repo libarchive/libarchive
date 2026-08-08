@@ -362,7 +362,6 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 		offset = 0;
 		window = 4096;
 		while (offset < (1024 * 20)) {
-			const char *p;
 			ssize_t bytes_avail;
 
 			h = __archive_read_ahead(a, offset + window,
@@ -374,14 +373,12 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 					return (0);
 				continue;
 			}
-			p = h + offset;
-			while (p + H_SIZE < h + bytes_avail) {
-				size_t next = lha_check_header_format(p);
+			while (offset <= bytes_avail - H_SIZE) {
+				size_t next = lha_check_header_format(h + offset);
 				if (next == 0)
 					return (30);
-				p += next;
+				offset += next;
 			}
-			offset = p - h;
 		}
 	}
 	return (0);

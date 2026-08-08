@@ -805,7 +805,6 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
     ssize_t offset = 0x10000;
     ssize_t window = 4096;
     ssize_t bytes_avail;
-    const char *p;
 
     while (offset + window <= (1024 * 128)) {
       h = __archive_read_ahead(a, offset + window, &bytes_avail);
@@ -816,13 +815,11 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
           return (0);
         continue;
       }
-      p = h + offset;
-      while (p + 7 < h + bytes_avail) {
-        if (memcmp(p, RAR_SIGNATURE, 7) == 0)
+      while (offset <= bytes_avail - 7) {
+        if (memcmp(h + offset, RAR_SIGNATURE, 7) == 0)
           return (30);
-        p += 0x10;
+        offset += 0x10;
       }
-      offset = p - h;
     }
   }
   return (0);

@@ -535,7 +535,6 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 	 * up to 128k for an 'MSCF' marker.
 	 */
 	if (h[0] == 'M' && h[1] == 'Z') {
-		const char *p;
 		ssize_t bytes_avail;
 		ssize_t offset, window;
 
@@ -551,14 +550,12 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 					return (0);
 				continue;
 			}
-			p = h + offset;
-			while (p + 8 < h + bytes_avail) {
-				size_t next = find_cab_magic(p);
+			while (offset <= bytes_avail - 8) {
+				size_t next = find_cab_magic(h + offset);
 				if (next == 0)
 					return (64);
-				p += next;
+				offset += next;
 			}
-			offset = p - h;
 		}
 	}
 	return (0);

@@ -1132,7 +1132,6 @@ static int bid_sfx(struct archive_read *a)
 
 		while (offset + window <= (1024 * 512)) {
 			ssize_t bytes_avail;
-			const char *p;
 
 			h = __archive_read_ahead(a, offset + window, &bytes_avail);
 			if (h == NULL) {
@@ -1142,13 +1141,12 @@ static int bid_sfx(struct archive_read *a)
 					return 0;
 				continue;
 			}
-			p = h + offset;
-			while (p + 8 < h + bytes_avail) {
-				if (memcmp(p, signature, sizeof(signature)) == 0)
+			while (offset <= bytes_avail - 8) {
+				if (memcmp(h + offset, signature,
+				    sizeof(signature)) == 0)
 					return 30;
-				p += 0x10;
+				offset += 0x10;
 			}
-			offset = p - h;
 		}
 	}
 
