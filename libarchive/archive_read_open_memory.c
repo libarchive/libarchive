@@ -84,8 +84,10 @@ archive_read_open_memory2(struct archive *a, const void *buff,
 	archive_read_set_skip_callback(a, memory_read_skip);
 	archive_read_set_close_callback(a, memory_read_close);
 	r = archive_read_set_callback_data(a, mine);
-	if (r < 0)
+	if (r < 0) {
+		free(mine);
 		return (r);
+	}
 	return (archive_read_open1(a));
 }
 
