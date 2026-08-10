@@ -1405,18 +1405,21 @@ static int parse_file_extra_htime(struct archive_read* a,
 	rar5->file.e_atime_ns = rar5->file.e_ctime_ns = rar5->file.e_mtime_ns = 0;
 
 	if(has_mtime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_mtime,
+		int r = parse_htime_item(a, unix_time, &rar5->file.e_mtime,
 		    &rar5->file.e_mtime_ns, extra_data_size);
+		if(r != ARCHIVE_OK) return r;
 	}
 
 	if(has_ctime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_ctime,
+		int r = parse_htime_item(a, unix_time, &rar5->file.e_ctime,
 		    &rar5->file.e_ctime_ns, extra_data_size);
+		if(r != ARCHIVE_OK) return r;
 	}
 
 	if(has_atime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_atime,
+		int r = parse_htime_item(a, unix_time, &rar5->file.e_atime,
 		    &rar5->file.e_atime_ns, extra_data_size);
+		if(r != ARCHIVE_OK) return r;
 	}
 
 	if(has_mtime && has_unix_ns) {

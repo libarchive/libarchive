@@ -1644,3 +1644,19 @@ DEFINE_TEST(test_read_format_rar5_blake2sp_hash_too_short)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_htime_ctime_truncated)
+{
+	/* A crafted HEAD_FILE declares an EX_HTIME extra field with
+	 * HAS_MTIME | HAS_CTIME (Windows timestamps, 8 bytes each) but the
+	 * archive is truncated after the mtime bytes.  The three calls to
+	 * parse_htime_item() previously discarded the return value, so the
+	 * EOF from the truncated ctime read was silently swallowed and the
+	 * reader continued with ARCHIVE_OK.  With the fix it propagates the
+	 * error to the caller. */
+	PROLOGUE("test_read_format_rar5_htime_ctime_truncated.rar");
+
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}
