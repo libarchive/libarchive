@@ -753,8 +753,9 @@ choose_format(struct archive_read *a)
 			bid = (a->format->bid)(a, best_bid);
 			if (bid == ARCHIVE_FATAL)
 				return (ARCHIVE_FATAL);
-			if (a->filter->position != 0)
-				__archive_read_seek(a, 0, SEEK_SET);
+			if (a->filter->position != 0 &&
+			    __archive_read_seek(a, 0, SEEK_SET) < 0)
+				return (ARCHIVE_FATAL);
 			if ((bid > best_bid) || (best_bid_slot < 0)) {
 				best_bid = bid;
 				best_bid_slot = i;
