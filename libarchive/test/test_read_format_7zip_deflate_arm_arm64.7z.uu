@@ -1,3 +1,11 @@
+This archive was created by extracting hw-arm64 from test_read_format_7zip_deflate_arm64.7z.uu
+and hw-gnueabihf from test_read_format_7zip_lzma2_arm.7z.uu and then using 7zip 26.02 to create
+an archive using two different bcj filters for these files:
+
+rm -f libarchive/test/test_read_format_7zip_deflate_arm_arm64.7z
+7z a -m0=ARM64 -m1=Deflate -mhc=off -ms=off libarchive/test/test_read_format_7zip_deflate_arm_arm64.7z hw-arm64 -y
+7z a -m0=ARM -m1=Deflate -mhc=off -ms=off libarchive/test/test_read_format_7zip_deflate_arm_arm64.7z hw-gnueabihf -y
+
 begin 644 test_read_format_7zip_deflate_arm_arm64.7z
 M-WJ\KR<<``1HP7@(`Q,```````">`````````/2RI_CM66<($S$43J[7VKKW
 M'G4/M&Y%47'4O2?J#\_3GGI:V])>W0L';L6)J*B@B#\$-[@'N!!107\H*&[<
