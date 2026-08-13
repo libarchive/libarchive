@@ -107,10 +107,9 @@ DEFINE_TEST(test_read_set_wrong_format)
 
   extract_reference_file(reffile);
   assert((a = archive_read_new()) != NULL);
-  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_RAR));
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_CPIO));
   assertA(0 == archive_read_append_filter(a, ARCHIVE_FILTER_NONE));
   assertA(0 == archive_read_open_filename(a, reffile, 10240));
-
   /* Check that this actually fails, then close the archive. */
   assertA(archive_read_next_header(a, &ae) < (ARCHIVE_WARN));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
