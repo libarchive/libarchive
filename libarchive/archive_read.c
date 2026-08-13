@@ -496,6 +496,8 @@ archive_read_open1(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
+	a->archive.state = ARCHIVE_STATE_OPEN;
+
 	/* Open data source. */
 	if (a->client.opener != NULL) {
 		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
