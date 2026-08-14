@@ -409,6 +409,10 @@ main(int argc, char *argv[])
 			else
 				cpio->format = "cpio";
 		}
+		if (cpio->argc > 0)
+			lafe_errc(1, 0,
+			    "Too many arguments for -o mode (got %d, expected 0)",
+			    cpio->argc);
 		mode_out(cpio);
 		break;
 	case 'i':
@@ -429,6 +433,10 @@ main(int argc, char *argv[])
 		if (*cpio->argv == NULL || **cpio->argv == '\0')
 			lafe_errc(1, 0,
 			    "-p mode requires a target directory");
+		if (cpio->argc > 1)
+			lafe_errc(1, 0,
+			    "Too many arguments for -p mode (got %d, expected 1)",
+			    cpio->argc);
 		mode_pass(cpio, *cpio->argv);
 		break;
 	default:
