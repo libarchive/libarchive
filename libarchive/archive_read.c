@@ -496,19 +496,24 @@ archive_read_open1(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
+	a->archive.state = ARCHIVE_STATE_OPEN;
+
 	/* Open data source. */
 	if (a->client.opener != NULL) {
 		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
-		if (e != 0) {
+		if (e != ARCHIVE_OK) {
 			/* If the open failed, call the closer to clean up. */
 			read_client_close_proxy(a);
+			a->archive.state = ARCHIVE_STATE_FATAL;
 			return (e);
 		}
 	}
 
 	f = calloc(1, sizeof(*f));
-	if (f == NULL)
+	if (f == NULL) {
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
+	}
 	f->bidder = NULL;
 	f->upstream = NULL;
 	f->archive = a;
