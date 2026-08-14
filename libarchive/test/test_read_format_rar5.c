@@ -912,6 +912,20 @@ DEFINE_TEST(test_read_format_rar5_owner)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_owner_name_toolong)
+{
+	/* GH #3066: a crafted HEAD_FILE declares an EX_UOWNER owner user name
+	 * whose length is far larger than the extra field that contains it.
+	 * The reader used to pass that length straight to read_ahead(), which
+	 * attempted a multi-terabyte allocation. It must reject the header
+	 * instead of trying to satisfy the bogus length. */
+	PROLOGUE("test_read_format_rar5_owner_name_toolong.rar");
+
+	assertA(archive_read_next_header(a, &ae) < 0);
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_symlink)
 {
 	const int DATA_SIZE = 5;
