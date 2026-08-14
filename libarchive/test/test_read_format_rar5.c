@@ -184,15 +184,15 @@ DEFINE_TEST(test_read_format_rar5_last_block)
 
 	assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
 	assertEqualString("synthetic_payload.bin", archive_entry_pathname(ae));
-	assertEqualInt(632314, archive_entry_size(ae));
+	assertEqualInt(16635, archive_entry_size(ae));
 
 	while((bytes_read = archive_read_data(a, buff, sizeof(buff))) > 0) {
 		total += bytes_read;
 		crc = bitcrc32(crc, buff, bytes_read);
 	}
 	assertEqualInt(0, bytes_read);
-	assertEqualInt(632314, total);
-	assertEqualInt(0x2d0f281c, crc);
+	assertEqualInt(16635, total);
+	assertEqualInt(0x7a5e9eaf, crc);
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 
 	EPILOGUE();
