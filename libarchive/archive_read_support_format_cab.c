@@ -2934,6 +2934,8 @@ lzx_decode_blocks(struct lzx_stream *strm, int last)
 				if (w_filled < w_size)
 					w_filled++;
 				/* Store the decoded code to output buffer. */
+				if (noutp >= endp)
+					goto next_data;
 				*noutp++ = c;
 				block_bytes_avail--;
 			}
