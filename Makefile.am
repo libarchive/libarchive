@@ -733,6 +733,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_zip_windows_path.c \
 	libarchive/test/test_write_format_zip_zip64.c \
 	libarchive/test/test_write_open_memory.c \
+	libarchive/test/test_write_position.c \
 	libarchive/test/test_write_read_format_zip.c \
 	libarchive/test/test_xattr_clear.c \
 	libarchive/test/test_xattr_platform.c \
