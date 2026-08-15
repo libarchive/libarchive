@@ -1521,7 +1521,7 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 				}
 				/* Move data into newly-enlarged buffer. */
 				if (f->avail > 0)
-					memmove(p, f->next, f->avail);
+					memcpy(p, f->next, f->avail);
 				free(f->buffer);
 				f->next = f->buffer = p;
 				f->buffer_size = s;
