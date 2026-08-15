@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: LicenseRef-PublicDomain
+ *
  * This code is in the public domain and has no copyright.
  *
  * This is a plain C recursive-descent translation of an old

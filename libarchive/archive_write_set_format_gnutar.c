@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
  * Author: Jonas Gastal <jgastal@profusion.mobi>
  * Copyright (c) 2011-2012 Michihiro NAKAJIMA

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: LicenseRef-scancode-bsd-unchanged
+ *
  * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * Copyright (c) 2003-2006 Tim Kientzle
  * All rights reserved.

@@ -1,4 +1,6 @@
 /*
+SPDX-License-Identifier: BSD-2-Clause
+
 xxHash - Fast Hash algorithm
 Copyright (C) 2012-2014, Yann Collet.
 BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)

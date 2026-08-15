@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2004-2013 Tim Kientzle
  * Copyright (c) 2011-2012,2014 Michihiro NAKAJIMA
  * Copyright (c) 2013 Konrad Kleine

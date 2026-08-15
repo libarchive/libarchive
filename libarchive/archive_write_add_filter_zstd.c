@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2017 Sean Purcell
  * Copyright (c) 2023-2024 Klara, Inc.
  * All rights reserved.

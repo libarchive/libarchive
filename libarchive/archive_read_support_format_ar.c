@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: LicenseRef-scancode-bsd-unchanged
+ *
  * Copyright (c) 2007 Kai Wang
  * Copyright (c) 2007 Tim Kientzle
  * All rights reserved.

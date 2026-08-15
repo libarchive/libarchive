@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2008 Anselm Strauss
  * Copyright (c) 2009 Joerg Sonnenberger
  * Copyright (c) 2011-2012,2014 Michihiro NAKAJIMA

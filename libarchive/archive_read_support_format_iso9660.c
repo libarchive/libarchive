@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2009 Andreas Henriksson <andreas@fatal.se>
  * Copyright (c) 2009-2012 Michihiro NAKAJIMA

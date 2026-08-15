@@ -1,4 +1,5 @@
-/* Ppmd8.c -- PPMdI codec
+/* SPDX-License-Identifier: LicenseRef-PublicDomain
+Ppmd8.c -- PPMdI codec
 2016-05-21 : Igor Pavlov : Public domain
 This code is based on PPMd var.I (2002): Dmitry Shkarin : Public domain */
 

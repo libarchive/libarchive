@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * Copyright (c) 2003-2008 Tim Kientzle and Miklos Vajna
  * All rights reserved.
