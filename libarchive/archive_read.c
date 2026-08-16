@@ -195,14 +195,14 @@ client_skip_proxy(struct archive_read_filter *f, int64_t request)
 	if (f->archive->client.skipper != NULL) {
 		int64_t total = 0;
 		for (;;) {
-			int64_t get, ask = request;
+			int64_t get;
 			get = (f->archive->client.skipper)
-				(&f->archive->archive, f->data, ask);
+			    (&f->archive->archive, f->data, request);
+			if (get < 0 || get > request)
+				return (ARCHIVE_FATAL);
 			total += get;
 			if (get == 0 || get == request)
 				return (total);
-			if (get > request)
-				return ARCHIVE_FATAL;
 			request -= get;
 		}
 	} else if (f->archive->client.seeker != NULL
