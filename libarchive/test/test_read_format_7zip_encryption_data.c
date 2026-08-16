@@ -65,5 +65,50 @@ DEFINE_TEST(test_read_format_7zip_encryption_data)
 	/* Close the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Test again with passphrase. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, "12345678"));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW, archive_read_has_encrypted_entries(a));
+
+	/* Verify encrypted file "bar.txt" can be read with correct password. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));
+	assertEqualString("bar.txt", archive_entry_pathname(ae));
+	assertEqualInt(1379073980, archive_entry_mtime(ae));
+	assertEqualInt(4, archive_entry_size(ae));
+	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
+	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
+	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
+	assertEqualInt(4, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(buff, "foo\n", 4);
+
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Close the archive. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Test with incorrect passphrase: reading data should fail. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, "wrongpassword"));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("bar.txt", archive_entry_pathname(ae));
+	/* Decrypting with wrong key produces corrupted stream that fails decompression. */
+	assert(archive_read_data(a, buff, sizeof(buff)) < 0);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
