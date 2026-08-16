@@ -1707,9 +1707,9 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		while (1) {
 			r = client_switch_proxy(f, cursor);
 			if (r != ARCHIVE_OK)
-				return r;
+				goto clear_buffer;
 			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
-				return r;
+				goto clear_buffer;
 			client->dataset[cursor].total_size = r;
 			if (client->dataset[cursor].begin_position +
 			    client->dataset[cursor].total_size - 1 > offset ||
@@ -1721,10 +1721,12 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		}
 		offset -= client->dataset[cursor].begin_position;
 		if (offset < 0
-		    || offset > client->dataset[cursor].total_size)
-			return ARCHIVE_FATAL;
+		    || offset > client->dataset[cursor].total_size) {
+			r = ARCHIVE_FATAL;
+			goto clear_buffer;
+		}
 		if ((r = client_seek_proxy(f, offset, SEEK_SET)) < 0)
-			return r;
+			goto clear_buffer;
 		break;
 
 	case SEEK_END:
@@ -1741,9 +1743,9 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		while (1) {
 			r = client_switch_proxy(f, cursor);
 			if (r != ARCHIVE_OK)
-				return r;
+				goto clear_buffer;
 			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
-				return r;
+				goto clear_buffer;
 			client->dataset[cursor].total_size = r;
 			r = client->dataset[cursor].begin_position +
 				client->dataset[cursor].total_size;
@@ -1764,10 +1766,10 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		}
 		offset = (r + offset) - client->dataset[cursor].begin_position;
 		if ((r = client_switch_proxy(f, cursor)) != ARCHIVE_OK)
-			return r;
+			goto clear_buffer;
 		r = client_seek_proxy(f, offset, SEEK_SET);
 		if (r < ARCHIVE_OK)
-			return r;
+			goto clear_buffer;
 		break;
 
 	default:
@@ -1775,28 +1777,31 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 	}
 	r += client->dataset[cursor].begin_position;
 
+clear_buffer:
+	/*
+	 * Ouch.  Clearing the buffer like this hurts, especially
+	 * at bid time.  A lot of our efficiency at bid time comes
+	 * from having bidders reuse the data we've already read.
+	 *
+	 * TODO: If the seek request is in data we already
+	 * have, then don't call the seek callback.
+	 *
+	 * TODO: Zip seeks to end-of-file at bid time.  If
+	 * other formats also start doing this, we may need to
+	 * find a way for clients to fudge the seek offset to
+	 * a block boundary.
+	 *
+	 * Hmmm... If whence was SEEK_END, we know the file
+	 * size is (r - offset).  Can we use that to simplify
+	 * the TODO items above?
+	*/
+	f->avail = f->client_avail = 0;
+	f->next = f->buffer;
 	if (r >= 0) {
-		/*
-		 * Ouch.  Clearing the buffer like this hurts, especially
-		 * at bid time.  A lot of our efficiency at bid time comes
-		 * from having bidders reuse the data we've already read.
-		 *
-		 * TODO: If the seek request is in data we already
-		 * have, then don't call the seek callback.
-		 *
-		 * TODO: Zip seeks to end-of-file at bid time.  If
-		 * other formats also start doing this, we may need to
-		 * find a way for clients to fudge the seek offset to
-		 * a block boundary.
-		 *
-		 * Hmmm... If whence was SEEK_END, we know the file
-		 * size is (r - offset).  Can we use that to simplify
-		 * the TODO items above?
-		 */
-		f->avail = f->client_avail = 0;
-		f->next = f->buffer;
 		f->position = r;
 		f->end_of_file = 0;
-	}
+	} else
+		f->fatal = 1;
+
 	return r;
 }
