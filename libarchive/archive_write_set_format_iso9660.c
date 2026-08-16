@@ -2816,6 +2816,17 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		pxent = isoent;
 	}
 	file = isoent->file;
+	/*
+	 * A Rockridge relocated ("CL") directory placeholder shares its
+	 * file object with the real directory that was moved to
+	 * "rr_moved", and an earlier directory traversal can advance
+	 * that shared cur_content to NULL.  Restore it to the first
+	 * content, same as set_directory_record() does, so the "PX"
+	 * File Serial Number below is written from valid data instead
+	 * of dereferencing a NULL pointer.
+	 */
+	if (file->cur_content == NULL)
+		file->cur_content = &(file->content);
 
 	if (t != DIR_REC_NORMAL) {
 		rr_flag = RR_USE_PX | RR_USE_TF;
