@@ -172,6 +172,16 @@ typedef int archive_crypto_ctx;
 #define archive_encrypto_aes_ctr_release(ctx) \
   __archive_cryptor.encrypto_aes_ctr_release(ctx)
 
+#define archive_decrypto_aes_cbc_init(ctx, key, key_len, iv, iv_len) \
+  __archive_cryptor.decrypto_aes_cbc_init(ctx, key, key_len, iv, iv_len)
+#define archive_decrypto_aes_cbc_update(ctx, in, in_len, out, out_len) \
+  __archive_cryptor.decrypto_aes_cbc_update(ctx, in, in_len, out, out_len)
+#define archive_decrypto_aes_cbc_release(ctx) \
+  __archive_cryptor.decrypto_aes_cbc_release(ctx)
+
+#define archive_7z_kdf_sha256(pw, salt, salt_len, numCyclesPower, dk, dk_len) \
+  __archive_cryptor.kdf_7z_sha256(pw, salt, salt_len, numCyclesPower, dk, dk_len)
+
 /* Stub return value if no encryption support exists. */
 #define CRYPTOR_STUB_FUNCTION	-2
 
@@ -192,6 +202,18 @@ struct archive_cryptor
   int (*encrypto_aes_ctr_update)(archive_crypto_ctx *, const uint8_t *,
     size_t, uint8_t *, size_t *);
   int (*encrypto_aes_ctr_release)(archive_crypto_ctx *);
+
+  /* AES CBC mode decryption */
+  int (*decrypto_aes_cbc_init)(archive_crypto_ctx *, const uint8_t *key,
+    size_t key_len, const uint8_t *iv, size_t iv_len);
+  int (*decrypto_aes_cbc_update)(archive_crypto_ctx *, const uint8_t *in,
+    size_t in_len, uint8_t *out, size_t *out_len);
+  int (*decrypto_aes_cbc_release)(archive_crypto_ctx *);
+
+  /* 7z SHA-256 KDF */
+  int (*kdf_7z_sha256)(const char *pw, const uint8_t *salt,
+    size_t salt_len, unsigned numCyclesPower, uint8_t *derived_key,
+    size_t derived_key_len);
 };
 
 extern const struct archive_cryptor __archive_cryptor;
