@@ -3881,8 +3881,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 
 	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate zip data");
+		archive_set_error(_a, ENOMEM, "Can't allocate zip data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -3911,7 +3910,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(zip);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -4704,7 +4703,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(zip);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 /*# vim:set noet:*/

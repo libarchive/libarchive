@@ -409,6 +409,10 @@ main(int argc, char *argv[])
 			else
 				cpio->format = "cpio";
 		}
+		if (cpio->argc > 0)
+			lafe_errc(1, 0,
+			    "Too many arguments for -o mode (got %d, expected 0)",
+			    cpio->argc);
 		mode_out(cpio);
 		break;
 	case 'i':
@@ -429,6 +433,10 @@ main(int argc, char *argv[])
 		if (*cpio->argv == NULL || **cpio->argv == '\0')
 			lafe_errc(1, 0,
 			    "-p mode requires a target directory");
+		if (cpio->argc > 1)
+			lafe_errc(1, 0,
+			    "Too many arguments for -p mode (got %d, expected 1)",
+			    cpio->argc);
 		mode_pass(cpio, *cpio->argv);
 		break;
 	default:
@@ -728,12 +736,16 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		return (r);
 	}
 
-	if (cpio->uid_override >= 0)
+	if (cpio->uid_override >= 0) {
 		archive_entry_set_uid(entry, cpio->uid_override);
+		archive_entry_set_uname(entry, NULL);
+	}
 	if (cpio->uname_override != NULL)
 		archive_entry_set_uname(entry, cpio->uname_override);
-	if (cpio->gid_override >= 0)
+	if (cpio->gid_override >= 0) {
 		archive_entry_set_gid(entry, cpio->gid_override);
+		archive_entry_set_gname(entry, NULL);
+	}
 	if (cpio->gname_override != NULL)
 		archive_entry_set_gname(entry, cpio->gname_override);
 
@@ -1160,6 +1172,7 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	const char 		*uname, *gname;
 	FILE			*out = stdout;
 	const char		*fmt;
+	double			 age;
 	time_t			 mtime;
 	static time_t		 now;
 	struct tm		*ltime;
@@ -1199,16 +1212,15 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	mtime = archive_entry_mtime(entry);
+	age = difftime(mtime, now);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Windows' strftime function does not support %e format. */
-	if (mtime - now > 365*86400/2
-		|| mtime - now < -365*86400/2)
+	if (age > 365.0 * 86400 / 2 || age < -365.0 * 86400 / 2)
 		fmt = cpio->day_first ? "%d %b  %Y" : "%b %d  %Y";
 	else
 		fmt = cpio->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
 #else
-	if (mtime - now > 365*86400/2
-		|| mtime - now < -365*86400/2)
+	if (age > 365.0 * 86400 / 2 || age < -365.0 * 86400 / 2)
 		fmt = cpio->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";

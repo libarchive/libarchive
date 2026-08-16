@@ -478,8 +478,7 @@ archive_read_support_format_7zip(struct archive *_a)
 
 	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate 7zip data");
+		archive_set_error(_a, ENOMEM, "Can't allocate 7zip data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -488,7 +487,6 @@ archive_read_support_format_7zip(struct archive *_a)
 	 * any encrypted entries yet.
 	 */
 	zip->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
-
 
 	r = __archive_read_register_format(a,
 	    zip,
@@ -505,7 +503,7 @@ archive_read_support_format_7zip(struct archive *_a)
 
 	if (r != ARCHIVE_OK)
 		free(zip);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -600,9 +598,9 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 {
 	int64_t data_offset;
 
-	/* If someone has already bid more than 32, then avoid
+	/* If someone has already bid more than 48, then avoid
 	   trashing the look-ahead buffers with a seek. */
-	if (best_bid > 32)
+	if (best_bid > 48)
 		return (-1);
 
 	if (get_data_offset(a, &data_offset, 0) < 0)
@@ -1302,6 +1300,15 @@ ppmd_read(void *p)
 		 * and we are on boundary;
 		 * last resort to read using __archive_read_ahead.
 		 */
+		if (zip->pack_stream_inbytes_remaining <= 0 ||
+		    zip->ppstream.stream_in >=
+		    (uint64_t)zip->pack_stream_inbytes_remaining) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated 7z file data");
+			zip->ppstream.overconsumed = 1;
+			return (0);
+		}
 		const uint8_t *data = __archive_read_ahead(a,
 		    zip->ppstream.stream_in + 1, NULL);
 		if (data == NULL) {
@@ -1939,7 +1946,10 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	if (ret != ARCHIVE_OK && ret != ARCHIVE_EOF)
 		return (ret);
 
-	*used = o_avail_in - t_avail_in;
+	if (zip->codec == _7Z_PPMD)
+		*used = zip->ppstream.stream_in;
+	else
+		*used = o_avail_in - t_avail_in;
 	*outbytes = o_avail_out - t_avail_out;
 
 	/*

@@ -496,19 +496,24 @@ archive_read_open1(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
+	a->archive.state = ARCHIVE_STATE_OPEN;
+
 	/* Open data source. */
 	if (a->client.opener != NULL) {
 		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
-		if (e != 0) {
+		if (e != ARCHIVE_OK) {
 			/* If the open failed, call the closer to clean up. */
 			read_client_close_proxy(a);
+			a->archive.state = ARCHIVE_STATE_FATAL;
 			return (e);
 		}
 	}
 
 	f = calloc(1, sizeof(*f));
-	if (f == NULL)
+	if (f == NULL) {
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
+	}
 	f->bidder = NULL;
 	f->upstream = NULL;
 	f->archive = a;
@@ -1003,11 +1008,9 @@ archive_seek_data(struct archive *_a, int64_t offset, int whence)
 	    "archive_seek_data_block");
 
 	if (a->format->seek_data == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "Internal error: "
-		    "No format_seek_data_block function registered");
-		a->archive.state = ARCHIVE_STATE_FATAL;
-		return (ARCHIVE_FATAL);
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Cannot seek data with this format");
+		return (ARCHIVE_FAILED);
 	}
 
 	r = (a->format->seek_data)(a, offset, whence);
@@ -1292,7 +1295,6 @@ __archive_read_register_format(struct archive_read *a,
 int
 __archive_read_register_bidder(struct archive_read *a,
 	void *bidder_data,
-	const char *name,
 	const struct archive_read_filter_bidder_vtable *vtable)
 {
 	struct archive_read_filter_bidder *bidder;
@@ -1309,7 +1311,6 @@ __archive_read_register_bidder(struct archive_read *a,
 		memset(a->bidders + i, 0, sizeof(a->bidders[0]));
 		bidder = (a->bidders + i);
 		bidder->data = bidder_data;
-		bidder->name = name;
 		bidder->vtable = vtable;
 		if (bidder->vtable->bid == NULL || bidder->vtable->init == NULL) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,

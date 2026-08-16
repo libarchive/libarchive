@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020 Martin Matuska
+ * Copyright (c) 2026 Tobias Stoeckmann
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,23 +23,32 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ARCHIVE_WRITE_SET_FORMAT_PRIVATE_H_INCLUDED
-#define ARCHIVE_WRITE_SET_FORMAT_PRIVATE_H_INCLUDED
-
-#ifndef __LIBARCHIVE_BUILD
-#ifndef __LIBARCHIVE_TEST
-#error This header is only to be used internally to libarchive.
-#endif
-#endif
-
 #include "archive.h"
-#include "archive_entry.h"
-#include "archive_string.h"
-#include "archive_write_private.h"
+#include "test.h"
 
-int __archive_write_option_header_charset(struct archive_write *,
-    const char *, const char *, struct archive_string_conv **);
+DEFINE_TEST(test_archive_read_append_filter)
+{
+	struct archive *a;
+	int r;
 
-void __archive_write_entry_filetype_unsupported(struct archive *a,
-    struct archive_entry *entry, const char *format);
-#endif
+	a = archive_read_new();
+	assert(a != NULL);
+
+	/* Append a program bidder (without filter). */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_program(a, "prog1"));
+
+	/* Append a filter program which comes with its own bidder. */
+	r = archive_read_append_filter_program(a, "prog2");
+
+	/* Verify that filter uses its own bidder. */
+	if (r == ARCHIVE_FATAL) {
+		assertEqualStringA(a, "Can't initialize filter; unable to run program \"prog2\"",
+			archive_error_string(a));
+	} else {
+		assertEqualIntA(a, ARCHIVE_OK, r);
+		assertEqualStringA(a, "Program: prog2", archive_filter_name(a, 0));
+	}
+
+	archive_read_free(a);
+}

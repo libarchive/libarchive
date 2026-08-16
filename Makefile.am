@@ -404,6 +404,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_pathmatch_oob.c \
 	libarchive/test/test_archive_read.c \
 	libarchive/test/test_archive_read_add_passphrase.c \
+	libarchive/test/test_archive_read_append_filter.c \
 	libarchive/test/test_archive_read_close_twice.c \
 	libarchive/test/test_archive_read_multiple_data_objects.c \
 	libarchive/test/test_archive_read_next_header_empty.c \
@@ -411,6 +412,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_read_open2.c \
 	libarchive/test/test_archive_read_set_options.c \
 	libarchive/test/test_archive_read_support.c \
+	libarchive/test/test_archive_seek_data_unsupported.c \
 	libarchive/test/test_archive_set_error.c \
 	libarchive/test/test_archive_string.c \
 	libarchive/test/test_archive_string_conversion.c \
@@ -492,6 +494,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_cab_filename.c \
 	libarchive/test/test_read_format_cab_lzx_16bit.c \
 	libarchive/test/test_read_format_cab_lzx_e8.c \
+	libarchive/test/test_read_format_cab_lzx_invalid_history.c \
 	libarchive/test/test_read_format_cab_lzx_oob.c \
 	libarchive/test/test_read_format_cab_mszip_oob.c \
 	libarchive/test/test_read_format_cab_multi.c \
@@ -904,6 +907,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_malformed_numfiles_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
+	libarchive/test/test_read_format_7zip_ppmd_small_block.7z.uu \
 	libarchive/test/test_read_format_7zip_sfx_boundary_elf.elf.uu \
 	libarchive/test/test_read_format_7zip_sfx_boundary_pe.exe.uu \
 	libarchive/test/test_read_format_7zip_sfx_elf.elf.uu \
@@ -925,6 +929,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_filename_cp932.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_16bit.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_e8.cab.uu \
+	libarchive/test/test_read_format_cab_lzx_invalid_history.cab.uu \
+	libarchive/test/test_read_format_cab_lzx_literal_control.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_oob.cab.uu \
 	libarchive/test/test_read_format_cab_multi.p1.cab.uu \
 	libarchive/test/test_read_format_cab_multi.p2.cab.uu \
@@ -1064,6 +1070,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_nonempty_dir_stream.rar.uu \
 	libarchive/test/test_read_format_rar5_dirdata.rar.uu \
 	libarchive/test/test_read_format_rar5_owner.rar.uu \
+	libarchive/test/test_read_format_rar5_owner_name_toolong.rar.uu \
 	libarchive/test/test_read_format_rar5_readtables_overflow.rar.uu \
 	libarchive/test/test_read_format_rar5_sfx.exe.uu \
 	libarchive/test/test_read_format_rar5_solid.rar.uu \
@@ -1214,12 +1221,14 @@ noinst_HEADERS+= \
 	libarchive_fe/lafe_fnmatch.h \
 	libarchive_fe/lafe_getline.h \
 	libarchive_fe/lafe_platform.h \
+	libarchive_fe/lafe_setmode.h \
 	libarchive_fe/line_reader.h \
 	libarchive_fe/passphrase.h
 libarchive_fe_la_SOURCES= \
 	libarchive_fe/lafe_err.c \
 	libarchive_fe/lafe_fnmatch.c \
 	libarchive_fe/lafe_getline.c \
+	libarchive_fe/lafe_setmode.c \
 	libarchive_fe/line_reader.c \
 	libarchive_fe/passphrase.c
 
@@ -1347,6 +1356,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_lz4.c \
 	tar/test/test_option_lzma.c \
 	tar/test/test_option_lzop.c \
+	tar/test/test_option_mode.c \
 	tar/test/test_option_mtime.c \
 	tar/test/test_option_n.c \
 	tar/test/test_option_newer_than.c \

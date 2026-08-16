@@ -150,8 +150,7 @@ archive_read_support_format_warc(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_warc");
 
 	if ((warc = calloc(1, sizeof(*warc))) == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate warc data");
+		archive_set_error(_a, ENOMEM, "Can't allocate warc data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -168,11 +167,9 @@ archive_read_support_format_warc(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(warc);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -552,19 +549,29 @@ time_from_tm(struct tm *t)
         /* Use platform timegm() if available. */
         return (timegm(t));
 #else
+        int64_t days, result;
+
         /* Otherwise, calculate directly using POSIX assumptions. */
         /* First, fix up tm_yday based on the year, month, and day. */
         if (mktime(t) == (time_t)-1)
                 return ((time_t)-1);
         /* Then compute timegm() from first principles. */
-        return (t->tm_sec
-            + t->tm_min * 60
-            + t->tm_hour * 3600
-            + t->tm_yday * 86400
-            + (t->tm_year - 70) * 31536000
-            + ((t->tm_year - 69) / 4) * 86400
-            - ((t->tm_year - 1) / 100) * 86400
-            + ((t->tm_year + 299) / 400) * 86400);
+        days = (int64_t)t->tm_yday
+            + ((int64_t)t->tm_year - 70) * 365
+            + ((int64_t)t->tm_year - 69) / 4
+            - ((int64_t)t->tm_year - 1) / 100
+            + ((int64_t)t->tm_year + 299) / 400;
+        if (archive_ckd_mul_i64(&result, days, 86400) ||
+            archive_ckd_add_i64(&result, result,
+                (int64_t)t->tm_hour * 3600 + t->tm_min * 60
+                + t->tm_sec))
+                return ((time_t)-1);
+        if (result < 0) {
+                if (TIME_MIN == 0 || result < (int64_t)TIME_MIN)
+                        return ((time_t)-1);
+        } else if ((uint64_t)result > (uint64_t)TIME_MAX)
+                return ((time_t)-1);
+        return ((time_t)result);
 #endif
 }
 

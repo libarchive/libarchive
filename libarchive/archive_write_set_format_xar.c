@@ -129,14 +129,20 @@ static int xml_writer_destroy(struct xml_writer *ctx);
 enum sumalg {
 	CKSUM_NONE = 0,
 	CKSUM_SHA1 = 1,
-	CKSUM_MD5 = 2
+	CKSUM_MD5 = 2,
+	CKSUM_SHA256 = 3,
+	CKSUM_SHA512 = 4
 };
 
 #define MD5_SIZE	16
 #define SHA1_SIZE	20
-#define MAX_SUM_SIZE	20
+#define SHA256_SIZE	32
+#define SHA512_SIZE	64
+#define MAX_SUM_SIZE	64
 #define MD5_NAME	"md5"
 #define SHA1_NAME	"sha1"
+#define SHA256_NAME	"sha256"
+#define SHA512_NAME	"sha512"
 
 enum enctype {
 	NONE,
@@ -153,6 +159,12 @@ struct chksumwork {
 #endif
 #ifdef ARCHIVE_HAS_SHA1
 	archive_sha1_ctx	 sha1ctx;
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	archive_sha256_ctx	 sha256ctx;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	archive_sha512_ctx	 sha512ctx;
 #endif
 };
 
@@ -445,6 +457,14 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 			xar->opt_sumalg = CKSUM_SHA1;
 		else if (strcmp(value, "md5") == 0)
 			xar->opt_sumalg = CKSUM_MD5;
+#ifdef ARCHIVE_HAS_SHA256
+		else if (strcmp(value, "sha256") == 0)
+			xar->opt_sumalg = CKSUM_SHA256;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+		else if (strcmp(value, "sha512") == 0)
+			xar->opt_sumalg = CKSUM_SHA512;
+#endif
 		else {
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
@@ -520,6 +540,14 @@ xar_options(struct archive_write *a, const char *key, const char *value)
 			xar->opt_toc_sumalg = CKSUM_SHA1;
 		else if (strcmp(value, "md5") == 0)
 			xar->opt_toc_sumalg = CKSUM_MD5;
+#ifdef ARCHIVE_HAS_SHA256
+		else if (strcmp(value, "sha256") == 0)
+			xar->opt_toc_sumalg = CKSUM_SHA256;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+		else if (strcmp(value, "sha512") == 0)
+			xar->opt_toc_sumalg = CKSUM_SHA512;
+#endif
 		else {
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
@@ -2249,15 +2277,8 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 		archive_strncpy(&(file->symlink), pp, len2);
 		cleanup_backslash(file->symlink.s, file->symlink.length);
 	}
-	/*
-	 * - Count up directory elements.
-	 * - Find out the position which points the last position of
-	 *   path separator('/').
-	 */
-	slash = NULL;
-	for (; *p != '\0'; p++)
-		if (*p == '/')
-			slash = p;
+	/* Find the last path separator. */
+	slash = strrchr(p, '/');
 	if (slash == NULL) {
 		/* The pathname doesn't have a parent directory. */
 		file->parentdir.length = len;
@@ -2649,6 +2670,16 @@ checksum_init(struct chksumwork *sumwrk, enum sumalg sum_alg)
 	case CKSUM_MD5:
 		archive_md5_init(&(sumwrk->md5ctx));
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_init(&(sumwrk->sha256ctx));
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_init(&(sumwrk->sha512ctx));
+		break;
+#endif
 	}
 }
 
@@ -2665,6 +2696,16 @@ checksum_update(struct chksumwork *sumwrk, const void *buff, size_t size)
 	case CKSUM_MD5:
 		archive_md5_update(&(sumwrk->md5ctx), buff, size);
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_update(&(sumwrk->sha256ctx), buff, size);
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_update(&(sumwrk->sha512ctx), buff, size);
+		break;
+#endif
 	}
 }
 
@@ -2684,6 +2725,18 @@ checksum_final(struct chksumwork *sumwrk, struct chksumval *sumval)
 		archive_md5_final(&(sumwrk->md5ctx), sumval->val);
 		sumval->len = MD5_SIZE;
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_final(&(sumwrk->sha256ctx), sumval->val);
+		sumval->len = SHA256_SIZE;
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_final(&(sumwrk->sha512ctx), sumval->val);
+		sumval->len = SHA512_SIZE;
+		break;
+#endif
 	}
 	sumval->alg = sumwrk->alg;
 }
@@ -3311,6 +3364,10 @@ getalgsize(enum sumalg sumalg)
 		return (SHA1_SIZE);
 	case CKSUM_MD5:
 		return (MD5_SIZE);
+	case CKSUM_SHA256:
+		return (SHA256_SIZE);
+	case CKSUM_SHA512:
+		return (SHA512_SIZE);
 	}
 }
 
@@ -3325,6 +3382,10 @@ getalgname(enum sumalg sumalg)
 		return (SHA1_NAME);
 	case CKSUM_MD5:
 		return (MD5_NAME);
+	case CKSUM_SHA256:
+		return (SHA256_NAME);
+	case CKSUM_SHA512:
+		return (SHA512_NAME);
 	}
 }
 

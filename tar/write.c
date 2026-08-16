@@ -59,6 +59,7 @@
 
 #include "bsdtar.h"
 #include "lafe_err.h"
+#include "lafe_setmode.h"
 #include "line_reader.h"
 
 #ifndef O_BINARY
@@ -672,15 +673,16 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	set_reader_options(bsdtar, ina);
 	archive_read_set_options(ina, "mtree:checkfs");
 	if (bsdtar->passphrase != NULL)
-		rc = archive_read_add_passphrase(a, bsdtar->passphrase);
+		rc = archive_read_add_passphrase(ina, bsdtar->passphrase);
 	else
 		rc = archive_read_set_passphrase_callback(ina, bsdtar,
 			&passphrase_callback);
 	if (rc != ARCHIVE_OK)
-		lafe_errc(1, 0, "%s", archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(ina));
 	if (archive_read_open_filename(ina, filename,
 					bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
+		archive_read_free(ina);
 		bsdtar->return_value = 1;
 		return (0);
 	}
@@ -941,6 +943,12 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			archive_entry_set_uname(entry, bsdtar->uname);
 		if (bsdtar->gname)
 			archive_entry_set_gname(entry, bsdtar->gname);
+
+		if (bsdtar->file_mode) {
+			mode_t m = archive_entry_mode(entry);
+			m = lafe_getmode(bsdtar->file_mode, m);
+			archive_entry_set_mode(entry, m);
+		}
 
 		/*
 		 * Rewrite the pathname to be archived.  If rewrite

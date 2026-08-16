@@ -736,7 +736,7 @@ archive_read_support_format_rar(struct archive *_a)
   rar = calloc(1, sizeof(*rar));
   if (rar == NULL)
   {
-    archive_set_error(&a->archive, ENOMEM, "Can't allocate rar data");
+    archive_set_error(_a, ENOMEM, "Can't allocate rar data");
     return (ARCHIVE_FATAL);
   }
 
@@ -747,17 +747,17 @@ archive_read_support_format_rar(struct archive *_a)
   rar->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 
   r = __archive_read_register_format(a,
-                                     rar,
-                                     "rar",
-                                     archive_read_format_rar_bid,
-                                     archive_read_format_rar_options,
-                                     archive_read_format_rar_read_header,
-                                     archive_read_format_rar_read_data,
-                                     archive_read_format_rar_read_data_skip,
-                                     archive_read_format_rar_seek_data,
-                                     archive_read_format_rar_cleanup,
-                                     archive_read_support_format_rar_capabilities,
-                                     archive_read_format_rar_has_encrypted_entries);
+      rar,
+      "rar",
+      archive_read_format_rar_bid,
+      archive_read_format_rar_options,
+      archive_read_format_rar_read_header,
+      archive_read_format_rar_read_data,
+      archive_read_format_rar_read_data_skip,
+      archive_read_format_rar_seek_data,
+      archive_read_format_rar_cleanup,
+      archive_read_support_format_rar_capabilities,
+      archive_read_format_rar_has_encrypted_entries);
 
   if (r != ARCHIVE_OK)
     free(rar);
@@ -1866,7 +1866,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 static time_t
 get_time(int ttime)
 {
-  struct tm tm;
+  struct tm tm = { };
   tm.tm_sec = 2 * (ttime & 0x1f);
   tm.tm_min = (ttime >> 5) & 0x3f;
   tm.tm_hour = (ttime >> 11) & 0x1f;

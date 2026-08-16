@@ -224,8 +224,7 @@ archive_read_support_format_mtree(struct archive *_a)
 
 	mtree = calloc(1, sizeof(*mtree));
 	if (mtree == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate mtree data");
+		archive_set_error(_a, ENOMEM, "Can't allocate mtree data");
 		return (ARCHIVE_FATAL);
 	}
 	mtree->checkfs = 0;
@@ -233,12 +232,22 @@ archive_read_support_format_mtree(struct archive *_a)
 
 	__archive_rb_tree_init(&mtree->rbtree, &rb_ops);
 
-	r = __archive_read_register_format(a, mtree, "mtree",
-           mtree_bid, archive_read_format_mtree_options, read_header, read_data, skip, NULL, cleanup, NULL, NULL);
+	r = __archive_read_register_format(a,
+	    mtree,
+	    "mtree",
+	    mtree_bid,
+	    archive_read_format_mtree_options,
+	    read_header,
+	    read_data,
+	    skip,
+	    NULL,
+	    cleanup,
+	    NULL,
+	    NULL);
 
 	if (r != ARCHIVE_OK)
 		free(mtree);
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -1067,7 +1076,6 @@ static int
 read_header(struct archive_read *a, struct archive_entry *entry)
 {
 	struct mtree *mtree = a->format->data;
-	char *p;
 	int r, use_next;
 
 	if (mtree->fd >= 0) {
@@ -1096,14 +1104,9 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 			mtree->this_entry->used = 1;
 			if (archive_strlen(&mtree->current_dir) > 0) {
 				/* Roll back current path. */
-				p = mtree->current_dir.s
-				    + mtree->current_dir.length - 1;
-				while (p >= mtree->current_dir.s && *p != '/')
-					--p;
-				if (p >= mtree->current_dir.s)
-					--p;
-				mtree->current_dir.length
-				    = p - mtree->current_dir.s + 1;
+				archive_string_dirname(&mtree->current_dir);
+				if (strcmp(mtree->current_dir.s, ".") == 0)
+					archive_string_empty(&mtree->current_dir);
 			}
 		}
 		if (!mtree->this_entry->used) {

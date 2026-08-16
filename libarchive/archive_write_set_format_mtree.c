@@ -1932,15 +1932,8 @@ mtree_entry_setup_filenames(struct archive_write *a, struct mtree_entry *file,
 		len = archive_strlen(&file->parentdir);
 	}
 
-	/*
-	 * Find out the position which points to the last position of
-	 * path separator('/').
-	 */
-	slash = NULL;
-	for (; *p != '\0'; p++) {
-		if (*p == '/')
-			slash = p;
-	}
+	/* Find the last path separator. */
+	slash = strrchr(p, '/');
 	if (slash == NULL) {
 		/* The pathname doesn't have a parent directory. */
 		file->parentdir.length = len;

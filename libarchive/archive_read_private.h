@@ -68,8 +68,6 @@ struct archive_read_filter_bidder_vtable {
 struct archive_read_filter_bidder {
 	/* Configuration data for the bidder. */
 	void *data;
-	/* Name of the filter */
-	const char *name;
 	const struct archive_read_filter_bidder_vtable *vtable;
 };
 
@@ -250,7 +248,6 @@ int	__archive_read_register_format(struct archive_read *a,
 
 int __archive_read_register_bidder(struct archive_read *a,
 		void *bidder_data,
-		const char *name,
 		const struct archive_read_filter_bidder_vtable *vtable);
 
 const void *__archive_read_ahead(struct archive_read *, size_t, ssize_t *);

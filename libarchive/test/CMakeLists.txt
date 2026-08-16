@@ -33,6 +33,7 @@ IF(ENABLE_TEST)
     test_archive_pathmatch_oob.c
     test_archive_read.c
     test_archive_read_add_passphrase.c
+    test_archive_read_append_filter.c
     test_archive_read_close_twice.c
     test_archive_read_multiple_data_objects.c
     test_archive_read_next_header_empty.c
@@ -40,6 +41,7 @@ IF(ENABLE_TEST)
     test_archive_read_open2.c
     test_archive_read_set_options.c
     test_archive_read_support.c
+    test_archive_seek_data_unsupported.c
     test_archive_set_error.c
     test_archive_string.c
     test_archive_string_conversion.c
@@ -121,6 +123,7 @@ IF(ENABLE_TEST)
     test_read_format_cab_filename.c
     test_read_format_cab_lzx_16bit.c
     test_read_format_cab_lzx_e8.c
+    test_read_format_cab_lzx_invalid_history.c
     test_read_format_cab_lzx_oob.c
     test_read_format_cab_mszip_oob.c
     test_read_format_cab_multi.c

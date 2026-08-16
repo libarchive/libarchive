@@ -804,6 +804,7 @@ LA_CHECK_INCLUDE_FILE("sys/select.h" HAVE_SYS_SELECT_H)
 LA_CHECK_INCLUDE_FILE("sys/stat.h" HAVE_SYS_STAT_H)
 LA_CHECK_INCLUDE_FILE("sys/statfs.h" HAVE_SYS_STATFS_H)
 LA_CHECK_INCLUDE_FILE("sys/statvfs.h" HAVE_SYS_STATVFS_H)
+LA_CHECK_INCLUDE_FILE("sys/sysctl.h" HAVE_SYS_SYSCTL_H)
 LA_CHECK_INCLUDE_FILE("sys/sysmacros.h" HAVE_SYS_SYSMACROS_H)
 LA_CHECK_INCLUDE_FILE("sys/time.h" HAVE_SYS_TIME_H)
 LA_CHECK_INCLUDE_FILE("sys/utime.h" HAVE_SYS_UTIME_H)
@@ -1462,6 +1463,17 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fno-builtin")
 ENDIF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
        CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+IF (MSVC)
+  #
+  # The Windows CRT marks a number of standard functions (e.g. wcscpy) as
+  # deprecated. All source files in this project are compiled with those
+  # deprecations suppressed, so suppress these warnings for the following
+  # symbol checks as well. Otherwise, the deprecation warnings get turned into
+  # errors by ENABLE_WERROR's /WX flag and the check fails even when the
+  # function exists.
+  #
+  LIST(APPEND CMAKE_REQUIRED_DEFINITIONS -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_WARNINGS)
+ENDIF (MSVC)
 CHECK_SYMBOL_EXISTS(_CrtSetReportMode "crtdbg.h" HAVE__CrtSetReportMode)
 CHECK_FUNCTION_EXISTS_GLIBC(arc4random_buf HAVE_ARC4RANDOM_BUF)
 CHECK_FUNCTION_EXISTS_GLIBC(chflags HAVE_CHFLAGS)
@@ -2218,7 +2230,10 @@ ENDIF(WIN32 AND NOT CYGWIN AND ENABLE_INSTALL)
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 #
 IF(MSVC)
-  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
+  ADD_DEFINITIONS(
+    -D_CRT_NONSTDC_NO_WARNINGS
+    -D_CRT_SECURE_NO_DEPRECATE
+  )
 ENDIF(MSVC)
 
 OPTION(DONT_FAIL_ON_CRC_ERROR "Ignore CRC errors during parsing (For fuzzing)" OFF)

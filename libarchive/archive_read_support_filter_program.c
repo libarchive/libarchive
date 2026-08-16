@@ -87,7 +87,7 @@ archive_read_support_filter_program(struct archive *a, const char *cmd)
  * bid twice in the same pipeline.
  */
 struct program_bidder {
-	char *description;
+	struct archive_string description;
 	char *cmd;
 	void *signature;
 	size_t signature_len;
@@ -145,8 +145,15 @@ archive_read_support_filter_program_signature(struct archive *_a,
 	state->cmd = strdup(cmd);
 	if (state->cmd == NULL)
 		goto memerr;
+	archive_strcpy(&state->description, "Program: ");
+	archive_strcat(&state->description, cmd);
 
 	if (signature != NULL && signature_len > 0) {
+		if (signature_len > (size_t)INT_MAX / 8) {
+			free_state(state);
+			archive_set_error(_a, EINVAL, "Signature too large");
+			return (ARCHIVE_FATAL);
+		}
 		state->signature_len = signature_len;
 		state->signature = malloc(signature_len);
 		if (state->signature == NULL)
@@ -154,7 +161,7 @@ archive_read_support_filter_program_signature(struct archive *_a,
 		memcpy(state->signature, signature, signature_len);
 	}
 
-	if (__archive_read_register_bidder(a, state, NULL,
+	if (__archive_read_register_bidder(a, state,
 				&program_bidder_vtable) != ARCHIVE_OK) {
 		free_state(state);
 		return (ARCHIVE_FATAL);
@@ -180,6 +187,7 @@ free_state(struct program_bidder *state)
 {
 
 	if (state) {
+		archive_string_free(&state->description);
 		free(state->cmd);
 		free(state->signature);
 		free(state);
@@ -442,9 +450,12 @@ static int
 program_bidder_init(struct archive_read_filter *f)
 {
 	struct program_bidder   *bidder_state;
+	int r;
 
 	bidder_state = (struct program_bidder *)f->bidder->data;
-	return (__archive_read_program(f, bidder_state->cmd));
+	r = __archive_read_program(f, bidder_state->cmd);
+	f->name = bidder_state->description.s;
+	return (r);
 }
 
 static ssize_t

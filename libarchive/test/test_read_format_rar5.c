@@ -912,6 +912,20 @@ DEFINE_TEST(test_read_format_rar5_owner)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_owner_name_toolong)
+{
+	/* GH #3066: a crafted HEAD_FILE declares an EX_UOWNER owner user name
+	 * whose length is far larger than the extra field that contains it.
+	 * The reader used to pass that length straight to read_ahead(), which
+	 * attempted a multi-terabyte allocation. It must reject the header
+	 * instead of trying to satisfy the bogus length. */
+	PROLOGUE("test_read_format_rar5_owner_name_toolong.rar");
+
+	assertA(archive_read_next_header(a, &ae) < 0);
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_symlink)
 {
 	const int DATA_SIZE = 5;
@@ -1585,4 +1599,32 @@ DEFINE_TEST(test_read_format_rar5_unpacked_size_exceeds_declared)
 	assertA(archive_error_string(a) != NULL);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * RAR5 is a streaming unpacker and never implements seeking.
+ * archive_seek_data() on a RAR5 entry must report unsupported via
+ * ARCHIVE_FAILED without poisoning the archive state.  See #3323.
+ */
+DEFINE_TEST(test_read_format_rar5_seek_data_unsupported)
+{
+	const int DATA_SIZE = 1200;
+	uint8_t buff[1200];
+
+	PROLOGUE("test_read_format_rar5_compressed.rar");
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("test.bin", archive_entry_pathname(ae));
+
+	/* Capability probe. */
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_seek_data(a, 0, SEEK_CUR));
+	assertA(archive_error_string(a) != NULL);
+
+	/* Subsequent read must still return the real entry content. */
+	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
+	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+	assertA(1 == verify_data(buff, 0, DATA_SIZE));
+
+	EPILOGUE();
 }

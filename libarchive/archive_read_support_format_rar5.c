@@ -44,6 +44,7 @@
 
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_ppmd7_private.h"
 #include "archive_entry_private.h"
 #include "archive_time_private.h"
@@ -888,16 +889,6 @@ static void reset_file_context(struct rar5 *rar5) {
 	free_filters(rar5);
 }
 
-static inline int get_archive_read(struct archive* a,
-    struct archive_read** ar)
-{
-	*ar = (struct archive_read*) a;
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
-	    "archive_read_support_format_rar5");
-
-	return ARCHIVE_OK;
-}
-
 static int read_ahead(struct archive_read* a, size_t how_many,
     const uint8_t** ptr)
 {
@@ -942,23 +933,30 @@ static int consume(struct archive_read* a, int64_t how_many) {
 static int read_var(struct archive_read* a, uint64_t* pvalue,
     uint64_t* pvalue_len)
 {
+	uint64_t multiplier;
 	uint64_t result = 0;
-	size_t shift, i;
+	size_t i;
 	const uint8_t* p;
-	uint8_t b;
 
-	/* We will read maximum of 8 bytes. We don't have to handle the
+	/* We will read maximum of 10 bytes. We don't have to handle the
 	 * situation to read the RAR5 variable-sized value stored at the end of
 	 * the file, because such situation will never happen. */
-	if(!read_ahead(a, 8, &p))
+	if(!read_ahead(a, 10, &p))
 		return 0;
 
-	for(shift = 0, i = 0; i < 8; i++, shift += 7) {
+	for(multiplier = 1, i = 0; i < 10; i++, multiplier *= 128) {
+		uint64_t val;
+		uint8_t b;
+
 		b = p[i];
 
 		/* Strip the MSB from the input byte and add the resulting
 		 * number to the `result`. */
-		result += (b & (uint64_t)0x7F) << shift;
+		if(archive_ckd_mul_u64(&val, b & 0x7F, multiplier) ||
+		   archive_ckd_add_u64(&result, result, val)) {
+			/* Integer overflow occurred. */
+			return 0;
+		}
 
 		/* MSB set to 1 means we need to continue decoding process.
 		 * MSB set to 0 means we're done.
@@ -992,22 +990,8 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
 		}
 	}
 
-	/* The decoded value takes the maximum number of 8 bytes.
-	 * It's a maximum number of bytes, so end decoding process here
-	 * even if the first bit of last byte is 1. */
-	if(pvalue) {
-		*pvalue = result;
-	}
-
-	if(pvalue_len) {
-		*pvalue_len = 9;
-	} else {
-		if(ARCHIVE_OK != consume(a, 9)) {
-			return 0;
-		}
-	}
-
-	return 1;
+	/* All continuation bits were set. This is an error. */
+	return 0;
 }
 
 static int read_var_sized(struct archive_read* a, size_t* pvalue,
@@ -1548,6 +1532,16 @@ static int parse_file_extra_owner(struct archive_read* a,
 	if ((flags & OWNER_USER_NAME) != 0) {
 		if(!read_var_sized(a, &name_size, NULL))
 			return ARCHIVE_EOF;
+
+		/* The name cannot be larger than the remaining extra data of
+		 * this field. Rejecting an oversized length here also avoids
+		 * requesting a huge allocation from read_ahead() below. */
+		if(*extra_data_size < 0 ||
+		    name_size > (uint64_t)*extra_data_size) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT, "Owner name is too long");
+			return ARCHIVE_FATAL;
+		}
 		*extra_data_size -= name_size + 1;
 
 		if(!read_ahead(a, name_size, &p))
@@ -1569,6 +1563,13 @@ static int parse_file_extra_owner(struct archive_read* a,
 	if ((flags & OWNER_GROUP_NAME) != 0) {
 		if(!read_var_sized(a, &name_size, NULL))
 			return ARCHIVE_EOF;
+
+		if(*extra_data_size < 0 ||
+		    name_size > (uint64_t)*extra_data_size) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT, "Group name is too long");
+			return ARCHIVE_FATAL;
+		}
 		*extra_data_size -= name_size + 1;
 
 		if(!read_ahead(a, name_size, &p))
@@ -4396,13 +4397,15 @@ static int rar5_read_data_skip(struct archive_read *a) {
 static int64_t rar5_seek_data(struct archive_read *a, int64_t offset,
     int whence)
 {
-	(void) a;
 	(void) offset;
 	(void) whence;
 
-	/* We're a streaming unpacker, and we don't support seeking. */
+	/* We're a streaming unpacker, and we don't support seeking.
+	 * That's a capability gap, not a fatal error. */
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "Seeking of RAR5 files is unsupported");
 
-	return ARCHIVE_FATAL;
+	return (ARCHIVE_FAILED);
 }
 
 static int rar5_cleanup(struct archive_read *a) {
@@ -4462,12 +4465,12 @@ static void rar5_deinit(struct rar5 *rar5) {
 }
 
 int archive_read_support_format_rar5(struct archive *_a) {
-	struct archive_read* ar;
-	int ret;
+	struct archive_read* ar = (struct archive_read*)_a;
 	struct rar5 *rar5;
+	int r;
 
-	if(ARCHIVE_OK != (ret = get_archive_read(_a, &ar)))
-		return ret;
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "archive_read_support_format_rar5");
 
 	rar5 = malloc(sizeof(*rar5));
 	if(rar5 == NULL) {
@@ -4483,7 +4486,7 @@ int archive_read_support_format_rar5(struct archive *_a) {
 		return ARCHIVE_FATAL;
 	}
 
-	ret = __archive_read_register_format(ar,
+	r = __archive_read_register_format(ar,
 	    rar5,
 	    "rar5",
 	    rar5_bid,
@@ -4496,10 +4499,9 @@ int archive_read_support_format_rar5(struct archive *_a) {
 	    rar5_capabilities,
 	    rar5_has_encrypted_entries);
 
-	if(ret != ARCHIVE_OK) {
+	if(r != ARCHIVE_OK) {
 		rar5_deinit(rar5);
 		free(rar5);
 	}
-
-	return ARCHIVE_OK;
+	return r;
 }
