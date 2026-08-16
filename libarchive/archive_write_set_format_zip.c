@@ -75,9 +75,7 @@
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
-#ifndef HAVE_ZLIB_H
-#include "archive_crc32.h"
-#endif
+
 
 #define ZIP_ENTRY_FLAG_ENCRYPTED	(1 << 0)
 #define ZIP_ENTRY_FLAG_LZMA_EOPM	(1 << 1)
@@ -322,7 +320,7 @@ cd_alloc(struct zip *zip, size_t length)
 static unsigned long
 real_crc32(unsigned long crc, const void *buff, size_t len)
 {
-	return crc32(crc, buff, (unsigned int)len);
+	return __archive_crc32(crc, buff, (unsigned int)len);
 }
 
 static unsigned long
@@ -2338,7 +2336,7 @@ static void
 trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
 {
 	uint8_t t;
-#define CRC32(c, b) (crc32(c ^ 0xffffffffUL, &b, 1) ^ 0xffffffffUL)
+#define CRC32(c, b) (__archive_crc32(c ^ 0xffffffffUL, &b, 1) ^ 0xffffffffUL)
 
 	ctx->keys[0] = CRC32(ctx->keys[0], c);
 	ctx->keys[1] = (ctx->keys[1] + (ctx->keys[0] & 0xff)) * 134775813L + 1;

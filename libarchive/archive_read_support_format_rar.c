@@ -36,9 +36,7 @@
 #endif
 
 #include "archive.h"
-#ifndef HAVE_ZLIB_H
-#include "archive_crc32.h"
-#endif
+
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
@@ -1005,7 +1003,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         return (ARCHIVE_FATAL);
       }
 
-      crc32_val = crc32(0, (const unsigned char *)p + 2, (unsigned)skip - 2);
+      crc32_val = __archive_crc32(0, (const unsigned char *)p + 2, (unsigned)skip - 2);
       if ((crc32_val & 0xffff) != archive_le16dec(p)) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1064,7 +1062,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
           return (ARCHIVE_FATAL);
         }
         p = h;
-        crc32_val = crc32(crc32_val, (const unsigned char *)p, to_read);
+        crc32_val = __archive_crc32(crc32_val, (const unsigned char *)p, to_read);
         __archive_read_consume(a, to_read);
         skip -= to_read;
       }
@@ -1403,7 +1401,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
       "Invalid header size");
     return (ARCHIVE_FATAL);
   }
-  crc32_computed = crc32(0, (const unsigned char *)p + 2, 7 - 2);
+  crc32_computed = __archive_crc32(0, (const unsigned char *)p + 2, 7 - 2);
   __archive_read_consume(a, 7);
 
   if (!(rar->file_flags & FHD_SOLID))
@@ -1441,7 +1439,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   }
 
   /* File Header CRC check. */
-  crc32_computed = crc32(crc32_computed, h, (unsigned)(header_size - 7));
+  crc32_computed = __archive_crc32(crc32_computed, h, (unsigned)(header_size - 7));
   crc32_read = archive_le16dec(rar_header.crc);
   if ((crc32_computed & 0xffff) != crc32_read) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
@@ -2037,7 +2035,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
   rar->bytes_remaining -= bytes_avail;
   rar->bytes_unconsumed = bytes_avail;
   /* Calculate File CRC. */
-  rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+  rar->crc_calculated = __archive_crc32(rar->crc_calculated, *buff,
     (unsigned)bytes_avail);
   return (ARCHIVE_OK);
 }
@@ -2096,7 +2094,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         *offset = rar->offset_outgoing;
         rar->offset_outgoing += *size;
         /* Calculate File CRC. */
-        rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+        rar->crc_calculated = __archive_crc32(rar->crc_calculated, *buff,
           (unsigned)*size);
         rar->unp_offset = 0;
         return (ARCHIVE_OK);
@@ -2132,7 +2130,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         *offset = rar->offset_outgoing;
         rar->offset_outgoing += *size;
         /* Calculate File CRC. */
-        rar->crc_calculated = crc32(rar->crc_calculated, *buff,
+        rar->crc_calculated = __archive_crc32(rar->crc_calculated, *buff,
           (unsigned)*size);
         return (ret);
       }
@@ -2291,7 +2289,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
   rar->offset_outgoing += *size;
 ending_block:
   /* Calculate File CRC. */
-  rar->crc_calculated = crc32(rar->crc_calculated, *buff, (unsigned)*size);
+  rar->crc_calculated = __archive_crc32(rar->crc_calculated, *buff, (unsigned)*size);
   return ret;
 }
 
@@ -3554,7 +3552,7 @@ compile_program(const uint8_t *bytes, size_t length)
   prog = calloc(1, sizeof(*prog));
   if (!prog)
     return NULL;
-  prog->fingerprint = crc32(0, bytes, (unsigned int)length) | ((uint64_t)length << 32);
+  prog->fingerprint = __archive_crc32(0, bytes, (unsigned int)length) | ((uint64_t)length << 32);
 
   if (membr_bits(&br, 1))
   {
