@@ -90,6 +90,7 @@ IF(ENABLE_TEST)
     test_open_filename.c
     test_pax_filename_encoding.c
     test_pax_xattr_header.c
+    test_read_data_into_fd_clone.c
     test_read_data_into_fd_size_exceeds_declared.c
     test_read_data_large.c
     test_read_disk.c
@@ -396,4 +397,3 @@ IF(ENABLE_TEST)
 	COMMAND	libarchive_test -r ${CMAKE_CURRENT_SOURCE_DIR} -vv)
   ADD_DEPENDENCIES(run_all_tests run_libarchive_test)
 ENDIF(ENABLE_TEST)
-

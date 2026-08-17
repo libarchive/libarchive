@@ -462,6 +462,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_open_filename.c \
 	libarchive/test/test_pax_filename_encoding.c \
 	libarchive/test/test_pax_xattr_header.c \
+	libarchive/test/test_read_data_into_fd_clone.c \
 	libarchive/test/test_read_data_into_fd_size_exceeds_declared.c \
 	libarchive/test/test_read_data_large.c \
 	libarchive/test/test_read_disk.c \
@@ -758,6 +759,7 @@ libarchive/test/list.h: $(libarchive_test_SOURCES)
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
 
 libarchive_test_EXTRA_DIST=\
+	libarchive/test/test_clone.h \
 	libarchive/test/list.h \
 	libarchive/test/test_fuzz_consumer.h \
 	libarchive/test/test_acl_pax_posix1e.tar.uu \

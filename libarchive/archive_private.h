@@ -186,6 +186,7 @@ int	__archive_check_magic(struct archive *, unsigned int magic,
 __LA_NORETURN void	__archive_errx(int retvalue, const char *msg);
 
 void	__archive_ensure_cloexec_flag(int fd);
+int	__archive_copy_file_range_unsupported(int errnum);
 int	__archive_get_tempdir(struct archive_string *);
 int	__archive_mktemp(const char *tmpdir);
 #if defined(_WIN32) && !defined(__CYGWIN__)

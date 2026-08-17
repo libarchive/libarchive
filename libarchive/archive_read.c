@@ -102,6 +102,8 @@ archive_read_new(void)
 	a->archive.magic = ARCHIVE_READ_MAGIC;
 
 	a->archive.state = ARCHIVE_STATE_NEW;
+	a->client_fd = -1;
+	a->entry_data_offset = -1;
 	a->entry = archive_entry_new2(&a->archive);
 	if (a->entry == NULL) {
 		free(a);
@@ -240,6 +242,10 @@ client_seek_proxy(struct archive_read_filter *f, int64_t offset, int whence)
 		archive_set_error(&f->archive->archive, ARCHIVE_ERRNO_MISC,
 		    "Current client reader does not support seeking a device");
 		return (ARCHIVE_FAILED);
+	}
+	if (f->archive->client_fd_base != 0) {
+		f->archive->client_fd = -1;
+		f->archive->entry_data_offset = -1;
 	}
 	return (f->archive->client.seeker)(&f->archive->archive,
 	    f->data, offset, whence);
@@ -674,6 +680,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	a->header_position = a->filter->position;
 
 	++_a->file_count;
+	a->entry_data_offset = -1;
 	r2 = (a->format->read_header)(a, entry);
 
 	/*
@@ -711,11 +718,16 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
-	if (r2 == ARCHIVE_OK || r2 == ARCHIVE_WARN)
+	if (r2 == ARCHIVE_OK || r2 == ARCHIVE_WARN) {
 		a->entry_bytes_declared = archive_entry_size_is_set(entry)
 		    ? archive_entry_size(entry) : -1;
-	else
+		if (archive_entry_filetype(entry) != AE_IFREG
+		    || archive_entry_sparse_count(entry) != 0
+		    || archive_entry_is_data_encrypted(entry))
+			a->entry_data_offset = -1;
+	} else {
 		a->entry_bytes_declared = -1;
+	}
 
 	__archive_reset_read_data(&a->archive);
 
@@ -733,6 +745,25 @@ _archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 	ret = _archive_read_next_header2(_a, a->entry);
 	*entryp = a->entry;
 	return ret;
+}
+
+void
+__archive_read_set_cloneable(struct archive_read *a)
+{
+	if (a->client_fd >= 0
+	    && a->filter->upstream == NULL
+	    && a->filter->position <= INT64_MAX - a->client_fd_base)
+		a->entry_data_offset = a->client_fd_base + a->filter->position;
+}
+
+/* base is the physical offset corresponding to stream position zero. */
+void
+__archive_read_set_clone_source(struct archive_read *a, int fd, int64_t base)
+{
+	if (fd < 0 || base < 0)
+		return;
+	a->client_fd = fd;
+	a->client_fd_base = base;
 }
 
 /*
@@ -1014,6 +1045,7 @@ archive_seek_data(struct archive *_a, int64_t offset, int whence)
 		return (ARCHIVE_FAILED);
 	}
 
+	a->entry_data_offset = -1;
 	r = (a->format->seek_data)(a, offset, whence);
 	if (r == ARCHIVE_FATAL)
 		a->archive.state = ARCHIVE_STATE_FATAL;
@@ -1046,6 +1078,7 @@ _archive_read_data_block(struct archive *_a,
 		return (ARCHIVE_FATAL);
 	}
 
+	a->entry_data_offset = -1;
 	r = (a->format->read_data)(a, buff, size, offset);
 	if (r == ARCHIVE_FATAL)
 		a->archive.state = ARCHIVE_STATE_FATAL;

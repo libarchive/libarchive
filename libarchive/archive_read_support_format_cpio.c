@@ -462,6 +462,9 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		return (ARCHIVE_FATAL);
 	}
 
+	if (cpio->entry_bytes_remaining == archive_entry_size(entry))
+		__archive_read_set_cloneable(a);
+
 	return (r);
 }
 
