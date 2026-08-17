@@ -58,7 +58,7 @@
 #include "archive_rb.h"
 #include "archive_write_private.h"
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__) || defined(__wasi__)
 #define getuid()			0
 #define getgid()			0
 #endif
