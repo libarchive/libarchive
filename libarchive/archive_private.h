@@ -208,4 +208,6 @@ void __archive_reset_read_data(struct archive *);
 # define	ARCHIVE_LITERAL_ULL(x)	x##ull
 #endif
 
+unsigned long __archive_crc32(unsigned long crc, const void *p, size_t len);
+
 #endif

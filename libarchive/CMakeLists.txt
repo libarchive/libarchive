@@ -22,7 +22,7 @@ SET(libarchive_SOURCES
   archive_check_magic.c
   archive_cmdline.c
   archive_cmdline_private.h
-  archive_crc32.h
+  archive_crc32.c
   archive_cryptor.c
   archive_cryptor_private.h
   archive_digest.c

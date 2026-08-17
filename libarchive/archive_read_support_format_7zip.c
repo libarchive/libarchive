@@ -60,9 +60,7 @@
 #include "archive_time_private.h"
 #include "archive_endian.h"
 
-#ifndef HAVE_ZLIB_H
-#include "archive_crc32.h"
-#endif
+
 
 #define _7ZIP_SIGNATURE	"7z\xBC\xAF\x27\x1C"
 #define SFX_MIN_ADDR	0x27000
@@ -621,7 +619,7 @@ check_7zip_header_in_sfx(const unsigned char *p)
 		 * Magic Code, so we should do this in order not to
 		 * make a mis-detection.
 		 */
-		if (crc32(0, p + 12, 20) != archive_le32dec(p + 8))
+		if (__archive_crc32(0, p + 12, 20) != archive_le32dec(p + 8))
 			return (6);
 		/* Hit the header! */
 		return (0);
@@ -1133,7 +1131,7 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 
 	/* Update checksum */
 	if ((zip->entry->flg & CRC32_IS_SET) && bytes)
-		zip->entry_crc32 = crc32(zip->entry_crc32, *buff,
+		zip->entry_crc32 = __archive_crc32(zip->entry_crc32, *buff,
 		    (unsigned)bytes);
 
 	/* If we hit the end, swallow any end-of-data marker. */
@@ -3277,7 +3275,7 @@ header_bytes(struct archive_read *a, size_t rbytes)
 	}
 
 	/* Update checksum */
-	zip->header_crc32 = crc32(zip->header_crc32, p, (unsigned)rbytes);
+	zip->header_crc32 = __archive_crc32(zip->header_crc32, p, (unsigned)rbytes);
 	return (p);
 }
 
@@ -3316,7 +3314,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	}
 
 	/* CRC check. */
-	if (crc32(0, p + 12, 20)
+	if (__archive_crc32(0, p + 12, 20)
 	    != archive_le32dec(p + 8)) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, -1, "Header CRC error");

@@ -108,7 +108,7 @@ include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 noinst_HEADERS= \
 	libarchive/archive_acl_private.h \
 	libarchive/archive_cmdline_private.h \
-	libarchive/archive_crc32.h \
+	libarchive/archive_crc32.c \
 	libarchive/archive_cryptor_private.h \
 	libarchive/archive_digest_private.h \
 	libarchive/archive_endian.h \
@@ -148,6 +148,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_acl.c \
 	libarchive/archive_check_magic.c \
 	libarchive/archive_cmdline.c \
+	libarchive/archive_crc32.c \
 	libarchive/archive_cryptor.c \
 	libarchive/archive_digest.c \
 	libarchive/archive_entry.c \
@@ -382,6 +383,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/read_open_memory.c \
 	libarchive/test/test_7zip_filename_encoding.c \
 	libarchive/test/test_acl_from_text_overread.c \
+	libarchive/test/test_archive_crc32.c \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_nfs4_null_id_overflow.c \
 	libarchive/test/test_acl_nfs4_text.c \
