@@ -150,6 +150,8 @@ enum REDIR_TYPE {
 #define	OWNER_GROUP_GID		0x08
 #define	OWNER_MAXNAMELEN	256
 
+#define	SFX_MAX_READAHEAD	(1024 * 512)
+
 enum FILTER_TYPE {
 	FILTER_DELTA = 0,   /* Generic pattern. */
 	FILTER_E8    = 1,   /* Intel x86 code. */
@@ -1099,15 +1101,15 @@ static char read_u64(struct archive_read* a, uint64_t* pvalue) {
 }
 
 static int bid_standard(struct archive_read* a) {
-	const uint8_t* p;
+	const uint8_t* h;
 	char signature[sizeof(rar5_signature_xor)];
 
 	rar5_signature(signature);
 
-	if(!read_ahead(a, sizeof(rar5_signature_xor), &p))
+	if(!read_ahead(a, sizeof(rar5_signature_xor), &h))
 		return -1;
 
-	if(!memcmp(signature, p, sizeof(rar5_signature_xor)))
+	if(!memcmp(h, signature, sizeof(rar5_signature_xor)))
 		return 30;
 
 	return -1;
@@ -1115,36 +1117,39 @@ static int bid_standard(struct archive_read* a) {
 
 static int bid_sfx(struct archive_read *a)
 {
-	const char *p;
+	const char *h;
 
-	if ((p = __archive_read_ahead(a, 7, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
 		return -1;
 
-	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
+	if ((h[0] == 'M' && h[1] == 'Z') || memcmp(h, "\x7F\x45LF", 4) == 0) {
 		/* This is a PE file */
 		char signature[sizeof(rar5_signature_xor)];
 		ssize_t offset = 0x10000;
 		ssize_t window = 4096;
-		ssize_t bytes_avail;
 
 		rar5_signature(signature);
 
-		while (offset + window <= (1024 * 512)) {
-			const char *buff = __archive_read_ahead(a, offset + window, &bytes_avail);
-			if (buff == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < 0x40)
-					return 0;
-				continue;
+		while (offset + window <= SFX_MAX_READAHEAD) {
+			ssize_t bytes_avail;
+
+			h = __archive_read_ahead(a, offset + window, &bytes_avail);
+			if (h == NULL) {
+				if (bytes_avail >= offset + 0x10) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return 0;
 			}
-			p = buff + offset;
-			while (p + 8 < buff + bytes_avail) {
-				if (memcmp(p, signature, sizeof(signature)) == 0)
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
+			while (offset <= bytes_avail - 8) {
+				if (memcmp(h + offset, signature,
+				    sizeof(signature)) == 0)
 					return 30;
-				p += 0x10;
+				offset += 0x10;
 			}
-			offset = p - buff;
 		}
 	}
 
