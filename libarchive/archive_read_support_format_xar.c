@@ -506,7 +506,7 @@ xar_bid(struct archive_read *a, int best_bid)
 
 	h = __archive_read_ahead(a, HEADER_SIZE, NULL);
 	if (h == NULL)
-		return (-1);
+		return (0);
 
 	bid = 0;
 	/*

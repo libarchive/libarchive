@@ -507,7 +507,7 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
 	if (best_bid > 48)
-		return (-1);
+		return (ARCHIVE_FAILED);
 
 	/*
 	 * Skip the first 32k (reserved area) and get the first
@@ -519,7 +519,7 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	    RESERVED_AREA + 8 * LOGICAL_BLOCK_SIZE,
 	    &bytes_read);
 	if (h == NULL)
-	    return (-1);
+	    return (ARCHIVE_FAILED);
 
 	/* Skip the reserved area. */
 	bytes_read -= RESERVED_AREA;
@@ -531,10 +531,10 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	    bytes_read -= LOGICAL_BLOCK_SIZE, h += LOGICAL_BLOCK_SIZE) {
 		/* Do not handle undefined Volume Descriptor Type. */
 		if (h[0] >= 4 && h[0] <= 254)
-			return (0);
+			return (ARCHIVE_FAILED);
 		/* Standard Identifier must be "CD001" */
 		if (memcmp(h + 1, "CD001", 5) != 0)
-			return (0);
+			return (ARCHIVE_FAILED);
 		if (isPVD(iso9660, h))
 			continue;
 		if (!iso9660->joliet.location) {
@@ -553,7 +553,7 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 			seenTerminator = 1;
 			break;
 		}
-		return (0);
+		return (ARCHIVE_FAILED);
 	}
 	/*
 	 * ISO 9660 format must have Primary Volume Descriptor and
@@ -562,8 +562,8 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	if (seenTerminator && iso9660->primary.location > 16)
 		return (48);
 
-	/* We didn't find a valid PVD; return a bid of zero. */
-	return (0);
+	/* We didn't find a valid PVD; return a failure. */
+	return (ARCHIVE_FAILED);
 }
 
 static int

@@ -601,7 +601,7 @@ archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 	/* If someone has already bid more than 48, then avoid
 	   trashing the look-ahead buffers with a seek. */
 	if (best_bid > 48)
-		return (-1);
+		return (0);
 
 	if (get_data_offset(a, &data_offset, 0) < 0)
 		return (0);

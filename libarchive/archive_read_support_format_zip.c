@@ -3948,16 +3948,16 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 
 	/* This must be the first volume. */
 	if (disk_num != 0)
-		return 0;
+		return (ARCHIVE_FAILED);
 	/* Central directory must be on this volume. */
 	if (disk_num != archive_le16dec(p + 6))
-		return 0;
+		return (ARCHIVE_FAILED);
 	/* All central directory entries must be on this volume. */
 	if (archive_le16dec(p + 10) != archive_le16dec(p + 8))
-		return 0;
+		return (ARCHIVE_FAILED);
 	/* Central directory can't extend beyond start of EOCD record. */
 	if ((int64_t)cd_offset + cd_size > current_offset)
-		return 0;
+		return (ARCHIVE_FAILED);
 
 	/* Save the central directory location for later use. */
 	zip->central_directory_offset = cd_offset;
@@ -3984,32 +3984,32 @@ read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 
 	/* Central dir must be on first volume. */
 	if (archive_le32dec(p + 4) != 0)
-		return 0;
+		return (ARCHIVE_FAILED);
 	/* Must be only a single volume. */
 	if (archive_le32dec(p + 16) != 1)
-		return 0;
+		return (ARCHIVE_FAILED);
 
 	/* Find the Zip64 EOCD record. */
 	eocd64_offset = archive_le64dec(p + 8);
 	if (__archive_read_seek(a, eocd64_offset, SEEK_SET) < 0)
-		return 0;
+		return (ARCHIVE_FAILED);
 	if ((p = __archive_read_ahead(a, 56, NULL)) == NULL)
-		return 0;
+		return (ARCHIVE_FAILED);
 	/* Make sure we can read all of it. */
 	eocd64_size = archive_le64dec(p + 4) + 12;
 	if (eocd64_size < 56 || eocd64_size > 16384)
-		return 0;
+		return (ARCHIVE_FAILED);
 	if ((p = __archive_read_ahead(a, (size_t)eocd64_size, NULL)) == NULL)
-		return 0;
+		return (ARCHIVE_FAILED);
 
 	/* Sanity-check the EOCD64 */
 	if (archive_le32dec(p + 16) != 0) /* Must be disk #0 */
-		return 0;
+		return (ARCHIVE_FAILED);
 	if (archive_le32dec(p + 20) != 0) /* CD must be on disk #0 */
-		return 0;
+		return (ARCHIVE_FAILED);
 	/* CD can't be split. */
 	if (archive_le64dec(p + 24) != archive_le64dec(p + 32))
-		return 0;
+		return (ARCHIVE_FAILED);
 
 	/* Save the central directory offset for later use. */
 	zip->central_directory_offset = archive_le64dec(p + 48);
@@ -4030,20 +4030,20 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	/* If someone has already bid more than 32, then avoid
 	   trashing the look-ahead buffers with a seek. */
 	if (best_bid > 32)
-		return (-1);
+		return (ARCHIVE_FAILED);
 
 	file_size = __archive_read_seek(a, 0, SEEK_END);
 	if (file_size <= 0)
-		return 0;
+		return (ARCHIVE_FAILED);
 
 	/* Search last 16k of file for end-of-central-directory
 	 * record (which starts with PK\005\006) */
 	tail = (int)zipmin(1024 * 16, file_size);
 	current_offset = __archive_read_seek(a, -tail, SEEK_END);
 	if (current_offset < 0)
-		return 0;
+		return (ARCHIVE_FAILED);
 	if ((h = __archive_read_ahead(a, (size_t)tail, NULL)) == NULL)
-		return 0;
+		return (ARCHIVE_FAILED);
 	/* Boyer-Moore search backwards from the end, since we want
 	 * to match the last EOCD in the file (there can be more than
 	 * one if there is an uncompressed Zip archive as a member
@@ -4071,7 +4071,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 		default: i -= 4; break;
 		}
 	}
-	return 0;
+	return (ARCHIVE_FAILED);
 }
 
 /* The red-black trees are only used in seeking mode to manage

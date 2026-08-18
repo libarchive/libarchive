@@ -268,7 +268,7 @@ archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 	(void)best_bid; /* UNUSED */
 
 	if ((h = __archive_read_ahead(a, 6, NULL)) == NULL)
-		return (-1);
+		return (ARCHIVE_FAILED);
 
 	bid = 0;
 	if (memcmp(h, "070707", 6) == 0) {
@@ -315,7 +315,7 @@ archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 		bid += 16;
 		/* Is more verification possible here? */
 	} else
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 
 	return (bid);
 }

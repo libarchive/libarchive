@@ -792,10 +792,10 @@ archive_read_format_rar_bid(struct archive_read *a, int best_bid)
 
   /* If there's already a bid > 30, we'll never win. */
   if (best_bid > 30)
-    return (-1);
+    return (0);
 
   if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
-    return (-1);
+    return (0);
 
   if (memcmp(h, RAR_SIGNATURE, 7) == 0)
     return (30);

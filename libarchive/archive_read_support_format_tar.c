@@ -382,7 +382,7 @@ archive_read_format_tar_bid(struct archive_read *a, int best_bid)
 	/* Now let's look at the actual header and see if it matches. */
 	h = __archive_read_ahead(a, 512, NULL);
 	if (h == NULL)
-		return (-1);
+		return (0);
 
 	/* If it's an end-of-archive mark, we can handle it. */
 	if (h[0] == 0 && archive_block_is_null(h)) {

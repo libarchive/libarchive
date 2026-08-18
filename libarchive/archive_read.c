@@ -557,7 +557,7 @@ archive_read_open1(struct archive *_a)
 	}
 	else if (a->format->bid != NULL)
 	{
-		if (bid_format(a, -1) < 0) {
+		if (bid_format(a, 0) < 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Registered format does not match");
@@ -775,7 +775,7 @@ choose_format(struct archive_read *a)
 	int best_bid_slot;
 
 	slots = sizeof(a->formats) / sizeof(a->formats[0]);
-	best_bid = -1;
+	best_bid = 0;
 	best_bid_slot = -1;
 
 	/* Set up a->format for convenience of bidders. */

@@ -153,7 +153,7 @@ DEFINE_TEST(test_read_append_wrong_filter)
   int r;
 
   assert((a = archive_read_new()) != NULL);
-  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_RAW));
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_ISO9660));
   r = archive_read_append_filter(a, ARCHIVE_FILTER_XZ);
   if (r == ARCHIVE_WARN && !canXz()) {
     skipping("xz reading not fully supported on this platform");
@@ -416,7 +416,7 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
 #endif
 
   assert((a = archive_read_new()) != NULL);
-  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_RAW));
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_ISO9660));
   assertEqualIntA(a, ARCHIVE_OK,
       archive_read_append_filter_program(a, "bunzip2 -q"));
   assertEqualIntA(a, ARCHIVE_FATAL,
