@@ -27,7 +27,7 @@ DEFINE_TEST(test_option_group)
 	/* Create archive with --group (numeric) */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive2 --group=17 --format=ustar file >stdout2.txt 2>stderr2.txt",
+	    systemf("%s cf archive2 --group=17 --format=ustar file @archive1 >stdout2.txt 2>stderr2.txt",
 		testprog));
 	assertEmptyFile("stdout2.txt");
 	assertEmptyFile("stderr2.txt");
@@ -35,12 +35,15 @@ DEFINE_TEST(test_option_group)
 	assertEqualMem(data + 116, "000021 \0", 8);
 	/* Gname field in ustar header should be empty. */
 	assertEqualMem(data + 297, "\0", 1);
+	assertEqualMem(data + 116 + 1024, "000021 \0", 8);
+	/* Gname field in ustar header should be empty. */
+	assertEqualMem(data + 297 + 1024, "\0", 1);
 	free(data);
 
 	/* Again with --group (name) */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive3 --group=foofoofoo --format=ustar file >stdout3.txt 2>stderr3.txt",
+	    systemf("%s cf archive3 --group=foofoofoo --format=ustar file @archive1 >stdout3.txt 2>stderr3.txt",
 		testprog));
 	assertEmptyFile("stdout3.txt");
 	assertEmptyFile("stderr3.txt");
@@ -48,18 +51,22 @@ DEFINE_TEST(test_option_group)
 	/* Gid should be unchanged from original reference. */
 	assertEqualMem(data + 116, reference + 116, 8);
 	assertEqualMem(data + 297, "foofoofoo\0", 10);
+	assertEqualMem(data + 116 + 1024, reference + 116, 8);
+	assertEqualMem(data + 297 + 1024, "foofoofoo\0", 10);
 	free(data);
 
 	/* Again with --group (name:id) */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive4 --group=foofoofoo:17 --format=ustar file >stdout4.txt 2>stderr4.txt",
+	    systemf("%s cf archive4 --group=foofoofoo:17 --format=ustar file @archive1 >stdout4.txt 2>stderr4.txt",
 		testprog));
 	assertEmptyFile("stdout4.txt");
 	assertEmptyFile("stderr4.txt");
 	data = slurpfile(&s, "archive4");
 	assertEqualMem(data + 116, "000021 \0", 8);
 	assertEqualMem(data + 297, "foofoofoo\0", 10);
+	assertEqualMem(data + 116 + 1024, "000021 \0", 8);
+	assertEqualMem(data + 297 + 1024, "foofoofoo\0", 10);
 	free(data);
 
 	free(reference);

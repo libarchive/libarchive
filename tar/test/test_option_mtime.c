@@ -62,4 +62,21 @@ DEFINE_TEST(test_option_mtime)
 	assertFileMtime("mid_mtime", 0, 0);
 	assertFileMtime("old_mtime", 0, 0);
 	assertChdir("..");
+
+	/* Create plain archive */
+	assertEqualInt(0,
+		systemf("%s --format pax -C in -cf plain.tar .",
+			testprog));
+
+	/* Extract plain archive with --mtime 0 */
+	assertMakeDir("out.extract", 0755);
+	assertChdir("out.extract");
+	assertEqualInt(0,
+		systemf("%s -xf ../plain.tar "
+			"--mtime \"1970/1/1 0:0:0 UTC\" ",
+			testprog));
+	assertFileMtime("new_mtime", 0, 0);
+	assertFileMtime("mid_mtime", 0, 0);
+	assertFileMtime("old_mtime", 0, 0);
+	assertChdir("..");
 }
