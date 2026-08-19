@@ -3714,7 +3714,9 @@ execute_filter_delta(struct rar_filter *filter, struct rar_virtual_machine *vm)
   uint8_t *src, *dst;
   uint32_t i, idx;
 
-  if (length > PROGRAM_WORK_SIZE / 2)
+  if (length > PROGRAM_WORK_SIZE / 2 ||
+      numchannels == 0 ||
+      numchannels > 128)
     return 0;
 
   src = &vm->memory[0];
@@ -3829,7 +3831,9 @@ execute_filter_audio(struct rar_filter *filter, struct rar_virtual_machine *vm)
   uint8_t *src, *dst;
   uint32_t i, j;
 
-  if (length > PROGRAM_WORK_SIZE / 2)
+  if (length > PROGRAM_WORK_SIZE / 2 ||
+      numchannels == 0 ||
+      numchannels > 128)
     return 0;
 
   src = &vm->memory[0];
