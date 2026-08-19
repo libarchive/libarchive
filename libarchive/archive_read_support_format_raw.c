@@ -98,7 +98,7 @@ archive_read_format_raw_bid(struct archive_read *a, int best_bid)
 {
 	if (best_bid < 1 && __archive_read_ahead(a, 1, NULL) != NULL)
 		return (1);
-	return (-1);
+	return (0);
 }
 
 /*

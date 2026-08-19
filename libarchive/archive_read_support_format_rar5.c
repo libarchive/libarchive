@@ -1107,12 +1107,12 @@ static int bid_standard(struct archive_read* a) {
 	rar5_signature(signature);
 
 	if(!read_ahead(a, sizeof(rar5_signature_xor), &h))
-		return -1;
+		return 0;
 
 	if(!memcmp(h, signature, sizeof(rar5_signature_xor)))
 		return 30;
 
-	return -1;
+	return 0;
 }
 
 static int bid_sfx(struct archive_read *a)
@@ -1120,7 +1120,7 @@ static int bid_sfx(struct archive_read *a)
 	const char *h;
 
 	if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
-		return -1;
+		return 0;
 
 	if ((h[0] == 'M' && h[1] == 'Z') || memcmp(h, "\x7F\x45LF", 4) == 0) {
 		/* This is a PE file */
@@ -1160,18 +1160,18 @@ static int rar5_bid(struct archive_read* a, int best_bid) {
 	int my_bid;
 
 	if(best_bid > 30)
-		return -1;
+		return 0;
 
 	my_bid = bid_standard(a);
-	if(my_bid > -1) {
+	if(my_bid > 0) {
 		return my_bid;
 	}
 	my_bid = bid_sfx(a);
-	if (my_bid > -1) {
+	if (my_bid > 0) {
 		return my_bid;
 	}
 
-	return -1;
+	return 0;
 }
 
 static int rar5_options(struct archive_read *a, const char *key,

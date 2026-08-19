@@ -198,14 +198,14 @@ archive_read_format_warc_bid(struct archive_read *a, int best_bid)
 	/* Check the first line, which should already be a record header. */
 	if ((h = __archive_read_ahead(a, 12, &nrd)) == NULL) {
 		/* Not enough data to identify this format. */
-		return -1;
+		return 0;
 	}
 
 	/* Parse the record version number. */
 	ver = warc_read_version(h, nrd);
 	if (ver < 1200U || ver > 10000U) {
 		/* Only WARC 0.12 through WARC 1.0 are supported. */
-		return -1;
+		return 0;
 	}
 
 	/* WARC magic and version checks passed. */

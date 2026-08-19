@@ -349,10 +349,10 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
 	if (best_bid > 30)
-		return (-1);
+		return (0);
 
 	if ((h = __archive_read_ahead(a, H_SIZE, NULL)) == NULL)
-		return (-1);
+		return (0);
 
 	if (lha_check_header_format(h) == 0)
 		return (30);

@@ -153,11 +153,11 @@ archive_read_format_ar_bid(struct archive_read *a, int best_bid)
 	 * TODO: Do we need to check more than this?
 	 */
 	if ((h = __archive_read_ahead(a, 8, NULL)) == NULL)
-		return (-1);
+		return (0);
 	if (memcmp(h, "!<arch>\n", 8) == 0) {
 		return (64);
 	}
-	return (-1);
+	return (0);
 }
 
 static int
@@ -406,7 +406,8 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		 * We are at the beginning of the archive now,
 		 * so we have to consume the ar global header first.
 		 */
-		__archive_read_consume(a, 8);
+		if (__archive_read_consume(a, 8) < 0)
+			return (ARCHIVE_FATAL);
 		ar->read_global_header = 1;
 		/* Set a default format code for now. */
 		a->archive.archive_format = ARCHIVE_FORMAT_AR;
