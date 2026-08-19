@@ -1551,19 +1551,15 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 				}
 				/* Move data into newly-enlarged buffer. */
 				if (f->avail > 0)
-					memmove(p, f->next, f->avail);
+					memcpy(p, f->next, f->avail);
 				free(f->buffer);
 				f->next = f->buffer = p;
 				f->buffer_size = s;
 			}
 
 			/* We can add client data to copy buffer. */
-			/* First estimate: copy to fill rest of buffer. */
-			tocopy = (f->buffer + f->buffer_size)
-			    - (f->next + f->avail);
 			/* Don't waste time buffering more than we need to. */
-			if (tocopy + f->avail > min)
-				tocopy = min - f->avail;
+			tocopy = min - f->avail;
 			/* Don't copy more than is available. */
 			if (tocopy > f->client_avail)
 				tocopy = f->client_avail;
