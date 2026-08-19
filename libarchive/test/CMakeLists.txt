@@ -9,6 +9,7 @@ IF(ENABLE_TEST)
     ../../test_utils/test_main.c
     read_open_memory.c
     test.h
+    test_archive_crc32.c
     test_7zip_filename_encoding.c
     test_acl_from_text_overread.c
     test_acl_nfs4.c
@@ -123,6 +124,7 @@ IF(ENABLE_TEST)
     test_read_format_cab_filename.c
     test_read_format_cab_lzx_16bit.c
     test_read_format_cab_lzx_e8.c
+    test_read_format_cab_lzx_invalid_history.c
     test_read_format_cab_lzx_oob.c
     test_read_format_cab_mszip_oob.c
     test_read_format_cab_multi.c

@@ -38,9 +38,7 @@
 #endif
 
 #include "archive.h"
-#ifndef HAVE_ZLIB_H
-#include "archive_crc32.h"
-#endif
+
 
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
@@ -151,6 +149,8 @@ enum REDIR_TYPE {
 #define	OWNER_USER_UID		0x04
 #define	OWNER_GROUP_GID		0x08
 #define	OWNER_MAXNAMELEN	256
+
+#define	SFX_MAX_READAHEAD	(1024 * 512)
 
 enum FILTER_TYPE {
 	FILTER_DELTA = 0,   /* Generic pattern. */
@@ -1101,15 +1101,15 @@ static char read_u64(struct archive_read* a, uint64_t* pvalue) {
 }
 
 static int bid_standard(struct archive_read* a) {
-	const uint8_t* p;
+	const uint8_t* h;
 	char signature[sizeof(rar5_signature_xor)];
 
 	rar5_signature(signature);
 
-	if(!read_ahead(a, sizeof(rar5_signature_xor), &p))
+	if(!read_ahead(a, sizeof(rar5_signature_xor), &h))
 		return -1;
 
-	if(!memcmp(signature, p, sizeof(rar5_signature_xor)))
+	if(!memcmp(h, signature, sizeof(rar5_signature_xor)))
 		return 30;
 
 	return -1;
@@ -1117,36 +1117,39 @@ static int bid_standard(struct archive_read* a) {
 
 static int bid_sfx(struct archive_read *a)
 {
-	const char *p;
+	const char *h;
 
-	if ((p = __archive_read_ahead(a, 7, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, 7, NULL)) == NULL)
 		return -1;
 
-	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
+	if ((h[0] == 'M' && h[1] == 'Z') || memcmp(h, "\x7F\x45LF", 4) == 0) {
 		/* This is a PE file */
 		char signature[sizeof(rar5_signature_xor)];
 		ssize_t offset = 0x10000;
 		ssize_t window = 4096;
-		ssize_t bytes_avail;
 
 		rar5_signature(signature);
 
-		while (offset + window <= (1024 * 512)) {
-			const char *buff = __archive_read_ahead(a, offset + window, &bytes_avail);
-			if (buff == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < 0x40)
-					return 0;
-				continue;
+		while (offset + window <= SFX_MAX_READAHEAD) {
+			ssize_t bytes_avail;
+
+			h = __archive_read_ahead(a, offset + window, &bytes_avail);
+			if (h == NULL) {
+				if (bytes_avail >= offset + 0x10) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return 0;
 			}
-			p = buff + offset;
-			while (p + 8 < buff + bytes_avail) {
-				if (memcmp(p, signature, sizeof(signature)) == 0)
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
+			while (offset <= bytes_avail - 8) {
+				if (memcmp(h + offset, signature,
+				    sizeof(signature)) == 0)
 					return 30;
-				p += 0x10;
+				offset += 0x10;
 			}
-			offset = p - buff;
 		}
 	}
 
@@ -1532,6 +1535,16 @@ static int parse_file_extra_owner(struct archive_read* a,
 	if ((flags & OWNER_USER_NAME) != 0) {
 		if(!read_var_sized(a, &name_size, NULL))
 			return ARCHIVE_EOF;
+
+		/* The name cannot be larger than the remaining extra data of
+		 * this field. Rejecting an oversized length here also avoids
+		 * requesting a huge allocation from read_ahead() below. */
+		if(*extra_data_size < 0 ||
+		    name_size > (uint64_t)*extra_data_size) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT, "Owner name is too long");
+			return ARCHIVE_FATAL;
+		}
 		*extra_data_size -= name_size + 1;
 
 		if(!read_ahead(a, name_size, &p))
@@ -1553,6 +1566,13 @@ static int parse_file_extra_owner(struct archive_read* a,
 	if ((flags & OWNER_GROUP_NAME) != 0) {
 		if(!read_var_sized(a, &name_size, NULL))
 			return ARCHIVE_EOF;
+
+		if(*extra_data_size < 0 ||
+		    name_size > (uint64_t)*extra_data_size) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT, "Group name is too long");
+			return ARCHIVE_FATAL;
+		}
 		*extra_data_size -= name_size + 1;
 
 		if(!read_ahead(a, name_size, &p))
@@ -2336,7 +2356,7 @@ static int process_base_block(struct archive_read* a,
 	}
 
 	/* Verify the CRC32 of the header data. */
-	computed_crc = (uint32_t) crc32(0, p, (int) hdr_size);
+	computed_crc = (uint32_t) __archive_crc32(0, p, (int) hdr_size);
 	if(computed_crc != hdr_crc) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -2623,7 +2643,7 @@ static void update_crc(struct rar5 *rar5, const uint8_t* p, size_t to_read) {
 		 * `stored_crc32` info filled in. */
 		if(rar5->file.stored_crc32 > 0) {
 			rar5->file.calculated_crc32 =
-				crc32(rar5->file.calculated_crc32, p,
+				__archive_crc32(rar5->file.calculated_crc32, p,
 				    (unsigned int)to_read);
 		}
 

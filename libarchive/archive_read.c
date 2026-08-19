@@ -58,6 +58,7 @@
 
 #define minimum(a, b) (a < b ? a : b)
 
+static int	bid_format(struct archive_read *, int);
 static int	choose_filters(struct archive_read *);
 static int	choose_format(struct archive_read *);
 static int	close_filters(struct archive_read *);
@@ -195,14 +196,14 @@ client_skip_proxy(struct archive_read_filter *f, int64_t request)
 	if (f->archive->client.skipper != NULL) {
 		int64_t total = 0;
 		for (;;) {
-			int64_t get, ask = request;
+			int64_t get;
 			get = (f->archive->client.skipper)
-				(&f->archive->archive, f->data, ask);
+			    (&f->archive->archive, f->data, request);
+			if (get < 0 || get > request)
+				return (ARCHIVE_FATAL);
 			total += get;
 			if (get == 0 || get == request)
 				return (total);
-			if (get > request)
-				return ARCHIVE_FATAL;
 			request -= get;
 		}
 	} else if (f->archive->client.seeker != NULL
@@ -496,19 +497,24 @@ archive_read_open1(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
+	a->archive.state = ARCHIVE_STATE_OPEN;
+
 	/* Open data source. */
 	if (a->client.opener != NULL) {
 		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
-		if (e != 0) {
+		if (e != ARCHIVE_OK) {
 			/* If the open failed, call the closer to clean up. */
 			read_client_close_proxy(a);
+			a->archive.state = ARCHIVE_STATE_FATAL;
 			return (e);
 		}
 	}
 
 	f = calloc(1, sizeof(*f));
-	if (f == NULL)
+	if (f == NULL) {
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
+	}
 	f->bidder = NULL;
 	f->upstream = NULL;
 	f->archive = a;
@@ -548,6 +554,17 @@ archive_read_open1(struct archive *_a)
 			return (ARCHIVE_FATAL);
 		}
 		a->format = &(a->formats[slot]);
+	}
+	else if (a->format->bid != NULL)
+	{
+		if (bid_format(a, -1) < 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Registered format does not match");
+			close_filters(a);
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (ARCHIVE_FATAL);
+		}
 	}
 
 	a->archive.state = ARCHIVE_STATE_HEADER;
@@ -730,6 +747,21 @@ _archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 	return ret;
 }
 
+static int
+bid_format(struct archive_read *a, int best_bid)
+{
+	int bid;
+
+	bid = (a->format->bid)(a, best_bid);
+	if (bid == ARCHIVE_FATAL)
+		return (ARCHIVE_FATAL);
+	if (a->filter->position != 0 &&
+	    __archive_read_seek(a, 0, SEEK_SET) < 0)
+		return (ARCHIVE_FATAL);
+
+	return (bid);
+}
+
 /*
  * Allow each registered format to bid on whether it wants to handle
  * the next entry.  Return index of winning bidder.
@@ -750,11 +782,9 @@ choose_format(struct archive_read *a)
 	a->format = &(a->formats[0]);
 	for (i = 0; i < slots; i++, a->format++) {
 		if (a->format->bid) {
-			bid = (a->format->bid)(a, best_bid);
+			bid = bid_format(a, best_bid);
 			if (bid == ARCHIVE_FATAL)
 				return (ARCHIVE_FATAL);
-			if (a->filter->position != 0)
-				__archive_read_seek(a, 0, SEEK_SET);
 			if ((bid > best_bid) || (best_bid_slot < 0)) {
 				best_bid = bid;
 				best_bid_slot = i;

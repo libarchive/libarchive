@@ -108,7 +108,7 @@ include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 noinst_HEADERS= \
 	libarchive/archive_acl_private.h \
 	libarchive/archive_cmdline_private.h \
-	libarchive/archive_crc32.h \
+	libarchive/archive_crc32.c \
 	libarchive/archive_cryptor_private.h \
 	libarchive/archive_digest_private.h \
 	libarchive/archive_endian.h \
@@ -148,6 +148,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_acl.c \
 	libarchive/archive_check_magic.c \
 	libarchive/archive_cmdline.c \
+	libarchive/archive_crc32.c \
 	libarchive/archive_cryptor.c \
 	libarchive/archive_digest.c \
 	libarchive/archive_entry.c \
@@ -382,6 +383,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/read_open_memory.c \
 	libarchive/test/test_7zip_filename_encoding.c \
 	libarchive/test/test_acl_from_text_overread.c \
+	libarchive/test/test_archive_crc32.c \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_nfs4_null_id_overflow.c \
 	libarchive/test/test_acl_nfs4_text.c \
@@ -494,6 +496,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_cab_filename.c \
 	libarchive/test/test_read_format_cab_lzx_16bit.c \
 	libarchive/test/test_read_format_cab_lzx_e8.c \
+	libarchive/test/test_read_format_cab_lzx_invalid_history.c \
 	libarchive/test/test_read_format_cab_lzx_oob.c \
 	libarchive/test/test_read_format_cab_mszip_oob.c \
 	libarchive/test/test_read_format_cab_multi.c \
@@ -749,8 +752,8 @@ libarchive_test_LDADD= $(LTLIBICONV)
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
 # above.
 libarchive/test/list.h: $(libarchive_test_SOURCES)
-	$(MKDIR_P) libarchive/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) libarchive/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
 
@@ -906,6 +909,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_malformed_numfiles_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
+	libarchive/test/test_read_format_7zip_ppmd_small_block.7z.uu \
 	libarchive/test/test_read_format_7zip_sfx_boundary_elf.elf.uu \
 	libarchive/test/test_read_format_7zip_sfx_boundary_pe.exe.uu \
 	libarchive/test/test_read_format_7zip_sfx_elf.elf.uu \
@@ -927,6 +931,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_cab_filename_cp932.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_16bit.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_e8.cab.uu \
+	libarchive/test/test_read_format_cab_lzx_invalid_history.cab.uu \
+	libarchive/test/test_read_format_cab_lzx_literal_control.cab.uu \
 	libarchive/test/test_read_format_cab_lzx_oob.cab.uu \
 	libarchive/test/test_read_format_cab_multi.p1.cab.uu \
 	libarchive/test/test_read_format_cab_multi.p2.cab.uu \
@@ -1066,6 +1072,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_nonempty_dir_stream.rar.uu \
 	libarchive/test/test_read_format_rar5_dirdata.rar.uu \
 	libarchive/test/test_read_format_rar5_owner.rar.uu \
+	libarchive/test/test_read_format_rar5_owner_name_toolong.rar.uu \
 	libarchive/test/test_read_format_rar5_readtables_overflow.rar.uu \
 	libarchive/test/test_read_format_rar5_sfx.exe.uu \
 	libarchive/test/test_read_format_rar5_solid.rar.uu \
@@ -1386,8 +1393,8 @@ bsdtar_test_CPPFLAGS=\
 	$(PLATFORMCPPFLAGS)
 
 tar/test/list.h: $(bsdtar_test_SOURCES)
-	$(MKDIR_P) tar/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) tar/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDTAR
 bsdtar_test_programs= bsdtar_test
@@ -1544,8 +1551,8 @@ bsdcpio_test_CPPFLAGS= \
 bsdcpio_test_LDADD=libarchive_fe.la
 
 cpio/test/list.h: $(bsdcpio_test_SOURCES)
-	$(MKDIR_P) cpio/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) cpio/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDCPIO
 bsdcpio_test_programs= bsdcpio_test
@@ -1667,8 +1674,8 @@ bsdcat_test_CPPFLAGS= \
 bsdcat_test_LDADD=libarchive_fe.la
 
 cat/test/list.h: $(bsdcat_test_SOURCES)
-	$(MKDIR_P) cat/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) cat/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDCAT
 bsdcat_test_programs= bsdcat_test
@@ -1799,8 +1806,8 @@ bsdunzip_test_CPPFLAGS= \
 bsdunzip_test_LDADD=libarchive_fe.la
 
 unzip/test/list.h: $(bsdunzip_test_SOURCES)
-	$(MKDIR_P) unzip/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) unzip/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDUNZIP
 bsdunzip_test_programs= bsdunzip_test

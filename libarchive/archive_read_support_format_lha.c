@@ -210,6 +210,8 @@ struct lha {
 #define H_LEVEL_OFFSET	20	/* Header Level.  */
 #define H_SIZE		22	/* Minimum header size. */
 
+#define SFX_MAX_READAHEAD	(1024 * 24)
+
 static int      archive_read_format_lha_bid(struct archive_read *, int);
 static int      archive_read_format_lha_options(struct archive_read *,
 		    const char *, const char *);
@@ -228,7 +230,7 @@ static int	lha_read_file_header_2(struct archive_read *, struct lha *);
 static int	lha_read_file_header_3(struct archive_read *, struct lha *);
 static int	lha_read_file_extended_header(struct archive_read *,
 		    struct lha *, uint16_t *, int, uint64_t, size_t *);
-static size_t	lha_check_header_format(const void *);
+static size_t	lha_check_header_format(const char *);
 static int	lha_skip_sfx(struct archive_read *);
 static unsigned char	lha_calcsum(unsigned char, const void *,
 		    int, size_t);
@@ -288,12 +290,11 @@ archive_read_support_format_lha(struct archive *_a)
 }
 
 static size_t
-lha_check_header_format(const void *h)
+lha_check_header_format(const char *h)
 {
-	const unsigned char *p = h;
 	size_t next_skip_bytes;
 
-	switch (p[H_METHOD_OFFSET+3]) {
+	switch (h[H_METHOD_OFFSET + 3]) {
 	/*
 	 * "-lh0-" ... "-lh7-" "-lhd-"
 	 * "-lzs-" "-lz5-"
@@ -304,29 +305,29 @@ lha_check_header_format(const void *h)
 	case 's':
 		next_skip_bytes = 4;
 
-		/* b0 == 0 means the end of an LHa archive file.	*/
-		if (p[0] == 0)
+		/* 0 means the end of an LHa archive file. */
+		if (h[0] == 0)
 			break;
-		if (p[H_METHOD_OFFSET] != '-' || p[H_METHOD_OFFSET+1] != 'l'
-		    ||  p[H_METHOD_OFFSET+4] != '-')
+		if (h[H_METHOD_OFFSET] != '-' || h[H_METHOD_OFFSET + 1] != 'l'
+		    ||  h[H_METHOD_OFFSET + 4] != '-')
 			break;
 
-		if (p[H_METHOD_OFFSET+2] == 'h') {
+		if (h[H_METHOD_OFFSET + 2] == 'h') {
 			/* "-lh?-" */
-			if (p[H_METHOD_OFFSET+3] == 's')
+			if (h[H_METHOD_OFFSET + 3] == 's')
 				break;
-			if (p[H_LEVEL_OFFSET] == 0)
+			if (h[H_LEVEL_OFFSET] == 0)
 				return (0);
-			if (p[H_LEVEL_OFFSET] <= 3 && p[H_ATTR_OFFSET] == 0x20)
+			if (h[H_LEVEL_OFFSET] <= 3 && h[H_ATTR_OFFSET] == 0x20)
 				return (0);
 		}
-		if (p[H_METHOD_OFFSET+2] == 'z') {
+		if (h[H_METHOD_OFFSET + 2] == 'z') {
 			/* LArc extensions: -lzs-,-lz4- and -lz5- */
-			if (p[H_LEVEL_OFFSET] != 0)
+			if (h[H_LEVEL_OFFSET] != 0)
 				break;
-			if (p[H_METHOD_OFFSET+3] == 's'
-			    || p[H_METHOD_OFFSET+3] == '4'
-			    || p[H_METHOD_OFFSET+3] == '5')
+			if (h[H_METHOD_OFFSET + 3] == 's'
+			    || h[H_METHOD_OFFSET + 3] == '4'
+			    || h[H_METHOD_OFFSET + 3] == '5')
 				return (0);
 		}
 		break;
@@ -343,43 +344,46 @@ lha_check_header_format(const void *h)
 static int
 archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 {
-	const char *p;
-	const void *buff;
-	ssize_t bytes_avail, offset, window;
-	size_t next;
+	const char *h;
 
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
 	if (best_bid > 30)
 		return (-1);
 
-	if ((p = __archive_read_ahead(a, H_SIZE, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, H_SIZE, NULL)) == NULL)
 		return (-1);
 
-	if (lha_check_header_format(p) == 0)
+	if (lha_check_header_format(h) == 0)
 		return (30);
 
-	if (p[0] == 'M' && p[1] == 'Z') {
+	if (h[0] == 'M' && h[1] == 'Z') {
+		ssize_t offset, window;
+
 		/* PE file */
 		offset = 0;
 		window = 4096;
-		while (offset < (1024 * 20)) {
-			buff = __archive_read_ahead(a, offset + window,
+		while (offset + window <= SFX_MAX_READAHEAD) {
+			ssize_t bytes_avail;
+
+			h = __archive_read_ahead(a, offset + window,
 			    &bytes_avail);
-			if (buff == NULL) {
-				/* Remaining bytes are less than window. */
-				window >>= 1;
-				if (window < (H_SIZE + 3))
-					return (0);
-				continue;
+			if (h == NULL) {
+				if (bytes_avail >= offset + H_SIZE) {
+					/* Remaining bytes are less than window. */
+					window = bytes_avail - offset;
+					continue;
+				}
+				return (0);
 			}
-			p = (const char *)buff + offset;
-			while (p + H_SIZE < (const char *)buff + bytes_avail) {
-				if ((next = lha_check_header_format(p)) == 0)
+			if (bytes_avail > SFX_MAX_READAHEAD)
+				bytes_avail = SFX_MAX_READAHEAD;
+			while (offset <= bytes_avail - H_SIZE) {
+				size_t next = lha_check_header_format(h + offset);
+				if (next == 0)
 					return (30);
-				p += next;
+				offset += next;
 			}
-			offset = p - (const char *)buff;
 		}
 	}
 	return (0);
@@ -473,7 +477,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	struct lha *lha = a->format->data;
 	struct archive_wstring linkname;
 	struct archive_wstring pathname;
-	const unsigned char *p;
+	const char *p;
 	const char *signature;
 	int err;
 	struct archive_mstring conv_buffer;
@@ -499,7 +503,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 		return (truncated_error(a));
 	}
 
-	signature = (const char *)p;
+	signature = p;
 	if (lha->found_first_header == 0 &&
 	    signature[0] == 'M' && signature[1] == 'Z') {
                 /* This is an executable?  Must be self-extracting... 	*/
@@ -509,7 +513,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 
 		if ((p = __archive_read_ahead(a, sizeof(*p), NULL)) == NULL)
 			return (truncated_error(a));
-		signature = (const char *)p;
+		signature = p;
 	}
 	/* signature[0] == 0 means the end of an LHa archive file. */
 	if (signature[0] == 0)
