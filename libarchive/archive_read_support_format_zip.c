@@ -2877,66 +2877,6 @@ zip_read_data_zipx_zstd(struct archive_read *a, const void **buff,
 }
 #endif
 
-static void
-zip_entry_handle_decryption(struct zip *zip, const void **compressed_buff,
-    ssize_t *bytes_avail)
-{
-	if (zip->tctx_valid || zip->cctx_valid) {
-		if (zip->decrypted_bytes_remaining < (size_t)*bytes_avail) {
-			unsigned char *decrypted_buffer_end =
-			    zip->decrypted_buffer + zip->decrypted_buffer_size;
-			unsigned char *decrypted_data_end = zip->decrypted_ptr +
-			    zip->decrypted_bytes_remaining;
-
-			/* Calculate the space available at the end of the decryption buffer */
-			size_t buff_remaining = decrypted_buffer_end -
-			    decrypted_data_end;
-
-			/* Clamp to the size of data that's actually available */
-			if (buff_remaining > (size_t)*bytes_avail)
-				buff_remaining = (size_t)*bytes_avail;
-
-			/* Clamp to the not-yet-decrypted size of the entry, if
-			 * it is known */
-			if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END) &&
-			      zip->entry_bytes_remaining > 0) {
-				if ((int64_t)(zip->decrypted_bytes_remaining
-				    + buff_remaining)
-				      > zip->entry_bytes_remaining) {
-					if (zip->entry_bytes_remaining <
-					    (int64_t)zip->decrypted_bytes_remaining)
-						buff_remaining = 0;
-					else
-						buff_remaining =
-						    (size_t)zip->entry_bytes_remaining
-						    - zip->decrypted_bytes_remaining;
-				}
-			}
-			if (buff_remaining > 0) {
-				if (zip->tctx_valid) {
-					trad_enc_decrypt_update(&zip->tctx,
-					    *compressed_buff, buff_remaining,
-					    zip->decrypted_ptr
-					      + zip->decrypted_bytes_remaining,
-					    buff_remaining);
-				} else {
-					size_t dsize = buff_remaining;
-					archive_decrypto_aes_ctr_update(
-					    &zip->cctx,
-					    *compressed_buff, buff_remaining,
-					    zip->decrypted_ptr
-					      + zip->decrypted_bytes_remaining,
-					    &dsize);
-				}
-				zip->decrypted_bytes_remaining +=
-				    buff_remaining;
-			}
-		}
-		*bytes_avail = zip->decrypted_bytes_remaining;
-		*compressed_buff = (const char *)zip->decrypted_ptr;
-	}
-}
-
 #ifdef HAVE_ZLIB_H
 static int
 zip_deflate_init(struct archive_read *a, struct zip *zip)
@@ -3138,7 +3078,8 @@ zip_read_data_deflate64(struct archive_read *a, const void **buff,
 		return (ARCHIVE_FATAL);
 	}
 
-	zip_entry_handle_decryption(zip, &compressed_buff, &bytes_avail);
+	zip_read_decrypt(zip, compressed_buff, bytes_avail,
+	    &compressed_buff, &bytes_avail, &sp);
 
 	zip->inflstream.next_in = compressed_buff;
 	zip->inflstream.avail_in = (size_t)bytes_avail;
@@ -3168,22 +3109,12 @@ zip_read_data_deflate64(struct archive_read *a, const void **buff,
 	zip->entry_compressed_bytes_read += zip->inflstream.total_in;
 	zip->entry_uncompressed_bytes_read += zip->inflstream.total_out;
 
-	if (zip->tctx_valid || zip->cctx_valid) {
-		zip->decrypted_bytes_remaining -= zip->inflstream.total_in;
-		if (zip->decrypted_bytes_remaining == 0)
-			zip->decrypted_ptr = zip->decrypted_buffer;
-		else
-			zip->decrypted_ptr += zip->inflstream.total_in;
-	}
-	if (zip->hctx_valid)
-		archive_hmac_sha1_update(&zip->hctx, sp, zip->inflstream.total_in);
+	zip_read_decrypt_update(zip, zip->inflstream.total_in, sp);
 
-	if (zip->end_of_entry) {
-		if (zip->hctx_valid) {
-			r = check_authentication_code(a, NULL);
-			if (r != ARCHIVE_OK) {
-				return (r);
-			}
+	if (zip->end_of_entry && zip->hctx_valid) {
+		r = check_authentication_code(a, NULL);
+		if (r != ARCHIVE_OK) {
+			return (r);
 		}
 	}
 
