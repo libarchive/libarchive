@@ -428,7 +428,7 @@ ensure_in_buff_size(struct archive_read_filter *f,
 		}
 		/* Move the remaining data in in_buff into the new buffer. */
 		if (uu->in_cnt)
-			memmove(ptr, uu->in_buff, uu->in_cnt);
+			memcpy(ptr, uu->in_buff, uu->in_cnt);
 		/* Replace in_buff with the new buffer. */
 		free(uu->in_buff);
 		uu->in_buff = ptr;
