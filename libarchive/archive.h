@@ -219,6 +219,7 @@ __LA_DECL const char *  archive_libattr_version(void);
 __LA_DECL const char *  archive_libiconv_version(void);
 __LA_DECL const char *  archive_libpcre_version(void);
 __LA_DECL const char *  archive_libpcre2_version(void);
+__LA_DECL const char *  archive_inflatelib_version(void);
 
 /* Declare our basic types. */
 struct archive;
