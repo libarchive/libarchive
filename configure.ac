@@ -825,28 +825,31 @@ AC_FUNC_VPRINTF
 # To avoid necessity for including windows.h or special forward declaration
 # workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
 AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
-AC_CHECK_FUNCS([arc4random_buf chflags chown chroot])
-AC_CHECK_FUNCS([closefrom close_range ctime_r])
-AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fnmatch fork])
-AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
-AC_CHECK_FUNCS([futimens futimes futimesat])
-AC_CHECK_FUNCS([getegid geteuid getline getpid getresgid getresuid])
-AC_CHECK_FUNCS([getgrgid_r getgrnam_r getpwnam_r getpwuid_r])
-AC_CHECK_FUNCS([gettimeofday getvfsbyname gmtime_r])
-AC_CHECK_FUNCS([issetugid])
-AC_CHECK_FUNCS([lchflags lchmod lchown link linkat localtime_r lstat lutimes])
-AC_CHECK_FUNCS([mbrtowc memmove memset])
-AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
-AC_CHECK_FUNCS([nl_langinfo openat pipe poll posix_spawn posix_spawnp])
-AC_CHECK_FUNCS([readlink readlinkat])
-AC_CHECK_FUNCS([readpassphrase])
-AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
-AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strnlen strrchr symlink])
-AC_CHECK_FUNCS([sysconf])
-AC_CHECK_FUNCS([tcgetattr tcsetattr])
-AC_CHECK_FUNCS([timegm tzset unlinkat unsetenv utime utimensat utimes vfork])
-AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove])
-AC_CHECK_FUNCS([_fseeki64 _get_timezone])
+AC_CHECK_FUNCS(m4_flatten([
+	arc4random_buf
+	chflags chown chroot closefrom close_range ctime_r
+	fchdir fchflags fchmod fchown fcntl fdopendir fnmatch fork
+	fstat fstatat fstatfs fstatvfs ftruncate
+	futimens futimes futimesat
+	getegid geteuid getline getpid getresgid getresuid
+	getgrgid_r getgrnam_r getpwnam_r getpwuid_r
+	gettimeofday getvfsbyname gmtime_r
+	issetugid
+	lchflags lchmod lchown link linkat localtime_r lstat lutimes
+	mbrtowc memmove memset mkdir mkfifo mknod mkstemp
+	nl_langinfo
+	openat
+	pipe poll posix_spawn posix_spawnp
+	readlink readlinkat readpassphrase
+	select setenv setlocale sigaction statfs statvfs
+	strchr strdup strerror strncpy_s strnlen strrchr symlink
+	sysconf
+	tcgetattr tcsetattr timegm tzset
+	unlinkat unsetenv utime utimensat utimes
+	vfork
+	wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove
+	_fseeki64 _get_timezone
+]))
 AC_CHECK_DECL([cmtime_s],
 		[AC_DEFINE(HAVE_CMTIME_S, 1, [cmtime_s function])],
 		[],
