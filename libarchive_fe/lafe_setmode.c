@@ -44,13 +44,10 @@
 #include <errno.h>
 #include <limits.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-
-#ifdef SETMODE_DEBUG
-#include <stdio.h>
 #endif
 
 #include "lafe_setmode.h"
@@ -348,21 +345,49 @@ get_current_umask(void)
 {
 	mode_t mask;
 #ifdef KERN_PROC_UMASK
-	size_t len;
-	u_short smask;
 #endif
 
-#ifdef KERN_PROC_UMASK
+#ifdef __linux__
 	/*
-	 * First try requesting the umask without temporarily modifying it.
-	 * Note that this does not work if the sysctl
+	 * Starting with Linux 4.7, the current process umask can be accessed
+	 * via /proc/self/status.
+	 */
+
+	// Lines in status files are almost always less than 100 bytes, so
+	// 1 KiB should be plenty. Plus, the umask field should show up in
+	// the first few lines & always be very short. So even if we split
+	// other lines, that should never happen with umask. We assume any
+	// lines we split do not contain "Umask:" in the middle of them.
+	char line[1024];
+	// The standard doesn't guarantee mode_t size, so scan a specific
+	// size ourselves. We know the umask will always be 9 bits, so 32
+	// bits should be plenty.
+	int int_umask = -1;
+
+	FILE *fp = fopen("/proc/self/status", "re");
+	if (fp != NULL) {
+		while (fgets(line, sizeof(line), fp)) {
+			if (sscanf(line, "Umask: %o", &int_umask) == 1)
+				break;
+		}
+		fclose(fp);
+		if (int_umask != -1)
+			return (int_umask);
+	}
+
+#elif defined(KERN_PROC_UMASK)
+	/*
+	 * FreeBSD has a sysctl interface for requesting the umask without
+	 * temporarily modifying it. Note that this does not work if the sysctl
 	 * security.bsd.unprivileged_proc_debug is set to 0.
 	 */
-	len = sizeof(smask);
+	u_short smask;
+	size_t len = sizeof(smask);
 	if (sysctl((int[4]){ CTL_KERN, KERN_PROC, KERN_PROC_UMASK, 0 },
 	    4, &smask, &len, NULL, 0) == 0)
 		return (smask);
 #endif
+
 	umask(mask = umask(0));
 	return (mask);
 }
