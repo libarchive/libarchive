@@ -1798,6 +1798,22 @@ archive_string_conversion_from_charset(struct archive *a, const char *charset,
 	return (get_sconv_object(a, charset, get_current_charset(a), flag));
 }
 
+/* The source must be UTF-8 or UTF-16; those are the chains the normalizer
+ * is wired into. */
+struct archive_string_conv *
+archive_string_conversion_to_utf8_nfd(struct archive *a,
+    const char *from_charset)
+{
+	struct archive_string_conv *sc;
+
+	sc = get_sconv_object(a, from_charset, "UTF-8",
+	    SCONV_TO_CHARSET | SCONV_BEST_EFFORT);
+	if (sc != NULL)
+		archive_string_conversion_set_opt(sc,
+		    SCONV_SET_OPT_NORMALIZATION_D);
+	return (sc);
+}
+
 /*
  * archive_string_default_conversion_*_archive() are provided for Windows
  * platform because other archiver application use CP_OEMCP for

@@ -28,6 +28,7 @@ IF(ENABLE_TEST)
     test_archive_digest.c
     test_archive_match_owner.c
     test_archive_match_path.c
+    test_archive_match_path_normalization.c
     test_archive_match_time.c
     test_archive_parse_date.c
     test_archive_pathmatch.c
