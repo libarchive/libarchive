@@ -567,6 +567,64 @@ archive_write_disk_set_options(struct archive *_a, int flags)
 }
 
 
+#if defined(HAVE_F_PREALLOCATE) || defined(HAVE_POSIX_FALLOCATE)
+static int
+preallocate_file(struct archive_write_disk *a)
+{
+#if defined(HAVE_F_PREALLOCATE)
+	fstore_t fst;
+#elif defined(HAVE_POSIX_FALLOCATE)
+	int err;
+#endif
+
+	if (a->fd < 0 || a->filesize <= 0)
+		return (ARCHIVE_OK);
+	if ((a->mode & AE_IFMT) != AE_IFREG)
+		return (ARCHIVE_OK);
+	if (a->filesize < 65536)
+		return (ARCHIVE_OK);
+	if ((a->flags & ARCHIVE_EXTRACT_SPARSE) ||
+	    archive_entry_sparse_count(a->entry) > 0)
+		return (ARCHIVE_OK);
+#if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_ZLIB_H)
+	if (a->todo & TODO_HFS_COMPRESSION)
+		return (ARCHIVE_OK);
+#endif
+
+#if defined(HAVE_F_PREALLOCATE)
+	memset(&fst, 0, sizeof(fst));
+	fst.fst_flags = F_ALLOCATECONTIG | F_ALLOCATEALL;
+	fst.fst_posmode = F_PEOFPOSMODE;
+	fst.fst_offset = 0;
+	fst.fst_length = (off_t)a->filesize;
+	fst.fst_bytesalloc = 0;
+	if (fcntl(a->fd, F_PREALLOCATE, &fst) == -1) {
+		fst.fst_flags = F_ALLOCATEALL;
+		if (fcntl(a->fd, F_PREALLOCATE, &fst) == -1) {
+			if (errno == ENOSPC || errno == EDQUOT ||
+			    errno == EFBIG) {
+				archive_set_error(&a->archive, errno,
+				    "Failed to pre-allocate disk space");
+				return (ARCHIVE_FAILED);
+			}
+			/* Non-fatal: filesystem unsupported (e.g. NFS) */
+		}
+	}
+#elif defined(HAVE_POSIX_FALLOCATE)
+	err = posix_fallocate(a->fd, 0, (off_t)a->filesize);
+	if (err != 0) {
+		if (err == ENOSPC || err == EDQUOT || err == EFBIG) {
+			archive_set_error(&a->archive, err,
+			    "Failed to pre-allocate disk space");
+			return (ARCHIVE_FAILED);
+		}
+		/* Non-fatal: filesystem does not support pre-allocation */
+	}
+#endif
+	return (ARCHIVE_OK);
+}
+#endif
+
 /*
  * Extract this entry to disk.
  *
@@ -936,6 +994,16 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		fe->filetype = archive_entry_filetype(entry);
 		fe->fixup |= TODO_FFLAGS;
 		/* TODO: Complete this.. defer fflags from below. */
+	}
+
+	if ((a->flags & ARCHIVE_EXTRACT_PREALLOCATE) != 0) {
+#if defined(HAVE_F_PREALLOCATE) || defined(HAVE_POSIX_FALLOCATE)
+		r = preallocate_file(a);
+		if (r < ret)
+			ret = r;
+		if (ret <= ARCHIVE_FAILED)
+			return (ret);
+#endif
 	}
 
 	/* We've created the object and are ready to pour data into it. */

@@ -837,7 +837,7 @@ AC_CHECK_FUNCS([issetugid])
 AC_CHECK_FUNCS([lchflags lchmod lchown link linkat localtime_r lstat lutimes])
 AC_CHECK_FUNCS([mbrtowc memmove memset])
 AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
-AC_CHECK_FUNCS([nl_langinfo openat pipe poll posix_spawn posix_spawnp])
+AC_CHECK_FUNCS([nl_langinfo openat pipe poll posix_fallocate posix_spawn posix_spawnp])
 AC_CHECK_FUNCS([readlink readlinkat])
 AC_CHECK_FUNCS([readpassphrase])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
@@ -847,6 +847,10 @@ AC_CHECK_FUNCS([tcgetattr tcsetattr])
 AC_CHECK_FUNCS([timegm tzset unlinkat unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove])
 AC_CHECK_FUNCS([_fseeki64 _get_timezone])
+AC_CHECK_DECL([F_PREALLOCATE],
+		[AC_DEFINE(HAVE_F_PREALLOCATE, 1, [Define to 1 if you have F_PREALLOCATE fcntl])],
+		[],
+		[#include <fcntl.h>])
 AC_CHECK_DECL([cmtime_s],
 		[AC_DEFINE(HAVE_CMTIME_S, 1, [cmtime_s function])],
 		[],
