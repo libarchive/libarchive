@@ -752,8 +752,8 @@ libarchive_test_LDADD= $(LTLIBICONV)
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
 # above.
 libarchive/test/list.h: $(libarchive_test_SOURCES)
-	$(MKDIR_P) libarchive/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) libarchive/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
 
@@ -1393,8 +1393,8 @@ bsdtar_test_CPPFLAGS=\
 	$(PLATFORMCPPFLAGS)
 
 tar/test/list.h: $(bsdtar_test_SOURCES)
-	$(MKDIR_P) tar/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) tar/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDTAR
 bsdtar_test_programs= bsdtar_test
@@ -1551,8 +1551,8 @@ bsdcpio_test_CPPFLAGS= \
 bsdcpio_test_LDADD=libarchive_fe.la
 
 cpio/test/list.h: $(bsdcpio_test_SOURCES)
-	$(MKDIR_P) cpio/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) cpio/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDCPIO
 bsdcpio_test_programs= bsdcpio_test
@@ -1674,8 +1674,8 @@ bsdcat_test_CPPFLAGS= \
 bsdcat_test_LDADD=libarchive_fe.la
 
 cat/test/list.h: $(bsdcat_test_SOURCES)
-	$(MKDIR_P) cat/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) cat/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDCAT
 bsdcat_test_programs= bsdcat_test
@@ -1806,8 +1806,8 @@ bsdunzip_test_CPPFLAGS= \
 bsdunzip_test_LDADD=libarchive_fe.la
 
 unzip/test/list.h: $(bsdunzip_test_SOURCES)
-	$(MKDIR_P) unzip/test
-	grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+	@$(MKDIR_P) unzip/test
+	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
 if BUILD_BSDUNZIP
 bsdunzip_test_programs= bsdunzip_test
