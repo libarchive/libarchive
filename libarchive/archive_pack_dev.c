@@ -101,8 +101,7 @@ static const char tooManyFields[] = "too many fields for format";
 #define apd_makedev(maj, min) makedev((maj), (min))
 #endif
 
-/* exported */
-dev_t
+static dev_t
 pack_native(int n, unsigned long numbers[], const char **error)
 {
 	dev_t dev = 0;
