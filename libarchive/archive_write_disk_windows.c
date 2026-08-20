@@ -233,7 +233,7 @@ static int64_t	_archive_write_disk_filter_bytes(struct archive *, int);
 static int	_archive_write_disk_finish_entry(struct archive *);
 static ssize_t	_archive_write_disk_data(struct archive *, const void *,
 		    size_t);
-static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
+static int	_archive_write_disk_data_block(struct archive *, const void *,
 		    size_t, int64_t);
 
 #define bhfi_dev(bhfi)	((bhfi)->dwVolumeSerialNumber)
@@ -1125,7 +1125,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	return ((ssize_t)(start_size - size));
 }
 
-static ssize_t
+static int
 _archive_write_disk_data_block(struct archive *_a,
     const void *buff, size_t size, int64_t offset)
 {
@@ -1144,11 +1144,7 @@ _archive_write_disk_data_block(struct archive *_a,
 		    "Write request too large");
 		return (ARCHIVE_WARN);
 	}
-#if ARCHIVE_VERSION_NUMBER < 3999000
 	return (ARCHIVE_OK);
-#else
-	return (size);
-#endif
 }
 
 static ssize_t
