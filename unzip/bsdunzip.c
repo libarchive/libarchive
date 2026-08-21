@@ -1210,7 +1210,8 @@ getopts(int argc, char *argv[])
 		case 'Z':
 			zipinfo_mode = 1;
 			if (bsdunzip->argument != NULL &&
-			    strcmp(bsdunzip->argument, "1") == 0) {
+			    (strcmp(bsdunzip->argument, "1") == 0 ||
+			    strcmp(bsdunzip->argument, "-1") == 0)) {
 				Z1_opt = 1;
 			}
 			break;
