@@ -1074,6 +1074,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_owner.rar.uu \
 	libarchive/test/test_read_format_rar5_owner_name_toolong.rar.uu \
 	libarchive/test/test_read_format_rar5_readtables_overflow.rar.uu \
+	libarchive/test/test_read_format_rar5_redir_varint_2byte.rar.uu \
 	libarchive/test/test_read_format_rar5_sfx.exe.uu \
 	libarchive/test/test_read_format_rar5_solid.rar.uu \
 	libarchive/test/test_read_format_rar5_stored.rar.uu \
