@@ -154,6 +154,37 @@ DEFINE_TEST(test_read_format_rar5_stored)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_zip_in_rar)
+{
+	/* Regression test for issue #2249.  This archive begins with the
+	 * RAR5 signature but stores an uncompressed (method "store") Zip
+	 * file as one of its members.  The Zip bidder used to outscore the
+	 * RAR5 bidder on such archives (its seekable end-of-central-directory
+	 * bid of 32 beat the RAR5 signature bid of 30), so auto-detection
+	 * misread the whole thing as a Zip and reported the embedded Zip's
+	 * entries instead of the RAR members.  With the RAR5 signature bid
+	 * raised to 64 the reader must pick RAR5 and list the real members. */
+
+	const char *expected[] = {
+		"payload/inner.zip",
+		"payload/real_after.txt",
+		"payload",
+	};
+	size_t i;
+
+	PROLOGUE("test_read_format_rar5_zip_in_rar.rar");
+
+	for(i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+		assertA(0 == archive_read_next_header(a, &ae));
+		assertEqualInt(ARCHIVE_FORMAT_RAR_V5, archive_format(a));
+		assertEqualString(expected[i], archive_entry_pathname(ae));
+	}
+
+	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_compressed)
 {
 	const int DATA_SIZE = 1200;

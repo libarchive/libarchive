@@ -85,6 +85,16 @@ static const unsigned char rar5_signature_xor[] = {
 };
 static const size_t g_unpack_window_size = 0x20000;
 
+/* Bid returned when the RAR5 signature is found at offset 0.  Bidders
+ * conventionally return the number of bits they verified, so an exact
+ * match of the 8-byte signature bids 64 (like the ar and warc readers
+ * do for their 8-byte magics).  This must stay above the seekable Zip
+ * bidder's 32 so that a RAR archive which merely stores an uncompressed
+ * Zip is still recognized as RAR (see issue #2249).  The weaker SFX
+ * heuristic, which only scans for the signature somewhere inside an
+ * executable, deliberately keeps its lower bid of 30. */
+#define RAR5_SIGNATURE_BID ((int)(8 * sizeof(rar5_signature_xor)))
+
 /* These could have been static const's, but they aren't, because of
  * Visual Studio. */
 #define MAX_NAME_IN_CHARS 2048
@@ -1110,7 +1120,7 @@ static int bid_standard(struct archive_read* a) {
 		return -1;
 
 	if(!memcmp(h, signature, sizeof(rar5_signature_xor)))
-		return 30;
+		return RAR5_SIGNATURE_BID;
 
 	return -1;
 }
@@ -1159,7 +1169,7 @@ static int bid_sfx(struct archive_read *a)
 static int rar5_bid(struct archive_read* a, int best_bid) {
 	int my_bid;
 
-	if(best_bid > 30)
+	if(best_bid >= RAR5_SIGNATURE_BID)
 		return -1;
 
 	my_bid = bid_standard(a);
