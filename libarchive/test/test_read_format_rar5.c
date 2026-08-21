@@ -253,6 +253,35 @@ DEFINE_TEST(test_read_format_rar5_multiple_files_solid)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_multiarchive_first_volume_only)
+{
+	/* Regression test: opening only the first volume of a multivolume
+	 * RAR5 set must not silently return a truncated file.  The first
+	 * entry's data is flagged 'split after', i.e. it continues in the
+	 * following volumes; when those are not supplied, reading the data
+	 * has to fail rather than report a clean end of file after a short
+	 * read, which used to silently hand back corrupted data. */
+	char buf[16384];
+	la_ssize_t r;
+
+	PROLOGUE("test_read_format_rar5_multiarchive.part01.rar");
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString(
+	    "home/antek/temp/build/unrar5/libarchive/bin/bsdcat_test",
+	    archive_entry_pathname(ae));
+
+	/* Drain the entry's data.  It must terminate with a fatal error,
+	 * not a clean 0-length end of file. */
+	do {
+		r = archive_read_data(a, buf, sizeof(buf));
+	} while(r > 0);
+
+	assertEqualInt(ARCHIVE_FATAL, r);
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_multiarchive_skip_all)
 {
 	const char* reffiles[] = {
