@@ -1091,6 +1091,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_bad_tables.rar.uu \
 	libarchive/test/test_read_format_rar5_bad_window_sz_in_mltarc_file.rar.uu \
 	libarchive/test/test_read_format_rar5_data_ready_pointer_leak.rar.uu \
+	libarchive/test/test_read_format_rar5_zip_in_rar.rar.uu \
 	libarchive/test/test_read_format_raw.bufr.uu \
 	libarchive/test/test_read_format_raw.data.gz.uu \
 	libarchive/test/test_read_format_raw.data.Z.uu \
