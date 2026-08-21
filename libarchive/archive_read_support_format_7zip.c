@@ -3186,19 +3186,19 @@ read_Times(struct archive_read *a, int type)
 			goto failed;
 		switch (type) {
 		case kCTime:
-			ntfs_to_unix(archive_le64dec(p),
+			__archive_ntfs_to_unix(archive_le64dec(p),
 			    &(entries[i].ctime),
 			    &(entries[i].ctime_ns));
 			entries[i].flg |= CTIME_IS_SET;
 			break;
 		case kATime:
-			ntfs_to_unix(archive_le64dec(p),
+			__archive_ntfs_to_unix(archive_le64dec(p),
 			    &(entries[i].atime),
 			    &(entries[i].atime_ns));
 			entries[i].flg |= ATIME_IS_SET;
 			break;
 		case kMTime:
-			ntfs_to_unix(archive_le64dec(p),
+			__archive_ntfs_to_unix(archive_le64dec(p),
 			    &(entries[i].mtime),
 			    &(entries[i].mtime_ns));
 			entries[i].flg |= MTIME_IS_SET;

@@ -1153,7 +1153,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		archive_le16enc(local_header + 8, zip->entry_compression);
 	archive_le32enc(local_header + 10,
-		unix_to_dos(archive_entry_mtime(zip->entry)));
+		__archive_unix_to_dos(archive_entry_mtime(zip->entry)));
 	if ((zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END) == 0) {
 		archive_le32enc(local_header + 14, zip->entry_crc32);
 		archive_le32enc(local_header + 18, (uint32_t)zip->entry_compressed_size);
@@ -1184,7 +1184,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		archive_le16enc(zip->file_header + 10, zip->entry_compression);
 	archive_le32enc(zip->file_header + 12,
-		unix_to_dos(archive_entry_mtime(zip->entry)));
+		__archive_unix_to_dos(archive_entry_mtime(zip->entry)));
 	archive_le16enc(zip->file_header + 28, (uint16_t)filename_length);
 	/* Following Info-Zip, store mode in the "external attributes" field. */
 	archive_le32enc(zip->file_header + 38,
