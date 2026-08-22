@@ -337,9 +337,11 @@ AM_CONDITIONAL([STATIC_BSDUNZIP], [ test "$static_bsdunzip" = yes ])
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h])
-AC_CHECK_HEADERS([copyfile.h ctype.h])
-AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h fnmatch.h grp.h])
+AC_CHECK_HEADERS(m4_flatten([
+	acl/libacl.h attr/xattr.h
+	copyfile.h ctype.h
+	errno.h ext2fs/ext2_fs.h fcntl.h fnmatch.h grp.h
+]))
 
 AC_CACHE_CHECK([whether EXT2_IOC_GETFLAGS is usable],
     [ac_cv_have_decl_EXT2_IOC_GETFLAGS],
@@ -353,8 +355,10 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
     [AC_DEFINE_UNQUOTED([HAVE_WORKING_EXT2_IOC_GETFLAGS], [1],
                     [Define to 1 if you have a working EXT2_IOC_GETFLAGS])])
 
-AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
-AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
+AC_CHECK_HEADERS(m4_flatten([
+	inttypes.h io.h langinfo.h limits.h
+	linux/fiemap.h linux/fs.h linux/magic.h linux/types.h
+]))
 
 AC_CACHE_CHECK([whether FS_IOC_GETFLAGS is usable],
     [ac_cv_have_decl_FS_IOC_GETFLAGS],
@@ -368,16 +372,18 @@ AS_VAR_IF([ac_cv_have_decl_FS_IOC_GETFLAGS], [yes],
     [AC_DEFINE_UNQUOTED([HAVE_WORKING_FS_IOC_GETFLAGS], [1],
                     [Define to 1 if you have a working FS_IOC_GETFLAGS])])
 
-AC_CHECK_HEADERS([intsafe.h locale.h membership.h paths.h poll.h pthread.h])
-AC_CHECK_HEADERS([pwd.h readpassphrase.h signal.h spawn.h])
-AC_CHECK_HEADERS([stdarg.h stdckdint.h stdint.h stdlib.h string.h])
-AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/ea.h sys/extattr.h])
-AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
-AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/richacl.h])
-AC_CHECK_HEADERS([sys/select.h sys/statfs.h sys/statvfs.h sys/sysctl.h])
-AC_CHECK_HEADERS([sys/sysmacros.h sys/time.h sys/utime.h sys/utsname.h])
-AC_CHECK_HEADERS([sys/vfs.h sys/xattr.h time.h unistd.h utime.h wchar.h])
-AC_CHECK_HEADERS([wctype.h])
+AC_CHECK_HEADERS(m4_flatten([
+	intsafe.h locale.h membership.h paths.h poll.h pthread.h
+	pwd.h readpassphrase.h signal.h spawn.h
+	stdarg.h stdckdint.h stdint.h stdlib.h string.h
+	sys/acl.h sys/cdefs.h sys/ea.h sys/extattr.h
+	sys/ioctl.h sys/mkdev.h sys/mount.h
+	sys/param.h sys/poll.h sys/richacl.h
+	sys/select.h sys/statfs.h sys/statvfs.h sys/sysctl.h
+	sys/sysmacros.h sys/time.h sys/utime.h sys/utsname.h
+	sys/vfs.h sys/xattr.h time.h unistd.h utime.h wchar.h
+	wctype.h
+]))
 AC_CHECK_TYPE([suseconds_t])
 AC_CHECK_HEADERS([windows.h])
 # check windows.h first; the other headers require it.
