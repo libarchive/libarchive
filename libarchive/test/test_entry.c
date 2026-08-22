@@ -1016,3 +1016,54 @@ DEFINE_TEST(test_entry_mac_metadata_self_copy)
 
 	archive_entry_free(entry);
 }
+
+DEFINE_TEST(test_entry_copy_bhfi)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION bhfi;
+	struct archive_entry *e;
+
+	memset(&bhfi, 0, sizeof(bhfi));
+	assert((e = archive_entry_new()) != NULL);
+
+	bhfi.nFileIndexHigh = 0x7fffffffUL;
+	bhfi.nFileIndexLow = 0xffffffffUL;
+	bhfi.nFileSizeHigh = 0x7fffffffUL;
+	bhfi.nFileSizeLow = 0xffffffffUL;
+	archive_entry_copy_bhfi(e, &bhfi);
+	assertEqualInt(INT64_MAX, archive_entry_ino64(e));
+	assertEqualInt(INT64_MAX, archive_entry_size(e));
+
+	/* Values outside libarchive 3.x's signed API must not wrap negative. */
+	bhfi.nFileIndexHigh = 0x80000000UL;
+	bhfi.nFileIndexLow = 0;
+	bhfi.nFileSizeHigh = 0x80000000UL;
+	bhfi.nFileSizeLow = 0;
+	archive_entry_copy_bhfi(e, &bhfi);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	assert(!archive_entry_ino_is_set(e));
+#else
+	assert(archive_entry_ino_is_set(e));
+	assert(archive_entry_ino64(e) == ((la_uint64_t)1 << 63));
+#endif
+	assertEqualInt(INT64_MAX, archive_entry_size(e));
+
+	/* Cover the complete unsigned range. */
+	bhfi.nFileIndexHigh = 0xffffffffUL;
+	bhfi.nFileIndexLow = 0xffffffffUL;
+	bhfi.nFileSizeHigh = 0xffffffffUL;
+	bhfi.nFileSizeLow = 0xffffffffUL;
+	archive_entry_copy_bhfi(e, &bhfi);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	assert(!archive_entry_ino_is_set(e));
+#else
+	assert(archive_entry_ino_is_set(e));
+	assert(archive_entry_ino64(e) == UINT64_MAX);
+#endif
+	assertEqualInt(INT64_MAX, archive_entry_size(e));
+
+	archive_entry_free(e);
+#else
+	skipping("Windows-specific test");
+#endif
+}
