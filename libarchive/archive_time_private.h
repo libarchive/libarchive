@@ -31,17 +31,22 @@
 #include <stdint.h>
 
 /* NTFS time to Unix sec/nsec. */
+#define ntfs_to_unix __archive_ntfs_to_unix
 void ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs);
 /* DOS time to Unix sec. */
+#define dos_to_unix __archive_dos_to_unix
 int64_t dos_to_unix(uint32_t dos);
 /* Unix sec/nsec to NTFS time. */
+#define unix_to_ntfs __archive_unix_to_ntfs
 uint64_t unix_to_ntfs(int64_t secs, uint32_t nsecs);
 /* Unix sec to DOS time. */
+#define unix_to_dos __archive_unix_to_dos
 uint32_t unix_to_dos(int64_t secs);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windef.h>
 #include <winbase.h>
 /* Windows FILETIME to NTFS time. */
+#define FILETIME_to_ntfs __archive_FILETIME_to_ntfs
 uint64_t FILETIME_to_ntfs(const FILETIME* filetime);
 #endif
 #endif /* ARCHIVE_TIME_PRIVATE_H_INCLUDED */
