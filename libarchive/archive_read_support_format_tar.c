@@ -1398,6 +1398,13 @@ header_common(struct archive_read *a, struct tar *tar,
 	} else {
 		archive_entry_set_size(entry, tar->disk_size);
 	}
+	if (tar->sparse_last != NULL &&
+	    tar->sparse_last->offset + tar->sparse_last->remaining >
+	    tar->disk_size) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Tar sparse exceeds file size");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Second, how big is the data in the archive? */
 	if ((tar->size_fields & TAR_SIZE_GNU_SPARSE_SIZE) != 0
@@ -3137,6 +3144,8 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 {
 	struct sparse_block *p;
 
+	if (remaining == 0)
+		return (ARCHIVE_OK);
 	p = calloc(1, sizeof(*p));
 	if (p == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
