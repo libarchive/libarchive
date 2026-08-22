@@ -1659,3 +1659,35 @@ DEFINE_TEST(test_read_format_rar5_seek_data_unsupported)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_blake2sp_hash_too_short)
+{
+	/* A crafted HEAD_FILE declares an EX_HASH extra field with
+	 * hash_type=BLAKE2sp (0x00) but the extra field is only 3 bytes
+	 * (field_size + field_id + hash_type), leaving no room for the
+	 * 32-byte BLAKE2sp digest.  Without the bounds check the reader
+	 * would call read_ahead(a, 32) past the extra-field boundary and
+	 * then decrement *extra_data_size by 32, causing a signed underflow.
+	 * With the fix the reader returns ARCHIVE_FATAL instead. */
+	PROLOGUE("test_read_format_rar5_blake2sp_hash_too_short.rar");
+
+	assertA(archive_read_next_header(a, &ae) < 0);
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_htime_ctime_truncated)
+{
+	/* A crafted HEAD_FILE declares an EX_HTIME extra field with
+	 * HAS_MTIME | HAS_CTIME (Windows timestamps, 8 bytes each) but the
+	 * archive is truncated after the mtime bytes.  The three calls to
+	 * parse_htime_item() previously discarded the return value, so the
+	 * EOF from the truncated ctime read was silently swallowed and the
+	 * reader continued with ARCHIVE_OK.  With the fix it propagates the
+	 * error to the caller. */
+	PROLOGUE("test_read_format_rar5_htime_ctime_truncated.rar");
+
+	assertA(ARCHIVE_OK != archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}
