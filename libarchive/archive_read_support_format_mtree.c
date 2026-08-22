@@ -1432,7 +1432,7 @@ parse_device(dev_t *pdev, struct archive *a, char *val)
 		 * Decode and pack it accordingly.
 		 */
 		*dev++ = '\0';
-		if ((pack = pack_find(val)) == NULL) {
+		if ((pack = __archive_pack_find(val)) == NULL) {
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Unknown format `%s'", val);
 			return ARCHIVE_WARN;

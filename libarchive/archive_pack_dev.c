@@ -316,7 +316,7 @@ compare_format(const void *key, const void *element)
 
 
 pack_t *
-pack_find(const char *name)
+__archive_pack_find(const char *name)
 {
 	const struct format	*format;
 
