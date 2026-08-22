@@ -4331,6 +4331,11 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	}
 
 	ret = do_unpack(a, rar5, buff, size, offset);
+	if(ret == ARCHIVE_EOF &&
+	    rar5->file.bytes_remaining == 0 &&
+	    rar5->cstate.last_write_ptr == rar5->file.unpacked_size) {
+		ret = ARCHIVE_OK;
+	}
 	if(ret != ARCHIVE_OK) {
 		return ret;
 	}
