@@ -853,7 +853,7 @@ AC_CHECK_FUNCS(m4_flatten([
 	tcgetattr tcsetattr timegm tzset
 	unlinkat unsetenv utime utimensat utimes
 	vfork
-	wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove
+	waitpid wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove
 	_fseeki64 _get_timezone
 ]))
 AC_CHECK_DECL([cmtime_s],

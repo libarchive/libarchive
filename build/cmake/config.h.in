@@ -1249,6 +1249,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `vprintf' function. */
 #cmakedefine HAVE_VPRINTF 1
 
+/* Define to 1 if you have the 'waitpid' function. */
+#cmakedefine HAVE_WAITPID 1
+
 /* Define to 1 if you have the <wchar.h> header file. */
 #cmakedefine HAVE_WCHAR_H 1
 
