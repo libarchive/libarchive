@@ -49,7 +49,7 @@
 #include <winnt.h>
 /* Windows FILETIME to NTFS time. */
 uint64_t
-FILETIME_to_ntfs(const FILETIME* filetime)
+__archive_FILETIME_to_ntfs(const FILETIME* filetime)
 {
 	ULARGE_INTEGER utc;
 	utc.HighPart = filetime->dwHighDateTime;
@@ -60,7 +60,7 @@ FILETIME_to_ntfs(const FILETIME* filetime)
 
 /* Convert an MSDOS-style date/time into Unix-style time. */
 int64_t
-dos_to_unix(uint32_t dos_time)
+__archive_dos_to_unix(uint32_t dos_time)
 {
 	uint16_t msTime, msDate;
 	struct tm ts;
@@ -83,7 +83,7 @@ dos_to_unix(uint32_t dos_time)
 
 /* Convert into MSDOS-style date/time. */
 uint32_t
-unix_to_dos(int64_t unix_time)
+__archive_unix_to_dos(int64_t unix_time)
 {
 	struct tm *t;
 	uint32_t dt;
@@ -132,7 +132,7 @@ unix_to_dos(int64_t unix_time)
 
 /* Convert NTFS time to Unix sec/nsec */
 void
-ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs)
+__archive_ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs)
 {
 	if (ntfs > INT64_MAX) {
 		ntfs -= NTFS_EPOC_TICKS;
@@ -151,7 +151,7 @@ ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs)
 
 /* Convert Unix sec/nsec to NTFS time */
 uint64_t
-unix_to_ntfs(int64_t secs, uint32_t nsecs)
+__archive_unix_to_ntfs(int64_t secs, uint32_t nsecs)
 {
 	uint64_t ntfs;
 

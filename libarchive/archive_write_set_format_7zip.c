@@ -1357,7 +1357,7 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 	for (;file != NULL; file = file->next) {
 		if ((file->flg & flg) == 0)
 			continue;
-		archive_le64enc(filetime, unix_to_ntfs(file->times[ti].time,
+		archive_le64enc(filetime, __archive_unix_to_ntfs(file->times[ti].time,
 			file->times[ti].time_ns));
 		r = (int)compress_out(a, filetime, 8, ARCHIVE_Z_RUN);
 		if (r < 0)
