@@ -569,12 +569,19 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 	} else {
 		struct sparse_block *sb;
+		size_t added = 0;
+		int count;
 
 		for (sb = tar->sparse_list; sb != NULL; sb = sb->next) {
-			if (!sb->hole)
+			if (!sb->hole) {
 				archive_entry_sparse_add_entry(entry,
 				    sb->offset, sb->remaining);
+				added++;
+			}
 		}
+		count = archive_entry_sparse_count(entry);
+		if (count < 0 || (size_t)count != added)
+			return (ARCHIVE_FATAL);
 	}
 
 	if (r == ARCHIVE_OK && archive_entry_filetype(entry) == AE_IFREG) {
@@ -3137,6 +3144,8 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 {
 	struct sparse_block *p;
 
+	if (remaining == 0)
+		return (ARCHIVE_OK);
 	p = calloc(1, sizeof(*p));
 	if (p == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
