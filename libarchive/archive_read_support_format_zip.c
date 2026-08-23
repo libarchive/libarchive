@@ -1153,7 +1153,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	zip->init_decryption = (zip_entry->zip_flags & ZIP_ENCRYPTED);
 	zip_entry->compression = (char)archive_le16dec(p + 8);
-	zip_entry->mtime = dos_to_unix(archive_le32dec(p + 10));
+	zip_entry->mtime = __archive_dos_to_unix(archive_le32dec(p + 10));
 	zip_entry->crc32 = archive_le32dec(p + 14);
 	if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 		zip_entry->decdat = p[11];
@@ -4266,7 +4266,7 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 			zip->has_encrypted_entries = 1;
 		}
 		zip_entry->compression = (char)archive_le16dec(p + 10);
-		zip_entry->mtime = dos_to_unix(archive_le32dec(p + 12));
+		zip_entry->mtime = __archive_dos_to_unix(archive_le32dec(p + 12));
 		zip_entry->crc32 = archive_le32dec(p + 16);
 		if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 			zip_entry->decdat = p[13];

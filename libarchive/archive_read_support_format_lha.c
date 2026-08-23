@@ -815,7 +815,7 @@ lha_read_file_header_0(struct archive_read *a, struct lha *lha)
 	headersum = p[H0_HEADER_SUM_OFFSET];
 	lha->compsize = archive_le32dec(p + H0_COMP_SIZE_OFFSET);
 	lha->origsize = archive_le32dec(p + H0_ORIG_SIZE_OFFSET);
-	lha->mtime = dos_to_unix(archive_le32dec(p + H0_DOS_TIME_OFFSET));
+	lha->mtime = __archive_dos_to_unix(archive_le32dec(p + H0_DOS_TIME_OFFSET));
 	namelen = p[H0_NAME_LEN_OFFSET];
 	extdsize = (int)lha->header_size - H0_FIXED_SIZE - namelen;
 	if ((namelen > 221 || extdsize < 0) && extdsize != -2) {
@@ -915,7 +915,7 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 	/* Note: An extended header size is included in a compsize. */
 	lha->compsize = archive_le32dec(p + H1_COMP_SIZE_OFFSET);
 	lha->origsize = archive_le32dec(p + H1_ORIG_SIZE_OFFSET);
-	lha->mtime = dos_to_unix(archive_le32dec(p + H1_DOS_TIME_OFFSET));
+	lha->mtime = __archive_dos_to_unix(archive_le32dec(p + H1_DOS_TIME_OFFSET));
 	namelen = p[H1_NAME_LEN_OFFSET];
 	/* Calculate a padding size. The result will be normally 0 only(?) */
 	padding = ((int)lha->header_size) - H1_FIXED_SIZE - namelen;
@@ -1328,15 +1328,15 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			break;
 		case EXT_TIMESTAMP:
 			if (datasize == (sizeof(uint64_t) * 3)) {
-				ntfs_to_unix(archive_le64dec(extdheader),
+				__archive_ntfs_to_unix(archive_le64dec(extdheader),
 					&lha->birthtime,
 				    &lha->birthtime_tv_nsec);
 				extdheader += sizeof(uint64_t);
-				ntfs_to_unix(archive_le64dec(extdheader),
+				__archive_ntfs_to_unix(archive_le64dec(extdheader),
 					&lha->mtime,
 				    &lha->mtime_tv_nsec);
 				extdheader += sizeof(uint64_t);
-				ntfs_to_unix(archive_le64dec(extdheader),
+				__archive_ntfs_to_unix(archive_le64dec(extdheader),
 					&lha->atime,
 				    &lha->atime_tv_nsec);
 				lha->setflag |= BIRTHTIME_IS_SET |

@@ -2694,17 +2694,17 @@ set_times(struct archive_write_disk *a,
 		h = hw;
 	}
 
-	wintm.QuadPart = unix_to_ntfs(atime, atime_nanos);
+	wintm.QuadPart = __archive_unix_to_ntfs(atime, atime_nanos);
 	fatime.dwLowDateTime = wintm.LowPart;
 	fatime.dwHighDateTime = wintm.HighPart;
-	wintm.QuadPart = unix_to_ntfs(mtime, mtime_nanos);
+	wintm.QuadPart = __archive_unix_to_ntfs(mtime, mtime_nanos);
 	fmtime.dwLowDateTime = wintm.LowPart;
 	fmtime.dwHighDateTime = wintm.HighPart;
 	/*
 	 * SetFileTime() supports birthtime.
 	 */
 	if (birthtime > 0 || birthtime_nanos > 0) {
-		wintm.QuadPart = unix_to_ntfs(birthtime, birthtime_nanos);
+		wintm.QuadPart = __archive_unix_to_ntfs(birthtime, birthtime_nanos);
 		fbtime.dwLowDateTime = wintm.LowPart;
 		fbtime.dwHighDateTime = wintm.HighPart;
 		pfbtime = &fbtime;
@@ -2935,7 +2935,7 @@ older(BY_HANDLE_FILE_INFORMATION *st, struct archive_entry *entry)
 	int64_t sec;
 	uint32_t nsec;
 
-	ntfs_to_unix(FILETIME_to_ntfs(&st->ftLastWriteTime), &sec, &nsec);
+	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(&st->ftLastWriteTime), &sec, &nsec);
 	/* First, test the seconds and return if we have a definite answer. */
 	/* Definitely older. */
 	if (sec < archive_entry_mtime(entry))

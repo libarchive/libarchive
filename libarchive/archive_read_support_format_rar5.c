@@ -1310,7 +1310,7 @@ static int parse_htime_item(struct archive_read* a, char unix_time,
 		if(!read_u64(a, &windows_time))
 			return ARCHIVE_EOF;
 
-		ntfs_to_unix(windows_time, sec, nsec);
+		__archive_ntfs_to_unix(windows_time, sec, nsec);
 		*extra_data_size -= 8;
 	}
 
