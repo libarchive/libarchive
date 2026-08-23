@@ -3395,6 +3395,25 @@ create_dir(struct archive_write_disk *a, char *path)
 		return (ARCHIVE_OK);
 	}
 
+#if defined(HAVE_OPENAT) && defined(HAVE_UNLINKAT) && defined(O_NOFOLLOW)
+	int safe_fd = openat(AT_FDCWD, path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+	if (safe_fd >= 0) {
+		if (fstat(safe_fd, &st) == 0) {
+			if (S_ISDIR(st.st_mode)) {
+				close(safe_fd);
+				return (ARCHIVE_OK);
+			}
+			if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
+				close(safe_fd);
+				archive_set_error(&a->archive, EEXIST,
+				    "Can't create directory '%s'", path);
+				return (ARCHIVE_FAILED);
+			}
+			unlinkat(AT_FDCWD, path, 0);
+		}
+		close(safe_fd);
+	}
+#else
 	/*
 	 * Yes, this should be stat() and not lstat().  Using lstat()
 	 * here loses the ability to extract through symlinks.  Also note
@@ -3415,7 +3434,9 @@ create_dir(struct archive_write_disk *a, char *path)
 			    path);
 			return (ARCHIVE_FAILED);
 		}
-	} else if (errno != ENOENT && errno != ENOTDIR) {
+	}
+#endif 
+	else if (errno != ENOENT && errno != ENOTDIR) {
 		/* Stat failed? */
 		archive_set_error(&a->archive, errno,
 		    "Can't test directory '%s'", path);
