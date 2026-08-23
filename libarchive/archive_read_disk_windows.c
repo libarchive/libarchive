@@ -92,7 +92,7 @@ struct tree_entry {
 	struct archive_wstring	 full_path;
 	size_t			 dirname_length;
 	int64_t			 dev;
-	int64_t			 ino;
+	uint64_t			 ino;
 	int			 flags;
 	int			 filesystem_id;
 	/* How to restore time of a directory. */
@@ -202,12 +202,6 @@ struct tree {
 };
 
 #define bhfi_dev(bhfi)	((bhfi)->dwVolumeSerialNumber)
-/* Treat FileIndex as i-node. We should remove a sequence number
- * which is high-16-bits of nFileIndexHigh. */
-#define bhfi_ino(bhfi)	\
-	((((int64_t)((bhfi)->nFileIndexHigh & 0x0000FFFFUL)) << 32) \
-    + (bhfi)->nFileIndexLow)
-
 /* Definitions for tree.flags bitmap. */
 #define	hasStat		16 /* The st entry is valid. */
 #define	hasLstat	32 /* The lst entry is valid. */
@@ -222,7 +216,7 @@ static struct tree *tree_reopen(struct tree *, const wchar_t *, int);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
 static void tree_push(struct tree *, const wchar_t *, const wchar_t *,
-		int, int64_t, int64_t, struct restore_time *);
+		int, int64_t, uint64_t, struct restore_time *);
 
 /*
  * tree_next() returns Zero if there is no next entry, non-zero if
@@ -1664,7 +1658,7 @@ close_and_restore_time(HANDLE h, struct tree *t, struct restore_time *rt)
  */
 static void
 tree_push(struct tree *t, const wchar_t *path, const wchar_t *full_path,
-    int filesystem_id, int64_t dev, int64_t ino, struct restore_time *rt)
+    int filesystem_id, int64_t dev, uint64_t ino, struct restore_time *rt)
 {
 	struct tree_entry *te;
 
@@ -2054,6 +2048,7 @@ entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
 {
 	int64_t secs;
 	uint32_t nsecs;
+	uint64_t file_index, file_size;
 	mode_t mode;
 
 	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastAccessTime), &secs, &nsecs);
@@ -2064,14 +2059,23 @@ entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
 	archive_entry_set_birthtime(entry, secs, nsecs);
 	archive_entry_set_ctime(entry, secs, nsecs);
 	archive_entry_set_dev(entry, bhfi_dev(bhfi));
-	archive_entry_set_ino64(entry, bhfi_ino(bhfi));
+	file_index =
+	    ((uint64_t)(bhfi->nFileIndexHigh & 0x0000FFFFUL) << 32) |
+	    bhfi->nFileIndexLow;
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	if (file_index > (uint64_t)INT64_MAX)
+		archive_entry_set_ino64(entry, -1);
+	else
+#endif
+		archive_entry_set_ino64(entry, (__LA_INO_T)file_index);
 	if (bhfi->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		archive_entry_set_nlink(entry, bhfi->nNumberOfLinks + 1);
 	else
 		archive_entry_set_nlink(entry, bhfi->nNumberOfLinks);
-	archive_entry_set_size(entry,
-	    (((int64_t)bhfi->nFileSizeHigh) << 32)
-	    + bhfi->nFileSizeLow);
+	file_size = ((uint64_t)bhfi->nFileSizeHigh << 32) |
+	    bhfi->nFileSizeLow;
+	archive_entry_set_size(entry, file_size > INT64_MAX ? INT64_MAX :
+	    (int64_t)file_size);
 	archive_entry_set_uid(entry, 0);
 	archive_entry_set_gid(entry, 0);
 	archive_entry_set_rdev(entry, 0);
@@ -2234,7 +2238,7 @@ tree_target_is_same_as_parent(struct tree *t,
 {
 	struct tree_entry *te;
 	int64_t dev = bhfi_dev(st);
-	int64_t ino = bhfi_ino(st);
+	uint64_t ino = bhfi_ino(st);
 
 	for (te = t->current->parent; te != NULL; te = te->parent) {
 		if (te->dev == dev && te->ino == ino)
