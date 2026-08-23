@@ -34,6 +34,9 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -4159,6 +4162,41 @@ skip_stream(struct archive_read *a, int64_t skip_bytes)
  */
 
 #define Test86MSByte(b) ((b) == 0 || (b) == 0xFF)
+#define X86_BRANCH_SCAN_LIMIT 4096
+
+static uint8_t *
+x86_find_branch_byte(uint8_t *p, uint8_t *limit)
+{
+	size_t n, prefix;
+	uint8_t *e8, *e9, *prefix_limit;
+
+	if (p >= limit)
+		return (p);
+
+	n = (size_t)(limit - p);
+	prefix = n < X86_BRANCH_SCAN_LIMIT ? n : X86_BRANCH_SCAN_LIMIT;
+	prefix_limit = p + prefix;
+
+	for (; p < prefix_limit; p++) {
+		if ((*p & 0xFE) == 0xE8)
+			return (p);
+	}
+
+	if (p >= limit)
+		return (limit);
+
+	n = (size_t)(limit - p);
+	e8 = (uint8_t *)memchr(p, 0xE8, n);
+
+	if (e8 != NULL)
+		n = (size_t)(e8 - p);
+
+	e9 = (uint8_t *)memchr(p, 0xE9, n);
+	if (e9 != NULL)
+		return (e9);
+	return (e8 != NULL ? e8 : limit);
+}
+
 
 static void
 x86_Init(struct _7zip *zip)
@@ -4176,6 +4214,7 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 	static const uint8_t kMaskToBitNumber[8] = {0, 1, 2, 2, 3, 3, 3, 3};
 	size_t bufferPos, prevPosT;
 	uint32_t ip, prevMask;
+	uint8_t *limit;
 
 	if (size < 5)
 		return 0;
@@ -4185,13 +4224,11 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 	prevMask = zip->bcj_prevMask;
 	ip = zip->bcj_ip;
 
-	for (;;) {
-		uint8_t *p = data + bufferPos;
-		uint8_t *limit = data + size - 4;
+	limit = data + size - 4;
 
-		for (; p < limit; p++)
-			if ((*p & 0xFE) == 0xE8)
-				break;
+	for (;;) {
+		uint8_t *p = x86_find_branch_byte(data + bufferPos, limit);
+
 		bufferPos = (size_t)(p - data);
 		if (p >= limit)
 			break;
