@@ -1458,6 +1458,7 @@ static int parse_file_extra_redir(struct archive_read* a,
     struct archive_entry* e, struct rar5 *rar5, int64_t* extra_data_size)
 {
 	uint64_t value_size = 0;
+	size_t varint_len = 0;
 	size_t target_size = 0;
 	char target_utf8_buf[MAX_NAME_IN_BYTES];
 	const uint8_t* p;
@@ -1474,9 +1475,11 @@ static int parse_file_extra_redir(struct archive_read* a,
 		return ARCHIVE_EOF;
 	*extra_data_size -= value_size;
 
-	if(!read_var_sized(a, &target_size, NULL))
+	if(!read_var_sized(a, &target_size, &varint_len))
 		return ARCHIVE_EOF;
-	*extra_data_size -= target_size + 1;
+	if(ARCHIVE_OK != consume(a, (int64_t)varint_len))
+		return ARCHIVE_EOF;
+	*extra_data_size -= (int64_t)(target_size + varint_len);
 
 	if(target_size > (MAX_NAME_IN_CHARS - 1)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1533,6 +1536,7 @@ static int parse_file_extra_owner(struct archive_read* a,
 	uint64_t id = 0;
 	size_t name_len = 0;
 	size_t name_size = 0;
+	size_t varint_len = 0;
 	char namebuf[OWNER_MAXNAMELEN];
 	const uint8_t* p;
 
@@ -1543,7 +1547,7 @@ static int parse_file_extra_owner(struct archive_read* a,
 	*extra_data_size -= value_size;
 
 	if ((flags & OWNER_USER_NAME) != 0) {
-		if(!read_var_sized(a, &name_size, NULL))
+		if(!read_var_sized(a, &name_size, &varint_len))
 			return ARCHIVE_EOF;
 
 		/* The name cannot be larger than the remaining extra data of
@@ -1555,7 +1559,9 @@ static int parse_file_extra_owner(struct archive_read* a,
 			    ARCHIVE_ERRNO_FILE_FORMAT, "Owner name is too long");
 			return ARCHIVE_FATAL;
 		}
-		*extra_data_size -= name_size + 1;
+		if(ARCHIVE_OK != consume(a, (int64_t)varint_len))
+			return ARCHIVE_EOF;
+		*extra_data_size -= (int64_t)(name_size + varint_len);
 
 		if(!read_ahead(a, name_size, &p))
 			return ARCHIVE_EOF;
@@ -1574,7 +1580,7 @@ static int parse_file_extra_owner(struct archive_read* a,
 		archive_entry_set_uname(e, namebuf);
 	}
 	if ((flags & OWNER_GROUP_NAME) != 0) {
-		if(!read_var_sized(a, &name_size, NULL))
+		if(!read_var_sized(a, &name_size, &varint_len))
 			return ARCHIVE_EOF;
 
 		if(*extra_data_size < 0 ||
@@ -1583,7 +1589,9 @@ static int parse_file_extra_owner(struct archive_read* a,
 			    ARCHIVE_ERRNO_FILE_FORMAT, "Group name is too long");
 			return ARCHIVE_FATAL;
 		}
-		*extra_data_size -= name_size + 1;
+		if(ARCHIVE_OK != consume(a, (int64_t)varint_len))
+			return ARCHIVE_EOF;
+		*extra_data_size -= (int64_t)(name_size + varint_len);
 
 		if(!read_ahead(a, name_size, &p))
 			return ARCHIVE_EOF;
