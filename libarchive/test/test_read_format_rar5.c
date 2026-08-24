@@ -1659,3 +1659,33 @@ DEFINE_TEST(test_read_format_rar5_seek_data_unsupported)
 
 	EPILOGUE();
 }
+
+DEFINE_TEST(test_read_format_rar5_redir_varint_2byte)
+{
+	/*
+	 * A crafted RAR5 whose EX_REDIR symlink target is exactly 128 bytes.
+	 * That makes read_var_sized() encode the length as a 2-byte varint
+	 * (0x80 0x01) instead of the 1-byte form assumed by the old "+1" code.
+	 * With the old code extra_data_size was decremented by only target_size+1
+	 * (129) instead of target_size+2 (130), leaving it 1 too large.
+	 * process_head_file_extra() would then loop back and attempt to parse a
+	 * phantom extra field from the one byte of padding that follows, which
+	 * returns ARCHIVE_EOF.  With the fix, extra_data_size reaches exactly 0
+	 * and the loop exits cleanly.
+	 */
+	char expected_target[129];
+	memset(expected_target, 'a', 128);
+	expected_target[128] = '\0';
+
+	PROLOGUE("test_read_format_rar5_redir_varint_2byte.rar");
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("link.txt", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualString(expected_target, archive_entry_symlink(ae));
+	assertEqualInt(128, (int)strlen(archive_entry_symlink(ae)));
+
+	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}
