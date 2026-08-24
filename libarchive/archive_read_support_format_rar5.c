@@ -1275,6 +1275,12 @@ static int parse_file_extra_hash(struct archive_read* a, struct rar5 *rar5,
 		const uint8_t* p;
 		const int hash_size = sizeof(rar5->file.blake2sp);
 
+		if(*extra_data_size < hash_size) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "RAR5 BLAKE2sp hash field is too short");
+			return ARCHIVE_FATAL;
+		}
+
 		if(!read_ahead(a, hash_size, &p))
 			return ARCHIVE_EOF;
 
@@ -1402,18 +1408,21 @@ static int parse_file_extra_htime(struct archive_read* a,
 	rar5->file.e_atime_ns = rar5->file.e_ctime_ns = rar5->file.e_mtime_ns = 0;
 
 	if(has_mtime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_mtime,
+		int r = parse_htime_item(a, unix_time, &rar5->file.e_mtime,
 		    &rar5->file.e_mtime_ns, extra_data_size);
+		if(r != ARCHIVE_OK) return r;
 	}
 
 	if(has_ctime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_ctime,
+		int r = parse_htime_item(a, unix_time, &rar5->file.e_ctime,
 		    &rar5->file.e_ctime_ns, extra_data_size);
+		if(r != ARCHIVE_OK) return r;
 	}
 
 	if(has_atime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_atime,
+		int r = parse_htime_item(a, unix_time, &rar5->file.e_atime,
 		    &rar5->file.e_atime_ns, extra_data_size);
+		if(r != ARCHIVE_OK) return r;
 	}
 
 	if(has_mtime && has_unix_ns) {
