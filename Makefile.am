@@ -16,7 +16,7 @@ BUILT_SOURCES= libarchive/test/list.h tar/test/list.h cpio/test/list.h cat/test/
 # What to test: We always test libarchive, test bsdtar and bsdcpio only
 # if we built them.
 #
-check_PROGRAMS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs) $(bsdunzip_test_programs)
+check_PROGRAMS= libarchive_test libarchive_test_argvfilter $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs) $(bsdunzip_test_programs)
 TESTS= libarchive_test $(bsdtar_test_programs) $(bsdcpio_test_programs) $(bsdcat_test_programs) $(bsdunzip_test_programs)
 TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $(bsdcpio_TESTS_ENVIRONMENT) $(bsdcat_TESTS_ENVIRONMENT) $(bsdunzip_TESTS_ENVIRONMENT)
 # Uncomment the following to enable verbose test output:
@@ -750,6 +750,9 @@ libarchive_test_CPPFLAGS= \
 
 libarchive_test_LDADD= $(LTLIBICONV)
 
+libarchive_test_argvfilter_SOURCES= \
+	libarchive/test/test_read_filter_program_argvfilter.c
+
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
 # above.
@@ -757,7 +760,9 @@ libarchive/test/list.h: $(libarchive_test_SOURCES)
 	@$(MKDIR_P) libarchive/test
 	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
 
-libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
+libarchive_TESTS_ENVIRONMENT= \
+	LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test \
+	LRZIP=NOCONFIG
 
 libarchive_test_EXTRA_DIST=\
 	libarchive/test/list.h \

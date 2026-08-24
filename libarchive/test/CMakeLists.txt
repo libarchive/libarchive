@@ -372,7 +372,10 @@ IF(ENABLE_TEST)
   #
   # Register target
   #
+  ADD_EXECUTABLE(libarchive_test_argvfilter
+    test_read_filter_program_argvfilter.c)
   ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
+  ADD_DEPENDENCIES(libarchive_test libarchive_test_argvfilter)
   TARGET_LINK_LIBRARIES(libarchive_test archive_static ${ADDITIONAL_LIBS})
   SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
     LIBARCHIVE_STATIC LIST_H)
@@ -394,6 +397,6 @@ IF(ENABLE_TEST)
   # Experimental new test handling
   ADD_CUSTOM_TARGET(run_libarchive_test
 	COMMAND	libarchive_test -r ${CMAKE_CURRENT_SOURCE_DIR} -vv)
+  ADD_DEPENDENCIES(run_libarchive_test libarchive_test libarchive_test_argvfilter)
   ADD_DEPENDENCIES(run_all_tests run_libarchive_test)
 ENDIF(ENABLE_TEST)
-
