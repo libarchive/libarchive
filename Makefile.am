@@ -1091,7 +1091,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_tar_mac_metadata_1.tar.uu \
 	libarchive/test/test_read_format_tar_pax_g_large.tar.uu \
 	libarchive/test/test_read_format_tar_pax_global_header.tar.uu \
-	libarchive/test/test_read_format_tar_pax_global_header_concatenated.tar.uu \
+	libarchive/test/test_read_format_tar_pax_global_header_ignorable.tar.uu \
 	libarchive/test/test_read_format_tar_pax_large_attr.tar.Z.uu \
 	libarchive/test/test_read_format_tar_pax_negative_time.tar.uu \
 	libarchive/test/test_read_format_tar_pax_sun_holesdata.tar.uu \

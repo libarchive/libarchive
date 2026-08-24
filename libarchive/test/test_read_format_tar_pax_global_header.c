@@ -25,7 +25,9 @@
 #include "test.h"
 
 /*
- * Non-empty pax global headers are unsupported if an archive member follows.
+ * A pax global header supplies defaults for every following member, which
+ * we do not implement.  An attribute that we would otherwise have honored
+ * therefore cannot be ignored, and the archive is rejected.
  */
 DEFINE_TEST(test_read_format_tar_pax_global_header)
 {
@@ -41,38 +43,39 @@ DEFINE_TEST(test_read_format_tar_pax_global_header)
 	    archive_read_open_filename(a, name, 10240));
 
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
-	assertEqualString("Unsupported pax global extended header",
+	assertEqualString(
+	    "Unsupported pax global extended header attribute 'path'",
 	    archive_error_string(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 /*
- * A global-only pax archive must not affect a following concatenated archive.
+ * A global header that carries only attributes we ignore everywhere is
+ * harmless and must still be readable.  star always emits such a header
+ * for its "exustar" format, so rejecting these would break well-formed
+ * archives.
  */
-DEFINE_TEST(test_read_format_tar_pax_global_header_concatenated)
+DEFINE_TEST(test_read_format_tar_pax_global_header_ignorable)
 {
 	const char *name =
-	    "test_read_format_tar_pax_global_header_concatenated.tar";
-	char data[1] = { 0 };
+	    "test_read_format_tar_pax_global_header_ignorable.tar";
+	char data[6];
 	struct archive_entry *ae;
 	struct archive *a;
 
 	extract_reference_file(name);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_set_options(a, "read_concatenated_archives"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, name, 10240));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("raw.txt", archive_entry_pathname(ae));
-	assertEqualInt(1, archive_entry_dev(ae));
-	assertEqualInt(1, archive_entry_ino(ae));
-	assertEqualIntA(a, 1, archive_read_data(a, data, sizeof(data)));
-	assertEqualMem(data, "X", 1);
+	assertEqualString("member.txt", archive_entry_pathname(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualIntA(a, 6, archive_read_data(a, data, sizeof(data)));
+	assertEqualMem(data, "hello\n", 6);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
