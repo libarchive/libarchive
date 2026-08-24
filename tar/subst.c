@@ -38,6 +38,14 @@ struct substitution {
 	struct subst_rule *first_rule, *last_rule;
 };
 
+static size_t
+checked_size_add(size_t old_len, size_t len)
+{
+	if (len > (size_t)-1 - old_len || old_len + len > (size_t)-1 - 1)
+		lafe_errc(1, ENOMEM, "Out of memory");
+	return old_len + len + 1;
+}
+
 static void
 init_substitution(struct bsdtar *bsdtar)
 {
@@ -168,7 +176,7 @@ realloc_strncat(char **str, const char *append, size_t len)
 	else
 		old_len = strlen(*str);
 
-	new_str = malloc(old_len + len + 1);
+	new_str = malloc(checked_size_add(old_len, len));
 	if (new_str == NULL)
 		lafe_errc(1, errno, "Out of memory");
 	if (*str != NULL)
@@ -190,7 +198,7 @@ realloc_strcat(char **str, const char *append)
 	else
 		old_len = strlen(*str);
 
-	new_str = malloc(old_len + strlen(append) + 1);
+	new_str = malloc(checked_size_add(old_len, strlen(append)));
 	if (new_str == NULL)
 		lafe_errc(1, errno, "Out of memory");
 	if (*str != NULL)
