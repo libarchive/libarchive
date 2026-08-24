@@ -34,6 +34,7 @@
 
 #include "lafe_platform.h"
 #include "archive_platform.h" /* for S_I* mode macros on windows */
+#include "archive_umask_private.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef HAVE_SYS_SYSCTL_H
@@ -70,7 +71,6 @@ typedef struct bitcmd {
 #define	CMD2_OBITS	0x08
 #define	CMD2_UBITS	0x10
 
-static mode_t	 get_current_umask(void);
 static BITCMD	*addcmd(BITCMD *, mode_t, mode_t, mode_t, mode_t);
 static void	 compress_mode(BITCMD *);
 #ifdef SETMODE_DEBUG
@@ -187,7 +187,7 @@ lafe_setmode(const char *p)
 	 * Get a copy of the mask for the permissions that are mask relative.
 	 * Flip the bits, we want what's not set.
 	 */
-	mask = ~get_current_umask();
+	mask = ~__archive_get_umask();
 
 	setlen = SET_LEN + 2;
 
@@ -341,30 +341,6 @@ out:
 	free(saveset);
 	errno = serrno;
 	return NULL;
-}
-
-static mode_t
-get_current_umask(void)
-{
-	mode_t mask;
-#ifdef KERN_PROC_UMASK
-	size_t len;
-	u_short smask;
-#endif
-
-#ifdef KERN_PROC_UMASK
-	/*
-	 * First try requesting the umask without temporarily modifying it.
-	 * Note that this does not work if the sysctl
-	 * security.bsd.unprivileged_proc_debug is set to 0.
-	 */
-	len = sizeof(smask);
-	if (sysctl((int[4]){ CTL_KERN, KERN_PROC, KERN_PROC_UMASK, 0 },
-	    4, &smask, &len, NULL, 0) == 0)
-		return (smask);
-#endif
-	umask(mask = umask(0));
-	return (mask);
 }
 
 static BITCMD *

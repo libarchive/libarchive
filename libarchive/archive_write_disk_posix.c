@@ -29,6 +29,8 @@
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 
+#include "archive_umask_private.h"
+
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -646,7 +648,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	 * user edits their umask during the extraction for some
 	 * reason.
 	 */
-	umask(a->user_umask = umask(0));
+	a->user_umask = __archive_get_umask();
 
 	/* Figure out what we need to do for this entry. */
 	a->todo = TODO_MODE_BASE;
@@ -2014,8 +2016,8 @@ archive_write_disk_new(void)
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	a->archive.vtable = &archive_write_disk_vtable;
 	a->start_time = time(NULL);
-	/* Query and restore the umask. */
-	umask(a->user_umask = umask(0));
+	/* Query the umask. */
+	a->user_umask = __archive_get_umask();
 #ifdef HAVE_GETEUID
 	a->user_uid = geteuid();
 #endif /* HAVE_GETEUID */

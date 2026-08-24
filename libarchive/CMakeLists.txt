@@ -120,6 +120,8 @@ SET(libarchive_SOURCES
   archive_string_sprintf.c
   archive_time.c
   archive_time_private.h
+  archive_umask.c
+  archive_umask_private.h
   archive_util.c
   archive_version_details.c
   archive_virtual.c
