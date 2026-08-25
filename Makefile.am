@@ -1316,6 +1316,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_extract_tar_lzo.c \
 	tar/test/test_extract_tar_xz.c \
 	tar/test/test_extract_tar_zstd.c \
+	tar/test/test_edit_pathname_hardlink.c \
 	tar/test/test_format_newc.c \
 	tar/test/test_help.c \
 	tar/test/test_leading_slash.c \
@@ -1407,6 +1408,7 @@ bsdtar_test_EXTRA_DIST= \
 	tar/test/test_extract.tar.lzo.uu \
 	tar/test/test_extract.tar.xz.uu \
 	tar/test/test_leading_slash.tar.uu \
+	tar/test/test_edit_pathname_hardlink.tar.Z.uu \
 	tar/test/test_list_item.tar.uu \
 	tar/test/test_option_keep_newer_files.tar.Z.uu \
 	tar/test/test_option_passphrase.zip.uu \
