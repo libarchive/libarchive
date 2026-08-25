@@ -108,7 +108,6 @@ include_HEADERS= libarchive/archive.h libarchive/archive_entry.h
 noinst_HEADERS= \
 	libarchive/archive_acl_private.h \
 	libarchive/archive_cmdline_private.h \
-	libarchive/archive_crc32.c \
 	libarchive/archive_cryptor_private.h \
 	libarchive/archive_digest_private.h \
 	libarchive/archive_endian.h \
