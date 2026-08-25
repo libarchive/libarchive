@@ -91,6 +91,7 @@ DEFINE_TEST(test_archive_read_support)
 	test_filter_or_format(archive_read_support_format_iso9660);
 	test_filter_or_format(archive_read_support_format_lha);
 	test_filter_or_format(archive_read_support_format_mtree);
+	test_filter_or_format(archive_read_support_format_rpm);
 	test_filter_or_format(archive_read_support_format_tar);
 	test_filter_or_format(archive_read_support_format_xar);
 	test_filter_or_format(archive_read_support_format_zip);
