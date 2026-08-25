@@ -1797,6 +1797,13 @@ static const struct pax_global_unsupported_attr {
 	PAX_GLOBAL_EXACT("SUN.holesdata"),
 };
 
+/*
+ * TODO: This is a linear scan over the table above.  It runs once per
+ * attribute in a `g` header, and `g` headers are rare, so the cost is
+ * not measurable today.  If that ever changes -- or if the table grows
+ * much larger -- a sorted table with a binary search, or a hash of the
+ * exact keys with a separate short prefix list, would be worth doing.
+ */
 static int
 pax_global_attribute_unsupported(const char *key, size_t key_length)
 {
