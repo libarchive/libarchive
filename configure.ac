@@ -856,8 +856,8 @@ AC_CHECK_FUNCS(m4_flatten([
 	wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove
 	_fseeki64 _get_timezone
 ]))
-AC_CHECK_DECL([cmtime_s],
-		[AC_DEFINE(HAVE_CMTIME_S, 1, [cmtime_s function])],
+AC_CHECK_DECL([ctime_s],
+		[AC_DEFINE(HAVE_CTIME_S, 1, [ctime_s function])],
 		[],
 		[#include <time.h>])
 AC_CHECK_DECL([gmtime_s],
