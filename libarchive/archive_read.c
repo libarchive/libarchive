@@ -1411,16 +1411,18 @@ __archive_read_ahead(struct archive_read *a, size_t min, ssize_t *avail)
 
 const void *
 __archive_read_filter_ahead(struct archive_read_filter *f,
-    size_t min, ssize_t *avail)
+    size_t request, ssize_t *avail)
 {
 	ssize_t bytes_read;
-	size_t tocopy;
+	size_t min, tocopy;
 
 	if (f->fatal) {
 		if (avail)
 			*avail = ARCHIVE_FATAL;
 		return (NULL);
 	}
+	/* request == 0 is perfectly well-defined.*/
+	min = request == 0 ? 1 : request;
 
 	/*
 	 * Keep pulling more data until we can satisfy the request.
@@ -1429,11 +1431,9 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 
 		/*
 		 * If we can satisfy from the copy buffer (and the
-		 * copy buffer isn't empty), we're done.  In particular,
-		 * note that min == 0 is a perfectly well-defined
-		 * request.
+		 * copy buffer isn't empty), we're done.
 		 */
-		if (f->avail >= min && f->avail > 0) {
+		if (f->avail >= min) {
 			if (avail != NULL)
 				*avail = f->avail;
 			return (f->next);
@@ -1468,10 +1468,18 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 
 		/* If we've used up the client data, get more. */
 		if (f->client_avail <= 0) {
+			static const char *empty = "";
+
 			if (f->end_of_file) {
+				const char *eof;
+
 				if (avail != NULL)
 					*avail = f->avail;
-				return (NULL);
+				if (request == 0)
+					eof = f->avail == 0 ? empty : f->next;
+				else
+				 	eof = NULL;
+				return (eof);
 			}
 			bytes_read = (f->vtable->read)(f,
 			    &f->client_buff);
@@ -1485,6 +1493,8 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 				return (NULL);
 			}
 			if (bytes_read == 0) {
+				const char *eof;
+
 				/* Check for another client object first */
 				if (f->archive->client.cursor !=
 				      f->archive->client.nodes - 1) {
@@ -1501,7 +1511,11 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 				/* Return whatever we do have. */
 				if (avail != NULL)
 					*avail = f->avail;
-				return (NULL);
+				if (request == 0)
+					eof = f->avail == 0 ? empty : f->next;
+				else
+				 	eof = NULL;
+				return (eof);
 			}
 			f->client_total = bytes_read;
 			f->client_avail = f->client_total;
