@@ -177,6 +177,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_disk_set_standard_lookup.c \
 	libarchive/archive_read_extract.c \
 	libarchive/archive_read_extract2.c \
+	libarchive/archive_read_open_archive.c \
 	libarchive/archive_read_open_fd.c \
 	libarchive/archive_read_open_file.c \
 	libarchive/archive_read_open_filename.c \
@@ -412,6 +413,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_read_multiple_data_objects.c \
 	libarchive/test/test_archive_read_next_header_empty.c \
 	libarchive/test/test_archive_read_next_header_raw.c \
+	libarchive/test/test_archive_read_open_archive.c \
 	libarchive/test/test_archive_read_open2.c \
 	libarchive/test/test_archive_read_set_options.c \
 	libarchive/test/test_archive_read_support.c \
@@ -764,6 +766,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz_consumer.h \
 	libarchive/test/test_acl_pax_posix1e.tar.uu \
 	libarchive/test/test_acl_pax_nfs4.tar.uu \
+	libarchive/test/test_archive_read_open_archive.tar.uu \
 	libarchive/test/test_archive_string_conversion.txt.Z.uu \
 	libarchive/test/test_archive_pathmatch_oob_bracket.bin.uu \
 	libarchive/test/test_archive_pathmatch_oob_strchr.bin.uu \
