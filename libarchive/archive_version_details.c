@@ -78,6 +78,9 @@
 #if HAVE_PCRE2_H
 #include <pcre2.h>
 #endif
+#if HAVE_INFLATELIB_H
+#include <inflatelib.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -177,6 +180,7 @@ archive_version_details(void)
 	const char *libacl = archive_libacl_version();
 	const char *librichacl = archive_librichacl_version();
 	const char *libattr = archive_libattr_version();
+	const char *inflatelib = archive_inflatelib_version();
 
 	if (!init) {
 		archive_string_init(&str);
@@ -229,6 +233,10 @@ archive_version_details(void)
 		if (libiconv) {
 			archive_strcat(&str, " libiconv/");
 			archive_strcat(&str, libiconv);
+		}
+		if (inflatelib) {
+			archive_strcat(&str, " inflatelib/");
+			archive_strcat(&str, inflatelib);
 		}
 		init = 1;
 	}
@@ -510,6 +518,16 @@ archive_libpcre2_version(void)
 	return NUMBER(PCRE2_MAJOR) "." NUMBER(PCRE2_MINOR);
 #undef NUMBER
 #undef str
+#else
+	return NULL;
+#endif
+}
+
+const char *
+archive_inflatelib_version(void)
+{
+#if HAVE_INFLATELIB_H
+	return INFLATELIB_VERSION_STRING;
 #else
 	return NULL;
 #endif

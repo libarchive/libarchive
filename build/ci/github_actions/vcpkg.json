@@ -1,8 +1,9 @@
 {
   "dependencies": [
-    "zlib",
     "bzip2",
+    "inflatelib",
     "liblzma",
+    "zlib",
     "zstd"
   ],
   "vcpkg-configuration": {
