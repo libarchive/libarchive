@@ -438,7 +438,7 @@ if test "x$with_bz2lib" != "xno"; then
       LIBS="$old_LIBS"
 	  AC_MSG_RESULT($ac_cv_lib_bz2_BZ2_bzDecompressInit)
       if test "x$ac_cv_lib_bz2_BZ2_bzDecompressInit" = xyes; then
-        AC_DEFINE([HAVE_LIBBZ2], [1], [Define to 1 if you have the `bz2' library (-lbz2).])
+        AC_DEFINE([HAVE_LIBBZ2], [1], [Define to 1 if you have the 'bz2' library (-lbz2).])
         LIBS="-lbz2 $LIBS"
       fi
     ;;
@@ -474,7 +474,7 @@ if test "x$with_iconv" != "xno"; then
     AC_CHECK_HEADERS([localcharset.h])
     LIBS="${LIBS} ${LIBICONV}"
     if test -n "$LIBICONV"; then
-      AC_DEFINE([HAVE_LIBICONV], [1], [Define to 1 if you have the `iconv' library (-liconv).])
+      AC_DEFINE([HAVE_LIBICONV], [1], [Define to 1 if you have the 'iconv' library (-liconv).])
 
       # Most platforms do not provide iconv.pc, but MSYS2 MinGW does.
       # We add it to our Requires.private only if it exists.
@@ -505,9 +505,9 @@ if test "x$with_zstd" != "xno"; then
   AC_CHECK_HEADERS([zstd.h])
   AC_CHECK_LIB(zstd,ZSTD_decompressStream)
   AC_CHECK_LIB(zstd,ZSTD_compressStream,
-    AC_DEFINE([HAVE_ZSTD_compressStream], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
+    AC_DEFINE([HAVE_ZSTD_compressStream], [1], [Define to 1 if you have the 'zstd' library (-lzstd) with compression support.]))
   AC_CHECK_LIB(zstd,ZSTD_minCLevel,
-    AC_DEFINE([HAVE_ZSTD_minCLevel], [1], [Define to 1 if you have a `zstd' library version with ZSTD_minCLevel().]))
+    AC_DEFINE([HAVE_ZSTD_minCLevel], [1], [Define to 1 if you have a 'zstd' library version with ZSTD_minCLevel().]))
 fi
 
 AC_ARG_WITH([lzma],
@@ -518,7 +518,7 @@ if test "x$with_lzma" != "xno"; then
   PKG_CHECK_MODULES(LZMA_PC, [liblzma], [
     CPPFLAGS="${CPPFLAGS} ${LZMA_PC_CFLAGS}"
     LIBS="${LIBS} ${LZMA_PC_LIBS}"
-    AC_DEFINE(HAVE_LIBLZMA, [1], [Define to 1 if you have the `lzma' library.])
+    AC_DEFINE(HAVE_LIBLZMA, [1], [Define to 1 if you have the 'lzma' library.])
   ], [
     AC_CHECK_LIB(lzma,lzma_stream_decoder)
   ])
@@ -539,7 +539,7 @@ if test "x$with_lzma" != "xno"; then
                       [[int ignored __attribute__((unused)); ignored = lzma_stream_encoder_mt(0, 0);]])],
       [ac_cv_lzma_has_mt=yes], [ac_cv_lzma_has_mt=no])])
   if test "x$ac_cv_lzma_has_mt" != xno; then
-	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the `lzma_stream_encoder_mt' function.])
+	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the 'lzma_stream_encoder_mt' function.])
   fi
 fi
 
@@ -795,7 +795,7 @@ AC_CHECK_DECLS([INT64_MAX, INT64_MIN, UINT64_MAX, UINT32_MAX])
 AC_CHECK_DECLS([INTMAX_MAX, INTMAX_MIN, UINTMAX_MAX])
 
 AC_CHECK_DECL([SSIZE_MAX],
-		[AC_DEFINE(HAVE_DECL_SSIZE_MAX, 1, [Define to 1 if you have the declaration of `SSIZE_MAX', and to 0 if you don't.])],
+		[AC_DEFINE(HAVE_DECL_SSIZE_MAX, 1, [Define to 1 if you have the declaration of 'SSIZE_MAX', and to 0 if you don't.])],
 		[],
 		[#include <limits.h>])
 
@@ -808,7 +808,7 @@ AC_CHECK_DECL([EILSEQ],
 		[],
 		[#include <errno.h>])
 AC_CHECK_TYPE([wchar_t],
-	        [AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_[]wchar_t), 1, [Define to 1 if the system has the type `wchar_t'.])dnl
+	        [AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_[]wchar_t), 1, [Define to 1 if the system has the type 'wchar_t'.])dnl
 		AC_CHECK_SIZEOF([wchar_t])],
 		[])
 
