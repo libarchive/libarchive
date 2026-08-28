@@ -454,7 +454,6 @@ archive_read_format_warc_skip(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
-
 /* Private routines */
 static const char*
 xmemmem(const char *hay, const size_t haysize,
