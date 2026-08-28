@@ -1070,8 +1070,11 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	}
 
 	/* If this write would run beyond the file size, truncate it. */
-	if (a->filesize >= 0 && (int64_t)(a->offset + size) > a->filesize)
-		start_size = size = (size_t)(a->filesize - a->offset);
+	if (a->filesize >= 0 && a->filesize - a->offset < (int64_t)size) {
+		int64_t diff = a->filesize - a->offset;
+
+		start_size = size = diff < 0 ? 0 : (size_t)diff;
+	}
 
 	/* Write the data. */
 	while (size > 0) {
