@@ -1374,6 +1374,7 @@ static int parse_file_extra_htime(struct archive_read* a,
 	char unix_time, has_unix_ns, has_mtime, has_ctime, has_atime;
 	size_t flags = 0;
 	size_t value_len;
+	int ret;
 
 	enum HTIME_FLAGS {
 		IS_UNIX       = 0x01,
@@ -1399,18 +1400,24 @@ static int parse_file_extra_htime(struct archive_read* a,
 	rar5->file.e_atime_ns = rar5->file.e_ctime_ns = rar5->file.e_mtime_ns = 0;
 
 	if(has_mtime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_mtime,
+		ret = parse_htime_item(a, unix_time, &rar5->file.e_mtime,
 		    &rar5->file.e_mtime_ns, extra_data_size);
+		if(ret != ARCHIVE_OK)
+			return ret;
 	}
 
 	if(has_ctime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_ctime,
+		ret = parse_htime_item(a, unix_time, &rar5->file.e_ctime,
 		    &rar5->file.e_ctime_ns, extra_data_size);
+		if(ret != ARCHIVE_OK)
+			return ret;
 	}
 
 	if(has_atime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_atime,
+		ret = parse_htime_item(a, unix_time, &rar5->file.e_atime,
 		    &rar5->file.e_atime_ns, extra_data_size);
+		if(ret != ARCHIVE_OK)
+			return ret;
 	}
 
 	if(has_mtime && has_unix_ns) {
