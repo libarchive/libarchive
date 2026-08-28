@@ -2343,15 +2343,17 @@ static int process_base_block(struct archive_read* a,
 		return ARCHIVE_EOF;
 	}
 
-	hdr_size = raw_hdr_size + hdr_size_len;
-
-	/* Sanity check, maximum header size for RAR5 is 2MB. */
-	if(hdr_size > (2 * 1024 * 1024)) {
+	/* Sanity check, maximum header size for RAR5 is 2MB.  Bounding
+	 * raw_hdr_size (instead of the sum) also ensures that adding
+	 * hdr_size_len below cannot wrap hdr_size around SIZE_MAX. */
+	if(raw_hdr_size > (2 * 1024 * 1024) - hdr_size_len) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Base block header is too large");
 
 		return ARCHIVE_FATAL;
 	}
+
+	hdr_size = raw_hdr_size + hdr_size_len;
 
 	/* Additional sanity checks to weed out invalid files. */
 	if(raw_hdr_size == 0 || hdr_size_len == 0 ||
