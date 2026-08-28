@@ -914,13 +914,10 @@ static int read_ahead(struct archive_read* a, size_t how_many,
 }
 
 static int consume(struct archive_read* a, int64_t how_many) {
-	int ret;
+	if(__archive_read_consume(a, how_many) < 0)
+		return (ARCHIVE_FATAL);
 
-	ret = how_many == __archive_read_consume(a, how_many)
-		? ARCHIVE_OK
-		: ARCHIVE_FATAL;
-
-	return ret;
+	return (ARCHIVE_OK);
 }
 
 /**
