@@ -551,8 +551,13 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 
 		if (hardlinkname != NULL) {
 			hardlinkname = strip_absolute_path(bsdtar, hardlinkname);
-			if (*hardlinkname == '\0')
+			if (*hardlinkname == '\0') {
+				lafe_warnc(0, "Skipping %s: hardlink target "
+				    "becomes empty after removing leading '/'",
+				    original_name);
+				bsdtar->return_value = 1;
 				return (1);
+			}
 		}
 	} else {
 		/* Strip redundant leading '/' characters. */
