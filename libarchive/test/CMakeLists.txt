@@ -192,6 +192,7 @@ IF(ENABLE_TEST)
     test_read_format_rar5_bad_filter.c
     test_read_format_rar5_bad_tables.c
     test_read_format_rar5_block_hdr_fail_loop.c
+    test_read_format_rar5_header_size_wraparound.c
     test_read_format_rar5_loop_bug.c
     test_read_format_raw.c
     test_read_format_tar.c
