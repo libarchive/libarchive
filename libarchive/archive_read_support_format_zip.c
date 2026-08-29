@@ -45,6 +45,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -2613,7 +2616,7 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct zip *zip = a->format->data;
-	ssize_t bytes_avail = 0, to_consume;
+	ssize_t bytes_avail = 0, max_in, to_consume;
 	const void *compressed_buff;
 	const void *sp;
 	int r;
@@ -2647,7 +2650,14 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 	zip_read_decrypt(zip, compressed_buff, bytes_avail,
 	    &compressed_buff, &bytes_avail, &sp);
 
-	/* Setup buffer boundaries. */
+	/* Setup buffer boundaries.  bzstream.avail_in is 32 bits wide,
+	 * so clamp the available byte count before the assignment. */
+	if (UINT_MAX >= SSIZE_MAX)
+		max_in = SSIZE_MAX;
+	else
+		max_in = UINT_MAX;
+	if (bytes_avail > max_in)
+		bytes_avail = max_in;
 	zip->bzstream.next_in = (char*)(uintptr_t) compressed_buff;
 	zip->bzstream.avail_in = (uint32_t)bytes_avail;
 	zip->bzstream.total_in_hi32 = 0;
@@ -2886,7 +2896,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct zip *zip = a->format->data;
-	ssize_t bytes_avail, to_consume = 0;
+	ssize_t bytes_avail, max_in, to_consume = 0;
 	const void *compressed_buff;
 	const void *sp;
 	int r;
@@ -2928,6 +2938,16 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 
 	zip_read_decrypt(zip, compressed_buff, bytes_avail,
 					 &compressed_buff, &bytes_avail, &sp);
+
+	/* stream.avail_in is a uInt, which is 32 bits wide even where
+	 * ssize_t is 64 bits.  Clamp the available byte count so that a
+	 * read-ahead window larger than 4 GiB is not truncated. */
+	if (UINT_MAX >= SSIZE_MAX)
+		max_in = SSIZE_MAX;
+	else
+		max_in = UINT_MAX;
+	if (bytes_avail > max_in)
+		bytes_avail = max_in;
 
 	/*
 	 * A bug in zlib.h: stream.next_in should be marked 'const'
