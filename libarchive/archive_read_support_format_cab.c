@@ -3271,7 +3271,8 @@ lzx_huffman_init(struct huffman *hf, uint16_t symbol_count, uint8_t tbl_bits)
 			return (ARCHIVE_FATAL);
 		hf->tbl_bits = tbl_bits;
 	} else
-		memset(hf->tbl, 0, tbl_size * sizeof(hf->bitlen[0]));
+		memset(hf->tbl, 0,
+		    ((size_t)1 << hf->tbl_bits) * sizeof(hf->tbl[0]));
 	return (ARCHIVE_OK);
 }
 
