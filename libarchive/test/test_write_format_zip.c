@@ -923,3 +923,184 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 
 	free(buff);
 }
+
+/*
+ * WinZip AES round-trip tests with entry sizes chosen to exercise the
+ * CTR keystream generation across AES block boundaries (16 bytes) and
+ * with entries large enough to require multiple keystream batches in
+ * the crypto provider, including sizes that leave a partial trailing
+ * block.  Reading back through readers with very small blocks (7
+ * bytes) additionally stresses the partial-chunk handling of the
+ * decryption state machine.
+ */
+static const size_t aes_large_sizes[] = {
+	15,			/* One byte short of an AES block */
+	16,			/* Exactly one AES block */
+	17,			/* One AES block plus one byte */
+	64 * 1024 - 1,		/* Around the keystream batch size */
+	64 * 1024,
+	64 * 1024 + 1,
+	3 * 64 * 1024 + 15,	/* Several batches plus a partial block */
+};
+
+static void
+fill_test_pattern(unsigned char *p, size_t size, unsigned seed)
+{
+	size_t i;
+	uint32_t x = (uint32_t)seed;
+
+	for (i = 0; i < size; i++) {
+		x = x * 1103515245u + 12345u;
+		p[i] = (unsigned char)(x >> 16);
+	}
+}
+
+static void
+write_aes_large_contents(struct archive *a)
+{
+	unsigned char *data;
+	size_t k, chunk, n = sizeof(aes_large_sizes) / sizeof(aes_large_sizes[0]);
+
+	data = malloc(3 * 64 * 1024 + 16);
+	for (k = 0; k < n; k++) {
+		struct archive_entry *ae;
+		char name[32];
+
+		fill_test_pattern(data, aes_large_sizes[k], (unsigned)(k + 1));
+		assert((ae = archive_entry_new()) != NULL);
+		sprintf(name, "file%u", (unsigned)k);
+		archive_entry_copy_pathname(ae, name);
+		archive_entry_set_mode(ae, AE_IFREG | 0755);
+		archive_entry_set_size(ae, aes_large_sizes[k]);
+		assertEqualInt(ARCHIVE_OK, archive_write_header(a, ae));
+		archive_entry_free(ae);
+		/* Write in chunks that straddle the AES block size. */
+		chunk = aes_large_sizes[k] > 17 ? 17 : aes_large_sizes[k];
+		assertEqualInt((int)chunk, archive_write_data(a, data, chunk));
+		if (aes_large_sizes[k] > chunk)
+			assertEqualInt((int)(aes_large_sizes[k] - chunk),
+			    archive_write_data(a, data + chunk,
+				aes_large_sizes[k] - chunk));
+	}
+	free(data);
+}
+
+static void
+verify_aes_large_contents(struct archive *a, int check_sizes)
+{
+	struct archive_entry *ae;
+	unsigned char *data, *expected;
+	size_t k, n = sizeof(aes_large_sizes) / sizeof(aes_large_sizes[0]);
+	int r;
+
+	data = malloc(3 * 64 * 1024 + 16);
+	expected = malloc(3 * 64 * 1024 + 16);
+	for (k = 0; k < n; k++) {
+		char name[32];
+
+		sprintf(name, "file%u", (unsigned)k);
+		fill_test_pattern(expected, aes_large_sizes[k], (unsigned)(k + 1));
+		r = archive_read_next_header(a, &ae);
+		if (r != ARCHIVE_OK) {
+			failure("file%u: next header returned %d", (unsigned)k, r);
+			assert(0);
+			break;
+		}
+		assertEqualString(name, archive_entry_pathname(ae));
+		/* The streaming reader cannot see the uncompressed size
+		 * of WinZip AES entries before the Central Directory. */
+		if (check_sizes)
+			assertEqualInt(aes_large_sizes[k],
+			    (size_t)archive_entry_size(ae));
+		memset(data, 0, aes_large_sizes[k]);
+		assertEqualInt((int)aes_large_sizes[k],
+		    archive_read_data(a, data, aes_large_sizes[k]));
+		assertEqualMem(data, expected, aes_large_sizes[k]);
+		/* Nothing more in this entry. */
+		assertEqualInt(0, archive_read_data(a, data, 1));
+	}
+	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	free(data);
+	free(expected);
+}
+
+static void
+test_write_format_zip_winzip_aes_multiblock(const char *encryption)
+{
+	struct archive *a;
+	size_t used;
+	size_t buffsize = 4 * 1024 * 1024;
+	char *buff;
+
+	buff = malloc(buffsize);
+
+	/* Create a new archive in memory. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	if (ARCHIVE_OK != archive_write_set_options(a, encryption))
+	{
+		skipping("This system does not have cryptographic library");
+		archive_write_free(a);
+		free(buff);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_passphrase(a, "password1234"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "zip:experimental"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
+	write_aes_large_contents(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* With the standard memory reader. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_add_passphrase(a, "password1234"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	verify_aes_large_contents(a, 1);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* With the test memory reader -- streaming mode with small
+	 * blocks, to stress partial-chunk decryption. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_add_passphrase(a, "password1234"));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 7));
+	verify_aes_large_contents(a, 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* With the test memory reader -- seeking mode with small
+	 * blocks. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_add_passphrase(a, "password1234"));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, buff, used, 7));
+	verify_aes_large_contents(a, 1);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	free(buff);
+}
+
+DEFINE_TEST(test_write_format_zip_winzip_aes128_multiblock)
+{
+
+	test_write_format_zip_winzip_aes_multiblock("zip:encryption=aes128");
+}
+
+DEFINE_TEST(test_write_format_zip_winzip_aes256_multiblock)
+{
+
+	test_write_format_zip_winzip_aes_multiblock("zip:encryption=aes256");
+}

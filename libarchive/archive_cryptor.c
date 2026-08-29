@@ -472,6 +472,77 @@ aes_ctr_increase_counter(archive_crypto_ctx *ctx)
 	}
 }
 
+#if defined(ARCHIVE_CRYPTOR_USE_OPENSSL)
+/* Generate the keystream for complete blocks in batches.
+ *
+ * The one-by-one variant below asks the provider for a single
+ * 16-byte keystream block per AES block.  With OpenSSL, every such
+ * request pays an EVP_EncryptInit_ex() plus an EVP_EncryptUpdate()
+ * call, which caps WinZip AES decryption at roughly 60 MB/s on
+ * current hardware even though the EVP cipher itself can deliver
+ * several GB/s when driven with large buffers.
+ *
+ * Here the next counter blocks are collected into ctx->ctr_blk (in
+ * the same increment-then-encrypt order the one-by-one variant
+ * uses), encrypted with a single EVP_EncryptUpdate() call and XORed
+ * in bulk.  The cipher context runs in ECB mode, so encrypting
+ * several blocks at once produces exactly the same keystream as
+ * encrypting them one at a time.  Partial trailing blocks and
+ * leftover keystream bytes still go through the single-block path,
+ * so the visible sequence of keystream bytes is unchanged. */
+static int
+aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+    size_t in_len, uint8_t * const out, size_t *out_len)
+{
+	enum { ks_batch = sizeof(ctx->ctr_blk) };
+	size_t max = (in_len < *out_len) ? in_len : *out_len;
+	size_t i = 0, pos = ctx->encr_pos;
+
+	/* Consume any leftover keystream of the current block. */
+	while (i < max && pos < AES_BLOCK_SIZE)
+		out[i++] = in[i] ^ ctx->encr_buf[pos++];
+
+	/* Complete blocks: one EVP call per ks_batch bytes. */
+	while (max - i >= AES_BLOCK_SIZE) {
+		size_t blocks = (max - i) / AES_BLOCK_SIZE;
+		size_t b, k;
+		int outl = 0;
+
+		if (blocks > ks_batch / AES_BLOCK_SIZE)
+			blocks = ks_batch / AES_BLOCK_SIZE;
+		for (b = 0; b < blocks; b++) {
+			aes_ctr_increase_counter(ctx);
+			memcpy(ctx->ctr_blk + b * AES_BLOCK_SIZE,
+			    ctx->nonce, AES_BLOCK_SIZE);
+		}
+		if (EVP_EncryptInit_ex(ctx->ctx, ctx->type, NULL,
+		    ctx->key, NULL) != 1 ||
+		    EVP_EncryptUpdate(ctx->ctx, ctx->ctr_ks, &outl,
+		    ctx->ctr_blk, (int)(blocks * AES_BLOCK_SIZE)) != 1 ||
+		    (size_t)outl != blocks * AES_BLOCK_SIZE)
+			return -1;
+		for (k = 0; k < blocks * AES_BLOCK_SIZE; k++)
+			out[i + k] = in[i + k] ^ ctx->ctr_ks[k];
+		i += blocks * AES_BLOCK_SIZE;
+		pos = AES_BLOCK_SIZE;
+	}
+
+	/* Partial trailing block: refill keystream one block at a time. */
+	if (i < max) {
+		aes_ctr_increase_counter(ctx);
+		if (aes_ctr_encrypt_counter(ctx) != 0)
+			return -1;
+		pos = 0;
+		while (i < max)
+			out[i++] = in[i] ^ ctx->encr_buf[pos++];
+	}
+
+	ctx->encr_pos = pos;
+	*out_len = i;
+
+	return 0;
+}
+#else
 static int
 aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
     size_t in_len, uint8_t * const out, size_t *out_len)
@@ -506,6 +577,7 @@ aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
 
 	return 0;
 }
+#endif /* ARCHIVE_CRYPTOR_USE_OPENSSL */
 #endif /* ARCHIVE_CRYPTOR_STUB */
 
 

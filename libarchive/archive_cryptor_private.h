@@ -134,6 +134,10 @@ typedef struct {
 	uint8_t		nonce[AES_BLOCK_SIZE];
 	uint8_t		encr_buf[AES_BLOCK_SIZE];
 	unsigned	encr_pos;
+	/* Scratch buffers used to generate multiple keystream blocks
+	 * with a single EVP call. */
+	uint8_t		ctr_blk[64 * 1024];
+	uint8_t		ctr_ks[64 * 1024];
 } archive_crypto_ctx;
 
 #else
