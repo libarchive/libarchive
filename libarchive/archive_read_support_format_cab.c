@@ -1053,8 +1053,16 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	}
 	/* If a cffolder of this file is changed, reset a cfdata to read
 	 * file contents from next cfdata. */
-	if (prev_folder != cab->entry_cffolder)
+	if (prev_folder != cab->entry_cffolder) {
 		cab->entry_cfdata = NULL;
+		/*
+		 * Bytes of files we skipped so far belong to folders we
+		 * are done with; reading this file will seek directly to
+		 * the data of the new folder, so we must not charge the
+		 * skipped bytes against the new folder's data.
+		 */
+		cab->bytes_skipped = 0;
+	}
 
 	/* If a pathname is UTF-8, prepare a string conversion object
 	 * for UTF-8 and use it. */
