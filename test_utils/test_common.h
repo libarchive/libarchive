@@ -36,9 +36,6 @@
 #elif defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
 #include "config.h"
-#elif defined(__FreeBSD__)
-/* Building as part of FreeBSD system requires a pre-built config.h. */
-#include "config_freebsd.h"
 #elif defined(__NetBSD__)
 /* Building as part of NetBSD system requires a pre-built config.h. */
 #include "config_netbsd.h"
