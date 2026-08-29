@@ -262,6 +262,7 @@ int __archive_read_program(struct archive_read_filter *, const char *);
 void __archive_read_free_filters(struct archive_read *);
 struct archive_read_extract *__archive_read_get_extract(struct archive_read *);
 
+int __archive_read_open_archive(struct archive *, struct archive *, int64_t);
 
 /*
  * Get a decryption passphrase.
