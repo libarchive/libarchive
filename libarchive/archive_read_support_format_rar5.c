@@ -914,13 +914,10 @@ static int read_ahead(struct archive_read* a, size_t how_many,
 }
 
 static int consume(struct archive_read* a, int64_t how_many) {
-	int ret;
+	if(__archive_read_consume(a, how_many) < 0)
+		return (ARCHIVE_FATAL);
 
-	ret = how_many == __archive_read_consume(a, how_many)
-		? ARCHIVE_OK
-		: ARCHIVE_FATAL;
-
-	return ret;
+	return (ARCHIVE_OK);
 }
 
 /**
@@ -1377,6 +1374,7 @@ static int parse_file_extra_htime(struct archive_read* a,
 	char unix_time, has_unix_ns, has_mtime, has_ctime, has_atime;
 	size_t flags = 0;
 	size_t value_len;
+	int ret;
 
 	enum HTIME_FLAGS {
 		IS_UNIX       = 0x01,
@@ -1402,18 +1400,24 @@ static int parse_file_extra_htime(struct archive_read* a,
 	rar5->file.e_atime_ns = rar5->file.e_ctime_ns = rar5->file.e_mtime_ns = 0;
 
 	if(has_mtime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_mtime,
+		ret = parse_htime_item(a, unix_time, &rar5->file.e_mtime,
 		    &rar5->file.e_mtime_ns, extra_data_size);
+		if(ret != ARCHIVE_OK)
+			return ret;
 	}
 
 	if(has_ctime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_ctime,
+		ret = parse_htime_item(a, unix_time, &rar5->file.e_ctime,
 		    &rar5->file.e_ctime_ns, extra_data_size);
+		if(ret != ARCHIVE_OK)
+			return ret;
 	}
 
 	if(has_atime) {
-		parse_htime_item(a, unix_time, &rar5->file.e_atime,
+		ret = parse_htime_item(a, unix_time, &rar5->file.e_atime,
 		    &rar5->file.e_atime_ns, extra_data_size);
+		if(ret != ARCHIVE_OK)
+			return ret;
 	}
 
 	if(has_mtime && has_unix_ns) {
@@ -2346,15 +2350,17 @@ static int process_base_block(struct archive_read* a,
 		return ARCHIVE_EOF;
 	}
 
-	hdr_size = raw_hdr_size + hdr_size_len;
-
-	/* Sanity check, maximum header size for RAR5 is 2MB. */
-	if(hdr_size > (2 * 1024 * 1024)) {
+	/* Sanity check, maximum header size for RAR5 is 2MB.  Bounding
+	 * raw_hdr_size (instead of the sum) also ensures that adding
+	 * hdr_size_len below cannot wrap hdr_size around SIZE_MAX. */
+	if(raw_hdr_size > (2 * 1024 * 1024) - hdr_size_len) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Base block header is too large");
 
 		return ARCHIVE_FATAL;
 	}
+
+	hdr_size = raw_hdr_size + hdr_size_len;
 
 	/* Additional sanity checks to weed out invalid files. */
 	if(raw_hdr_size == 0 || hdr_size_len == 0 ||
