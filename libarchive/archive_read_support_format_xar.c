@@ -41,6 +41,9 @@
 #include <initguid.h>
 #include <xmllite.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif
@@ -1643,6 +1646,11 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 		avail_out = *outbytes;
 	switch (xar->rd_encoding) {
 	case GZIP:
+		/* avail_in and avail_out are 32 bits wide in zlib. */
+		if (avail_in > UINT_MAX)
+			avail_in = UINT_MAX;
+		if (avail_out > UINT_MAX)
+			avail_out = UINT_MAX;
 		xar->stream.next_in = (Bytef *)(uintptr_t)b;
 		xar->stream.avail_in = (uInt)avail_in;
 		xar->stream.next_out = (unsigned char *)outbuff;
@@ -1662,6 +1670,11 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 		break;
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	case BZIP2:
+		/* avail_in and avail_out are 32 bits wide in bzlib. */
+		if (avail_in > UINT_MAX)
+			avail_in = UINT_MAX;
+		if (avail_out > UINT_MAX)
+			avail_out = UINT_MAX;
 		xar->bzstream.next_in = (char *)(uintptr_t)b;
 		xar->bzstream.avail_in = (unsigned int)avail_in;
 		xar->bzstream.next_out = (char *)outbuff;
