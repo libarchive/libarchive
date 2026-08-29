@@ -3488,6 +3488,18 @@ static int scan_for_signature(struct archive_read* a) {
 	return ARCHIVE_FATAL;
 }
 
+/* Report that the archive ended while the current file was still expected to
+ * continue in a following volume (its header had the 'split after' flag set),
+ * which typically happens when a multivolume set is opened without supplying
+ * its later volumes.  Returning a clean EOF here would silently hand back a
+ * short, corrupted read, so this is a fatal error. */
+static int truncated_multivolume_error(struct archive_read* a) {
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	    "Truncated RAR5 archive: file continues in a subsequent volume "
+	    "that is not available");
+	return ARCHIVE_FATAL;
+}
+
 /* This function will switch the multivolume archive file to another file,
  * i.e. from part03 to part 04. */
 static int advance_multivolume(struct archive_read* a) {
@@ -3625,8 +3637,11 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
 		}
 
 		if(!read_ahead(a, cur_block_size, &lp)) {
+			/* We are in the middle of merging a block that spans
+			 * volumes, so more data must follow; running out of
+			 * input here means the following volume is missing. */
 			rar5->cstate.switch_multivolume = 0;
-			return ARCHIVE_EOF;
+			return truncated_multivolume_error(a);
 		}
 
 		/* Sanity check; there should never be a situation where this
@@ -3670,7 +3685,13 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
 			rar5->merge_mode++;
 			ret = advance_multivolume(a);
 			rar5->merge_mode--;
-			if(ret != ARCHIVE_OK) {
+			if(ret == ARCHIVE_EOF) {
+				/* The block is only partially merged but the
+				 * input ended, so the volume that holds the rest
+				 * of it is missing. */
+				rar5->cstate.switch_multivolume = 0;
+				return truncated_multivolume_error(a);
+			} else if(ret != ARCHIVE_OK) {
 				rar5->cstate.switch_multivolume = 0;
 				return ret;
 			}
@@ -3693,7 +3714,15 @@ static int process_block(struct archive_read* a) {
 	/* If we don't have any data to be processed, this most probably means
 	 * we need to switch to the next volume. */
 	if(rar5->main.volume && rar5->file.bytes_remaining == 0) {
+		/* Capture 'split after' before advancing: advance_multivolume()
+		 * parses following headers and overwrites this flag. */
+		int split_after = rar5->generic.split_after > 0;
 		ret = advance_multivolume(a);
+		if(ret == ARCHIVE_EOF && split_after) {
+			/* The file is promised to continue in a following
+			 * volume, but the input ended first. */
+			return truncated_multivolume_error(a);
+		}
 		if(ret != ARCHIVE_OK)
 			return ret;
 	}
@@ -4106,7 +4135,16 @@ static int do_unstore_file(struct archive_read* a,
 		ret = advance_multivolume(a);
 		rar5->cstate.switch_multivolume = 0;
 
-		if(ret != ARCHIVE_OK) {
+		if(ret == ARCHIVE_EOF) {
+			/* We only reach this advance because 'split after' was
+			 * set, i.e. the file is promised to continue in a
+			 * following volume, but the input ended before we could
+			 * reach it (for example, only the first volume of the
+			 * set was supplied).  The data decoded so far is
+			 * incomplete, so report truncation rather than silently
+			 * returning a short read as a clean end of file. */
+			return truncated_multivolume_error(a);
+		} else if(ret != ARCHIVE_OK) {
 			/* Failed to advance to next multivolume archive
 			 * file. */
 			return ret;
