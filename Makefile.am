@@ -769,6 +769,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz_consumer.h \
 	libarchive/test/test_acl_pax_posix1e.tar.uu \
 	libarchive/test/test_acl_pax_nfs4.tar.uu \
+	libarchive/test/test_archive_read_open_filenames_split_uaf_1.tar.uu \
+	libarchive/test/test_archive_read_open_filenames_split_uaf_2.tar.uu \
 	libarchive/test/test_archive_string_conversion.txt.Z.uu \
 	libarchive/test/test_archive_pathmatch_oob_bracket.bin.uu \
 	libarchive/test/test_archive_pathmatch_oob_strchr.bin.uu \
