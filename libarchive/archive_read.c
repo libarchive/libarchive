@@ -1389,16 +1389,6 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 	for (;;) {
 
 		/*
-		 * If we can satisfy from the copy buffer (and the
-		 * copy buffer isn't empty), we're done.
-		 */
-		if (f->avail >= min) {
-			if (avail != NULL)
-				*avail = f->avail;
-			return (f->next);
-		}
-
-		/*
 		 * We can satisfy directly from client buffer if everything
 		 * currently in the copy buffer is still in the client buffer.
 		 */
@@ -1414,6 +1404,13 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 			if (avail != NULL)
 				*avail = f->client_avail;
 			return (f->client_next);
+		}
+
+		/* If we can satisfy from the copy buffer, we're done. */
+		if (f->avail >= min) {
+			if (avail != NULL)
+				*avail = f->avail;
+			return (f->next);
 		}
 
 		/* Move data forward in copy buffer if necessary. */
