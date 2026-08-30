@@ -1413,15 +1413,6 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 			return (f->next);
 		}
 
-		/* Move data forward in copy buffer if necessary. */
-		if (f->next > f->buffer &&
-		    min > f->buffer_size - (f->next - f->buffer)) {
-			if (f->avail > 0)
-				memmove(f->buffer, f->next,
-				    f->avail);
-			f->next = f->buffer;
-		}
-
 		/* If we've used up the client data, get more. */
 		if (f->client_avail <= 0) {
 			static const char *empty = "";
@@ -1525,6 +1516,14 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 				free(f->buffer);
 				f->next = f->buffer = p;
 				f->buffer_size = s;
+			} else if (f->next > f->buffer &&
+			    min > f->buffer_size - (f->next - f->buffer)) {
+				/* Move data forward in copy buffer
+				 * if necessary. */
+				if (f->avail > 0)
+					memmove(f->buffer, f->next,
+					    f->avail);
+				f->next = f->buffer;
 			}
 
 			/* We can add client data to copy buffer. */
