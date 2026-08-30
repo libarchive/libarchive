@@ -25,7 +25,7 @@
 
 #include "test.h"
 
-DEFINE_TEST(test_archive_read_open_filenames)
+DEFINE_TEST(test_archive_read_open_filenames_null)
 {
 	const char *filenames[] = {
 		"zero",
@@ -53,6 +53,37 @@ DEFINE_TEST(test_archive_read_open_filenames)
 
 	/* Verify that no entry is found. */
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_archive_read_open_filenames_split_uaf)
+{
+	const char *reffiles[] = {
+		"test_archive_read_open_filenames_split_uaf_1.tar",
+		"test_archive_read_open_filenames_split_uaf_2.tar",
+		NULL
+	};
+	struct archive *a;
+	struct archive_entry *ae;
+
+	/* Prepare formats and filters for sufficiently large bid requests. */
+	a = archive_read_new();
+	assert(a != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_uu(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
+
+	extract_reference_files(reffiles);
+
+	/* Verify that archive can be opened. */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filenames(a, reffiles, 4096));
+
+	/* Verify that an entry is found. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+
+	/* Verify that no further entry can be found. */
+	assertEqualIntA(a, ARCHIVE_RETRY, archive_read_next_header(a, &ae));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
