@@ -199,9 +199,11 @@ The
 mode does not follow any symbolic links.
 The
 .Dq hybrid
-mode follows a symbolic link that is named as a starting point of the
-traversal but does not follow any symbolic links encountered below such
-a starting point.
+mode follows symbolic links specified as the target of
+.Fn archive_read_disk_open
+or
+.Fn archive_read_disk_open_w
+but does not follow symbolic links anywhere else.
 .It Xo
 .Fn archive_read_disk_gname ,
 .Fn archive_read_disk_uname
