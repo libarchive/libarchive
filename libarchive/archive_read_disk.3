@@ -191,15 +191,19 @@ By default, sparse file information is read from disk.
 This sets the mode used for handling symbolic links.
 The
 .Dq logical
-mode follows all symbolic links.
+mode follows all symbolic links, except that a symbolic link whose
+target is an ancestor directory of the link is archived as a symbolic
+link rather than being followed, to avoid loops.
 The
 .Dq physical
 mode does not follow any symbolic links.
 The
 .Dq hybrid
-mode currently behaves identically to the
-.Dq logical
-mode.
+mode follows symbolic links specified as the target of
+.Fn archive_read_disk_open
+or
+.Fn archive_read_disk_open_w
+but does not follow symbolic links anywhere else.
 .It Xo
 .Fn archive_read_disk_gname ,
 .Fn archive_read_disk_uname
