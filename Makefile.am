@@ -401,6 +401,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_digest.c \
 	libarchive/test/test_archive_match_owner.c \
 	libarchive/test/test_archive_match_path.c \
+	libarchive/test/test_archive_match_path_normalization.c \
 	libarchive/test/test_archive_match_time.c \
 	libarchive/test/test_archive_parse_date.c \
 	libarchive/test/test_archive_pathmatch.c \
