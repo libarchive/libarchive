@@ -26,8 +26,6 @@
 #ifndef ARCHIVE_PLATFORM_H_ANDROID_INCLUDED
 #define	ARCHIVE_PLATFORM_H_ANDROID_INCLUDED
 
-#define __LIBARCHIVE_CONFIG_H_INCLUDED 1
-
 #include <android/api-level.h>
 #ifdef __ANDROID_API__
 #if __ANDROID_API__ > 20
