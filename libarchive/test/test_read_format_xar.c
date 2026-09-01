@@ -1042,6 +1042,102 @@ DEFINE_TEST(test_read_format_xar_atou64_overread)
 }
 
 /*
+ * A valid uncompressed empty xattr makes no decompression progress when no
+ * declared bytes remain.  It must not be rejected as a stalled stream.
+ */
+DEFINE_TEST(test_read_format_xar_empty_xattr)
+{
+	const char *refname = "test_read_format_xar_empty_xattr.xar";
+	const char *name;
+	const void *value;
+	struct archive_entry *ae;
+	struct archive *a;
+	size_t size;
+	char data;
+	int r;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("XAR reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+	if (!assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae))) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualString("f", archive_entry_pathname(ae));
+	assertEqualInt(1, archive_entry_size(ae));
+	assertEqualInt(1, archive_entry_xattr_reset(ae));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_entry_xattr_next(ae, &name, &value, &size));
+	assertEqualString("user.empty", name);
+	assertEqualInt(0, size);
+	assertEqualIntA(a, 1, archive_read_data(a, &data, 1));
+	assertEqualInt('Z', data);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_xar_toc_premature_stream_end)
+{
+	const char *control =
+	    "test_read_format_xar_toc_premature_stream_end_control.xar";
+	const char *malformed =
+	    "test_read_format_xar_toc_premature_stream_end.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(control);
+	extract_reference_file(malformed);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("XAR reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, control, 10240));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+#if !defined(HAVE_LIBXML_XMLREADER_H) && !defined(HAVE_BSDXML_H) && \
+    !defined(HAVE_EXPAT_H) && defined(HAVE_XMLLITE_H)
+	skipping("Malformed XAR TOC behavior is not validated with XmlLite");
+#else
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, malformed, 10240));
+	/* The declared TOC length continues past the end of the zlib stream. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assert(archive_errno(a) != 0);
+#if !defined(HAVE_LIBXML_XMLREADER_H) && \
+    (defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H))
+	assertEqualString("XAR decompressor made no progress",
+	    archive_error_string(a));
+#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
+}
+
+/*
  * parse_time() reads a fixed 20-byte timestamp and handed atou64() a width
  * of 4 for every field.  The trailing seconds field sits at offset 17, so a
  * value whose last three bytes are all digits (here "...00:00:123") made
