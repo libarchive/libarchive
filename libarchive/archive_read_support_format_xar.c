@@ -61,6 +61,7 @@
 #include "archive_entry_locale.h"
 #include "archive_integer.h"
 #include "archive_private.h"
+#include "archive_rb.h"
 #include "archive_read_private.h"
 
 #if (!defined(HAVE_LIBXML_XMLREADER_H) && \
@@ -119,6 +120,16 @@ archive_read_support_format_xar(struct archive *_a)
 #define SHA256_SIZE	32
 #define SHA512_SIZE	64
 #define MAX_SUM_SIZE	64
+
+/*
+ * The XAR reader retains file and extended-attribute records until the
+ * complete XML TOC has been parsed.  Bound both the retained records and
+ * their XML representation and derived pathnames.  Trusted callers can
+ * adjust these limits with xar reader options.
+ */
+#define XAR_DEFAULT_MAX_TOC_RECORDS	UINT64_C(100000)
+#define XAR_DEFAULT_MAX_TOC_SIZE	(UINT64_C(64) * 1024 * 1024)
+#define XAR_DEFAULT_MAX_PATHNAME_SIZE	(UINT64_C(64) * 1024 * 1024)
 
 enum enctype {
 	NONE,
@@ -215,12 +226,13 @@ struct xar_file {
 	unsigned int		 nlink;
 	struct archive_string	 hardlink;
 	struct xattr		*xattr_list;
+	struct xattr		*xattr_last;
 };
 
 struct hdlink {
-	struct hdlink		 *next;
+	struct archive_rb_node	 rbnode;
 
-	unsigned int		 id;
+	uint64_t		 id;
 	int			 cnt;
 	struct xar_file		 *files;
 };
@@ -337,8 +349,14 @@ struct xar {
 	 */
 	uint64_t		 toc_remaining;
 	uint64_t		 toc_total;
+	uint64_t		 toc_expected;
 	uint64_t		 toc_chksum_offset;
 	uint64_t		 toc_chksum_size;
+	uint64_t		 max_toc_size;
+	uint64_t		 toc_record_count;
+	uint64_t		 max_toc_records;
+	uint64_t		 pathname_total;
+	uint64_t		 max_pathname_size;
 
 	/*
 	 * For Decoding data.
@@ -364,7 +382,7 @@ struct xar {
 	struct xattr		*xattr; /* current reading extended attribute. */
 	struct heap_queue	 file_queue;
 	struct xar_file		*hdlink_orgs;
-	struct hdlink		*hdlink_list;
+	struct archive_rb_tree	 hdlink_tree;
 
 	int	 		 entry_init;
 	uint64_t		 entry_total;
@@ -390,6 +408,7 @@ struct xmlattr_list {
 };
 
 static int	xar_bid(struct archive_read *, int);
+static int	xar_options(struct archive_read *, const char *, const char *);
 static int	xar_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	xar_read_data(struct archive_read *,
@@ -426,6 +445,12 @@ static void	file_free(struct xar_file *);
 static int	xattr_new(struct archive_read *,
     struct xar *, struct xmlattr_list *);
 static void	xattr_free(struct xattr *);
+static struct xattr *xattr_list_sort(struct xattr *);
+static int	hdlink_cmp_node(const struct archive_rb_node *,
+    const struct archive_rb_node *);
+static int	hdlink_cmp_key(const struct archive_rb_node *, const void *);
+static int	xar_toc_record_allowed(struct archive_read *, struct xar *);
+static int	xar_pathname_add_bytes(struct archive_read *, uint64_t);
 static int	getencoding(struct xmlattr_list *);
 static int	getsumalgorithm(struct xmlattr_list *);
 static int	unknowntag_start(struct archive_read *,
@@ -435,6 +460,7 @@ static int	xml_start(struct archive_read *,
     const char *, struct xmlattr_list *);
 static void	xml_end(void *, const char *);
 static int	xml_data(void *, const char *, size_t);
+static int	xar_toc_add_bytes(struct archive_read *, size_t);
 static int	xml_parse_file_flags(struct xar *, const char *);
 static int	xml_parse_file_ext2(struct xar *, const char *);
 #if defined(HAVE_LIBXML_XMLREADER_H)
@@ -463,6 +489,9 @@ static int	xmllite_read_toc(struct archive_read *);
 int
 archive_read_support_format_xar(struct archive *_a)
 {
+	static const struct archive_rb_tree_ops rb_ops = {
+		hdlink_cmp_node, hdlink_cmp_key,
+	};
 	struct archive_read *a = (struct archive_read *)_a;
 	struct xar *xar;
 	int r;
@@ -480,12 +509,16 @@ archive_read_support_format_xar(struct archive *_a)
 	xar->file_queue.allocated = 0;
 	xar->file_queue.used = 0;
 	xar->file_queue.files = NULL;
+	__archive_rb_tree_init(&xar->hdlink_tree, &rb_ops);
+	xar->max_toc_records = XAR_DEFAULT_MAX_TOC_RECORDS;
+	xar->max_toc_size = XAR_DEFAULT_MAX_TOC_SIZE;
+	xar->max_pathname_size = XAR_DEFAULT_MAX_PATHNAME_SIZE;
 
 	r = __archive_read_register_format(a,
 	    xar,
 	    "xar",
 	    xar_bid,
-	    NULL,
+	    xar_options,
 	    xar_read_header,
 	    xar_read_data,
 	    xar_read_data_skip,
@@ -497,6 +530,42 @@ archive_read_support_format_xar(struct archive *_a)
 	if (r != ARCHIVE_OK)
 		free(xar);
 	return (r);
+}
+
+static int
+xar_options(struct archive_read *a, const char *key, const char *val)
+{
+	struct xar *xar = a->format->data;
+	uint64_t value;
+	uint64_t *limit;
+	const char *p;
+
+	if (strcmp(key, "max-toc-records") == 0)
+		limit = &xar->max_toc_records;
+	else if (strcmp(key, "max-toc-size") == 0)
+		limit = &xar->max_toc_size;
+	else if (strcmp(key, "max-pathname-size") == 0)
+		limit = &xar->max_pathname_size;
+	else
+		return (ARCHIVE_WARN);
+
+	if (val == NULL || val[0] == '\0') {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "xar: %s option requires a non-negative integer", key);
+		return (ARCHIVE_FAILED);
+	}
+	value = 0;
+	for (p = val; *p != '\0'; ++p) {
+		if (*p < '0' || *p > '9' ||
+		    archive_ckd_mul_u64(&value, value, 10) ||
+		    archive_ckd_add_u64(&value, value, *p - '0')) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "xar: invalid %s option value", key);
+			return (ARCHIVE_FAILED);
+		}
+	}
+	*limit = value;
+	return (ARCHIVE_OK);
 }
 
 static int
@@ -590,9 +659,17 @@ read_toc(struct archive_read *a)
 	xar->toc_remaining = toc_compressed_size;
 	toc_uncompressed_size = archive_be64dec(b+16);
 	toc_chksum_alg = archive_be32dec(b+24);
+	if (xar->max_toc_size != 0 &&
+	    toc_uncompressed_size > xar->max_toc_size) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "XAR TOC is larger than configured limit (%" PRIu64
+		    " bytes)", xar->max_toc_size);
+		return (ARCHIVE_FATAL);
+	}
 	__archive_read_consume(a, HEADER_SIZE);
 	xar->offset += HEADER_SIZE;
 	xar->toc_total = 0;
+	xar->toc_expected = toc_uncompressed_size;
 
 	/*
 	 * Read TOC(Table of Contents).
@@ -654,29 +731,26 @@ read_toc(struct archive_read *a)
 	 * Connect hardlinked files.
 	 */
 	for (file = xar->hdlink_orgs; file != NULL; file = file->hdnext) {
-		struct hdlink **hdlink;
+		struct hdlink *hdlink;
+		struct xar_file *f2;
+		int nlink;
 
-		for (hdlink = &(xar->hdlink_list); *hdlink != NULL;
-		    hdlink = &((*hdlink)->next)) {
-			if ((*hdlink)->id == file->id) {
-				struct hdlink *hltmp;
-				struct xar_file *f2;
-				int nlink = (*hdlink)->cnt + 1;
-
-				file->nlink = nlink;
-				for (f2 = (*hdlink)->files; f2 != NULL;
-				    f2 = f2->hdnext) {
-					f2->nlink = nlink;
-					archive_string_copy(
-					    &(f2->hardlink), &(file->pathname));
-				}
-				/* Remove resolved files from hdlist_list. */
-				hltmp = *hdlink;
-				*hdlink = hltmp->next;
-				free(hltmp);
-				break;
-			}
+		hdlink = (struct hdlink *)__archive_rb_tree_find_node(
+		    &xar->hdlink_tree, &file->id);
+		if (hdlink == NULL)
+			continue;
+		nlink = hdlink->cnt + 1;
+		file->nlink = nlink;
+		for (f2 = hdlink->files; f2 != NULL; f2 = f2->hdnext) {
+			f2->nlink = nlink;
+			if (xar_pathname_add_bytes(a,
+			    archive_strlen(&(file->pathname))) != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+			archive_string_copy(&(f2->hardlink), &(file->pathname));
 		}
+		/* Remove resolved files from the hardlink tree. */
+		__archive_rb_tree_remove_node(&xar->hdlink_tree, &hdlink->rbnode);
+		free(hdlink);
 	}
 	a->archive.archive_format = ARCHIVE_FORMAT_XAR;
 	a->archive.archive_format_name = "xar";
@@ -826,7 +900,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 	/*
 	 * Read extended attributes.
 	 */
-	xattr = file->xattr_list;
+	xattr = file->xattr_list = xattr_list_sort(file->xattr_list);
 	while (xattr != NULL) {
 		const void *d;
 		size_t outbytes = 0;
@@ -969,18 +1043,15 @@ static int
 xar_cleanup(struct archive_read *a)
 {
 	struct xar *xar = a->format->data;
-	struct hdlink *hdlink;
+	struct archive_rb_node *node, *next;
 	size_t i;
 	int r;
 
 	checksum_cleanup(a);
 	r = decompression_cleanup(a);
-	hdlink = xar->hdlink_list;
-	while (hdlink != NULL) {
-		struct hdlink *next = hdlink->next;
-
-		free(hdlink);
-		hdlink = next;
+	ARCHIVE_RB_TREE_FOREACH_SAFE(node, &xar->hdlink_tree, next) {
+		__archive_rb_tree_remove_node(&xar->hdlink_tree, node);
+		free(node);
 	}
 	for (i = 0; i < xar->file_queue.used; i++)
 		file_free(xar->file_queue.files[i]);
@@ -1318,17 +1389,45 @@ heap_get_entry(struct heap_queue *heap)
 }
 
 static int
+hdlink_cmp_node(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
+{
+	const struct hdlink *h1 = (const struct hdlink *)n1;
+	const struct hdlink *h2 = (const struct hdlink *)n2;
+
+	if (h1->id < h2->id)
+		return (1);
+	if (h1->id > h2->id)
+		return (-1);
+	return (0);
+}
+
+static int
+hdlink_cmp_key(const struct archive_rb_node *n, const void *key)
+{
+	const struct hdlink *hdlink = (const struct hdlink *)n;
+	const uint64_t id = *(const uint64_t *)key;
+
+	if (hdlink->id < id)
+		return (1);
+	if (hdlink->id > id)
+		return (-1);
+	return (0);
+}
+
+static int
 add_link(struct archive_read *a, struct xar *xar, struct xar_file *file)
 {
 	struct hdlink *hdlink;
+	uint64_t id = file->link;
 
-	for (hdlink = xar->hdlink_list; hdlink != NULL; hdlink = hdlink->next) {
-		if (hdlink->id == file->link) {
-			file->hdnext = hdlink->files;
-			hdlink->cnt++;
-			hdlink->files = file;
-			return (ARCHIVE_OK);
-		}
+	hdlink = (struct hdlink *)__archive_rb_tree_find_node(
+	    &xar->hdlink_tree, &id);
+	if (hdlink != NULL) {
+		file->hdnext = hdlink->files;
+		hdlink->cnt++;
+		hdlink->files = file;
+		return (ARCHIVE_OK);
 	}
 	hdlink = malloc(sizeof(*hdlink));
 	if (hdlink == NULL) {
@@ -1336,11 +1435,16 @@ add_link(struct archive_read *a, struct xar *xar, struct xar_file *file)
 		return (ARCHIVE_FATAL);
 	}
 	file->hdnext = NULL;
-	hdlink->id = file->link;
+	hdlink->id = id;
 	hdlink->cnt = 1;
 	hdlink->files = file;
-	hdlink->next = xar->hdlink_list;
-	xar->hdlink_list = hdlink;
+	if (!__archive_rb_tree_insert_node(&xar->hdlink_tree,
+	    &hdlink->rbnode)) {
+		free(hdlink);
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Duplicate hardlink group");
+		return (ARCHIVE_FATAL);
+	}
 	return (ARCHIVE_OK);
 }
 
@@ -1815,11 +1919,48 @@ xmlattr_cleanup(struct xmlattr_list *list)
 }
 
 static int
+xar_toc_record_allowed(struct archive_read *a, struct xar *xar)
+{
+	if (xar->max_toc_records != 0 &&
+	    xar->toc_record_count >= xar->max_toc_records) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "XAR TOC record count exceeds configured limit (%" PRIu64 ")",
+		    xar->max_toc_records);
+		return (ARCHIVE_FATAL);
+	}
+	return (ARCHIVE_OK);
+}
+
+static int
+xar_pathname_add_bytes(struct archive_read *a, uint64_t bytes)
+{
+	struct xar *xar = a->format->data;
+	uint64_t total;
+
+	if (archive_ckd_add_u64(&total, xar->pathname_total, bytes)) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "XAR pathname data size overflow");
+		return (ARCHIVE_FATAL);
+	}
+	if (xar->max_pathname_size != 0 &&
+	    total > xar->max_pathname_size) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "XAR pathname data exceeds configured limit (%" PRIu64
+		    " bytes)", xar->max_pathname_size);
+		return (ARCHIVE_FATAL);
+	}
+	xar->pathname_total = total;
+	return (ARCHIVE_OK);
+}
+
+static int
 file_new(struct archive_read *a, struct xar *xar, struct xmlattr_list *list)
 {
 	struct xar_file *file;
 	struct xmlattr *attr;
 
+	if (xar_toc_record_allowed(a, xar) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
 	file = calloc(1, sizeof(*file));
 	if (file == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
@@ -1849,6 +1990,7 @@ file_new(struct archive_read *a, struct xar *xar, struct xmlattr_list *list)
 		file_free(file);
 		return (ARCHIVE_FATAL);
 	}
+	xar->toc_record_count++;
 	return (ARCHIVE_OK);
 }
 
@@ -1878,9 +2020,11 @@ file_free(struct xar_file *file)
 static int
 xattr_new(struct archive_read *a, struct xar *xar, struct xmlattr_list *list)
 {
-	struct xattr *xattr, **nx;
+	struct xattr *xattr;
 	struct xmlattr *attr;
 
+	if (xar_toc_record_allowed(a, xar) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
 	xattr = calloc(1, sizeof(*xattr));
 	if (xattr == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
@@ -1899,14 +2043,13 @@ xattr_new(struct archive_read *a, struct xar *xar, struct xmlattr_list *list)
 		}
 	}
 	xar->xattr = xattr;
-	/* Chain to xattr list. */
-	for (nx = &(xar->file->xattr_list);
-	    *nx != NULL; nx = &((*nx)->next)) {
-		if (xattr->id < (*nx)->id)
-			break;
-	}
-	xattr->next = *nx;
-	*nx = xattr;
+	/* Append in constant time; sort once before exposing the entry. */
+	if (xar->file->xattr_last == NULL)
+		xar->file->xattr_list = xattr;
+	else
+		xar->file->xattr_last->next = xattr;
+	xar->file->xattr_last = xattr;
+	xar->toc_record_count++;
 
 	return (ARCHIVE_OK);
 }
@@ -1917,6 +2060,46 @@ xattr_free(struct xattr *xattr)
 	archive_string_free(&(xattr->name));
 	archive_string_free(&(xattr->fstype));
 	free(xattr);
+}
+
+static struct xattr *
+xattr_list_merge(struct xattr *left, struct xattr *right)
+{
+	struct xattr *result = NULL;
+	struct xattr **tail = &result;
+
+	while (left != NULL && right != NULL) {
+		if (left->id <= right->id) {
+			*tail = left;
+			left = left->next;
+		} else {
+			*tail = right;
+			right = right->next;
+		}
+		tail = &((*tail)->next);
+	}
+	*tail = left != NULL ? left : right;
+	return (result);
+}
+
+static struct xattr *
+xattr_list_sort(struct xattr *list)
+{
+	struct xattr *fast, *left, *right, *slow;
+
+	if (list == NULL || list->next == NULL)
+		return (list);
+	left = list;
+	slow = list;
+	fast = list->next;
+	while (fast != NULL && fast->next != NULL) {
+		slow = slow->next;
+		fast = fast->next->next;
+	}
+	right = slow->next;
+	slow->next = NULL;
+	return (xattr_list_merge(xattr_list_sort(left),
+	    xattr_list_sort(right)));
 }
 
 static int
@@ -2771,9 +2954,24 @@ xml_data(void *userData, const char *s, size_t len)
 		return (ARCHIVE_OK);
 
 	switch (xar->xmlsts) {
-	case FILE_NAME:
+	case FILE_NAME: {
+		uint64_t pathname_size = (uint64_t)len;
+
 		if (xar->file->has & HAS_PATHNAME)
 			break;
+
+		if (xar->file->parent != NULL) {
+			if (archive_ckd_add_u64(&pathname_size, pathname_size,
+			    archive_strlen(&(xar->file->parent->pathname))) ||
+			    archive_ckd_add_u64(&pathname_size,
+			    pathname_size, 1)) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "XAR pathname data size overflow");
+				return (ARCHIVE_FATAL);
+			}
+		}
+		if (xar_pathname_add_bytes(a, pathname_size) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
 
 		if (xar->file->parent != NULL) {
 			archive_string_concat(&(xar->file->pathname),
@@ -2787,6 +2985,7 @@ xml_data(void *userData, const char *s, size_t len)
 		} else
 			archive_strncat(&(xar->file->pathname), s, len);
 		break;
+	}
 	case FILE_LINK:
 		xar->file->has |= HAS_SYMLINK;
 		archive_strncpy(&(xar->file->symlink), s, len);
@@ -3177,6 +3376,27 @@ xml_parse_file_ext2(struct xar *xar, const char *name)
 	return (1);
 }
 
+static int
+xar_toc_add_bytes(struct archive_read *a, size_t bytes)
+{
+	struct xar *xar = a->format->data;
+
+	if ((uint64_t)bytes > xar->toc_expected - xar->toc_total) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "TOC uncompressed size error");
+		return (ARCHIVE_FATAL);
+	}
+	if (xar->max_toc_size != 0 &&
+	    (uint64_t)bytes > xar->max_toc_size - xar->toc_total) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "XAR TOC is larger than configured limit (%" PRIu64
+		    " bytes)", xar->max_toc_size);
+		return (ARCHIVE_FATAL);
+	}
+	xar->toc_total += (uint64_t)bytes;
+	return (ARCHIVE_OK);
+}
+
 #ifdef HAVE_LIBXML_XMLREADER_H
 
 static int
@@ -3235,10 +3455,12 @@ xml2_read_cb(void *context, char *buffer, int len)
 	r = rd_contents(a, &d, &outbytes, &used, xar->toc_remaining);
 	if (r != ARCHIVE_OK)
 		return (r);
+	r = xar_toc_add_bytes(a, outbytes);
+	if (r != ARCHIVE_OK)
+		return (r);
 	__archive_read_consume(a, used);
 	xar->toc_remaining -= used;
 	xar->offset += used;
-	xar->toc_total += outbytes;
 	PRINT_TOC(buffer, len);
 
 	return ((int)outbytes);
@@ -3440,9 +3662,13 @@ expat_read_toc(struct archive_read *a)
 			XML_ParserFree(parser);
 			return (r);
 		}
+		r = xar_toc_add_bytes(a, outbytes);
+		if (r != ARCHIVE_OK) {
+			XML_ParserFree(parser);
+			return (r);
+		}
 		xar->toc_remaining -= used;
 		xar->offset += used;
-		xar->toc_total += outbytes;
 		PRINT_TOC(d, outbytes);
 
 		xr = XML_Parse(parser, d, (int)outbytes, xar->toc_remaining == 0);
@@ -3513,10 +3739,12 @@ asaRead(ISequentialStream *this, void *pv, ULONG cb, ULONG *pcbRead)
 	r = rd_contents(a, &d, &outbytes, &used, xar->toc_remaining);
 	if (r != ARCHIVE_OK)
 		return E_FAIL;
+	r = xar_toc_add_bytes(a, outbytes);
+	if (r != ARCHIVE_OK)
+		return E_FAIL;
 	__archive_read_consume(a, used);
 	xar->toc_remaining -= used;
 	xar->offset += used;
-	xar->toc_total += outbytes;
 	PRINT_TOC(pv, outbytes);
 
 	*pcbRead = (ULONG)outbytes;

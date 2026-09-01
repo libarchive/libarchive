@@ -25,6 +25,10 @@
  */
 #include "test.h"
 
+#ifdef HAVE_ZLIB_H
+#include <zlib.h>
+#endif
+
 #define UID	1001
 #define UNAME	"cue"
 #define GID	1001
@@ -901,6 +905,359 @@ DEFINE_TEST(test_read_format_xar)
 	verify(archive11, sizeof(archive11), verify0, NULL, GZIP);
         verify(archive12, sizeof(archive12), verify12, NULL, GZIP);
 	verifyB(archive13, sizeof(archive13));
+}
+
+#ifdef HAVE_ZLIB_H
+static void
+xar_be16enc(unsigned char *p, unsigned int v)
+{
+	p[0] = (unsigned char)(v >> 8);
+	p[1] = (unsigned char)v;
+}
+
+static void
+xar_be32enc(unsigned char *p, uint32_t v)
+{
+	p[0] = (unsigned char)(v >> 24);
+	p[1] = (unsigned char)(v >> 16);
+	p[2] = (unsigned char)(v >> 8);
+	p[3] = (unsigned char)v;
+}
+
+static void
+xar_be64enc(unsigned char *p, uint64_t v)
+{
+	xar_be32enc(p, (uint32_t)(v >> 32));
+	xar_be32enc(p + 4, (uint32_t)v);
+}
+
+static unsigned char *
+make_xar_from_toc(const unsigned char *toc, size_t toc_size,
+    size_t *archive_size)
+{
+	unsigned char *archive;
+	uLongf compressed_size;
+
+	compressed_size = compressBound((uLong)toc_size);
+	archive = malloc(28 + (size_t)compressed_size);
+	assert(archive != NULL);
+	assertEqualInt(Z_OK, compress2(archive + 28, &compressed_size, toc,
+	    (uLong)toc_size, Z_BEST_COMPRESSION));
+
+	memcpy(archive, "xar!", 4);
+	xar_be16enc(archive + 4, 28);
+	xar_be16enc(archive + 6, 1);
+	xar_be64enc(archive + 8, compressed_size);
+	xar_be64enc(archive + 16, toc_size);
+	xar_be32enc(archive + 24, 0);
+	*archive_size = 28 + (size_t)compressed_size;
+	return (archive);
+}
+
+static unsigned char *
+make_xar_with_files(size_t count, size_t *archive_size)
+{
+	static const char prefix[] = "<xar><toc>";
+	static const char file[] = "<file><name>a</name></file>";
+	static const char suffix[] = "</toc></xar>";
+	unsigned char *archive;
+	unsigned char *toc;
+	unsigned char *p;
+	size_t i, toc_size;
+
+	toc_size = sizeof(prefix) - 1 + count * (sizeof(file) - 1) +
+	    sizeof(suffix) - 1;
+	toc = malloc(toc_size);
+	assert(toc != NULL);
+	p = toc;
+	memcpy(p, prefix, sizeof(prefix) - 1);
+	p += sizeof(prefix) - 1;
+	for (i = 0; i < count; ++i) {
+		memcpy(p, file, sizeof(file) - 1);
+		p += sizeof(file) - 1;
+	}
+	memcpy(p, suffix, sizeof(suffix) - 1);
+
+	archive = make_xar_from_toc(toc, toc_size, archive_size);
+	free(toc);
+	return (archive);
+}
+
+static unsigned char *
+make_xar_with_xattrs(size_t count, size_t *archive_size)
+{
+	static const char prefix[] = "<xar><toc><file><name>a</name>";
+	static const char xattr[] = "<ea/>";
+	static const char suffix[] = "</file></toc></xar>";
+	unsigned char *archive;
+	unsigned char *toc;
+	unsigned char *p;
+	size_t i, toc_size;
+
+	toc_size = sizeof(prefix) - 1 + count * (sizeof(xattr) - 1) +
+	    sizeof(suffix) - 1;
+	toc = malloc(toc_size);
+	assert(toc != NULL);
+	p = toc;
+	memcpy(p, prefix, sizeof(prefix) - 1);
+	p += sizeof(prefix) - 1;
+	for (i = 0; i < count; ++i) {
+		memcpy(p, xattr, sizeof(xattr) - 1);
+		p += sizeof(xattr) - 1;
+	}
+	memcpy(p, suffix, sizeof(suffix) - 1);
+
+	archive = make_xar_from_toc(toc, toc_size, archive_size);
+	free(toc);
+	return (archive);
+}
+
+static unsigned char *
+make_xar_with_hardlinks(size_t count, size_t *archive_size)
+{
+	static const char prefix[] = "<xar><toc>";
+	static const char suffix[] = "</toc></xar>";
+	unsigned char *archive;
+	unsigned char *toc;
+	unsigned char *p;
+	size_t i, toc_capacity, toc_size;
+	int written;
+
+	assert(count <= (SIZE_MAX - sizeof(prefix) - sizeof(suffix)) / 80);
+	toc_capacity = sizeof(prefix) - 1 + count * 80 + sizeof(suffix) - 1;
+	toc = malloc(toc_capacity);
+	assert(toc != NULL);
+	p = toc;
+	memcpy(p, prefix, sizeof(prefix) - 1);
+	p += sizeof(prefix) - 1;
+	for (i = 0; i < count; ++i) {
+		written = snprintf((char *)p, 80,
+		    "<file><name>a</name><type link=\"%zu\">"
+		    "hardlink</type></file>", i + 1);
+		assert(written > 0 && written < 80);
+		p += written;
+	}
+	memcpy(p, suffix, sizeof(suffix) - 1);
+	p += sizeof(suffix) - 1;
+	toc_size = (size_t)(p - toc);
+
+	archive = make_xar_from_toc(toc, toc_size, archive_size);
+	free(toc);
+	return (archive);
+}
+
+static unsigned char *
+make_xar_with_nested_files(size_t count, size_t *archive_size)
+{
+	static const char prefix[] = "<xar><toc>";
+	static const char file[] = "<file><name>a</name>";
+	static const char file_end[] = "</file>";
+	static const char suffix[] = "</toc></xar>";
+	unsigned char *archive;
+	unsigned char *toc;
+	unsigned char *p;
+	size_t i, toc_size;
+
+	toc_size = sizeof(prefix) - 1 + count * (sizeof(file) - 1) +
+	    count * (sizeof(file_end) - 1) + sizeof(suffix) - 1;
+	toc = malloc(toc_size);
+	assert(toc != NULL);
+	p = toc;
+	memcpy(p, prefix, sizeof(prefix) - 1);
+	p += sizeof(prefix) - 1;
+	for (i = 0; i < count; ++i) {
+		memcpy(p, file, sizeof(file) - 1);
+		p += sizeof(file) - 1;
+	}
+	for (i = 0; i < count; ++i) {
+		memcpy(p, file_end, sizeof(file_end) - 1);
+		p += sizeof(file_end) - 1;
+	}
+	memcpy(p, suffix, sizeof(suffix) - 1);
+
+	archive = make_xar_from_toc(toc, toc_size, archive_size);
+	free(toc);
+	return (archive);
+}
+#endif
+
+DEFINE_TEST(test_read_format_xar_resource_limits)
+{
+#ifndef HAVE_ZLIB_H
+	skipping("xar reading requires zlib");
+#else
+	struct archive_entry *ae;
+	struct archive *a;
+	unsigned char *large_xar;
+	unsigned char *nested_xar;
+	unsigned char *small_xar;
+	unsigned char *xattr_xar;
+	size_t large_xar_size;
+	size_t nested_xar_size;
+	size_t small_xar_size;
+	size_t xattr_xar_size;
+	int r;
+
+	/* Also exercises many distinct hardlink groups without a binary fixture. */
+	large_xar = make_xar_with_hardlinks(100001, &large_xar_size);
+	assert((a = archive_read_new()) != NULL);
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		free(large_xar);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, large_xar, large_xar_size));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualString("XAR TOC record count exceeds configured limit (100000)",
+	    archive_error_string(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(large_xar);
+
+	/* A false small declaration must not bypass the actual-output check. */
+	small_xar = make_xar_with_files(2, &small_xar_size);
+	xar_be64enc(small_xar + 16, 1);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-toc-records", "1"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, small_xar, small_xar_size));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assert(strcmp("XAR TOC record count exceeds configured limit (1)",
+	    archive_error_string(a)) != 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(small_xar);
+
+	/* A value of zero disables the corresponding configured limit. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-toc-records", "0"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-toc-size", "0"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-pathname-size", "0"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive1, sizeof(archive1)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("f1", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("hardlink", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-toc-records", "1"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive1, sizeof(archive1)));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualString("XAR TOC record count exceeds configured limit (1)",
+	    archive_error_string(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* The documented boundary still accepts the same valid archive. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-toc-records", "2"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-toc-size", "1136"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-pathname-size", "12"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive1, sizeof(archive1)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("f1", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("hardlink", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Resolved hardlink pathnames are charged before being copied. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-pathname-size", "11"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive1, sizeof(archive1)));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualString("XAR pathname data exceeds configured limit (11 bytes)",
+	    archive_error_string(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Extended attributes consume the same retained-record budget. */
+	xattr_xar = make_xar_with_xattrs(2, &xattr_xar_size);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-toc-records", "2"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, xattr_xar, xattr_xar_size));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualString("XAR TOC record count exceeds configured limit (2)",
+	    archive_error_string(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(xattr_xar);
+
+	/* Nested names must not amplify a small TOC into unbounded path data. */
+	nested_xar = make_xar_with_nested_files(40, &nested_xar_size);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-pathname-size",
+	    "512"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, nested_xar, nested_xar_size));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualString("XAR pathname data exceeds configured limit (512 bytes)",
+	    archive_error_string(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(nested_xar);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "xar", "max-toc-size", "1135"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive1, sizeof(archive1)));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualString("XAR TOC is larger than configured limit (1135 bytes)",
+	    archive_error_string(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_read_set_format_option(a, "xar", "max-toc-records", "-1"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_read_set_format_option(a, "xar", "max-toc-records", " 1"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_read_set_format_option(a, "xar", "max-toc-records", "1x"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_read_set_format_option(a, "xar", "max-toc-records",
+	    "18446744073709551616"));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
 }
 
 DEFINE_TEST(test_read_format_xar_xattr_fstype_cleanup)
