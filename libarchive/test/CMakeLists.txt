@@ -109,6 +109,7 @@ IF(ENABLE_TEST)
     test_read_filter_program.c
     test_read_filter_program_signature.c
     test_read_filter_uudecode.c
+    test_read_filter_uudecode_newlines.c
     test_read_filter_uudecode_raw.c
     test_read_filter_zstd_raw.c
     test_read_format_7zip.c
