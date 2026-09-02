@@ -1410,16 +1410,9 @@ case "$host_os" in
 esac
 
 dnl Visibility annotations...
-saved_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -fvisibility=hidden -Werror"
-AC_MSG_CHECKING(whether compiler supports visibility annotations)
-AC_LINK_IFELSE([AC_LANG_PROGRAM([
-                 int foo( void ) __attribute__((visibility("default")));
-               ])],
-               [CFLAGS="$saved_CFLAGS -fvisibility=hidden -D__LIBARCHIVE_ENABLE_VISIBILITY";
-                AC_MSG_RESULT(yes)],
-               [CFLAGS="$saved_CFLAGS"
-                AC_MSG_RESULT(no)])
+gl_VISIBILITY
+AX_APPEND_FLAG([$CFLAG_VISIBILITY])
+AS_IF([test "$HAVE_VISIBILITY" = "1"], [AX_APPEND_FLAG([-D__LIBARCHIVE_ENABLE_VISIBILITY])])
 
 dnl Ensure test directories are present if building out-of-tree
 AC_CONFIG_COMMANDS([mkdirs],
