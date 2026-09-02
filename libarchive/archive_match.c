@@ -269,6 +269,7 @@ archive_match_free(struct archive *_a)
 	free(a->inclusion_gids.ids);
 	match_list_free(&(a->inclusion_unames));
 	match_list_free(&(a->inclusion_gnames));
+	archive_string_free(&a->archive.error_string);
 	free(a);
 	return (ARCHIVE_OK);
 }
