@@ -658,9 +658,10 @@ read_more:
 			}
 			break;
 		case ST_UUEND:
-			if (len - nl == 3 && memcmp(b, "end ", 3) == 0)
-				uu->state = ST_FIND_HEAD;
-			else {
+			if (len - nl == 3 && memcmp(b, "end ", 3) == 0) {
+				uu->state = ST_IGNORE;
+				goto finish;
+			} else {
 				archive_set_error(&f->archive->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Insufficient compressed data");
@@ -673,8 +674,8 @@ read_more:
 			l = len - nl;
 			if (l >= 3 && b[0] == '=' && b[1] == '=' &&
 			    b[2] == '=') {
-				uu->state = ST_FIND_HEAD;
-				break;
+				uu->state = ST_IGNORE;
+				goto finish;
 			}
 			while (l > 0) {
 				int n = 0;
