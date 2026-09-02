@@ -15,39 +15,39 @@ m4_define([BSDUNZIP_VERSION_S],LIBARCHIVE_VERSION_S())
 
 AC_PREREQ([2.71])
 
-#
-# Now starts the "real" configure script.
-#
+dnl
+dnl Now starts the "real" configure script.
+dnl
 
 AC_INIT([libarchive],[LIBARCHIVE_VERSION_S()],[libarchive-discuss@googlegroups.com])
-# Make sure the srcdir contains "libarchive" directory
+dnl Make sure the srcdir contains "libarchive" directory
 AC_CONFIG_SRCDIR([libarchive])
-# Use auxiliary subscripts from this subdirectory (cleans up root)
+dnl Use auxiliary subscripts from this subdirectory (cleans up root)
 AC_CONFIG_AUX_DIR([build/autoconf])
-# M4 scripts
+dnl M4 scripts
 AC_CONFIG_MACRO_DIR([build/autoconf])
-# Must follow AC_CONFIG macros above...
+dnl Must follow AC_CONFIG macros above...
 AM_INIT_AUTOMAKE([1.11 dist-xz dist-zip])
 AM_MAINTAINER_MODE([enable])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
-# Libtool's "interface version" can be computed from the libarchive version.
+dnl Libtool's "interface version" can be computed from the libarchive version.
 
-# Libtool interface version bumps on any API change, so increments
-# whenever libarchive minor version does.
+dnl Libtool interface version bumps on any API change, so increments
+dnl whenever libarchive minor version does.
 ARCHIVE_MINOR=$(( (LIBARCHIVE_VERSION_N() / 1000) % 1000 ))
-# Libarchive 2.7 == libtool interface 9 = 2 + 7
-# Libarchive 2.8 == libtool interface 10 = 2 + 8
-# Libarchive 2.9 == libtool interface 11 = 2 + 9
-# Libarchive 3.0 == libtool interface 12
-# Libarchive 3.1 == libtool interface 13
+dnl Libarchive 2.7 == libtool interface 9 = 2 + 7
+dnl Libarchive 2.8 == libtool interface 10 = 2 + 8
+dnl Libarchive 2.9 == libtool interface 11 = 2 + 9
+dnl Libarchive 3.0 == libtool interface 12
+dnl Libarchive 3.1 == libtool interface 13
 ARCHIVE_INTERFACE=`echo $((13 + ${ARCHIVE_MINOR}))`
-# Libarchive revision is bumped on any source change === libtool revision
+dnl Libarchive revision is bumped on any source change === libtool revision
 ARCHIVE_REVISION=$(( LIBARCHIVE_VERSION_N() % 1000 ))
-# Libarchive minor is bumped on any interface addition === libtool age
+dnl Libarchive minor is bumped on any interface addition === libtool age
 ARCHIVE_LIBTOOL_VERSION=$ARCHIVE_INTERFACE:$ARCHIVE_REVISION:$ARCHIVE_MINOR
 
-# Stick the version numbers into config.h
+dnl Stick the version numbers into config.h
 AC_DEFINE([__LIBARCHIVE_CONFIG_H_INCLUDED], [1],
 	[Internal macro for sanity checks])
 AC_DEFINE([LIBARCHIVE_VERSION_STRING],"LIBARCHIVE_VERSION_S()",
@@ -63,9 +63,9 @@ AC_DEFINE([BSDCAT_VERSION_STRING],"BSDTAR_VERSION_S()",
 AC_DEFINE([BSDUNZIP_VERSION_STRING],"BSDUNZIP_VERSION_S()",
 	[Version number of bsdunzip])
 
-# The shell variables here must be the same as the AC_SUBST() variables
-# below, but the shell variable names apparently cannot be the same as
-# the m4 macro names above.  Why?  Ask autoconf.
+dnl The shell variables here must be the same as the AC_SUBST() variables
+dnl below, but the shell variable names apparently cannot be the same as
+dnl the m4 macro names above.  Why?  Ask autoconf.
 BSDCPIO_VERSION_STRING=BSDCPIO_VERSION_S()
 BSDTAR_VERSION_STRING=BSDTAR_VERSION_S()
 BSDCAT_VERSION_STRING=BSDCAT_VERSION_S()
@@ -73,9 +73,9 @@ BSDUNZIP_VERSION_STRING=BSDUNZIP_VERSION_S()
 LIBARCHIVE_VERSION_STRING=LIBARCHIVE_VERSION_S()
 LIBARCHIVE_VERSION_NUMBER=LIBARCHIVE_VERSION_N()
 
-# Substitute the above version numbers into the various files below.
-# Yes, I believe this is the fourth time we define what are essentially
-# the same symbols.  Why? Ask autoconf.
+dnl Substitute the above version numbers into the various files below.
+dnl Yes, I believe this is the fourth time we define what are essentially
+dnl the same symbols.  Why? Ask autoconf.
 AC_SUBST(ARCHIVE_LIBTOOL_VERSION)
 AC_SUBST(BSDCPIO_VERSION_STRING)
 AC_SUBST(BSDTAR_VERSION_STRING)
@@ -88,7 +88,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([build/pkgconfig/libarchive.pc])
 
-# Check for host type
+dnl Check for host type
 AC_CANONICAL_HOST
 
 dnl Compilation on mingw and Cygwin needs special Makefile rules
@@ -116,7 +116,7 @@ case "$host_os" in
   haiku*) LIBS="-lbsd $LIBS" ;;
 esac
 
-# Checks for programs.
+dnl Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CPP
@@ -126,11 +126,11 @@ LT_INIT([win32-dll])
 AC_CHECK_TOOL([STRIP],[strip])
 AC_PROG_MKDIR_P
 
-#
-# Options for building bsdtar.
-#
-# Default is to build bsdtar, but allow people to override that.
-#
+dnl
+dnl Options for building bsdtar.
+dnl
+dnl Default is to build bsdtar, but allow people to override that.
+dnl
 AC_ARG_ENABLE([bsdtar],
 	[AS_HELP_STRING([--enable-bsdtar], [enable build of bsdtar (default)])
 	AS_HELP_STRING([--enable-bsdtar=static], [force static build of bsdtar])
@@ -170,11 +170,11 @@ esac
 AM_CONDITIONAL([BUILD_BSDTAR], [ test "$build_bsdtar" = yes ])
 AM_CONDITIONAL([STATIC_BSDTAR], [ test "$static_bsdtar" = yes ])
 
-#
-# Options for building bsdcat.
-#
-# Default is to build bsdcat, but allow people to override that.
-#
+dnl
+dnl Options for building bsdcat.
+dnl
+dnl Default is to build bsdcat, but allow people to override that.
+dnl
 AC_ARG_ENABLE([bsdcat],
 	[AS_HELP_STRING([--enable-bsdcat], [enable build of bsdcat (default)])
 	AS_HELP_STRING([--enable-bsdcat=static], [force static build of bsdcat])
@@ -214,11 +214,11 @@ esac
 AM_CONDITIONAL([BUILD_BSDCAT], [ test "$build_bsdcat" = yes ])
 AM_CONDITIONAL([STATIC_BSDCAT], [ test "$static_bsdcat" = yes ])
 
-#
-# Options for building bsdcpio.
-#
-# Default is not to build bsdcpio, but that can be overridden.
-#
+dnl
+dnl Options for building bsdcpio.
+dnl
+dnl Default is not to build bsdcpio, but that can be overridden.
+dnl
 AC_ARG_ENABLE([bsdcpio],
 	[AS_HELP_STRING([--enable-bsdcpio], [enable build of bsdcpio (default)])
 	AS_HELP_STRING([--enable-bsdcpio=static], [static build of bsdcpio])
@@ -257,7 +257,7 @@ esac
 AM_CONDITIONAL([BUILD_BSDCPIO], [ test "$build_bsdcpio" = yes ])
 AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 
-# Set up defines needed before including any headers
+dnl Set up defines needed before including any headers
 case $host in
   *mingw* | *cygwin* | *msys*  )
   AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
@@ -282,12 +282,12 @@ case $host in
   ;;
 esac
 
-#
-# Options for building bsdunzip.
-#
-# Default is to build bsdunzip, but allow people to override that.
-# Bsdunzip has not yet been ported for Windows
-#
+dnl
+dnl Options for building bsdunzip.
+dnl
+dnl Default is to build bsdunzip, but allow people to override that.
+dnl Bsdunzip has not yet been ported for Windows
+dnl
 case "$host_os" in
   *mingw* | *msys*)
 	enable_bsdunzip=no
@@ -334,7 +334,7 @@ esac
 AM_CONDITIONAL([BUILD_BSDUNZIP], [ test "$build_bsdunzip" = yes ])
 AM_CONDITIONAL([STATIC_BSDUNZIP], [ test "$static_bsdunzip" = yes ])
 
-# Checks for header files.
+dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(m4_flatten([
@@ -386,14 +386,14 @@ AC_CHECK_HEADERS(m4_flatten([
 ]))
 AC_CHECK_TYPE([suseconds_t])
 AC_CHECK_HEADERS([windows.h])
-# check windows.h first; the other headers require it.
+dnl check windows.h first; the other headers require it.
 AC_CHECK_HEADERS([winioctl.h],[],[],
 [[#ifdef HAVE_WINDOWS_H
 # include <windows.h>
 #endif
 ]])
 
-# Checks for libraries.
+dnl Checks for libraries.
 AC_ARG_WITH([zlib],
   AS_HELP_STRING([--without-zlib], [Don't build support for gzip through zlib]))
 
@@ -476,15 +476,15 @@ if test "x$with_iconv" != "xno"; then
     if test -n "$LIBICONV"; then
       AC_DEFINE([HAVE_LIBICONV], [1], [Define to 1 if you have the 'iconv' library (-liconv).])
 
-      # Most platforms do not provide iconv.pc, but MSYS2 MinGW does.
-      # We add it to our Requires.private only if it exists.
+      dnl Most platforms do not provide iconv.pc, but MSYS2 MinGW does.
+      dnl We add it to our Requires.private only if it exists.
       PKG_CHECK_MODULES(ICONV_PC, [iconv], [
         LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }iconv"
       ], [true])
     fi
     AC_CHECK_FUNCS([locale_charset])
     if test "x$ac_cv_func_locale_charset" != "xyes"; then
-      # If locale_charset() is not in libiconv, we have to find libcharset.
+      dnl If locale_charset() is not in libiconv, we have to find libcharset.
       AC_CHECK_LIB(charset,locale_charset)
     fi
   fi
@@ -524,10 +524,10 @@ if test "x$with_lzma" != "xno"; then
   ])
   AC_CHECK_HEADERS([lzma.h])
 
-  # Some pre-release (but widely distributed) versions of liblzma
-  # included a disabled version of lzma_stream_encoder_mt that
-  # fools a naive AC_CHECK_LIB or AC_CHECK_FUNC, so we need
-  # to do something more complex here:
+  dnl Some pre-release (but widely distributed) versions of liblzma
+  dnl included a disabled version of lzma_stream_encoder_mt that
+  dnl fools a naive AC_CHECK_LIB or AC_CHECK_FUNC, so we need
+  dnl to do something more complex here:
   AC_CACHE_CHECK(
     [whether we have multithread support in lzma],
     ac_cv_lzma_has_mt,
@@ -679,18 +679,18 @@ if test -z $posix_regex_lib_found && (test "$enable_posix_regex_lib" = "auto" ||
   fi
 fi
 
-# TODO: Give the user the option of using a pre-existing system
-# libarchive.  This will define HAVE_LIBARCHIVE which will cause
-# bsdtar_platform.h to use #include <...> for the libarchive headers.
-# Need to include Makefile.am magic to link against system
-# -larchive in that case.
-#AC_CHECK_LIB(archive,archive_version)
+dnl TODO: Give the user the option of using a pre-existing system
+dnl libarchive.  This will define HAVE_LIBARCHIVE which will cause
+dnl bsdtar_platform.h to use #include <...> for the libarchive headers.
+dnl Need to include Makefile.am magic to link against system
+dnl -larchive in that case.
+dnl AC_CHECK_LIB(archive,archive_version)
 
-# Checks for supported compiler flags
+dnl Checks for supported compiler flags
 AX_APPEND_COMPILE_FLAGS([-Wall -Wformat -Wformat-security])
 
-# Place the functions and data into separate sections, allowing GNU style
-# linkers to garbage collect the unused ones.
+dnl Place the functions and data into separate sections, allowing GNU style
+dnl linkers to garbage collect the unused ones.
 save_LDFLAGS=$LDFLAGS
 LDFLAGS="$LDFLAGS -Wl,--gc-sections"
 AC_MSG_CHECKING([whether ld supports --gc-sections])
@@ -704,7 +704,7 @@ AC_LINK_IFELSE(
 LDFLAGS=$save_LDFLAGS
 
 if test "$DEAD_CODE_REMOVAL" = ""; then
-    # Macos linkers have a -dead_strip flag, which is similar to --gc-sections.
+    dnl Macos linkers have a -dead_strip flag, which is similar to --gc-sections.
     save_LDFLAGS=$LDFLAGS
     LDFLAGS="$LDFLAGS -Wl,-dead_strip"
     AC_MSG_CHECKING([whether ld supports -dead_strip])
@@ -719,67 +719,67 @@ fi
 
 AC_SUBST(DEAD_CODE_REMOVAL)
 
-# Checks for typedefs, structures, and compiler characteristics.
+dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
-# la_TYPE_UID_T defaults to "int", which is incorrect for MinGW
-# and MSVC. Use a customized version.
+dnl la_TYPE_UID_T defaults to "int", which is incorrect for MinGW
+dnl and MSVC. Use a customized version.
 la_TYPE_UID_T
 AC_TYPE_MODE_T
-# AC_TYPE_OFF_T defaults to "long", which limits us to 4GB files on
-# most systems... default to "long long" instead.
+dnl AC_TYPE_OFF_T defaults to "long", which limits us to 4GB files on
+dnl most systems... default to "long long" instead.
 AC_CHECK_TYPE(off_t, [long long])
 AC_TYPE_SIZE_T
 AC_CHECK_TYPE(id_t, [unsigned long])
 AC_CHECK_TYPE(uintptr_t, [unsigned int])
 
-# Check for tm_gmtoff in struct tm
+dnl Check for tm_gmtoff in struct tm
 AC_CHECK_MEMBERS([struct tm.tm_gmtoff, struct tm.__tm_gmtoff],,,
 [
 #include <time.h>
 ])
 
-# Check for f_namemax in struct statfs
+dnl Check for f_namemax in struct statfs
 AC_CHECK_MEMBERS([struct statfs.f_namemax],,,
 [
 #include <sys/param.h>
 #include <sys/mount.h>
 ])
 
-# Check for f_iosize in struct statfs
+dnl Check for f_iosize in struct statfs
 AC_CHECK_MEMBERS([struct statfs.f_iosize],,,
 [
 #include <sys/param.h>
 #include <sys/mount.h>
 ])
 
-# Check for f_iosize in struct statvfs
+dnl Check for f_iosize in struct statvfs
 AC_CHECK_MEMBERS([struct statvfs.f_iosize],,,
 [
 #include <sys/statvfs.h>
 ])
 
-# Check for birthtime in struct stat
+dnl Check for birthtime in struct stat
 AC_CHECK_MEMBERS([struct stat.st_birthtime])
 
-# Check for high-resolution timestamps in struct stat
+dnl Check for high-resolution timestamps in struct stat
 AC_CHECK_MEMBERS([struct stat.st_birthtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtimespec.tv_nsec])
 AC_CHECK_MEMBERS([struct stat.st_mtim.tv_nsec])
-AC_CHECK_MEMBERS([struct stat.st_mtime_n]) # AIX
-AC_CHECK_MEMBERS([struct stat.st_umtime]) # Tru64
-AC_CHECK_MEMBERS([struct stat.st_mtime_usec]) # Hurd
-# Check for block size support in struct stat
+AC_CHECK_MEMBERS([struct stat.st_mtime_n]) dnl AIX
+AC_CHECK_MEMBERS([struct stat.st_umtime]) dnl Tru64
+AC_CHECK_MEMBERS([struct stat.st_mtime_usec]) dnl Hurd
+dnl Check for block size support in struct stat
 AC_CHECK_MEMBERS([struct stat.st_blksize])
-# Check for st_flags in struct stat (BSD fflags)
+dnl Check for st_flags in struct stat (BSD fflags)
 AC_CHECK_MEMBERS([struct stat.st_flags])
 
-# If you have uintmax_t, we assume printf supports %ju
-# If you have unsigned long long, we assume printf supports %llu
-# TODO: Check for %ju and %llu support directly.
+dnl If you have uintmax_t, we assume printf supports %ju
+dnl If you have unsigned long long, we assume printf supports %llu
+dnl TODO: Check for %ju and %llu support directly.
 AC_CHECK_TYPES([uintmax_t, unsigned long long])
 
-# We use C99-style integer types
-# Declare them if the local platform doesn't already do so.
+dnl We use C99-style integer types
+dnl Declare them if the local platform doesn't already do so.
 AC_TYPE_INTMAX_T
 AC_TYPE_UINTMAX_T
 AC_TYPE_INT64_T
@@ -817,7 +817,7 @@ AX_COMPILE_CHECK_SIZEOF(long)
 
 AC_CHECK_HEADERS_ONCE([sys/time.h])
 
-# Checks for library functions.
+dnl Checks for library functions.
 AC_HEADER_MAJOR
 AC_FUNC_FSEEKO
 AC_FUNC_MEMCMP
@@ -826,10 +826,10 @@ AC_FUNC_STAT
 AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-# check for:
-#   CreateHardLinkA(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES)
-# To avoid necessity for including windows.h or special forward declaration
-# workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
+dnl check for:
+dnl   CreateHardLinkA(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES)
+dnl To avoid necessity for including windows.h or special forward declaration
+dnl workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
 AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
 AC_CHECK_FUNCS(m4_flatten([
 	arc4random_buf
@@ -873,10 +873,10 @@ AC_CHECK_DECL([_mkgmtime],
 		[],
 		[#include <time.h>])
 
-# detects cygwin-1.7, as opposed to older versions
+dnl detects cygwin-1.7, as opposed to older versions
 AC_CHECK_FUNCS([cygwin_conv_path])
 
-# DragonFly uses vfsconf, FreeBSD xvfsconf.
+dnl DragonFly uses vfsconf, FreeBSD xvfsconf.
 AC_CHECK_TYPES(struct vfsconf,,,
 	[#if HAVE_SYS_TYPES_H
 	#include <sys/types.h>
@@ -898,7 +898,7 @@ AC_CHECK_TYPES(struct statfs,,,
 	#include <sys/mount.h>
 	])
 
-# dirfd can be either a function or a macro.
+dnl dirfd can be either a function or a macro.
 AC_LINK_IFELSE(
  [AC_LANG_PROGRAM([[#include <dirent.h>
                     DIR *dir;]],
@@ -906,9 +906,9 @@ AC_LINK_IFELSE(
  [AC_DEFINE(HAVE_DIRFD,1,[Define to 1 if you have a dirfd function or macro])]
 )
 
-# FreeBSD's nl_langinfo supports an option to specify whether the
-# current locale uses month/day or day/month ordering.  It makes the
-# output a little prettier...
+dnl FreeBSD's nl_langinfo supports an option to specify whether the
+dnl current locale uses month/day or day/month ordering.  It makes the
+dnl output a little prettier...
 AC_CHECK_DECL([D_MD_ORDER],
 [AC_DEFINE(HAVE_D_MD_ORDER, 1, [Define to 1 if nl_langinfo supports D_MD_ORDER])],
 [],
@@ -917,16 +917,16 @@ AC_CHECK_DECL([D_MD_ORDER],
 #endif
 ])
 
-# Check for dirent.d_namlen field explicitly
-# (This is a bit more straightforward than, if not quite as portable as,
-# the recipe given by the autoconf maintainers.)
+dnl Check for dirent.d_namlen field explicitly
+dnl (This is a bit more straightforward than, if not quite as portable as,
+dnl the recipe given by the autoconf maintainers.)
 AC_CHECK_MEMBER(struct dirent.d_namlen,,,
 [#if HAVE_DIRENT_H
 #include <dirent.h>
 #endif
 ])
 
-# Check for Extended Attributes support
+dnl Check for Extended Attributes support
 AC_ARG_ENABLE([xattr],
 		AS_HELP_STRING([--disable-xattr],
 		[Disable Extended Attributes support (default: check)]))
@@ -944,7 +944,7 @@ if test "x$enable_xattr" != "xno"; then
     fi
     if test "x$ac_cv_header_sys_xattr_h" = "xyes" \
 	 -a "x$ac_cv_have_decl_XATTR_NOFOLLOW" = "xyes"; then
-	# Darwin extended attributes support
+	dnl Darwin extended attributes support
 	AC_CACHE_VAL([ac_cv_archive_xattr_darwin],
 	  [AC_CHECK_FUNCS(fgetxattr \
 			  flistxattr \
@@ -958,7 +958,7 @@ if test "x$enable_xattr" != "xno"; then
       )
     elif test "x$ac_cv_header_sys_extattr_h" = "xyes" \
            -a "x$ac_cv_have_decl_EXTATTR_NAMESPACE_USER" = "xyes"; then
-	# FreeBSD extended attributes support
+	dnl FreeBSD extended attributes support
 	AC_CACHE_VAL([ac_cv_archive_xattr_freebsd],
 	  [AC_CHECK_FUNCS(extattr_get_fd \
 			  extattr_get_file \
@@ -974,7 +974,7 @@ if test "x$enable_xattr" != "xno"; then
 	)
     elif test "x$ac_cv_header_sys_xattr_h" = "xyes" \
 	   -o "x$ac_cv_header_attr_xattr_h" = "xyes"; then
-	# Linux extended attributes support
+	dnl Linux extended attributes support
 	AC_CACHE_VAL([ac_cv_archive_xattr_linux],
 	  [AC_CHECK_FUNCS(fgetxattr \
 			  flistxattr \
@@ -989,7 +989,7 @@ if test "x$enable_xattr" != "xno"; then
 	]
       )
     elif test "x$ac_cv_header_sys_ea_h" = "xyes"; then
-	# AIX extended attributes support
+	dnl AIX extended attributes support
 	AC_CACHE_VAL([ac_cv_archive_xattr_aix],
 	  [AC_CHECK_FUNCS(fgetea \
 			  flistea \
@@ -1023,19 +1023,19 @@ if test "x$enable_xattr" != "xno"; then
     fi
 fi
 
-# Check for ACL support
-#
-# The ACL support in libarchive is written against the POSIX1e draft,
-# which was never officially approved and varies quite a bit across
-# platforms.  Worse, some systems have completely non-POSIX acl functions,
-# which makes the following checks rather more complex than I would like.
-#
+dnl Check for ACL support
+dnl
+dnl The ACL support in libarchive is written against the POSIX1e draft,
+dnl which was never officially approved and varies quite a bit across
+dnl platforms.  Worse, some systems have completely non-POSIX acl functions,
+dnl which makes the following checks rather more complex than I would like.
+dnl
 AC_ARG_ENABLE([acl],
 		AS_HELP_STRING([--disable-acl],
 		[Disable ACL support (default: check)]))
 
 if test "x$enable_acl" != "xno"; then
-    # Libacl
+    dnl Libacl
     AC_CHECK_LIB([acl], [acl_get_file])
     ACL_PC_VER=`$PKG_CONFIG --modversion libacl`
     if test "x$ACL_PC_VER" != "x"; then
@@ -1061,7 +1061,7 @@ if test "x$enable_acl" != "xno"; then
       #endif
     ])
 
-    # Solaris and derivates ACLs
+    dnl Solaris and derivates ACLs
     AC_CHECK_FUNCS(acl facl)
 
     if test "x$ac_cv_lib_richacl_richacl_get_file" = "xyes" \
@@ -1099,7 +1099,7 @@ if test "x$enable_acl" != "xno"; then
 	 -a "x$ac_cv_type_acl_entry_t" = "xyes" \
 	 -a "x$ac_cv_type_acl_permset_t" = "xyes" \
 	 -a "x$ac_cv_type_acl_tag_t" = "xyes"; then
-	# POSIX.1e ACL functions
+	dnl POSIX.1e ACL functions
 	AC_CACHE_VAL([ac_cv_posix_acl_funcs],
 	  [AC_CHECK_FUNCS(acl_add_perm \
 			  acl_clear_perms \
@@ -1131,7 +1131,7 @@ if test "x$enable_acl" != "xno"; then
 	    AC_DEFINE([ARCHIVE_ACL_LIBACL], [1],
 	      [POSIX.1e ACL support via libacl])
 	else
-	     # FreeBSD/Darwin
+	     dnl FreeBSD/Darwin
 	     AC_CHECK_FUNCS(acl_add_flag_np \
 			    acl_clear_flags_np \
 			    acl_get_brand_np \
@@ -1237,7 +1237,7 @@ AM_CONDITIONAL([INC_DARWIN_ACL],
 AM_CONDITIONAL([INC_FREEBSD_ACL],
 	  [test "x$ac_cv_archive_acl_freebsd" = "xyes"])
 
-# Additional requirements
+dnl Additional requirements
 AC_SYS_LARGEFILE
 
 dnl NOTE: Crypto checks must run last.
@@ -1386,8 +1386,8 @@ fi
 
 AC_SUBST(LIBSREQUIRED)
 
-# Probe libmd AFTER OpenSSL/libcrypto.
-# The two are incompatible and OpenSSL is more complete.
+dnl Probe libmd AFTER OpenSSL/libcrypto.
+dnl The two are incompatible and OpenSSL is more complete.
 saved_LIBS=$LIBS
 AC_CHECK_LIB(md, MD5Init)
 CRYPTO_CHECK(MD5, LIBMD, md5)
@@ -1421,7 +1421,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([
                [CFLAGS="$saved_CFLAGS"
                 AC_MSG_RESULT(no)])
 
-# Ensure test directories are present if building out-of-tree
+dnl Ensure test directories are present if building out-of-tree
 AC_CONFIG_COMMANDS([mkdirs],
 		   [mkdir -p libarchive/test tar/test cat/test cpio/test])
 
