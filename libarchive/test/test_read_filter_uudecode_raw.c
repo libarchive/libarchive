@@ -28,6 +28,7 @@ DEFINE_TEST(test_read_filter_uudecode_raw)
 {
         struct archive_entry *ae;
         struct archive *a;
+        char buf[1024];
 
 	const char *name = "test_read_filter_uudecode_raw.uu";
 
@@ -39,6 +40,7 @@ DEFINE_TEST(test_read_filter_uudecode_raw)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("LICENSE.txt", archive_entry_pathname(ae));
 	assertEqualInt((AE_IFREG | 0755), archive_entry_mode(ae));
+	assertEqualIntA(a, 465, archive_read_data(a, buf, sizeof(buf)));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
