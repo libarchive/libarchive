@@ -1261,6 +1261,60 @@ DEFINE_TEST(test_read_format_7zip_deflate_arm64)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_7zip_deflate_arm_arm64)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff_arm[7804];
+	char buff_arm64[70368];
+	uint32_t computed_crc;
+	const char *refname = "test_read_format_7zip_deflate_arm_arm64.7z";
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_gzip(a)) {
+		skipping(
+		    "7zip:deflate decoding is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	/* First folder: ARM+Deflate. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("hw-gnueabihf", archive_entry_pathname(ae));
+	assertEqualInt(sizeof(buff_arm), archive_entry_size(ae));
+	assertEqualInt(sizeof(buff_arm),
+	    archive_read_data(a, buff_arm, sizeof(buff_arm)));
+	computed_crc = bitcrc32(0, buff_arm, sizeof(buff_arm));
+	assertEqualInt(computed_crc, 0x355ec4e1);
+
+	/* Second folder: ARM64+Deflate. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("hw-arm64", archive_entry_pathname(ae));
+	assertEqualInt(sizeof(buff_arm64), archive_entry_size(ae));
+	assertEqualInt(sizeof(buff_arm64),
+	    archive_read_data(a, buff_arm64, sizeof(buff_arm64)));
+	computed_crc = bitcrc32(0, buff_arm64, sizeof(buff_arm64));
+	assertEqualInt(computed_crc, 0xde97d594);
+
+	assertEqualInt(2, archive_file_count(a));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_win_attrib)
 {
 	struct archive *a;
