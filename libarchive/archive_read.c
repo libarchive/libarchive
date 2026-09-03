@@ -176,13 +176,70 @@ archive_read_open2(struct archive *a, void *client_data,
 	return archive_read_open1(a);
 }
 
+static int
+client_switch_proxy(struct archive_read_filter *f, unsigned int iindex)
+{
+	struct archive_read *a;
+	int r1 = ARCHIVE_OK, r2 = ARCHIVE_OK;
+	void *data2;
+
+	while (f->upstream != NULL)
+		f = f->upstream;
+	a = f->archive;
+
+	/* Don't do anything if already in the specified data node */
+	if (a->client.cursor == iindex)
+		return (ARCHIVE_OK);
+
+	a->client.cursor = iindex;
+	data2 = a->client.dataset[a->client.cursor].data;
+	if (a->client.switcher != NULL)
+	{
+		r1 = r2 = (a->client.switcher)
+			((struct archive *)a, f->data, data2);
+		f->data = data2;
+	}
+	else
+	{
+		/* Attempt to call close and open instead */
+		if (a->client.closer != NULL)
+			r1 = (a->client.closer)
+				((struct archive *)a, f->data);
+		f->data = data2;
+		if (a->client.opener != NULL)
+			r2 = (a->client.opener)
+				((struct archive *)a, f->data);
+	}
+	f->client_total = f->client_avail = 0;
+	return (r1 < r2) ? r1 : r2;
+}
+
+/*
+ * Reads data from client.
+ *
+ * Automatically switches clients if end of file of a client is reached.
+ * This simplifies handling of multi volume archives for readers.
+ */
 static ssize_t
 client_read_proxy(struct archive_read_filter *f, const void **buff)
 {
-	ssize_t r;
-	r = (f->archive->client.reader)(&f->archive->archive,
-	    f->data, buff);
-	return (r);
+	ssize_t bytes_read = 0;
+
+	for (;;) {
+		bytes_read = (f->archive->client.reader)(&f->archive->archive,
+		    f->data, buff);
+		if (bytes_read == 0) {
+			unsigned int cursor = f->archive->client.cursor;
+
+			/* Continue with next client object if available. */
+			if (cursor != f->archive->client.nodes - 1 &&
+			    client_switch_proxy(f, cursor + 1) == ARCHIVE_OK)
+				continue;
+		}
+		break;
+	}
+
+	return (bytes_read);
 }
 
 static int64_t
@@ -226,44 +283,6 @@ static int
 client_close_proxy(struct archive_read_filter *f)
 {
 	return read_client_close_proxy(f->archive);
-}
-
-static int
-client_switch_proxy(struct archive_read_filter *f, unsigned int iindex)
-{
-	struct archive_read *a;
-	int r1 = ARCHIVE_OK, r2 = ARCHIVE_OK;
-	void *data2;
-
-	while (f->upstream != NULL)
-		f = f->upstream;
-	a = f->archive;
-
-	/* Don't do anything if already in the specified data node */
-	if (a->client.cursor == iindex)
-		return (ARCHIVE_OK);
-
-	a->client.cursor = iindex;
-	data2 = a->client.dataset[a->client.cursor].data;
-	if (a->client.switcher != NULL)
-	{
-		r1 = r2 = (a->client.switcher)
-			((struct archive *)a, f->data, data2);
-		f->data = data2;
-	}
-	else
-	{
-		/* Attempt to call close and open instead */
-		if (a->client.closer != NULL)
-			r1 = (a->client.closer)
-				((struct archive *)a, f->data);
-		f->data = data2;
-		if (a->client.opener != NULL)
-			r2 = (a->client.opener)
-				((struct archive *)a, f->data);
-	}
-	f->client_total = f->client_avail = 0;
-	return (r1 < r2) ? r1 : r2;
 }
 
 int
@@ -1346,6 +1365,38 @@ __archive_read_register_bidder(struct archive_read *a,
  */
 
 /*
+ * Reads data into client buffer.
+ *
+ * In case of error or end of file, filter flags are set.
+ * Client buffer related fields are updated.
+ */
+static ssize_t
+read_client_data(struct archive_read_filter *f)
+{
+	ssize_t bytes_read;
+
+	if (f->end_of_file)
+		return (0);
+
+	bytes_read = (f->vtable->read)(f, &f->client_buff);
+	if (bytes_read < 0) {
+		f->client_total = f->client_avail = 0;
+		f->client_next = f->client_buff = NULL;
+		f->fatal = 1;
+	} else if (bytes_read == 0) {
+		f->client_total = f->client_avail = 0;
+		f->client_next = f->client_buff = NULL;
+		f->end_of_file = 1;
+	} else {
+		f->client_total = bytes_read;
+		f->client_avail = f->client_total;
+		f->client_next = f->client_buff;
+	}
+
+	return (bytes_read);
+}
+
+/*
  * Looks ahead in the input stream:
  *  * If 'avail' pointer is provided, that returns number of bytes available
  *    in the current buffer, which may be much larger than requested.
@@ -1427,47 +1478,19 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 
 		/* If we've used up the client data, get more. */
 		if (f->client_avail <= 0) {
-			static const char *empty = "";
-
-			if (f->end_of_file) {
-				const char *eof;
-
-				if (avail != NULL)
-					*avail = f->avail;
-				if (request == 0)
-					eof = f->avail == 0 ? empty : f->next;
-				else
-				 	eof = NULL;
-				return (eof);
-			}
-			bytes_read = (f->vtable->read)(f,
-			    &f->client_buff);
-			if (bytes_read < 0) {		/* Read error. */
-				f->client_total = f->client_avail = 0;
-				f->client_next =
-				    f->client_buff = NULL;
-				f->fatal = 1;
+			bytes_read = read_client_data(f);
+			if (bytes_read < 0) {
+				/* Read error. */
 				if (avail != NULL)
 					*avail = ARCHIVE_FATAL;
 				return (NULL);
 			}
 			if (bytes_read == 0) {
+				static const char *empty = "";
 				const char *eof;
 
-				/* Check for another client object first */
-				if (f->archive->client.cursor !=
-				      f->archive->client.nodes - 1) {
-					if (client_switch_proxy(f,
-					    f->archive->client.cursor + 1)
-					    == ARCHIVE_OK)
-						continue;
-				}
-				/* Premature end-of-file. */
-				f->client_total = f->client_avail = 0;
-				f->client_next =
-				    f->client_buff = NULL;
-				f->end_of_file = 1;
-				/* Return whatever we do have. */
+				/* Premature end-of-file.
+				 * Return whatever we do have. */
 				if (avail != NULL)
 					*avail = f->avail;
 				if (request == 0)
@@ -1476,9 +1499,6 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 				 	eof = NULL;
 				return (eof);
 			}
-			f->client_total = bytes_read;
-			f->client_avail = f->client_total;
-			f->client_next = f->client_buff;
 		} else {
 			/*
 			 * We can't satisfy the request from the copy
@@ -1662,31 +1682,16 @@ advance_file_pointer(struct archive_read_filter *f, int64_t request)
 
 	/* Use ordinary reads as necessary to complete the request. */
 	for (;;) {
-		ssize_t bytes_read = (f->vtable->read)(f, &f->client_buff);
-		if (bytes_read < 0) {
-			f->client_buff = NULL;
-			f->fatal = 1;
+		ssize_t bytes_read = read_client_data(f);
+		if (bytes_read < 0)
 			return (bytes_read);
-		}
 
-		if (bytes_read == 0) {
-			if (f->archive->client.cursor !=
-			      f->archive->client.nodes - 1) {
-				if (client_switch_proxy(f,
-				    f->archive->client.cursor + 1)
-				    == ARCHIVE_OK)
-					continue;
-			}
-			f->client_buff = NULL;
-			f->end_of_file = 1;
+		if (bytes_read == 0)
 			return (total_bytes_skipped);
-		}
 
 		if (bytes_read >= request) {
-			f->client_next =
-			    ((const char *)f->client_buff) + request;
-			f->client_avail = (size_t)(bytes_read - request);
-			f->client_total = bytes_read;
+			f->client_next += request;
+			f->client_avail -= request;
 			total_bytes_skipped += request;
 			f->position += request;
 			return (total_bytes_skipped);
