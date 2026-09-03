@@ -526,7 +526,7 @@ read_more:
 			return (ARCHIVE_FATAL);
 		}
 		llen = len;
-		if ((nl == 0) && (uu->state != ST_UUEND)) {
+		if ((nl == 0) && (uu->state != ST_UUEND || len < 3)) {
 			if (total == 0 && ravail <= 0) {
 				/* There is nothing more to read, fail */
 				archive_set_error(&f->archive->archive,
@@ -658,7 +658,7 @@ read_more:
 			}
 			break;
 		case ST_UUEND:
-			if (len - nl == 3 && memcmp(b, "end ", 3) == 0) {
+			if (len - nl == 3 && memcmp(b, "end", 3) == 0) {
 				uu->state = ST_IGNORE;
 				goto finish;
 			} else {

@@ -483,6 +483,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_program_signature.c \
 	libarchive/test/test_read_filter_zstd_raw.c \
 	libarchive/test/test_read_filter_uudecode.c \
+	libarchive/test/test_read_filter_uudecode_newlines.c \
 	libarchive/test/test_read_filter_uudecode_raw.c \
 	libarchive/test/test_read_format_7zip.c \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
