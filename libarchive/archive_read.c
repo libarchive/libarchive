@@ -262,8 +262,9 @@ client_seek_proxy(struct archive_read_filter *f, int64_t offset, int whence)
 }
 
 static int
-read_client_close_proxy(struct archive_read *a)
+client_close_proxy(struct archive_read_filter *f)
 {
+	struct archive_read *a = f->archive;
 	int r = ARCHIVE_OK, r2;
 	unsigned int i;
 
@@ -277,12 +278,6 @@ read_client_close_proxy(struct archive_read *a)
 			r = r2;
 	}
 	return (r);
-}
-
-static int
-client_close_proxy(struct archive_read_filter *f)
-{
-	return read_client_close_proxy(f->archive);
 }
 
 int
@@ -477,17 +472,6 @@ archive_read_open1(struct archive *_a)
 
 	a->archive.state = ARCHIVE_STATE_OPEN;
 
-	/* Open data source. */
-	if (a->client.opener != NULL) {
-		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
-		if (e != ARCHIVE_OK) {
-			/* If the open failed, call the closer to clean up. */
-			read_client_close_proxy(a);
-			a->archive.state = ARCHIVE_STATE_FATAL;
-			return (e);
-		}
-	}
-
 	f = calloc(1, sizeof(*f));
 	if (f == NULL) {
 		a->archive.state = ARCHIVE_STATE_FATAL;
@@ -502,6 +486,18 @@ archive_read_open1(struct archive *_a)
 	f->code = ARCHIVE_FILTER_NONE;
 	f->can_skip = a->client.skipper != NULL;
 	f->can_seek = a->client.seeker != NULL;
+
+	/* Open data source. */
+	if (a->client.opener != NULL) {
+		e = (a->client.opener)(&a->archive, a->client.dataset[0].data);
+		if (e != ARCHIVE_OK) {
+			/* If the open failed, call the closer to clean up. */
+			client_close_proxy(f);
+			free(f);
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			return (e);
+		}
+	}
 
 	a->client.dataset[0].begin_position = 0;
 	if (!a->filter || !a->bypass_filter_bidding)
