@@ -183,8 +183,6 @@ client_switch_proxy(struct archive_read_filter *f, unsigned int iindex)
 	int r1 = ARCHIVE_OK, r2 = ARCHIVE_OK;
 	void *data2;
 
-	while (f->upstream != NULL)
-		f = f->upstream;
 	a = f->archive;
 
 	/* Don't do anything if already in the specified data node */
@@ -544,7 +542,7 @@ archive_read_open1(struct archive *_a)
 	a->archive.state = ARCHIVE_STATE_HEADER;
 
 	/* Ensure libarchive starts from the first node in a multivolume set */
-	client_switch_proxy(a->filter, 0);
+	client_switch_proxy(f, 0);
 	return (e);
 }
 
