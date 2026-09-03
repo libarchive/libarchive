@@ -1113,6 +1113,62 @@ DEFINE_TEST(test_read_format_7zip_lzma2)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * test_read_format_7zip_bcj2_lzma2_2.7z with the folder's unPackSize[0]
+ * and unPackSize[1] -- which setup_decode_folder() uses, unbounded, as the
+ * allocation size for a BCJ2 sub-stream buffer -- inflated to 12.9 GB and
+ * 6.4 GB.  Nothing else in the archive changed; both header CRC32s were
+ * recomputed so this is a well-formed 7-Zip file, not just fuzzer input.
+ *
+ * The entry itself (name, size, mtime) is unaffected, since those come
+ * from separate metadata; only the sub-stream size used internally by the
+ * BCJ2 decoder is inflated.  Before the fix, decoding this entry's data
+ * drove a single malloc() sized directly from that declared value, with no
+ * bound reachable on a 64-bit build (the "sub-stream size exceeds platform
+ * maximum" guard compares against SIZE_MAX, which int64_t cannot exceed on
+ * LP64).  After the fix the sub-stream buffer grows only as real
+ * decompressed bytes arrive, so a corrupt declaration this large never
+ * drives an allocation anywhere near it -- decoding still fails, because
+ * the packed data does not actually match, but it fails without asking
+ * for gigabytes it will never use.
+ */
+DEFINE_TEST(test_read_format_7zip_bcj2_substream_size_overflow)
+{
+	const char *refname = "test_read_format_7zip_bcj2_substream_huge.7z";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[1024];
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_xz(a)) {
+		skipping("7zip:lzma decoding is not supported on this "
+		    "platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	extract_reference_file(refname);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* The entry itself is unaffected by the inflated sub-stream size. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("x86exe", archive_entry_pathname(ae));
+	assertEqualInt(27328, archive_entry_size(ae));
+
+	/*
+	 * The corrupt sub-stream size is discovered only once decoding is
+	 * attempted.  The important thing is that this returns an error
+	 * instead of hanging or (pre-fix) driving a multi-gigabyte malloc().
+	 */
+	assertEqualInt(ARCHIVE_FATAL,
+	    (int)archive_read_data(a, buff, sizeof(buff)));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 static void
 test_arm_filter(const char *refname)
 {
