@@ -26,18 +26,24 @@
 
 DEFINE_TEST(test_read_format_huge_rpm)
 {
+	struct archive_entry *ae;
 	struct archive *a;
 	const char *name = "test_read_format_huge_rpm.rpm";
 
 	assert((a = archive_read_new()) != NULL);
-        assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 2));
+
 	/* This archive is truncated -- if it has data, the bid has screwed up */
-	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_open_filename(a, name, 2));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 	assertEqualStringA(a, "Truncated input file "
-	    "(needed 34359738384 bytes, only 10256 available)",
+	    "(needed 34359738368 bytes, only 10240 available)",
 	    archive_error_string(a));
+
+	/* Verify that the format detection worked. */
+	assertEqualInt(ARCHIVE_FORMAT_RPM, archive_format(a));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

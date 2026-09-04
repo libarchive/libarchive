@@ -81,6 +81,9 @@ archive_read_set_format(struct archive *_a, int code)
     case ARCHIVE_FORMAT_RAW:
       str = "raw";
       break;
+    case ARCHIVE_FORMAT_RPM:
+      str = "rpm";
+      break;
     case ARCHIVE_FORMAT_TAR:
       str = "tar";
       break;
