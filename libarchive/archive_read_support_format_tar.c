@@ -582,8 +582,11 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			}
 		}
 		count = archive_entry_sparse_count(entry);
-		if (count < 0 || (size_t)count != added)
+		if (count < 0 || (size_t)count != added) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Malformed sparse map data");
 			return (ARCHIVE_FATAL);
+		}
 	}
 
 	if (r == ARCHIVE_OK && archive_entry_filetype(entry) == AE_IFREG) {
