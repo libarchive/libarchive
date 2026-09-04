@@ -297,13 +297,12 @@ tar_mode_r(struct bsdtar *bsdtar)
 		lafe_errc(1, archive_errno(a),
 		    "Can't read archive %s: %s", bsdtar->filename,
 		    archive_error_string(a));
+	if (archive_filter_code(a, 0) != ARCHIVE_FILTER_NONE) {
+		archive_read_free(a);
+		close(bsdtar->fd);
+		lafe_errc(1, 0, "Cannot append to compressed archive");
+	}
 	while (0 == archive_read_next_header(a, &entry)) {
-		if (archive_filter_code(a, 0) != ARCHIVE_FILTER_NONE) {
-			archive_read_free(a);
-			close(bsdtar->fd);
-			lafe_errc(1, 0,
-			    "Cannot append to compressed archive");
-		}
 		/* Keep going until we hit end-of-archive */
 		format = archive_format(a);
 	}
