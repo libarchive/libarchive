@@ -41,6 +41,7 @@ DEFINE_TEST(test_read_format_gtar_sparse_exceeds_length)
 	    archive_read_open_filename(a, refname, 4096));
 
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualString("Malformed sparse map data", archive_error_string(a));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
