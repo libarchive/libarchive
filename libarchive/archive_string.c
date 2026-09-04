@@ -2130,8 +2130,16 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 	while (remaining >= from_size) {
 		size_t result = iconv(cd, &itp, &remaining, &outp, &avail);
 
-		if (result != (size_t)-1)
+		if (result == 0)
 			break; /* Conversion completed. */
+		if (result != (size_t)-1) {
+			/*
+			 * Conversion did not fail, but it performed
+			 * some non-identical character substitutions.
+			 */
+			return_value = -1;
+			break;
+		}
 
 		if (errno == EILSEQ || errno == EINVAL) {
 			/*
