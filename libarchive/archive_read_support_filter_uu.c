@@ -96,25 +96,6 @@ archive_read_support_filter_uu(struct archive *_a)
 			&uudecode_bidder_vtable);
 }
 
-static const unsigned char ascii[256] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '\n', 0, 0, '\r', 0, 0, /* 00 - 0F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 10 - 1F */
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 20 - 2F */
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 30 - 3F */
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 40 - 4F */
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 50 - 5F */
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 60 - 6F */
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, /* 70 - 7F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 80 - 8F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 90 - 9F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* A0 - AF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* B0 - BF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* C0 - CF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* D0 - DF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* E0 - EF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* F0 - FF */
-};
-
 static const unsigned char uuchar[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 00 - 0F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 10 - 1F */
@@ -179,11 +160,7 @@ get_line(const unsigned char *b, ssize_t avail, ssize_t *nlsize)
 
 	len = 0;
 	while (len < avail) {
-		switch (ascii[*b]) {
-		case 0:	/* Non-ascii character or control character. */
-			if (nlsize != NULL)
-				*nlsize = 0;
-			return (-1);
+		switch (*b) {
 		case '\r':
 			if (avail-len > 1 && b[1] == '\n') {
 				if (nlsize != NULL)
@@ -195,7 +172,7 @@ get_line(const unsigned char *b, ssize_t avail, ssize_t *nlsize)
 			if (nlsize != NULL)
 				*nlsize = 1;
 			return (len+1);
-		case 1:
+		default:
 			b++;
 			len++;
 			break;
@@ -528,7 +505,12 @@ read_more:
 		llen = len;
 		if ((nl == 0) && (uu->state != ST_UUEND || len < 3)) {
 			if (total == 0 && ravail <= 0) {
-				/* There is nothing more to read, fail */
+				/* There is nothing more to read,
+				 * return or fail. */
+				if (uu->state == ST_FIND_HEAD) {
+					used += len;
+					break;
+				}
 				archive_set_error(&f->archive->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Missing format data");
