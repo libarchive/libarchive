@@ -917,6 +917,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_malformed3.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed4.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed_numfiles_oom.7z.uu \
+	libarchive/test/test_read_format_7zip_malformed_header_toobig.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd_small_block.7z.uu \

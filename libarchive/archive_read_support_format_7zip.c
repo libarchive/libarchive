@@ -3358,6 +3358,38 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	}
 	zip->stream_offset = next_header_offset;
 	zip->header_offset = next_header_offset;
+
+	/*
+	 * next_header_size comes straight from the archive and is only
+	 * checked for sign above, so a crafted archive can declare a header
+	 * of nearly any 63-bit size.  read_Header() passes it on to
+	 * header_bytes()/__archive_read_ahead(), which then tries to
+	 * allocate a buffer of that size (a ~30 GB allocation from a
+	 * 400-byte file in the reproducer below).  When the input is
+	 * seekable the real file size is known, so reject a header that
+	 * cannot fit in the bytes remaining after its start offset.
+	 */
+	if (a->filter->can_seek) {
+		int64_t header_start = a->filter->position;
+		int64_t file_size = __archive_read_seek(a, 0, SEEK_END);
+
+		if (file_size >= 0) {
+			if (header_start < 0 ||
+			    next_header_size > file_size - header_start) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "7-Zip header extends beyond end of file");
+				return (ARCHIVE_FATAL);
+			}
+			/* Restore the read position to the header start. */
+			if (__archive_read_seek(a, header_start, SEEK_SET) < 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC, "Seek error");
+				return (ARCHIVE_FATAL);
+			}
+		}
+	}
+
 	zip->header_bytes_remaining = next_header_size;
 	zip->header_crc32 = 0;
 	zip->header_is_encoded = 0;
