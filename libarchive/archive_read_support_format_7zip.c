@@ -3920,6 +3920,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		const void *buff;
 		ssize_t bytes;
 		unsigned char *b[3] = {NULL, NULL, NULL};
+		size_t b_size[3] = {0, 0, 0};
 		int64_t sunpack[3] ={-1, -1, -1};
 		int64_t remaining;
 		size_t s[3] = {0, 0, 0};
@@ -4019,25 +4020,20 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 				return (ARCHIVE_FATAL);
 			}
 
-			/* Allocate memory for the decoded data of a sub
-			 * stream. */
-			if ((uint64_t)zip->folder_outbytes_remaining > SIZE_MAX) {
-				free(b[0]); free(b[1]); free(b[2]);
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_MISC,
-				    "7-Zip sub-stream size exceeds "
-				    "platform maximum");
-				return (ARCHIVE_FATAL);
-			}
-			b[i] = malloc((size_t)zip->folder_outbytes_remaining);
-			if (b[i] == NULL) {
-				free(b[0]); free(b[1]); free(b[2]);
-				archive_set_error(&a->archive, ENOMEM,
-				    "No memory for 7-Zip decompression");
-				return (ARCHIVE_FATAL);
-			}
-
-			/* Extract a sub stream. */
+			/*
+			 * Extract a sub stream, growing b[i] as data actually
+			 * arrives rather than allocating zip->folder_outbytes_
+			 * remaining up front.  That field comes straight from
+			 * the archive's header (see unPackSize[] a few hundred
+			 * lines up) and nothing downstream needs b[i] sized to
+			 * it -- sub_stream_size[i] below is set to the number
+			 * of bytes actually decoded, not the declared size --
+			 * so an archive that declares a huge sub-stream no
+			 * longer drives a single huge malloc() sized entirely
+			 * from an untrusted value.  Same technique
+			 * __archive_read_filter_ahead() uses for its copy
+			 * buffer.
+			 */
 			while (zip->pack_stream_inbytes_remaining > 0) {
 				r = (int)extract_pack_stream(a, 0);
 				if (r < 0) {
@@ -4051,7 +4047,49 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 					free(b[0]); free(b[1]); free(b[2]);
 					return ((int)bytes);
 				}
-				memcpy(b[i]+s[i], buff, bytes);
+				if ((size_t)bytes > b_size[i] - s[i]) {
+					size_t needed, new_size;
+					unsigned char *newb;
+
+					if (archive_ckd_add_size(&needed,
+					    s[i], (size_t)bytes)) {
+						free(b[0]); free(b[1]);
+						free(b[2]);
+						archive_set_error(&a->archive,
+						    ARCHIVE_ERRNO_MISC,
+						    "7-Zip sub-stream size "
+						    "overflow");
+						return (ARCHIVE_FATAL);
+					}
+					new_size = b_size[i];
+					if (new_size == 0)
+						new_size = needed;
+					while (new_size < needed) {
+						if (archive_ckd_mul_size(
+						    &new_size, new_size, 2)) {
+							free(b[0]); free(b[1]);
+							free(b[2]);
+							archive_set_error(
+							    &a->archive, ENOMEM,
+							    "7-Zip sub-stream "
+							    "size overflow");
+							return (ARCHIVE_FATAL);
+						}
+					}
+					newb = realloc(b[i], new_size);
+					if (newb == NULL) {
+						free(b[0]); free(b[1]);
+						free(b[2]);
+						archive_set_error(&a->archive,
+						    ENOMEM, "No memory for "
+						    "7-Zip decompression");
+						return (ARCHIVE_FATAL);
+					}
+					b[i] = newb;
+					b_size[i] = new_size;
+				}
+				if (bytes > 0)
+					memcpy(b[i]+s[i], buff, bytes);
 				s[i] += bytes;
 				if (zip->pack_stream_bytes_unconsumed)
 					read_consume(a);
