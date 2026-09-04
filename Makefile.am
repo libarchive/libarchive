@@ -141,7 +141,6 @@ noinst_HEADERS= \
 	libarchive/archive_write_private.h \
 	libarchive/archive_write_set_format_private.h \
 	libarchive/archive_xxhash.h \
-	libarchive/config_freebsd.h \
 	libarchive/filter_fork.h
 
 libarchive_la_SOURCES= \
@@ -1305,8 +1304,7 @@ bsdtar_EXTRA_DIST= \
 	tar/bsdtar_windows.c \
 	tar/bsdtar.rc \
 	tar/bsdtar.exe.manifest \
-	tar/CMakeLists.txt \
-	tar/config_freebsd.h
+	tar/CMakeLists.txt
 
 
 if BUILD_BSDTAR
@@ -1488,8 +1486,7 @@ bsdcpio_EXTRA_DIST= \
 	cpio/bsdcpio.1 \
 	cpio/cpio_windows.h \
 	cpio/cpio_windows.c \
-	cpio/CMakeLists.txt \
-	cpio/config_freebsd.h
+	cpio/CMakeLists.txt
 
 
 if BUILD_BSDCPIO
