@@ -1275,32 +1275,6 @@ main(int argc, char **argv)
   fi
 ])
 
-AC_DEFUN([CRYPTO_CHECK_WIN], [
-  if test "$found_$1" != yes; then
-    AC_MSG_CHECKING([support for ARCHIVE_CRYPTO_$1_WIN])
-    AC_LINK_IFELSE([AC_LANG_SOURCE([
-#define ARCHIVE_$1_COMPILE_TEST
-#include <windows.h>
-#include <wincrypt.h>
-
-int
-main(int argc, char **argv)
-{
-	(void)argc;
-	(void)argv;
-
-	return ($2);
-}
-])],
-    [ AC_MSG_RESULT([yes])
-      found_$1=yes
-      found_WIN=yes
-      AC_DEFINE(ARCHIVE_CRYPTO_$1_WIN, 1, [ $1 via ARCHIVE_CRYPTO_$1_WIN supported.])
-    ],
-    [ AC_MSG_RESULT([no])])
-  fi
-])
-
 case "$host_os" in
   *mingw* | *cygwin* | *msys*)
 	;;
@@ -1329,7 +1303,24 @@ esac
 
 if test "x$with_cng" != "xno"; then
     AC_CHECK_HEADERS([bcrypt.h],[
+	dnl bcrypt supports these algorithms on all available versions
         LIBS="$LIBS -lbcrypt"
+        found_WIN=yes
+        found_MD5=yes
+        found_SHA1=yes
+        found_SHA256=yes
+        found_SHA384=yes
+        found_SHA512=yes
+        AC_DEFINE(ARCHIVE_CRYPTO_MD5_WIN, 1,
+	    [ MD5 via ARCHIVE_CRYPTO_MD5_WIN supported.])
+        AC_DEFINE(ARCHIVE_CRYPTO_SHA1_WIN, 1,
+	    [ SHA1 via ARCHIVE_CRYPTO_SHA1_WIN supported.])
+        AC_DEFINE(ARCHIVE_CRYPTO_SHA256_WIN, 1,
+	    [ SHA256 via ARCHIVE_CRYPTO_SHA256_WIN supported.])
+        AC_DEFINE(ARCHIVE_CRYPTO_SHA384_WIN, 1,
+	    [ SHA384 via ARCHIVE_CRYPTO_SHA384_WIN supported.])
+        AC_DEFINE(ARCHIVE_CRYPTO_SHA512_WIN, 1,
+	    [ SHA512 via ARCHIVE_CRYPTO_SHA512_WIN supported.])
     ],[],
     [[#ifdef HAVE_WINDOWS_H
     # include <windows.h>
@@ -1372,7 +1363,6 @@ fi
 
 if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/evp.h openssl/opensslv.h])
-    saved_LIBS=$LIBS
     LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libcrypto"
     AC_CHECK_LIB(crypto,OPENSSL_config)
     CRYPTO_CHECK(MD5, OPENSSL, md5)
@@ -1398,16 +1388,6 @@ CRYPTO_CHECK(SHA512, LIBMD, sha512)
 if test "x$found_LIBMD" != "xyes"; then
   LIBS=$saved_LIBS
 fi
-
-case "$host_os" in
-  *mingw* | *cygwin* | *msys*)
-	CRYPTO_CHECK_WIN(MD5, CALG_MD5)
-	CRYPTO_CHECK_WIN(SHA1, CALG_SHA1)
-	CRYPTO_CHECK_WIN(SHA256, CALG_SHA_256)
-	CRYPTO_CHECK_WIN(SHA384, CALG_SHA_384)
-	CRYPTO_CHECK_WIN(SHA512, CALG_SHA_512)
-	;;
-esac
 
 dnl Visibility annotations...
 gl_VISIBILITY
