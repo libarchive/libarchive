@@ -70,7 +70,7 @@ DEFINE_TEST(test_archive_read_open_filenames_split_uaf)
 	/* Prepare formats and filters for sufficiently large bid requests. */
 	a = archive_read_new();
 	assert(a != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_uu(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip_seekable(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
 
 	extract_reference_files(reffiles);
