@@ -639,7 +639,7 @@ extract2fd(struct archive *a, char *pathname, int fd)
 static void
 extract_file(struct archive *a, struct archive_entry *e, char **path)
 {
-	int flags, mode;
+	int mode;
 	struct timespec mtime;
 	struct stat sb;
 	int fd, check, text;
@@ -739,11 +739,7 @@ recheck:
 		return;
 	}
 
-	flags = O_RDWR|O_CREAT|O_TRUNC;
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	flags |= O_BINARY;
-#endif
-	if ((fd = open(*path, flags, mode)) < 0)
+	if ((fd = open(*path, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, mode)) < 0)
 		error("open('%s')", *path);
 
 	info(" extracting: %s", *path);
@@ -1023,7 +1019,8 @@ unzip(const char *fn)
 {
 	struct archive *a;
 	struct archive_entry *e;
-	int ret;
+	char *buf;
+	int fd, ret;
 	uintmax_t total_size, file_count, error_count;
 
 	if ((a = archive_read_new()) == NULL)
@@ -1040,7 +1037,29 @@ unzip(const char *fn)
 		archive_read_set_passphrase_callback(a, NULL,
 			&passphrase_callback);
 
-	ac(archive_read_open_filename(a, fn, 8192));
+	buf = NULL;
+	fd = open(fn, O_RDONLY | O_BINARY | O_CLOEXEC);
+	if (fd == -1) {
+		size_t s;
+
+		s = strlen(fn) + 5;
+		buf = malloc(s);
+		if (buf == NULL)
+			error("Failed to construct filename");
+		if (snprintf(buf, s, "%s.zip", fn) < 0)
+			errorx("Failed to construct filename");
+		fd = open(buf, O_RDONLY | O_BINARY | O_CLOEXEC);
+		if (fd == -1) {
+			if (snprintf(buf, s, "%s.ZIP", fn) < 0)
+				errorx("Failed to construct filename");
+			fd = open(buf, O_RDONLY | O_BINARY | O_CLOEXEC);
+		}
+		if (fd != -1)
+			fn = buf;
+	}
+	if (fd == -1)
+		errorx("Failed to open '%s'", fn);
+	ac(archive_read_open_fd(a, fd, 64 * 1024));
 
 	if (!zipinfo_mode) {
 		if (!p_opt && !q_opt)
@@ -1109,6 +1128,9 @@ unzip(const char *fn)
 			       fn);
 		}
 	}
+
+	close(fd);
+	free(buf);
 }
 
 static void
