@@ -320,12 +320,12 @@ file_to_archive(struct archive *a, const char *name)
   struct archive_entry *entry;
   int fd;
 
+  fd = open(name, O_RDONLY);
+  if (fd < 0)
+    return;
   ard = archive_read_disk_new();
   archive_read_disk_set_standard_lookup(ard);
   entry = archive_entry_new();
-  fd = open(name, O_RDONLY);
-  if (fd < 0)
-     return;
   archive_entry_copy_pathname(entry, name);
   archive_read_disk_entry_from_file(ard, entry, fd, NULL);
   archive_write_header(a, entry);
