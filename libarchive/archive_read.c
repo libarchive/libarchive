@@ -1487,16 +1487,23 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 			 * copy buffer.
 			 */
 
+			/* Don't waste time buffering more than we need to. */
+			tocopy = min - f->avail;
+			/* Don't copy more than is available. */
+			if (tocopy > f->client_avail)
+				tocopy = f->client_avail;
+
 			/* Ensure the buffer is big enough. */
-			if (min > f->buffer_size) {
-				size_t s;
+			if (f->avail + tocopy > f->buffer_size) {
+				size_t s, needed;
 				char *p;
 
+				needed = f->avail + tocopy;
 				/* Double the buffer; watch for overflow. */
 				s = f->buffer_size;
 				if (s == 0)
-					s = min;
-				while (s < min) {
+					s = needed;
+				while (s < needed) {
 					if (archive_ckd_mul_size(&s, s, 2)) {
 						/* Integer overflow! */
 						archive_set_error(
@@ -1510,7 +1517,7 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 						return (NULL);
 					}
 				}
-				/* Now s >= min, so allocate a new buffer. */
+				/* Now s >= needed, so allocate a new buffer. */
 				p = malloc(s);
 				if (p == NULL) {
 					archive_set_error(
@@ -1529,13 +1536,6 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 				f->next = f->buffer = p;
 				f->buffer_size = s;
 			}
-
-			/* We can add client data to copy buffer. */
-			/* Don't waste time buffering more than we need to. */
-			tocopy = min - f->avail;
-			/* Don't copy more than is available. */
-			if (tocopy > f->client_avail)
-				tocopy = f->client_avail;
 
 			memcpy(f->next + f->avail,
 			    f->client_next, tocopy);
