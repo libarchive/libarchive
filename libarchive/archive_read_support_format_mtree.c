@@ -91,6 +91,7 @@ struct mtree_option {
 struct mtree_entry {
 	struct archive_rb_node rbnode;
 	struct mtree_entry *next_dup;
+	struct mtree_entry *last_dup;
 	struct mtree_entry *next;
 	struct mtree_option *options;
 	char *name;
@@ -949,15 +950,15 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 	parse_escapes(entry->name, entry);
 
 	entry->next_dup = NULL;
+	entry->last_dup = entry;
 	if (entry->full) {
 		if (!__archive_rb_tree_insert_node(&mtree->rbtree, &entry->rbnode)) {
 			struct mtree_entry *alt;
 			alt = (struct mtree_entry *)__archive_rb_tree_find_node(
 			    &mtree->rbtree, entry->name);
 			if (alt != NULL) {
-				while (alt->next_dup)
-					alt = alt->next_dup;
-				alt->next_dup = entry;
+				alt->last_dup->next_dup = entry;
+				alt->last_dup = entry;
 			}
 		}
 	}
