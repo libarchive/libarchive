@@ -30,18 +30,19 @@
 #include <zlib.h>
 #endif
 
-#if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(__ARM_BIG_ENDIAN) && !defined(__AARCH64EB__)
+#if (defined(__aarch64__) || defined(_M_ARM64)) && \
+    defined(__ARM_FEATURE_CRC32) && !defined(__ARM_BIG_ENDIAN) && \
+    !defined(__AARCH64EB__)
 /*
  * Implementation 1: Hardware-accelerated CRC32 using ARMv8 ACLE instructions.
- * Available on 64-bit ARM platforms with CRC extension support.
+ * Only use this when the compiler target guarantees CRC extension support.
+ * The extension is optional in ARMv8.0, so enabling it here without runtime
+ * detection would make generic AArch64 binaries unsafe on older CPUs.
  */
 
 #if defined(_MSC_VER)
 #include <arm64_acle.h>
 #elif defined(__GNUC__) || defined(__clang__)
-#if !defined(__ARM_FEATURE_CRC32) && !(defined(__APPLE__) && defined(__MACH__))
-#pragma GCC target("+crc")
-#endif
 #include <arm_acle.h>
 #endif
 #include <stdint.h>
