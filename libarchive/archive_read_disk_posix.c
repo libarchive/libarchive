@@ -97,9 +97,6 @@
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
 
-#ifndef HAVE_FCHDIR
-#error fchdir function required.
-#endif
 #ifndef O_BINARY
 #define O_BINARY	0
 #endif
@@ -1653,6 +1650,11 @@ setup_current_filesystem(struct archive_read_disk *a)
 
 #elif (defined(HAVE_STATVFS) || defined(HAVE_FSTATVFS)) && defined(ST_LOCAL)
 
+/* tree_enter_working_dir is used below unconditionally. */
+#ifndef HAVE_FCHDIR
+#error fchdir function required.
+#endif
+
 /*
  * Gather current filesystem properties on NetBSD
  */
@@ -2231,7 +2233,12 @@ tree_enter_initial_dir(struct tree *t)
 	int r = 0;
 
 	if ((t->flags & onInitialDir) == 0) {
+#ifdef HAVE_FCHDIR
 		r = fchdir(t->initial_dir_fd);
+#else
+		r = -1;
+		errno = ENOSYS;
+#endif
 		if (r == 0) {
 			t->flags &= ~onWorkingDir;
 			t->flags |= onInitialDir;
@@ -2254,7 +2261,12 @@ tree_enter_working_dir(struct tree *t)
 	 * descent.
 	 */
 	if (t->depth > 0 && (t->flags & onWorkingDir) == 0) {
+#ifdef HAVE_FCHDIR
 		r = fchdir(t->working_dir_fd);
+#else
+		r = -1;
+		errno = ENOSYS;
+#endif
 		if (r == 0) {
 			t->flags &= ~onInitialDir;
 			t->flags |= onWorkingDir;
