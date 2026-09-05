@@ -174,7 +174,7 @@ myclose(struct archive *a, void *client_data)
 void
 write_archive(const char *outname, const char **filename)
 {
-  struct mydata *mydata = malloc(sizeof(struct mydata));
+  struct mydata *mydata = malloc(sizeof(*mydata));
   struct archive *a;
   struct archive_entry *entry;
   struct stat st;
