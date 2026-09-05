@@ -560,6 +560,8 @@ AC_ARG_WITH([nettle],
   AS_HELP_STRING([--with-nettle], [Build with crypto support from Nettle]))
 AC_ARG_WITH([openssl],
   AS_HELP_STRING([--without-openssl], [Don't build support for mtree and xar hashes through openssl]))
+AC_ARG_WITH([md],
+  AS_HELP_STRING([--without-md], [Don't build with crypto support from md]))
 case "$host_os" in
   *darwin* ) with_openssl=no ;;
 esac
@@ -1376,17 +1378,19 @@ fi
 
 AC_SUBST(LIBSREQUIRED)
 
-dnl Probe libmd AFTER OpenSSL/libcrypto.
-dnl The two are incompatible and OpenSSL is more complete.
-saved_LIBS=$LIBS
-AC_CHECK_LIB(md, MD5Init)
-CRYPTO_CHECK(MD5, LIBMD, md5)
-CRYPTO_CHECK(RMD160, LIBMD, rmd160)
-CRYPTO_CHECK(SHA1, LIBMD, sha1)
-CRYPTO_CHECK(SHA256, LIBMD, sha256)
-CRYPTO_CHECK(SHA512, LIBMD, sha512)
-if test "x$found_LIBMD" != "xyes"; then
-  LIBS=$saved_LIBS
+if test "x$with_md" != "xno"; then
+    dnl Probe libmd AFTER OpenSSL/libcrypto.
+    dnl The two are incompatible and OpenSSL is more complete.
+    saved_LIBS=$LIBS
+    AC_CHECK_LIB(md, MD5Init)
+    CRYPTO_CHECK(MD5, LIBMD, md5)
+    CRYPTO_CHECK(RMD160, LIBMD, rmd160)
+    CRYPTO_CHECK(SHA1, LIBMD, sha1)
+    CRYPTO_CHECK(SHA256, LIBMD, sha256)
+    CRYPTO_CHECK(SHA512, LIBMD, sha512)
+    if test "x$found_LIBMD" != "xyes"; then
+      LIBS=$saved_LIBS
+    fi
 fi
 
 dnl Visibility annotations...
