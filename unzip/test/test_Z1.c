@@ -27,7 +27,7 @@ DEFINE_TEST(test_Z_1)
 	int r;
 
 	extract_reference_file(reffile);
-	r = systemf("%s -Z -1 %s >test.out 2>test.err", testprog, reffile);
+	r = systemf("%s -Z -1 test_basic >test.out 2>test.err", testprog);
 	assertEqualInt(0, r);
 	assertNonEmptyFile("test.out");
 	assertTextFileContents("test_basic/\ntest_basic/a\ntest_basic/b\ntest_basic/c\ntest_basic/CAPS\n", "test.out");
