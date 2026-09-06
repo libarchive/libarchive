@@ -63,6 +63,13 @@
 #include "passphrase.h"
 #include "lafe_err.h"
 
+#ifndef O_BINARY
+#define O_BINARY	0
+#endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
+#endif
+
 /* command-line options */
 static int		 a_opt;		/* convert EOL */
 static int		 C_opt;		/* match case-insensitively */
