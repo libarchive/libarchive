@@ -952,6 +952,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <nettle/sha.h> header file. */
 #cmakedefine HAVE_NETTLE_SHA_H 1
 
+/* Define to 1 if you have the <nettle/sha1.h> header file. */
+#cmakedefine HAVE_NETTLE_SHA1_H 1
+
+/* Define to 1 if you have the <nettle/sha2.h> header file. */
+#cmakedefine HAVE_NETTLE_SHA2_H 1
+
 /* Define to 1 if you have the <nettle/version.h> header file. */
 #cmakedefine HAVE_NETTLE_VERSION_H 1
 

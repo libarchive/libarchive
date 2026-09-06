@@ -1346,6 +1346,7 @@ fi
 
 if test "x$with_nettle" = "xyes"; then
     AC_CHECK_HEADERS([nettle/md5.h nettle/ripemd160.h nettle/sha.h])
+    AC_CHECK_HEADERS([nettle/sha1.h nettle/sha2.h])
     AC_CHECK_HEADERS([nettle/pbkdf2.h nettle/aes.h nettle/hmac.h])
     AC_CHECK_HEADERS([nettle/version.h])
     saved_LIBS=$LIBS
