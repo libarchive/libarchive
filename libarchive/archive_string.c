@@ -2130,8 +2130,21 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 	while (remaining >= from_size) {
 		size_t result = iconv(cd, &itp, &remaining, &outp, &avail);
 
-		if (result != (size_t)-1)
+		if (result != (size_t)-1) {
+			if (result > 0) {
+				/* POSIX-conformant iconv() (NetBSD, macOS) returns
+				 * the count of characters converted with a non-
+				 * identical (lossy) substitution when the input is
+				 * valid but has no exact representation in the
+				 * target codeset.  Report this as a conversion
+				 * failure at the mstring level, mirroring the
+				 * EILSEQ branch below (glibc's iconv() returns -1
+				 * / EILSEQ in the same situation, so the two paths
+				 * agree post-fix). */
+				return_value = -1;
+			}
 			break; /* Conversion completed. */
+		}
 
 		if (errno == EILSEQ || errno == EINVAL) {
 			/*
