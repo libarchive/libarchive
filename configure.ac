@@ -1301,10 +1301,10 @@ case "$host_os" in
 	;;
 esac
 
-if test "x$with_cng" != "xno"; then
-    AC_CHECK_HEADERS([bcrypt.h],[
+AC_CHECK_HEADERS([bcrypt.h],[
+    LIBS="$LIBS -lbcrypt"
+    if test "x$with_cng" != "xno"; then
 	dnl bcrypt supports these algorithms on all available versions
-        LIBS="$LIBS -lbcrypt"
         found_WIN=yes
         found_MD5=yes
         found_SHA1=yes
@@ -1321,12 +1321,12 @@ if test "x$with_cng" != "xno"; then
 	    [ SHA384 via ARCHIVE_CRYPTO_SHA384_WIN supported.])
         AC_DEFINE(ARCHIVE_CRYPTO_SHA512_WIN, 1,
 	    [ SHA512 via ARCHIVE_CRYPTO_SHA512_WIN supported.])
-    ],[],
-    [[#ifdef HAVE_WINDOWS_H
-    # include <windows.h>
-    #endif
-    ]])
-fi
+    fi
+],[],
+[[#ifdef HAVE_WINDOWS_H
+# include <windows.h>
+#endif
+]])
 
 if test "x$with_mbedtls" = "xyes"; then
     AC_CHECK_HEADERS([mbedtls/aes.h mbedtls/md.h mbedtls/pkcs5.h])
