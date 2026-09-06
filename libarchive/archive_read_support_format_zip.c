@@ -480,6 +480,7 @@ zipx_read_header_and_decrypt(struct archive_read *a, const void **buf, size_t in
 	return (ARCHIVE_OK);
 }
 
+#if (HAVE_LZMA_H && HAVE_LIBLZMA) || defined(HAVE_BZLIB_H) || (HAVE_ZSTD_H && HAVE_LIBZSTD) || defined(HAVE_ZLIB_H)
 /* Decrypt bulk compressed data for zipx decompression.
  * Manages the decryption buffer, handles partial fills, and returns decrypted
  * data pointer + length. `sp` is set to the raw pointer for HMAC accounting. */
@@ -576,6 +577,7 @@ zip_read_decrypt_update(struct zip *zip, ssize_t to_consume, const void *sp)
 	if (zip->hctx_valid)
 		archive_hmac_sha1_update(&zip->hctx, sp, to_consume);
 }
+#endif
 
 /*
  * Common code for streaming or seeking modes.
