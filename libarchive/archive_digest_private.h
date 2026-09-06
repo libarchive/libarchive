@@ -135,6 +135,9 @@
 #endif
 
 /* Nettle crypto headers */
+#if defined(HAVE_NETTLE_VERSION_H)
+#include <nettle/version.h>
+#endif
 #if defined(ARCHIVE_CRYPTO_MD5_NETTLE)
 #include <nettle/md5.h>
 #endif
@@ -145,7 +148,18 @@
   defined(ARCHIVE_CRYPTO_SHA256_NETTLE) ||\
   defined(ARCHIVE_CRYPTO_SHA384_NETTLE) ||\
   defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
+#if NETTLE_VERSION_MAJOR < 4
+#if defined(HAVE_NETTLE_SHA_H)
 #include <nettle/sha.h>
+#endif
+#else
+#if defined(HAVE_NETTLE_SHA1_H)
+#include <nettle/sha1.h>
+#endif
+#if defined(HAVE_NETTLE_SHA2_H)
+#include <nettle/sha2.h>
+#endif
+#endif
 #endif
 
 /* OpenSSL crypto headers */

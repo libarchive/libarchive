@@ -271,7 +271,11 @@ __archive_md5update(archive_md5_ctx *ctx, const void *indata,
 static int
 __archive_md5final(archive_md5_ctx *ctx, void *md)
 {
+#if NETTLE_VERSION_MAJOR < 4
   md5_digest(ctx, MD5_DIGEST_SIZE, md);
+#else
+  md5_digest(ctx, md);
+#endif
   return (ARCHIVE_OK);
 }
 
@@ -454,7 +458,11 @@ __archive_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
 static int
 __archive_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 {
+#if NETTLE_VERSION_MAJOR < 4
   ripemd160_digest(ctx, RIPEMD160_DIGEST_SIZE, md);
+#else
+  ripemd160_digest(ctx, md);
+#endif
   return (ARCHIVE_OK);
 }
 
@@ -678,7 +686,11 @@ __archive_sha1update(archive_sha1_ctx *ctx, const void *indata,
 static int
 __archive_sha1final(archive_sha1_ctx *ctx, void *md)
 {
+#if NETTLE_VERSION_MAJOR < 4
   sha1_digest(ctx, SHA1_DIGEST_SIZE, md);
+#else
+  sha1_digest(ctx, md);
+#endif
   return (ARCHIVE_OK);
 }
 
@@ -954,7 +966,11 @@ __archive_sha256update(archive_sha256_ctx *ctx, const void *indata,
 static int
 __archive_sha256final(archive_sha256_ctx *ctx, void *md)
 {
+#if NETTLE_VERSION_MAJOR < 4
   sha256_digest(ctx, SHA256_DIGEST_SIZE, md);
+#else
+  sha256_digest(ctx, md);
+#endif
   return (ARCHIVE_OK);
 }
 
@@ -1202,7 +1218,11 @@ __archive_sha384update(archive_sha384_ctx *ctx, const void *indata,
 static int
 __archive_sha384final(archive_sha384_ctx *ctx, void *md)
 {
+#if NETTLE_VERSION_MAJOR < 4
   sha384_digest(ctx, SHA384_DIGEST_SIZE, md);
+#else
+  sha384_digest(ctx, md);
+#endif
   return (ARCHIVE_OK);
 }
 
@@ -1474,7 +1494,11 @@ __archive_sha512update(archive_sha512_ctx *ctx, const void *indata,
 static int
 __archive_sha512final(archive_sha512_ctx *ctx, void *md)
 {
+#if NETTLE_VERSION_MAJOR < 4
   sha512_digest(ctx, SHA512_DIGEST_SIZE, md);
+#else
+  sha512_digest(ctx, md);
+#endif
   return (ARCHIVE_OK);
 }
 
