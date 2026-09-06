@@ -831,6 +831,7 @@ test_ppmd(void)
 static void
 test_ppmd_small_block(void)
 {
+#ifdef HAVE_LZMA_H
 	const char *refname = "test_read_format_7zip_ppmd_small_block.7z";
 	const void *block;
 	struct archive_entry *ae;
@@ -865,6 +866,9 @@ test_ppmd_small_block(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(archive_data);
+#else
+	skipping("lzma tests require liblzma");
+#endif
 }
 
 static void

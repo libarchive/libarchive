@@ -150,19 +150,15 @@ DEFINE_TEST(test_read_append_filter)
 DEFINE_TEST(test_read_append_wrong_filter)
 {
   struct archive *a;
-  int r;
 
   assert((a = archive_read_new()) != NULL);
-  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_RAW));
-  r = archive_read_append_filter(a, ARCHIVE_FILTER_XZ);
-  if (r == ARCHIVE_WARN && !canXz()) {
-    skipping("xz reading not fully supported on this platform");
-    assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-    return;
-  }
-  assertEqualInt(ARCHIVE_FATAL,
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_format(a, ARCHIVE_FORMAT_RAW));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_append_filter(a, ARCHIVE_FILTER_UU));
+  assertEqualIntA(a, ARCHIVE_FATAL,
       archive_read_open_memory(a, archive, sizeof(archive)));
-  assertEqualInt(ARCHIVE_OK,archive_read_free(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_read_append_lzop_filter)

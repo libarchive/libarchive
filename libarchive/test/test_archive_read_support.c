@@ -148,6 +148,7 @@ DEFINE_TEST(test_archive_read_support)
 DEFINE_TEST(test_archive_read_support_twice)
 {
 	struct archive *a;
+	int r;
 
 	a = archive_read_new();
 	assert(a != NULL);
@@ -162,7 +163,12 @@ DEFINE_TEST(test_archive_read_support_twice)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_lha(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_mtree(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN)
+		assertEqualStringA(a, "Xar not supported on this platform",
+		    archive_error_string(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 
 	/* Adding format bidders twice should lead to warnings. */
