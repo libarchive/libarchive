@@ -1189,7 +1189,26 @@ DEFINE_TEST(test_read_format_7zip_lzma2_arm)
 DEFINE_TEST(test_read_format_7zip_ppmd)
 {
 	test_ppmd();
-	test_ppmd_small_block();
+}
+
+DEFINE_TEST(test_read_format_7zip_ppmd_small_block)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	/*
+	 * Despite the contents of the small block archive being
+	 * in PPMd, the directory itself is LZMA-compressed.
+	 */
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_ppmd_small_block();
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 static void
