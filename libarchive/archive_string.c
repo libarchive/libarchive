@@ -62,6 +62,7 @@
 #endif
 
 #include "archive_endian.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_string.h"
 #include "archive_string_composition.h"
@@ -318,9 +319,8 @@ archive_string_ensure(struct archive_string *as, size_t s)
 		new_length = as->buffer_length + as->buffer_length;
 	else {
 		/* Buffers 8k and over grow by at least 25% each time. */
-		new_length = as->buffer_length + as->buffer_length / 4;
-		/* Be safe: If size wraps, fail. */
-		if (new_length < as->buffer_length) {
+		if (archive_ckd_add_size(&new_length,
+		    as->buffer_length, as->buffer_length / 4)) {
 			/* On failure, wipe the string and return NULL. */
 			archive_string_free(as);
 			errno = ENOMEM;/* Make sure errno has ENOMEM. */
