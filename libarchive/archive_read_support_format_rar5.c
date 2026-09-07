@@ -4440,7 +4440,20 @@ static int rar5_read_data_skip(struct archive_read *a) {
 
 			if(ret < 0 || ret == ARCHIVE_EOF) {
 				/* Propagate any potential error conditions
-				 * to the caller. */
+				 * to the caller.  A non-fatal error still
+				 * has to leave the entry behind: anything
+				 * short of ARCHIVE_FATAL puts the reader
+				 * back in header state, so a caller that
+				 * reports the error and asks for the next
+				 * header would otherwise re-read these
+				 * same bytes forever. */
+				if(ret != ARCHIVE_FATAL &&
+				    rar5->file.bytes_remaining > 0) {
+					if(ARCHIVE_OK != consume(a,
+					    rar5->file.bytes_remaining))
+						return ARCHIVE_FATAL;
+					rar5->file.bytes_remaining = 0;
+				}
 				return ret;
 			}
 		}
