@@ -1613,7 +1613,11 @@ sum_update(struct mtree *mtree, const void *buff, size_t n)
 static void
 sum_final(struct mtree *mtree, struct reg_info *reg)
 {
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) \
+    || defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) \
+    || defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
 	struct ae_digest digest;
+#endif
 
 	if (mtree->compute_sum & F_CKSUM) {
 		uint64_t len;
