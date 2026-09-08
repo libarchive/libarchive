@@ -239,7 +239,7 @@ OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found
 OPTION(ENABLE_PCRE2POSIX "Enable the use of the system PCRE2POSIX library if found" ON)
 OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
-OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
+OPTION(ENABLE_CNG "Enable the use of Windows CNG (Crypto Next Generation) if" ON)
 
 OPTION(ENABLE_TAR "Enable tar building" ON)
 OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" FALSE)
@@ -823,6 +823,7 @@ LA_CHECK_INCLUDE_FILE("bcrypt.h" HAVE_BCRYPT_H)
 IF(HAVE_BCRYPT_H)
   LIST(APPEND ADDITIONAL_LIBS "bcrypt")
   IF(ENABLE_CNG)
+    SET(ARCHIVE_CRYPTO_WIN        1)
     # bcrypt supports these algorithms on all available versions
     SET(ARCHIVE_CRYPTO_MD5        1)
     SET(ARCHIVE_CRYPTO_MD5_WIN    1)
