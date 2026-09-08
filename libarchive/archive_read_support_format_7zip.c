@@ -1362,6 +1362,10 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				x86_Init(zip);
 			else if (coder2->codec == _7Z_ARM)
 				arm_Init(zip);
+			else if (coder2->codec == _7Z_ARM64 ||
+			    coder2->codec == _7Z_POWERPC ||
+			    coder2->codec == _7Z_SPARC)
+				zip->bcj_ip = 0;
 		}
 		break;
 	default:
