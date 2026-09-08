@@ -561,7 +561,7 @@ AC_ARG_WITH([nettle],
 AC_ARG_WITH([openssl],
   AS_HELP_STRING([--without-openssl], [Don't build support for mtree and xar hashes through openssl]))
 AC_ARG_WITH([md],
-  AS_HELP_STRING([--without-md], [Don't build with crypto support from md]))
+  AS_HELP_STRING([--without-md], [Don't build with crypto support from Message Digest]))
 case "$host_os" in
   *darwin* ) with_openssl=no ;;
 esac
