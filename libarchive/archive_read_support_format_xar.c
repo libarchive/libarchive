@@ -1066,6 +1066,11 @@ rd_contents(struct archive_read *a, const void **buff, size_t *size,
 	*used = bytes;
 	if (decompress(a, buff, size, b, used) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
+	if (remaining > 0 && *used == 0 && *size == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "XAR decompressor made no progress");
+		return (ARCHIVE_FATAL);
+	}
 
 	/*
 	 * Update checksum of a compressed data and a extracted data.
