@@ -256,7 +256,9 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 		char *st;
 		size_t entry_size;
 
-		archive_entry_copy_pathname(entry, filename);
+		/* This is not a file entry. Ignore. */
+		archive_entry_copy_pathname(entry, NULL);
+
 		/* Get the size of the filename table. */
 		number = ar_atol10(h + AR_size_offset, AR_size_size);
 		if (number > SIZE_MAX || number > 1024 * 1024 * 1024) {
@@ -412,17 +414,20 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		a->archive.archive_format = ARCHIVE_FORMAT_AR;
 	}
 
-	/* Read the header for the next file entry. */
-	if ((header_data = __archive_read_ahead(a, 60, NULL)) == NULL)
-		/* Broken header. */
-		return (ARCHIVE_EOF);
+	do {
+		/* Read the header for the next file entry. */
+		if ((header_data = __archive_read_ahead(a, 60, NULL)) == NULL)
+			/* Broken header. */
+			return (ARCHIVE_EOF);
 
-	unconsumed = 60;
+		unconsumed = 60;
 
-	ret = _ar_read_header(a, entry, ar, (const char *)header_data, &unconsumed);
+		ret = _ar_read_header(a, entry, ar, (const char *)header_data,
+		    &unconsumed);
 
-	if (unconsumed)
-		__archive_read_consume(a, unconsumed);
+		if (unconsumed)
+			__archive_read_consume(a, unconsumed);
+	} while (ret == ARCHIVE_OK && archive_entry_pathname(entry) == NULL);
 
 	return ret;
 }
