@@ -179,7 +179,6 @@
   defined(ARCHIVE_CRYPTO_SHA256_WIN) ||\
   defined(ARCHIVE_CRYPTO_SHA384_WIN) ||\
   defined(ARCHIVE_CRYPTO_SHA512_WIN)
-#if defined(HAVE_BCRYPT_H)
 #include <bcrypt.h>
 #define	ARCHIVE_CRYPTO_CNG 1
 typedef struct {
@@ -187,7 +186,6 @@ typedef struct {
   BCRYPT_ALG_HANDLE  hAlg;
   BCRYPT_HASH_HANDLE hHash;
 } Digest_CTX;
-#endif
 #endif
 
 /* typedefs */
