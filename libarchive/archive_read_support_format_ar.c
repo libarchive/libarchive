@@ -249,6 +249,29 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 	ar_parse_common_header(ar, entry, h);
 
 	/*
+	 * '/' is the ranlib index.
+	 * Ignore it since it contains linker information.
+	 */
+	if (strcmp(filename, "/") == 0) {
+		size_t entry_size;
+
+		/* This is not a file entry. Ignore. */
+		archive_entry_copy_pathname(entry, NULL);
+
+		/* Get the size of the ranlib index. */
+		number = ar_atol10(h + AR_size_offset, AR_size_size);
+		if (number > SIZE_MAX || number > 1024 * 1024 * 1024) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Filename table too large");
+			return (ARCHIVE_FATAL);
+		}
+		entry_size = (size_t)number;
+		*unconsumed += entry_size;
+
+		return (ARCHIVE_OK);
+	}
+
+	/*
 	 * '//' is the GNU filename table.
 	 * Later entries can refer to names in this table.
 	 */
