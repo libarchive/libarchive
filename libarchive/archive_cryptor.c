@@ -44,7 +44,7 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return 0;
 }
 
-#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(ARCHIVE_CRYPTO_WIN)
 #ifdef _MSC_VER
 #pragma comment(lib, "Bcrypt.lib")
 #endif
@@ -184,7 +184,7 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 	return 0;
 }
 
-#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(ARCHIVE_CRYPTO_WIN)
 
 static int
 aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)

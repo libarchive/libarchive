@@ -552,7 +552,7 @@ if test "x$with_lzo2" = "xyes"; then
 fi
 
 AC_ARG_WITH([cng],
-  AS_HELP_STRING([--without-cng], [Don't build support of CNG(Crypto Next Generation)]))
+  AS_HELP_STRING([--without-cng], [Don't build with crypto support from Windows CNG (Crypto Next Generation)]))
 
 AC_ARG_WITH([mbedtls],
   AS_HELP_STRING([--with-mbedtls], [Build with crypto support from mbed TLS]))
@@ -1313,6 +1313,8 @@ AC_CHECK_HEADERS([bcrypt.h],[
         found_SHA256=yes
         found_SHA384=yes
         found_SHA512=yes
+        AC_DEFINE(ARCHIVE_CRYPTO_WIN, 1,
+	    [ Use Windows CNG (Crypto Next Generation)])
         AC_DEFINE(ARCHIVE_CRYPTO_MD5_WIN, 1,
 	    [ MD5 via ARCHIVE_CRYPTO_MD5_WIN supported.])
         AC_DEFINE(ARCHIVE_CRYPTO_SHA1_WIN, 1,

@@ -44,7 +44,7 @@
 /*
  * Message digest functions for Windows platform.
  */
-#if defined(HAVE_BCRYPT_H)
+#if defined(ARCHIVE_CRYPTO_WIN)
 
 /*
  * Initialize a Message digest.
@@ -97,7 +97,7 @@ win_crypto_Final(unsigned char *buf, size_t bufsize, Digest_CTX *ctx)
 	return (ARCHIVE_OK);
 }
 
-#endif /* defined(HAVE_BCRYPT_H) */
+#endif /* defined(ARCHIVE_CRYPTO_WIN) */
 
 
 /* MD5 implementations */

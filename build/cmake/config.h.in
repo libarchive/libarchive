@@ -336,6 +336,9 @@ typedef uint64_t uintmax_t;
 /* SHA512 via ARCHIVE_CRYPTO_SHA512_WIN supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA512_WIN 1
 
+/* Use Windows CNG(Crypto Next Generation) */
+#cmakedefine ARCHIVE_CRYPTO_WIN 1
+
 /* AIX xattr support */
 #cmakedefine ARCHIVE_XATTR_AIX 1
 

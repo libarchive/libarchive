@@ -52,7 +52,7 @@ typedef struct {
 	size_t		encr_pos;
 } archive_crypto_ctx;
 
-#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(ARCHIVE_CRYPTO_WIN)
 #include <bcrypt.h>
 #define	ARCHIVE_CRYPTOR_USE_CNG 1
 
