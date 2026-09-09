@@ -211,7 +211,7 @@ static int
 __archive_md5init(archive_md5_ctx *ctx)
 {
   mbedtls_md5_init(ctx);
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_md5_starts(ctx) == 0)
 #else
   if (mbedtls_md5_starts_ret(ctx) == 0)
@@ -225,7 +225,7 @@ static int
 __archive_md5update(archive_md5_ctx *ctx, const void *indata,
     size_t insize)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_md5_update(ctx, indata, insize) == 0)
 #else
   if (mbedtls_md5_update_ret(ctx, indata, insize) == 0)
@@ -238,7 +238,7 @@ __archive_md5update(archive_md5_ctx *ctx, const void *indata,
 static int
 __archive_md5final(archive_md5_ctx *ctx, void *md)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_md5_finish(ctx, md) == 0) {
 #else
   if (mbedtls_md5_finish_ret(ctx, md) == 0) {
@@ -398,7 +398,7 @@ static int
 __archive_ripemd160init(archive_rmd160_ctx *ctx)
 {
   mbedtls_ripemd160_init(ctx);
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_ripemd160_starts(ctx) == 0)
 #else
   if (mbedtls_ripemd160_starts_ret(ctx) == 0)
@@ -412,7 +412,7 @@ static int
 __archive_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
     size_t insize)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_ripemd160_update(ctx, indata, insize) == 0)
 #else
   if (mbedtls_ripemd160_update_ret(ctx, indata, insize) == 0)
@@ -425,7 +425,7 @@ __archive_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
 static int
 __archive_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_ripemd160_finish(ctx, md) == 0) {
 #else
   if (mbedtls_ripemd160_finish_ret(ctx, md) == 0) {
@@ -626,7 +626,7 @@ static int
 __archive_sha1init(archive_sha1_ctx *ctx)
 {
   mbedtls_sha1_init(ctx);
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha1_starts(ctx) == 0)
 #else
   if (mbedtls_sha1_starts_ret(ctx) == 0)
@@ -640,7 +640,7 @@ static int
 __archive_sha1update(archive_sha1_ctx *ctx, const void *indata,
     size_t insize)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha1_update(ctx, indata, insize) == 0)
 #else
   if (mbedtls_sha1_update_ret(ctx, indata, insize) == 0)
@@ -653,7 +653,7 @@ __archive_sha1update(archive_sha1_ctx *ctx, const void *indata,
 static int
 __archive_sha1final(archive_sha1_ctx *ctx, void *md)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha1_finish(ctx, md) == 0) {
 #else
   if (mbedtls_sha1_finish_ret(ctx, md) == 0) {
@@ -906,7 +906,7 @@ static int
 __archive_sha256init(archive_sha256_ctx *ctx)
 {
   mbedtls_sha256_init(ctx);
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha256_starts(ctx, 0) == 0)
 #else
   if (mbedtls_sha256_starts_ret(ctx, 0) == 0)
@@ -920,7 +920,7 @@ static int
 __archive_sha256update(archive_sha256_ctx *ctx, const void *indata,
     size_t insize)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha256_update(ctx, indata, insize) == 0)
 #else
   if (mbedtls_sha256_update_ret(ctx, indata, insize) == 0)
@@ -933,7 +933,7 @@ __archive_sha256update(archive_sha256_ctx *ctx, const void *indata,
 static int
 __archive_sha256final(archive_sha256_ctx *ctx, void *md)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha256_finish(ctx, md) == 0) {
 #else
   if (mbedtls_sha256_finish_ret(ctx, md) == 0) {
@@ -1158,7 +1158,7 @@ static int
 __archive_sha384init(archive_sha384_ctx *ctx)
 {
   mbedtls_sha512_init(ctx);
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha512_starts(ctx, 1) == 0)
 #else
   if (mbedtls_sha512_starts_ret(ctx, 1) == 0)
@@ -1172,7 +1172,7 @@ static int
 __archive_sha384update(archive_sha384_ctx *ctx, const void *indata,
     size_t insize)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha512_update(ctx, indata, insize) == 0)
 #else
   if (mbedtls_sha512_update_ret(ctx, indata, insize) == 0)
@@ -1185,7 +1185,7 @@ __archive_sha384update(archive_sha384_ctx *ctx, const void *indata,
 static int
 __archive_sha384final(archive_sha384_ctx *ctx, void *md)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha512_finish(ctx, md) == 0) {
 #else
   if (mbedtls_sha512_finish_ret(ctx, md) == 0) {
@@ -1434,7 +1434,7 @@ static int
 __archive_sha512init(archive_sha512_ctx *ctx)
 {
   mbedtls_sha512_init(ctx);
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha512_starts(ctx, 0) == 0)
 #else
   if (mbedtls_sha512_starts_ret(ctx, 0) == 0)
@@ -1448,7 +1448,7 @@ static int
 __archive_sha512update(archive_sha512_ctx *ctx, const void *indata,
     size_t insize)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha512_update(ctx, indata, insize) == 0)
 #else
   if (mbedtls_sha512_update_ret(ctx, indata, insize) == 0)
@@ -1461,7 +1461,7 @@ __archive_sha512update(archive_sha512_ctx *ctx, const void *indata,
 static int
 __archive_sha512final(archive_sha512_ctx *ctx, void *md)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
   if (mbedtls_sha512_finish(ctx, md) == 0) {
 #else
   if (mbedtls_sha512_finish_ret(ctx, md) == 0) {
