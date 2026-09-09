@@ -91,6 +91,7 @@ IF(ENABLE_TEST)
     test_open_filename.c
     test_pax_filename_encoding.c
     test_pax_xattr_header.c
+    test_read_data_into_fd_no_offset_reported.c
     test_read_data_into_fd_size_exceeds_declared.c
     test_read_data_large.c
     test_read_disk.c
