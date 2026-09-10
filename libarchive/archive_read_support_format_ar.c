@@ -274,20 +274,15 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 
 		/* Get the size of the filename table. */
 		entry_size = archive_entry_size(entry);
-		if (entry_size > 1024 * 1024 * 1024) {
+		if (entry_size == 0 || entry_size > 1024 * 1024 * 1024) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Filename table too large");
+			    "Invalid filename table size");
 			return (ARCHIVE_FATAL);
 		}
 		strtab_size = (size_t)entry_size;
-		if (strtab_size == 0) {
-			archive_set_error(&a->archive, EINVAL,
-			    "Invalid string table");
-			return (ARCHIVE_FATAL);
-		}
 		if (ar->strtab != NULL) {
 			archive_set_error(&a->archive, EINVAL,
-			    "More than one string table exists");
+			    "More than one filename table exists");
 			return (ARCHIVE_FATAL);
 		}
 
