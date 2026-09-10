@@ -79,11 +79,20 @@ safe_fputs(const char * restrict s, FILE * restrict f)
 		return;
 	}
 
-	/* Write data, expanding unprintable characters. */
 	p = s;
-	length = strlen(p);
+
+	/* Directly print as many ASCII characters as possible. */
+	if (mbtowc(NULL, NULL, 0) == 0) {
+		while (*p != '\0' && isprint((unsigned char)*p) &&
+		    (unsigned char)*p < 128 && *p != '\\')
+			p++;
+		fwrite(s, 1, p - s, f);
+	}
+
+	/* Write data, expanding unprintable characters. */
 	i = 0;
 	try_wc = 1;
+	length = strlen(p);
 	while (*p != '\0') {
 
 		/* Convert to wide char, test if the wide
@@ -109,13 +118,11 @@ safe_fputs(const char * restrict s, FILE * restrict f)
 
 		/* If our output buffer is full, dump it and keep going. */
 		if (i > (sizeof(outbuff) - 128)) {
-			outbuff[i] = '\0';
-			fprintf(f, "%s", outbuff);
+			fwrite(outbuff, 1, i, f);
 			i = 0;
 		}
 	}
-	outbuff[i] = '\0';
-	fprintf(f, "%s", outbuff);
+	fwrite(outbuff, 1, i, f);
 }
 
 /*
