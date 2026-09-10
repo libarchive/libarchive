@@ -725,11 +725,12 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 			continue;
 		edit_mtime(bsdtar, in_entry);
 		if (bsdtar->verbose > 1) {
-			safe_fprintf(stderr, "a ");
+			fputs("a ", stderr);
 			list_item_verbose(bsdtar, stderr, in_entry);
-		} else if (bsdtar->verbose > 0)
-			safe_fprintf(stderr, "a %s",
-			    archive_entry_pathname(in_entry));
+		} else if (bsdtar->verbose > 0) {
+			fputs("a ", stderr);
+			safe_fputs(archive_entry_pathname(in_entry), stderr);
+		}
 		if (need_report())
 			report_write(bsdtar, a, in_entry, 0);
 
@@ -962,12 +963,12 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 
 		/* Display entry as we process it. */
 		if (bsdtar->verbose > 1) {
-			safe_fprintf(stderr, "a ");
+			fputs("a ", stderr);
 			list_item_verbose(bsdtar, stderr, entry);
 		} else if (bsdtar->verbose > 0) {
-		/* This format is required by SUSv2. */
-			safe_fprintf(stderr, "a %s",
-			    archive_entry_pathname(entry));
+			/* This format is required by SUSv2. */
+			fputs("a ", stderr);
+			safe_fputs(archive_entry_pathname(entry), stderr);
 		}
 
 		/* Non-regular files get archived with zero size. */
@@ -1015,7 +1016,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a,
 	e = archive_write_header(a, entry);
 	if (e != ARCHIVE_OK) {
 		if (bsdtar->verbose > 1) {
-			safe_fprintf(stderr, "a ");
+			fputs("a ", stderr);
 			list_item_verbose(bsdtar, stderr, entry);
 			lafe_warnc(0, ": %s", archive_error_string(a));
 		} else {
@@ -1058,12 +1059,11 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 	else
 		compression = (int)((uncomp - comp) * 100 / uncomp);
 	fprintf(stderr,
-	    " Out: %ju bytes, compression %d%%\n",
+	    " Out: %ju bytes, compression %d%%\nCurrent: ",
 	    (uintmax_t)comp, compression);
-	safe_fprintf(stderr, "Current: %s (%jd",
-	    archive_entry_pathname(entry),
-	    (intmax_t)progress);
-	fprintf(stderr, "/%jd bytes)\n",
+	safe_fputs(archive_entry_pathname(entry), stderr);
+	fprintf(stderr, " (%jd/%jd bytes)\n",
+	    (intmax_t)progress,
 	    (intmax_t)archive_entry_size(entry));
 }
 

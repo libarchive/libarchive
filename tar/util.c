@@ -59,90 +59,29 @@ static const char *strip_components(const char *path, int elements);
  * #endif
  */
 
-/*
- * Print a string, taking care with any non-printable characters.
- *
- * Note that we use a stack-allocated buffer to receive the formatted
- * string if we can.  This is partly performance (avoiding a call to
- * malloc()), partly out of expedience (we have to call vsnprintf()
- * before malloc() anyway to find out how big a buffer we need; we may
- * as well point that first call at a small local buffer in case it
- * works).
- */
+/* Print a string, taking care of any non-printable characters. */
 
 void
-safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
+safe_fputs(const char * restrict s, FILE * restrict f)
 {
-	char fmtbuff_stack[256]; /* Place to format the printf() string. */
 	char outbuff[256]; /* Buffer for outgoing characters. */
-	char *fmtbuff_heap; /* If fmtbuff_stack is too small, we use malloc */
-	char *fmtbuff;  /* Pointer to fmtbuff_stack or fmtbuff_heap. */
-	size_t fmtbuff_length;
-	int length, n;
-	va_list ap;
+	int n;
 	const char *p;
-	size_t i;
+	size_t i, length;
 	wchar_t wc;
 	char try_wc;
-
-	/* Use a stack-allocated buffer if we can, for speed and safety. */
-	memset(fmtbuff_stack, '\0', sizeof(fmtbuff_stack));
-	fmtbuff_heap = NULL;
-	fmtbuff_length = sizeof(fmtbuff_stack);
-	fmtbuff = fmtbuff_stack;
-
-	/* Try formatting into the stack buffer. */
-	va_start(ap, fmt);
-	length = vsnprintf(fmtbuff, fmtbuff_length, fmt, ap);
-	va_end(ap);
-
-	/* If vsnprintf will always fail, stop early. */
-	if (length < 0 && errno == EOVERFLOW)
-		return;
-
-	/* If the result was too large, allocate a buffer on the heap. */
-	while (length < 0 || (size_t)length >= fmtbuff_length) {
-		if (length >= 0 && (size_t)length >= fmtbuff_length)
-			fmtbuff_length = (size_t)length + 1;
-		else if (fmtbuff_length < 8192)
-			fmtbuff_length *= 2;
-		else if (fmtbuff_length < 1000000)
-			fmtbuff_length += fmtbuff_length / 4;
-		else {
-			fmtbuff[fmtbuff_length - 1] = '\0';
-			length = (int)strlen(fmtbuff);
-			break;
-		}
-		free(fmtbuff_heap);
-		fmtbuff_heap = malloc(fmtbuff_length);
-
-		/* Reformat the result into the heap buffer if we can. */
-		if (fmtbuff_heap != NULL) {
-			fmtbuff = fmtbuff_heap;
-			va_start(ap, fmt);
-			length = vsnprintf(fmtbuff, fmtbuff_length, fmt, ap);
-			va_end(ap);
-		} else {
-			/* Leave fmtbuff pointing to the truncated
-			 * string in fmtbuff_stack. */
-			fmtbuff_stack[sizeof(fmtbuff_stack) - 1] = '\0';
-			fmtbuff = fmtbuff_stack;
-			length = (int)strlen(fmtbuff);
-			break;
-		}
-	}
 
 	/* Note: mbrtowc() has a cleaner API, but mbtowc() seems a bit
 	 * more portable, so we use that here instead. */
 	if (mbtowc(NULL, NULL, 1) == -1) { /* Reset the shift state. */
 		/* mbtowc() should never fail in practice, but
 		 * handle the theoretical error anyway. */
-		free(fmtbuff_heap);
 		return;
 	}
 
 	/* Write data, expanding unprintable characters. */
-	p = fmtbuff;
+	p = s;
+	length = strlen(p);
 	i = 0;
 	try_wc = 1;
 	while (*p != '\0') {
@@ -177,9 +116,6 @@ safe_fprintf(FILE * restrict f, const char * restrict fmt, ...)
 	}
 	outbuff[i] = '\0';
 	fprintf(f, "%s", outbuff);
-
-	/* If we allocated a heap-based formatting buffer, free it now. */
-	free(fmtbuff_heap);
 }
 
 /*
@@ -768,12 +704,16 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	if (!ltime || !sw)
 		p = "-- -- ----";
 	fprintf(out, " %s ", p);
-	safe_fprintf(out, "%s", archive_entry_pathname(entry));
+	safe_fputs(archive_entry_pathname(entry), out);
 
 	/* Extra information for links. */
-	if (archive_entry_hardlink(entry)) /* Hard link */
-		safe_fprintf(out, " link to %s",
-		    archive_entry_hardlink(entry));
-	else if (archive_entry_symlink(entry)) /* Symbolic link */
-		safe_fprintf(out, " -> %s", archive_entry_symlink(entry));
+	if (archive_entry_hardlink(entry)) {
+		/* Hard link */
+		fputs(" link to ", out);
+		safe_fputs(archive_entry_hardlink(entry), out);
+	} else if (archive_entry_symlink(entry)) {
+		/* Symbolic link */
+		fputs(" -> ", out);
+		safe_fputs(archive_entry_symlink(entry), out);
+	}
 }
