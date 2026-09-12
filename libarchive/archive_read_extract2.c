@@ -139,7 +139,7 @@ copy_data(struct archive *ar, struct archive *aw)
 			return (ARCHIVE_OK);
 		if (r != ARCHIVE_OK)
 			return (r);
-		r = (int)archive_write_data_block(aw, buff, size, offset);
+		r = archive_write_data_block(aw, buff, size, offset);
 		if (r < ARCHIVE_WARN)
 			r = ARCHIVE_WARN;
 		if (r < ARCHIVE_OK) {
