@@ -137,8 +137,15 @@ archive_read_format_raw_read_data(struct archive_read *a,
 		raw->unconsumed = 0;
 	}
 
-	if (raw->end_of_file)
+	if (raw->end_of_file) {
+		/* Keep reporting the end of the entry, so that a caller
+		 * that asks once more after end-of-file still gets a
+		 * position it can use. */
+		*buff = NULL;
+		*size = 0;
+		*offset = raw->offset;
 		return (ARCHIVE_EOF);
+	}
 
 	/* Get whatever bytes are immediately available. */
 	*buff = __archive_read_ahead(a, 1, &avail);
