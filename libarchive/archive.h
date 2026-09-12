@@ -611,6 +611,12 @@ __LA_DECL int archive_read_next_header2(struct archive *,
 __LA_DECL la_int64_t		 archive_read_header_position(struct archive *);
 
 /*
+ * Retrieve the byte offset in the format output stream where the
+ * last-written header started.
+ */
+__LA_DECL la_int64_t		 archive_write_header_position(struct archive *);
+
+/*
  * Returns 1 if the archive contains at least one encrypted entry.
  * If the archive format not support encryption at all
  * ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED is returned.
