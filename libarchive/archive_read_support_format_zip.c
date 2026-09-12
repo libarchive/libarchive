@@ -170,6 +170,10 @@ struct zip {
 	/* These count the number of bytes actually read for the entry. */
 	int64_t			entry_compressed_bytes_read;
 	int64_t			entry_uncompressed_bytes_read;
+	/* Compressed bytes actually processed by a decompressor. */
+	int64_t			entry_compressed_bytes_decoded;
+	/* Optional compressed-input limit for header-time decoding. */
+	int64_t			entry_compressed_bytes_limit;
 
 	/* Running CRC32 of the decompressed and decrypted data */
 	unsigned long		computed_crc32;
@@ -259,6 +263,8 @@ struct zip {
 
 /* Many systems define min or MIN, but not all. */
 #define	zipmin(a,b) ((a) < (b) ? (a) : (b))
+#define	ZIP_SYMLINK_MAX_COMPRESSED_SIZE (64 * 1024)
+#define	ZIP_SYMLINK_MAX_UNCOMPRESSED_SIZE (256 * 1024)
 
 /* True if this entry has declared a specific uncompressed size. */
 static int
@@ -279,6 +285,8 @@ static int
 zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	size_t *size, int64_t *offset);
 #endif
+static int
+zip_read_compressed_symlink(struct archive_read *, char **, size_t *);
 
 static void
 trad_enc_decrypt_update(struct trad_enc_ctx *, const uint8_t *, size_t,
@@ -1124,6 +1132,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip->end_of_entry = 0;
 	zip->entry_uncompressed_bytes_read = 0;
 	zip->entry_compressed_bytes_read = 0;
+	zip->entry_compressed_bytes_decoded = 0;
+	zip->entry_compressed_bytes_limit = 0;
 	zip->computed_crc32 = zip->crc32func(0, NULL, 0);
 
 	/* Setup default conversion. */
@@ -1358,9 +1368,11 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_atime(entry, zip_entry->atime, 0);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
+		char *uncompressed_buffer = NULL;
 		size_t linkname_length;
 
-		if (zip_entry->compressed_size > 64 * 1024) {
+		if (zip_entry->compressed_size >
+		    ZIP_SYMLINK_MAX_COMPRESSED_SIZE) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Zip file with oversized link entry");
 			return ARCHIVE_FATAL;
@@ -1374,44 +1386,12 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		size_t linkname_full_length = linkname_length;
 		if (zip->entry->compression != 0)
 		{
-			// symlink target string appeared to be compressed
-			int status = ARCHIVE_FATAL;
-			const void *uncompressed_buffer = NULL;
+			int status = zip_read_compressed_symlink(a,
+			    &uncompressed_buffer, &linkname_full_length);
 
-			switch (zip->entry->compression)
-			{
-#if HAVE_ZLIB_H
-				case 8: /* Deflate compression. */
-					zip->entry_bytes_remaining = zip_entry->compressed_size;
-					status = zip_read_data_deflate(a, &uncompressed_buffer,
-						&linkname_full_length, NULL);
-					break;
-#endif
-#if HAVE_LZMA_H && HAVE_LIBLZMA
-				case 14: /* ZIPx LZMA compression. */
-					/*(see zip file format specification, section 4.4.5)*/
-					zip->entry_bytes_remaining = zip_entry->compressed_size;
-					status = zip_read_data_zipx_lzma_alone(a, &uncompressed_buffer,
-						&linkname_full_length, NULL);
-					break;
-#endif
-				default: /* Unsupported compression. */
-					break;
-			}
-			if (status == ARCHIVE_OK)
-			{
-				p = uncompressed_buffer;
-			}
-			else
-			{
-				archive_set_error(&a->archive,
-					ARCHIVE_ERRNO_FILE_FORMAT,
-					"Unsupported ZIP compression method "
-					"during decompression of link entry (%d: %s)",
-					zip->entry->compression,
-					compression_name(zip->entry->compression));
-				return ARCHIVE_FAILED;
-			}
+			if (status != ARCHIVE_OK)
+				return status;
+			p = uncompressed_buffer;
 		}
 		else
 		{
@@ -1438,6 +1418,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			if (errno == ENOMEM) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for Symlink");
+				free(uncompressed_buffer);
 				return (ARCHIVE_FATAL);
 			}
 			/*
@@ -1456,9 +1437,11 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				ret = ARCHIVE_WARN;
 			}
 		}
+		free(uncompressed_buffer);
 		zip_entry->uncompressed_size = zip_entry->compressed_size = 0;
 
-		if (__archive_read_consume(a, linkname_length) < 0) {
+		if (zip->entry->compression == 0 &&
+		    __archive_read_consume(a, linkname_length) < 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Read error skipping symlink target name");
 			return ARCHIVE_FATAL;
@@ -1779,6 +1762,171 @@ consume_end_of_file_marker(struct archive_read *a, struct zip *zip)
 		zip->entry->compressed_size = compressed32;
 		zip->entry->uncompressed_size = uncompressed32;
 	}
+}
+
+static int
+zip_read_compressed_symlink(struct archive_read *a, char **linkname,
+    size_t *linkname_length)
+{
+	struct archive_string linkname_buffer;
+	struct zip *zip = a->format->data;
+	const void *uncompressed_buffer;
+	int64_t compressed_bytes_decoded;
+	size_t uncompressed_size;
+	unsigned long crc32;
+	int length_at_end;
+	int status;
+
+	length_at_end = zip->entry->zip_flags & ZIP_LENGTH_AT_END;
+	switch (zip->entry->compression) {
+#if HAVE_ZLIB_H
+	case 8: /* Deflate compression. */
+		break;
+#endif
+#if HAVE_LZMA_H && HAVE_LIBLZMA
+	case 14: /* ZIPx LZMA compression. */
+		break;
+#endif
+	default:
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Unsupported ZIP compression method during decompression "
+		    "of link entry (%d: %s)", zip->entry->compression,
+		    compression_name(zip->entry->compression));
+		return (ARCHIVE_FAILED);
+	}
+
+	/*
+	 * With known sizes, gather the bounded compressed body so one decoder
+	 * call is sufficient even when the client supplies very small blocks.
+	 * Length-at-end entries instead have to be decoded until the codec's
+	 * end marker, then verified against their data descriptor.
+	 */
+	if (!length_at_end && __archive_read_ahead(a,
+	    (size_t)zip->entry->compressed_size, NULL) == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated ZIP symlink body");
+		return (ARCHIVE_FATAL);
+	}
+
+	archive_string_init(&linkname_buffer);
+	if (archive_string_ensure(&linkname_buffer, 1) == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "No memory for ZIP symlink target");
+		return (ARCHIVE_FATAL);
+	}
+	linkname_buffer.s[0] = '\0';
+	zip->entry_bytes_remaining = zip->entry->compressed_size;
+	if (length_at_end)
+		zip->entry_compressed_bytes_limit =
+		    ZIP_SYMLINK_MAX_COMPRESSED_SIZE;
+
+	for (;;) {
+		compressed_bytes_decoded =
+		    zip->entry_compressed_bytes_decoded;
+		uncompressed_buffer = NULL;
+		uncompressed_size = 0;
+		switch (zip->entry->compression) {
+#if HAVE_ZLIB_H
+		case 8:
+			status = zip_read_data_deflate(a,
+			    &uncompressed_buffer, &uncompressed_size, NULL);
+			break;
+#endif
+#if HAVE_LZMA_H && HAVE_LIBLZMA
+		case 14:
+			status = zip_read_data_zipx_lzma_alone(a,
+			    &uncompressed_buffer, &uncompressed_size, NULL);
+			break;
+#endif
+		default:
+			status = ARCHIVE_FAILED;
+			break;
+		}
+		if (status != ARCHIVE_OK)
+			goto failed;
+		if (uncompressed_size > ZIP_SYMLINK_MAX_UNCOMPRESSED_SIZE -
+		    linkname_buffer.length) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Zip file with oversized link entry");
+			status = ARCHIVE_FATAL;
+			goto failed;
+		}
+		if (uncompressed_size > 0) {
+			if (archive_string_ensure(&linkname_buffer,
+			    linkname_buffer.length + uncompressed_size + 1) ==
+			    NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory for ZIP symlink target");
+				status = ARCHIVE_FATAL;
+				goto failed;
+			}
+			memcpy(linkname_buffer.s + linkname_buffer.length,
+			    uncompressed_buffer, uncompressed_size);
+			linkname_buffer.length += uncompressed_size;
+			linkname_buffer.s[linkname_buffer.length] = '\0';
+		}
+		if (zip->end_of_entry)
+			break;
+		if (uncompressed_size == 0 && compressed_bytes_decoded ==
+		    zip->entry_compressed_bytes_decoded) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Compressed ZIP symlink decoder made no progress");
+			status = ARCHIVE_FATAL;
+			goto failed;
+		}
+	}
+
+	crc32 = zip->crc32func(0, linkname_buffer.s,
+	    linkname_buffer.length);
+	zip->computed_crc32 = crc32;
+	if (length_at_end)
+		consume_end_of_file_marker(a, zip);
+	if (!zip->end_of_entry || (!length_at_end &&
+	    zip->entry_bytes_remaining != 0)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Invalid compressed ZIP symlink body");
+		status = ARCHIVE_FAILED;
+		goto failed;
+	}
+	if (zip->entry_compressed_bytes_decoded !=
+	    zip->entry->compressed_size) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "ZIP compressed data is wrong size (decoded %jd, "
+		    "expected %jd)",
+		    (intmax_t)zip->entry_compressed_bytes_decoded,
+		    (intmax_t)zip->entry->compressed_size);
+		status = ARCHIVE_FAILED;
+		goto failed;
+	}
+	if (zip->entry_uncompressed_bytes_read !=
+	    zip->entry->uncompressed_size) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "ZIP uncompressed data is wrong size (read %jd, "
+		    "expected %jd)",
+		    (intmax_t)zip->entry_uncompressed_bytes_read,
+		    (intmax_t)zip->entry->uncompressed_size);
+		status = ARCHIVE_FAILED;
+		goto failed;
+	}
+	if ((!zip->hctx_valid ||
+	    zip->entry->aes_extra.vendor != AES_VENDOR_AE_2) &&
+	    zip->entry->crc32 != crc32 && !zip->ignore_crc32) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "ZIP bad CRC: 0x%lx should be 0x%lx", crc32,
+		    (unsigned long)zip->entry->crc32);
+		status = ARCHIVE_FAILED;
+		goto failed;
+	}
+
+	*linkname = linkname_buffer.s;
+	*linkname_length = linkname_buffer.length;
+	zip->entry_compressed_bytes_limit = 0;
+	return (ARCHIVE_OK);
+
+failed:
+	archive_string_free(&linkname_buffer);
+	return (status);
 }
 
 /*
@@ -2116,6 +2264,7 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	/* We've already consumed some bytes, so take this into account. */
 	__archive_read_consume(a, 9);
 	zip->entry_compressed_bytes_read += 9;
+	zip->entry_compressed_bytes_decoded += 9;
 	if (zip->entry_bytes_remaining > 0) {
 		zip->entry_bytes_remaining -= 9;
 	}
@@ -2257,6 +2406,16 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 		&& bytes_avail > zip->entry_bytes_remaining) {
 		bytes_avail = (ssize_t)zip->entry_bytes_remaining;
 	}
+	if (zip->entry_compressed_bytes_limit > 0) {
+		int64_t bytes_remaining =
+		    zip->entry_compressed_bytes_limit -
+		    zip->entry_compressed_bytes_decoded;
+
+		if (bytes_remaining < 0)
+			bytes_remaining = 0;
+		if (bytes_avail > bytes_remaining)
+			bytes_avail = (ssize_t)bytes_remaining;
+	}
 	if (bytes_avail < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated lzma file body");
@@ -2339,6 +2498,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	/* Update pointers. */
 	__archive_read_consume(a, to_consume);
 	zip->entry_compressed_bytes_read += to_consume;
+	zip->entry_compressed_bytes_decoded += to_consume;
 	zip->entry_uncompressed_bytes_read += zip->zipx_lzma_stream.total_out;
 
 	zip_read_decrypt_update(zip, to_consume, sp);
@@ -2932,6 +3092,16 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	    && bytes_avail > zip->entry_bytes_remaining) {
 		bytes_avail = (ssize_t)zip->entry_bytes_remaining;
 	}
+	if (zip->entry_compressed_bytes_limit > 0) {
+		int64_t bytes_remaining =
+		    zip->entry_compressed_bytes_limit -
+		    zip->entry_compressed_bytes_decoded;
+
+		if (bytes_remaining < 0)
+			bytes_remaining = 0;
+		if (bytes_avail > bytes_remaining)
+			bytes_avail = (ssize_t)bytes_remaining;
+	}
 	if (bytes_avail < 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file body");
@@ -2986,6 +3156,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	__archive_read_consume(a, to_consume);
 	zip->entry_bytes_remaining -= to_consume;
 	zip->entry_compressed_bytes_read += to_consume;
+	zip->entry_compressed_bytes_decoded += to_consume;
 	zip->entry_uncompressed_bytes_read += zip->stream.total_out;
 
 	zip_read_decrypt_update(zip, to_consume, sp);
