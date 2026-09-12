@@ -4126,6 +4126,13 @@ static int do_unstore_file(struct archive_read* a,
 	size_t to_read;
 	const uint8_t* p;
 
+	/* This function returns without any data on more than one path,
+	 * and the end of the stored data is the position all of them
+	 * should report. */
+	if(buf)    *buf = NULL;
+	if(size)   *size = 0;
+	if(offset) *offset = rar5->cstate.last_unstore_ptr;
+
 	if(rar5->file.bytes_remaining == 0 && rar5->main.volume > 0 &&
 	    rar5->generic.split_after > 0)
 	{
@@ -4344,6 +4351,8 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	struct rar5 *rar5 = a->format->data;
 	int ret;
 
+	if (buff)
+		*buff = NULL;
 	if (size)
 		*size = 0;
 
@@ -4379,6 +4388,11 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	}
 
 	if(rar5->file.eof == 1) {
+		/* The entry is over; report the end of the unpacked data,
+		 * so that a sparse-file aware caller does not have to
+		 * guess where it is. */
+		if (offset)
+			*offset = rar5->cstate.last_write_ptr;
 		return ARCHIVE_EOF;
 	}
 
