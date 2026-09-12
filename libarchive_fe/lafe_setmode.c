@@ -33,8 +33,14 @@
  */
 
 #include "lafe_platform.h"
-#include "archive_platform.h" /* for S_I* mode macros on windows */
-#include "archive_umask_private.h"
+/*
+ * Include archive_platform.h only for S_I* mode macros.
+ * Undefine __LIBARCHIVE_BUILD again: libarchive.so can be
+ * linked dynamically, which turns private functions inaccessible.
+ */
+#include "archive_platform.h"
+#undef	__LIBARCHIVE_BUILD
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef HAVE_SYS_SYSCTL_H
@@ -187,7 +193,8 @@ lafe_setmode(const char *p)
 	 * Get a copy of the mask for the permissions that are mask relative.
 	 * Flip the bits, we want what's not set.
 	 */
-	mask = ~__archive_get_umask();
+	umask(mask = umask(0));
+	mask = ~mask;
 
 	setlen = SET_LEN + 2;
 
