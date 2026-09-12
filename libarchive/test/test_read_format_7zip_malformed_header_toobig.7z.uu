@@ -1,0 +1,12 @@
+begin 644 test_read_format_7zip_malformed_header_toobig.7z
+M-WJ\KR<<]P    $             3%I)   X  &T_T\!!3,S,PH*75U=75UR
+M<E):25P ,S,*"EU=75U=<G)26DE<0#,S,S,S,ST]/3T*75U=75U=75UJ"EU=
+M75U=0"TZ+4!O9S,S,S,S,S,*"EU=75U=75U=75U=75U=75U=75U=8%UJ"F)E
+M9VEN+6)A<V5=77)R75U=75UA<V4W9VH*8F5G:6XM8F%=75U=75U=75U=8%UJ
+M"F)E9VEN+5U=8EUR75U=75UJ"ET*"F)E9VDS"@IB96=I;@8@75U=75TS,PH*
+M8F5G:6X@75U=72!=75U=72TV"@IB96=I;O__________________________
+M_________________TU:-GJ\KR<<]P    @      $D"              "\
+MKR<<*R8Q]P  -WJ\KR<<]P  "   "   2<S,S,S,S,S,S,S,S,S,S,S,S,S,
+HS,S,S,S,S,S,S,S,S,S,S,S,S&=I;F4V(%U 73,S"@IB96=I;B!=70  
+`
+end
