@@ -97,9 +97,6 @@
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
 
-#ifndef HAVE_FCHDIR
-#error fchdir function required.
-#endif
 #ifndef O_BINARY
 #define O_BINARY	0
 #endif
@@ -112,6 +109,18 @@
 #if defined(__hpux) && !defined(HAVE_DIRFD)
 #define dirfd(x) ((x)->__dd_fd)
 #define HAVE_DIRFD
+#endif
+
+#ifndef HAVE_FCHDIR
+/*
+ * Stub function for platforms that do not support fchdir.  This is OK on
+ * platforms with newer *at functions as fchdir isn't used there (e.g. WASI).
+ */
+static int fchdir(int fd)
+{
+	errno = ENOSYS;
+	return -1;
+}
 #endif
 
 /*-
@@ -2231,7 +2240,12 @@ tree_enter_initial_dir(struct tree *t)
 	int r = 0;
 
 	if ((t->flags & onInitialDir) == 0) {
+#ifdef HAVE_FCHDIR
 		r = fchdir(t->initial_dir_fd);
+#else
+		r = -1;
+		errno = ENOSYS;
+#endif
 		if (r == 0) {
 			t->flags &= ~onWorkingDir;
 			t->flags |= onInitialDir;
@@ -2254,7 +2268,12 @@ tree_enter_working_dir(struct tree *t)
 	 * descent.
 	 */
 	if (t->depth > 0 && (t->flags & onWorkingDir) == 0) {
+#ifdef HAVE_FCHDIR
 		r = fchdir(t->working_dir_fd);
+#else
+		r = -1;
+		errno = ENOSYS;
+#endif
 		if (r == 0) {
 			t->flags &= ~onInitialDir;
 			t->flags |= onWorkingDir;
