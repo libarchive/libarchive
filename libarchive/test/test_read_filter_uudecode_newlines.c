@@ -51,7 +51,7 @@ test_data(const char *newline)
 	archive_string_init(&s);
 	create_data(&s, newline);
 
-	/* Read 810 uu-decoded 0 bytes. */
+	/* Read 810 uu-encoded 0 bytes. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_uu(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
@@ -72,4 +72,5 @@ DEFINE_TEST(test_read_filter_uudecode_newlines)
 {
 	test_data("\r");
 	test_data("\n");
+	test_data("\r\n");
 }
