@@ -870,6 +870,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_mtree_crash747.mtree.bz2.uu \
 	libarchive/test/test_read_format_mtree_noprint.mtree.uu \
 	libarchive/test/test_read_format_7zip_bcj2_bzip2.7z.uu \
+	libarchive/test/test_read_format_7zip_bcj2_substream_huge.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj2_copy_1.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj2_copy_2.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj2_copy_lzma.7z.uu \
