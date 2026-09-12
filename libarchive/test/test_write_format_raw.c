@@ -24,6 +24,57 @@
  */
 #include "test.h"
 
+static la_ssize_t
+write_callback(struct archive *a, void *client_data, const void *buffer,
+    size_t length)
+{
+	(void)a;
+	(void)client_data;
+	(void)buffer;
+	return ((la_ssize_t)length);
+}
+
+static int
+close_callback(struct archive *a, void *client_data)
+{
+	int *close_count = client_data;
+
+	(void)a;
+	(*close_count)++;
+	return (ARCHIVE_OK);
+}
+
+static void
+test_fatal_cleanup(int close_first)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	int close_count = 0;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open(a, &close_count,
+	    NULL, write_callback, close_callback));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "first");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_set_pathname(ae, "second");
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	if (close_first) {
+		assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
+		assertEqualInt(1, close_count);
+		assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
+	}
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(1, close_count);
+}
+
 static void
 test_format(int	(*set_format)(struct archive *))
 {
@@ -120,4 +171,6 @@ test_format(int	(*set_format)(struct archive *))
 DEFINE_TEST(test_write_format_raw)
 {
 	test_format(archive_write_set_format_raw);
+	test_fatal_cleanup(0);
+	test_fatal_cleanup(1);
 }
