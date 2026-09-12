@@ -54,6 +54,7 @@
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_write_private.h"
@@ -5978,7 +5979,8 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	struct iso9660 *iso9660 = a->format_data;
 	struct isoent *np;
 	char *p;
-	int l, r;
+	size_t l;
+	int r;
 	const char *char_map;
 	char allow_ldots, allow_multidot, allow_period, allow_vernum;
 	int fnmax, ffmax, dnmax;
@@ -6035,9 +6037,16 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 	for (np = isoent->children.first; np != NULL; np = np->chnext) {
 		char *dot, *xdot;
 		int ext_off, noff, weight;
+		size_t alloc_size;
 
-		l = (int)np->file->basename.length;
-		p = malloc(l + num_size + dot_size + version_size + null_size);
+		l = np->file->basename.length;
+		if (archive_ckd_add_size(&alloc_size, l,
+		    num_size + dot_size + version_size + null_size)) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory");
+			return (ARCHIVE_FATAL);
+		}
+		p = malloc(alloc_size);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
@@ -6092,15 +6101,18 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 			else
 				nammax = fnmax;
 
-			if (l > nammax) {
+			if (l > (size_t)nammax) {
 				p[nammax] = '\0';
 				weight = nammax;
 				ext_off = nammax;
 			} else
-				ext_off = l;
+				ext_off = (int)l;
 		} else {
 			*dot = '.';
-			ext_off = (int)(dot - p);
+			if (dot - p > ffmax)
+				ext_off = ffmax;
+			else
+				ext_off = (int)(dot - p);
 
 			if (iso9660->opt.iso_level == 1) {
 				if (dot - p <= 8) {
@@ -6120,27 +6132,29 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 					ext_off = 8;
 				}
 			} else if (np->dir) {
-				if (l > dnmax) {
+				if (l > (size_t)dnmax) {
 					p[dnmax] = '\0';
 					weight = dnmax;
 					if (ext_off > dnmax)
 						ext_off = dnmax;
 				}
-			} else if (l > ffmax) {
-				int extlen = (int)strlen(dot);
+			} else if (l > (size_t)ffmax) {
+				size_t extlen = strlen(dot);
 				int xdoff;
 
-				if (xdot != NULL)
-					xdoff = (int)(xdot - p);
-				else
+				if (xdot == NULL)
 					xdoff = 0;
+				else if (xdot - p > fnmax)
+					xdoff = fnmax;
+				else
+					xdoff = (int)(xdot - p);
 
 				if (extlen > 1 && xdoff < fnmax-1) {
 					int off;
 
-					if (extlen > ffmax)
+					if (extlen > (size_t)ffmax)
 						extlen = ffmax;
-					off = ffmax - extlen;
+					off = ffmax - (int)extlen;
 					if (off == 0) {
 						/* A dot('.')  character
 						 * doesn't place to the first
@@ -6169,7 +6183,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 		/* Save an offset of a file name extension to sort files. */
 		np->ext_off = ext_off;
 		np->ext_len = (int)strlen(&p[ext_off]);
-		np->id_len = l = ext_off + np->ext_len;
+		l = np->id_len = ext_off + np->ext_len;
 
 		/* Make an offset of the number which is used to be set
 		 * hexadecimal number to avoid duplicate identifier. */
@@ -6179,11 +6193,11 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 			else
 				noff = ext_off;
 		} else {
-			if (l == ffmax)
+			if (l == (size_t)ffmax)
 				noff = ext_off - 3;
-			else if (l == ffmax-1)
+			else if (l == (size_t)(ffmax-1))
 				noff = ext_off - 2;
-			else if (l == ffmax-2)
+			else if (l == (size_t)(ffmax-2))
 				noff = ext_off - 1;
 			else
 				noff = ext_off;
