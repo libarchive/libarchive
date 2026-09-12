@@ -1,0 +1,51 @@
+# RAR (v4) format dictionary
+# Magic bytes (RAR4 signature, see RAR_SIGNATURE in archive_read_support_format_rar.c)
+"Rar!\x1a\x07\x00"
+"\x52\x61\x72\x21\x1a\x07\x00"
+
+# Block header types (MARK_HEAD .. ENDARC_HEAD)
+"\x72"
+"\x73"
+"\x74"
+"\x75"
+"\x76"
+"\x77"
+"\x78"
+"\x79"
+"\x7a"
+"\x7b"
+
+# Main archive header flags (MHD_*)
+"\x01\x00"
+"\x02\x00"
+"\x04\x00"
+"\x08\x00"
+"\x10\x00"
+"\x20\x00"
+"\x40\x00"
+"\x80\x00"
+"\x00\x01"
+"\x00\x02"
+
+# File header flags (FHD_*)
+"\x04\x00"
+"\x08\x00"
+"\x10\x00"
+"\x00\x01"
+"\x00\x02"
+"\x00\x04"
+"\x00\x08"
+"\x00\x10"
+"\x00\x20"
+
+# Compression methods (COMPRESS_METHOD_*)
+"\x30"
+"\x31"
+"\x32"
+"\x33"
+"\x34"
+"\x35"
+
+# Password/encryption marker (fuzzer supplies this passphrase)
+"password"
+"Password"
