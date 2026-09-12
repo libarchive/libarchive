@@ -997,7 +997,7 @@ write_mtree_entry(struct archive_write *a, struct mtree_entry *me)
 
 	keys = get_global_set_keys(mtree, me);
 	if ((keys & F_NLINK) != 0 &&
-	    me->nlink != 1 && me->filetype != AE_IFDIR)
+	    me->nlink != 0 && me->nlink != 1 && me->filetype != AE_IFDIR)
 		archive_string_sprintf(str, " nlink=%u", me->nlink);
 
 	if ((keys & F_GNAME) != 0 && archive_strlen(&me->gname) > 0) {
