@@ -87,7 +87,6 @@ struct name_cache {
 };
 
 static int	extract_data(struct archive *, struct archive *);
-const char *	cpio_i64toa(int64_t);
 static void	cpio_rename(struct archive_entry *);
 static int	entry_to_archive(struct cpio *, struct archive_entry *);
 static int	file_to_archive(struct cpio *, const char *);
@@ -1185,9 +1184,11 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 
 	if (cpio->option_numeric_uid_gid) {
 		/* Format numeric uid/gid for display. */
-		strcpy(uids, cpio_i64toa(archive_entry_uid(entry)));
+		snprintf(uids, sizeof(uids), "%lld",
+		    (long long)archive_entry_uid(entry));
 		uname = uids;
-		strcpy(gids, cpio_i64toa(archive_entry_gid(entry)));
+		snprintf(gids, sizeof(gids), "%lld",
+		    (long long)archive_entry_gid(entry));
 		gname = gids;
 	} else {
 		/* Use uname if it's present, else lookup name from uid. */
@@ -1207,7 +1208,8 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 		    (unsigned long)archive_entry_rdevmajor(entry),
 		    (unsigned long)archive_entry_rdevminor(entry));
 	} else {
-		strcpy(size, cpio_i64toa(archive_entry_size(entry)));
+		snprintf(size, sizeof(size), "%lld",
+		    (long long)archive_entry_size(entry));
 	}
 
 	/* Format the time using 'ls -l' conventions. */
@@ -1454,8 +1456,8 @@ lookup_uname_helper(struct cpio *cpio, const char **name, id_t id)
 	pwent = getpwuid((uid_t)id);
 	if (pwent == NULL) {
 		if (errno && errno != ENOENT)
-			lafe_warnc(errno, "getpwuid(%s) failed",
-			    cpio_i64toa((int64_t)id));
+			lafe_warnc(errno, "getpwuid(%lld) failed",
+			    (long long)id);
 		return 1;
 	}
 
@@ -1481,38 +1483,13 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 	grent = getgrgid((gid_t)id);
 	if (grent == NULL) {
 		if (errno && errno != ENOENT)
-			lafe_warnc(errno, "getgrgid(%s) failed",
-			    cpio_i64toa((int64_t)id));
+			lafe_warnc(errno, "getgrgid(%lld) failed",
+			    (long long)id);
 		return 1;
 	}
 
 	*name = grent->gr_name;
 	return 0;
-}
-
-/*
- * It would be nice to just use printf() for formatting large numbers,
- * but the compatibility problems are a big headache.  Hence the
- * following simple utility function.
- */
-const char *
-cpio_i64toa(int64_t n0)
-{
-	/* 2^64 =~ 1.8 * 10^19, so 20 decimal digits suffice.
-	 * We also need 1 byte for '-' and 1 for '\0'.
-	 */
-	static char buff[22];
-	int64_t n = n0 < 0 ? -n0 : n0;
-	char *p = buff + sizeof(buff);
-
-	*--p = '\0';
-	do {
-		*--p = '0' + (int)(n % 10);
-		n /= 10;
-	} while (n > 0);
-	if (n0 < 0)
-		*--p = '-';
-	return p;
 }
 
 #define PPBUFF_SIZE 1024
