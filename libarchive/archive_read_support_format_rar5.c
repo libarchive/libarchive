@@ -4383,7 +4383,7 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	}
 
 	ret = do_unpack(a, rar5, buff, size, offset);
-	if(ret != ARCHIVE_OK) {
+	if(ret < ARCHIVE_OK) {
 		return ret;
 	}
 
