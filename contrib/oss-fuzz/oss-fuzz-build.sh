@@ -104,7 +104,10 @@ create_corpus "libarchive_ar_fuzzer" "test_read_format_ar*.uu"
 
 # Filter corpus - use compressed test files
 mkdir -p /tmp/filter_corpus
-for f in $TEST_DIR/*.gz.uu $TEST_DIR/*.bz2.uu $TEST_DIR/*.xz.uu $TEST_DIR/*.lz4.uu $TEST_DIR/*.zst.uu $TEST_DIR/*.Z.uu; do
+for f in $TEST_DIR/*.gz.uu $TEST_DIR/*.bz2.uu $TEST_DIR/*.xz.uu $TEST_DIR/*.lz4.uu \
+         $TEST_DIR/*.zst.uu $TEST_DIR/*.Z.uu $TEST_DIR/*.lz.uu $TEST_DIR/*.rpm.uu \
+         $TEST_DIR/test_read_filter_uudecode*.uu \
+         $TEST_DIR/*.lrz.uu $TEST_DIR/*.grz.uu $TEST_DIR/*.lzo.uu; do
     if [ -f "$f" ]; then
         base=$(basename "$f" .uu)
         uudecode -o "/tmp/filter_corpus/$base" "$f" 2>/dev/null || true
