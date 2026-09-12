@@ -1389,16 +1389,6 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 	for (;;) {
 
 		/*
-		 * If we can satisfy from the copy buffer (and the
-		 * copy buffer isn't empty), we're done.
-		 */
-		if (f->avail >= min) {
-			if (avail != NULL)
-				*avail = f->avail;
-			return (f->next);
-		}
-
-		/*
 		 * We can satisfy directly from client buffer if everything
 		 * currently in the copy buffer is still in the client buffer.
 		 */
@@ -1416,13 +1406,11 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 			return (f->client_next);
 		}
 
-		/* Move data forward in copy buffer if necessary. */
-		if (f->next > f->buffer &&
-		    min > f->buffer_size - (f->next - f->buffer)) {
-			if (f->avail > 0)
-				memmove(f->buffer, f->next,
-				    f->avail);
-			f->next = f->buffer;
+		/* If we can satisfy from the copy buffer, we're done. */
+		if (f->avail >= min) {
+			if (avail != NULL)
+				*avail = f->avail;
+			return (f->next);
 		}
 
 		/* If we've used up the client data, get more. */
@@ -1528,6 +1516,14 @@ __archive_read_filter_ahead(struct archive_read_filter *f,
 				free(f->buffer);
 				f->next = f->buffer = p;
 				f->buffer_size = s;
+			} else if (f->next > f->buffer &&
+			    min > f->buffer_size - (f->next - f->buffer)) {
+				/* Move data forward in copy buffer
+				 * if necessary. */
+				if (f->avail > 0)
+					memmove(f->buffer, f->next,
+					    f->avail);
+				f->next = f->buffer;
 			}
 
 			/* We can add client data to copy buffer. */
