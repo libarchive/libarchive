@@ -53,7 +53,8 @@
 #endif
 #if HAVE_LIBXML_XMLVERSION_H
 #include <libxml/xmlversion.h>
-#elif HAVE_BSDXML_H
+#endif
+#if HAVE_BSDXML_H
 #include <bsdxml.h>
 #elif HAVE_EXPAT_H
 #include <expat.h>
