@@ -3313,28 +3313,6 @@ copy_reference_file(const char *name)
 	fclose(in);
 }
 
-int
-is_LargeInode(const char *file)
-{
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	BY_HANDLE_FILE_INFORMATION bhfi;
-	int r;
-
-	r = my_GetFileInformationByName(file, &bhfi);
-	if (r != 0)
-		return (0);
-	return (bhfi.nFileIndexHigh & 0x0000FFFFUL);
-#else
-	struct stat st;
-	int64_t ino;
-
-	if (stat(file, &st) < 0)
-		return (0);
-	ino = (int64_t)st.st_ino;
-	return (ino > 0xffffffff);
-#endif
-}
-
 void
 extract_reference_files(const char **names)
 {
