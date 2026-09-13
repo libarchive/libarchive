@@ -1816,6 +1816,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_t_bad.c \
 	unzip/test/test_u.c \
 	unzip/test/test_version.c \
+	unzip/test/test_windows_paths.c \
 	unzip/test/test_x.c \
 	unzip/test/test_Z1.c \
 	unzip/test/test_P_encryption.c \
@@ -1851,6 +1852,7 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/test_symlink_1.zip.uu \
 	unzip/test/test_symlink_2.zip.uu \
 	unzip/test/test_symlink_dotdot.zip.uu \
+	unzip/test/test_windows_paths.zip.uu \
 	unzip/test/test_t_bad.zip.uu \
 	unzip/test/test_u_new.zip.uu \
 	unzip/test/test_u_old.zip.uu \
