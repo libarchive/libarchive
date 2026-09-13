@@ -1635,7 +1635,6 @@ DEFINE_TEST(test_read_format_7zip_extract_second)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-#ifdef LZMA_FILTER_RISCV
 static void
 test_riscv_filter(const char *refname)
 {
@@ -1673,7 +1672,6 @@ test_riscv_filter(const char *refname)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
-#endif
 
 DEFINE_TEST(test_read_format_7zip_lzma2_riscv)
 {
@@ -1693,6 +1691,22 @@ DEFINE_TEST(test_read_format_7zip_lzma2_riscv)
 #else
 	skipping("This version of liblzma does not support LZMA_FILTER_RISCV");
 #endif
+}
+
+DEFINE_TEST(test_read_format_7zip_deflate_riscv)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_gzip(a)) {
+		skipping(
+		    "7zip:deflate decoding is not supported on this platform");
+	} else {
+		test_riscv_filter("test_read_format_7zip_deflate_riscv.7z");
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 static void
