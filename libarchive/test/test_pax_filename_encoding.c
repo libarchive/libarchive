@@ -387,7 +387,10 @@ DEFINE_TEST(test_pax_filename_encoding_CP1251)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
+#endif
 	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
 		skipping("CP1251 locale not available on this system.");
 		return;
@@ -481,7 +484,10 @@ DEFINE_TEST(test_pax_filename_encoding_CP932)
 	char buff[4096];
 	size_t used;
 
-	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+#endif
 	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
 		skipping("CP932/SJIS locale not available on this system.");
 		return;

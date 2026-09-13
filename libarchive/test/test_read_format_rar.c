@@ -344,7 +344,10 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
   struct archive_entry *ae;
   struct archive *a;
 
-  if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+  if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+#endif
     NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
 	skipping("CP932 locale not available on this system.");
 	return;

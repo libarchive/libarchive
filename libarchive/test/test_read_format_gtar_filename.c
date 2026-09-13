@@ -88,7 +88,10 @@ DEFINE_TEST(test_read_format_gtar_filename_CP866_KOI8R)
 	/*
 	 * Read CP866 filename in ru_RU.KOI8-R with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia.20866") &&
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia.20866") &&
+#endif
 	    NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
@@ -193,7 +196,10 @@ DEFINE_TEST(test_read_format_gtar_filename_KOI8R_CP866)
 	/*
 	 * Read KOI8-R filename in ru_RU.CP866 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
+#endif
 	    NULL == setlocale(LC_ALL, "ru_RU.CP866")) {
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
@@ -298,7 +304,10 @@ DEFINE_TEST(test_read_format_gtar_filename_eucJP_CP932)
 	/*
 	 * Read eucJP filename in CP932/SJIS with "hdrcharset=eucJP" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+#endif
 	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
 		skipping("CP932 locale not available on this system.");
 		return;
@@ -349,7 +358,10 @@ DEFINE_TEST(test_read_format_gtar_filename_CP866_CP1251)
 	/*
 	 * Read CP866 filename in CP1251 with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
+#endif
 	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
 		skipping("CP1251 locale not available on this system.");
 		return;
@@ -408,7 +420,10 @@ DEFINE_TEST(test_read_format_gtar_filename_CP866_CP1251_win)
 	/*
 	 * Read CP866 filename in CP1251 without "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia")) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (NULL == setlocale(LC_ALL, "Russian_Russia"))
+#endif
+	{
 		skipping("Russian_Russia locale not available on this system.");
 		return;
 	}
@@ -454,7 +469,10 @@ DEFINE_TEST(test_read_format_gtar_filename_KOI8R_CP1251)
 	/*
 	 * Read KOI8-R filename in CP1251 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
+#endif
 	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
 		skipping("CP1251 locale not available on this system.");
 		return;
