@@ -666,8 +666,8 @@ archive_read_format_tar_read_header(struct archive_read *a,
 
 			r = tar_read_header(a, tar, entry, &unconsumed);
 			if (tar_flush_unconsumed(a, &unconsumed) != ARCHIVE_OK) {
-				tar_clear_mac_metadata(tar);
-				return (ARCHIVE_FATAL);
+				r = ARCHIVE_FATAL;
+				goto tar_header_done;
 			}
 
 			if (tar->mac_metadata.entry != NULL && r == ARCHIVE_EOF) {
@@ -687,6 +687,9 @@ archive_read_format_tar_read_header(struct archive_read *a,
 				return (tar->mac_metadata.status);
 			}
 
+			if (r != ARCHIVE_OK && r != ARCHIVE_WARN)
+				goto tar_header_done;
+
 			/*
 			 * "non-sparse" files are really just sparse files with
 			 * a single block.
@@ -694,8 +697,8 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			if (tar->sparse_list == NULL) {
 				if (gnu_add_sparse_entry(a, tar, 0,
 				    tar->entry_bytes_remaining) != ARCHIVE_OK) {
-					tar_clear_mac_metadata(tar);
-					return (ARCHIVE_FATAL);
+					r = ARCHIVE_FATAL;
+					goto tar_header_done;
 				}
 			} else {
 				struct sparse_block *sb;
@@ -713,8 +716,8 @@ archive_read_format_tar_read_header(struct archive_read *a,
 				if (count < 0 || (size_t)count != added) {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 					    "Malformed sparse map data");
-					tar_clear_mac_metadata(tar);
-					return (ARCHIVE_FATAL);
+					r = ARCHIVE_FATAL;
+					goto tar_header_done;
 				}
 			}
 
@@ -743,6 +746,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			}
 		}
 
+tar_header_done:
 		if (tar->mac_metadata.entry != NULL) {
 			if (r != ARCHIVE_OK && r != ARCHIVE_WARN) {
 				tar->pending.status = r;
@@ -800,6 +804,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 		    || !archive_entry_size_is_set(entry)
 		    || archive_entry_size(entry) < 0
 		    || archive_entry_size(entry) > (int64_t)xattr_limit
+		    || archive_entry_size(entry) != tar->entry_bytes_remaining
 		    || (archive_entry_size(entry) > 0
 		    && (tar->sparse_list == NULL || tar->sparse_list->next != NULL
 		    || tar->sparse_list->hole || tar->sparse_list->offset != 0
@@ -1912,6 +1917,8 @@ mac_metadata_path_matches(const char *metadata_name,
 		next_pathname += 2;
 	metadata_length = strlen(metadata_name);
 	next_length = strlen(next_pathname);
+	while (next_length > 0 && next_pathname[next_length - 1] == '/')
+		next_length--;
 	metadata_base = strrchr(metadata_name, '/');
 	metadata_base = metadata_base == NULL ? metadata_name : metadata_base + 1;
 	if (metadata_base[0] != '.' || metadata_base[1] != '_'
@@ -1922,9 +1929,7 @@ mac_metadata_path_matches(const char *metadata_name,
 	if (base_offset == 0 && target_length == 1 && metadata_base[2] == '.'
 	    && next_length == 0)
 		return 1;
-	if (next_length != target_length
-	    && !(next_length == target_length + 1
-	    && next_pathname[next_length - 1] == '/'))
+	if (next_length != target_length)
 		return 0;
 	return memcmp(next_pathname, metadata_name, base_offset) == 0
 	    && memcmp(next_pathname + base_offset, metadata_base + 2,
@@ -1944,6 +1949,8 @@ mac_metadata_wpath_matches(const wchar_t *metadata_name,
 		next_pathname += 2;
 	metadata_length = wcslen(metadata_name);
 	next_length = wcslen(next_pathname);
+	while (next_length > 0 && next_pathname[next_length - 1] == L'/')
+		next_length--;
 	metadata_base = wcsrchr(metadata_name, L'/');
 	metadata_base = metadata_base == NULL ? metadata_name : metadata_base + 1;
 	if (metadata_base[0] != L'.' || metadata_base[1] != L'_'
@@ -1954,9 +1961,7 @@ mac_metadata_wpath_matches(const wchar_t *metadata_name,
 	if (base_offset == 0 && target_length == 1 && metadata_base[2] == L'.'
 	    && next_length == 0)
 		return 1;
-	if (next_length != target_length
-	    && !(next_length == target_length + 1
-	    && next_pathname[next_length - 1] == L'/'))
+	if (next_length != target_length)
 		return 0;
 	return wmemcmp(next_pathname, metadata_name, base_offset) == 0
 	    && wmemcmp(next_pathname + base_offset, metadata_base + 2,
