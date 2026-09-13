@@ -41,6 +41,9 @@
 #include <initguid.h>
 #include <xmllite.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif
@@ -460,8 +463,8 @@ static int	xmllite_read_toc(struct archive_read *);
 int
 archive_read_support_format_xar(struct archive *_a)
 {
-	struct xar *xar;
 	struct archive_read *a = (struct archive_read *)_a;
+	struct xar *xar;
 	int r;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
@@ -469,8 +472,7 @@ archive_read_support_format_xar(struct archive *_a)
 
 	xar = calloc(1, sizeof(*xar));
 	if (xar == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate xar data");
+		archive_set_error(_a, ENOMEM, "Can't allocate xar data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -491,6 +493,7 @@ archive_read_support_format_xar(struct archive *_a)
 	    xar_cleanup,
 	    NULL,
 	    NULL);
+
 	if (r != ARCHIVE_OK)
 		free(xar);
 	return (r);
@@ -499,38 +502,38 @@ archive_read_support_format_xar(struct archive *_a)
 static int
 xar_bid(struct archive_read *a, int best_bid)
 {
-	const unsigned char *b;
+	const char *h;
 	int bid;
 
 	(void)best_bid; /* UNUSED */
 
-	b = __archive_read_ahead(a, HEADER_SIZE, NULL);
-	if (b == NULL)
+	h = __archive_read_ahead(a, HEADER_SIZE, NULL);
+	if (h == NULL)
 		return (-1);
 
 	bid = 0;
 	/*
 	 * Verify magic code
 	 */
-	if (archive_be32dec(b) != HEADER_MAGIC)
+	if (archive_be32dec(h) != HEADER_MAGIC)
 		return (0);
 	bid += 32;
 	/*
 	 * Verify header size
 	 */
-	if (archive_be16dec(b+4) != HEADER_SIZE)
+	if (archive_be16dec(h+4) != HEADER_SIZE)
 		return (0);
 	bid += 16;
 	/*
 	 * Verify header version
 	 */
-	if (archive_be16dec(b+6) != HEADER_VERSION)
+	if (archive_be16dec(h+6) != HEADER_VERSION)
 		return (0);
 	bid += 16;
 	/*
 	 * Verify type of checksum
 	 */
-	switch (archive_be32dec(b+24)) {
+	switch (archive_be32dec(h+24)) {
 	case CKSUM_NONE:
 	case CKSUM_SHA1:
 	case CKSUM_MD5:
@@ -1063,6 +1066,11 @@ rd_contents(struct archive_read *a, const void **buff, size_t *size,
 	*used = bytes;
 	if (decompress(a, buff, size, b, used) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
+	if (remaining > 0 && *used == 0 && *size == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "XAR decompressor made no progress");
+		return (ARCHIVE_FATAL);
+	}
 
 	/*
 	 * Update checksum of a compressed data and a extracted data.
@@ -1643,6 +1651,11 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 		avail_out = *outbytes;
 	switch (xar->rd_encoding) {
 	case GZIP:
+		/* avail_in and avail_out are 32 bits wide in zlib. */
+		if (avail_in > UINT_MAX)
+			avail_in = UINT_MAX;
+		if (avail_out > UINT_MAX)
+			avail_out = UINT_MAX;
 		xar->stream.next_in = (Bytef *)(uintptr_t)b;
 		xar->stream.avail_in = (uInt)avail_in;
 		xar->stream.next_out = (unsigned char *)outbuff;
@@ -1662,6 +1675,11 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 		break;
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	case BZIP2:
+		/* avail_in and avail_out are 32 bits wide in bzlib. */
+		if (avail_in > UINT_MAX)
+			avail_in = UINT_MAX;
+		if (avail_out > UINT_MAX)
+			avail_out = UINT_MAX;
 		xar->bzstream.next_in = (char *)(uintptr_t)b;
 		xar->bzstream.avail_in = (unsigned int)avail_in;
 		xar->bzstream.next_out = (char *)outbuff;

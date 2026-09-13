@@ -29,6 +29,8 @@
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
+#include "archive_umask_private.h"
+
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -863,7 +865,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	 * user edits their umask during the extraction for some
 	 * reason.
 	 */
-	umask(a->user_umask = umask(0));
+	a->user_umask = __archive_get_umask();
 
 	/* Figure out what we need to do for this entry. */
 	a->todo = TODO_MODE_BASE;
@@ -1068,8 +1070,11 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	}
 
 	/* If this write would run beyond the file size, truncate it. */
-	if (a->filesize >= 0 && (int64_t)(a->offset + size) > a->filesize)
-		start_size = size = (size_t)(a->filesize - a->offset);
+	if (a->filesize >= 0 && a->filesize - a->offset < (int64_t)size) {
+		int64_t diff = a->filesize - a->offset;
+
+		start_size = size = diff < 0 ? 0 : (size_t)diff;
+	}
 
 	/* Write the data. */
 	while (size > 0) {
@@ -1368,8 +1373,8 @@ archive_write_disk_new(void)
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	a->archive.vtable = &archive_write_disk_vtable;
 	a->start_time = time(NULL);
-	/* Query and restore the umask. */
-	umask(a->user_umask = umask(0));
+	/* Query the umask. */
+	a->user_umask = __archive_get_umask();
 	if (archive_wstring_ensure(&a->path_safe, 512) == NULL) {
 		free(a);
 		return (NULL);
@@ -2694,17 +2699,17 @@ set_times(struct archive_write_disk *a,
 		h = hw;
 	}
 
-	wintm.QuadPart = unix_to_ntfs(atime, atime_nanos);
+	wintm.QuadPart = __archive_unix_to_ntfs(atime, atime_nanos);
 	fatime.dwLowDateTime = wintm.LowPart;
 	fatime.dwHighDateTime = wintm.HighPart;
-	wintm.QuadPart = unix_to_ntfs(mtime, mtime_nanos);
+	wintm.QuadPart = __archive_unix_to_ntfs(mtime, mtime_nanos);
 	fmtime.dwLowDateTime = wintm.LowPart;
 	fmtime.dwHighDateTime = wintm.HighPart;
 	/*
 	 * SetFileTime() supports birthtime.
 	 */
 	if (birthtime > 0 || birthtime_nanos > 0) {
-		wintm.QuadPart = unix_to_ntfs(birthtime, birthtime_nanos);
+		wintm.QuadPart = __archive_unix_to_ntfs(birthtime, birthtime_nanos);
 		fbtime.dwLowDateTime = wintm.LowPart;
 		fbtime.dwHighDateTime = wintm.HighPart;
 		pfbtime = &fbtime;
@@ -2935,7 +2940,7 @@ older(BY_HANDLE_FILE_INFORMATION *st, struct archive_entry *entry)
 	int64_t sec;
 	uint32_t nsec;
 
-	ntfs_to_unix(FILETIME_to_ntfs(&st->ftLastWriteTime), &sec, &nsec);
+	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(&st->ftLastWriteTime), &sec, &nsec);
 	/* First, test the seconds and return if we have a definite answer. */
 	/* Definitely older. */
 	if (sec < archive_entry_mtime(entry))

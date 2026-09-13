@@ -59,6 +59,7 @@
 
 #include "bsdtar.h"
 #include "lafe_err.h"
+#include "lafe_setmode.h"
 #include "line_reader.h"
 
 #ifndef O_BINARY
@@ -296,13 +297,12 @@ tar_mode_r(struct bsdtar *bsdtar)
 		lafe_errc(1, archive_errno(a),
 		    "Can't read archive %s: %s", bsdtar->filename,
 		    archive_error_string(a));
+	if (archive_filter_code(a, 0) != ARCHIVE_FILTER_NONE) {
+		archive_read_free(a);
+		close(bsdtar->fd);
+		lafe_errc(1, 0, "Cannot append to compressed archive");
+	}
 	while (0 == archive_read_next_header(a, &entry)) {
-		if (archive_filter_code(a, 0) != ARCHIVE_FILTER_NONE) {
-			archive_read_free(a);
-			close(bsdtar->fd);
-			lafe_errc(1, 0,
-			    "Cannot append to compressed archive");
-		}
 		/* Keep going until we hit end-of-archive */
 		format = archive_format(a);
 	}
@@ -672,15 +672,16 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	set_reader_options(bsdtar, ina);
 	archive_read_set_options(ina, "mtree:checkfs");
 	if (bsdtar->passphrase != NULL)
-		rc = archive_read_add_passphrase(a, bsdtar->passphrase);
+		rc = archive_read_add_passphrase(ina, bsdtar->passphrase);
 	else
 		rc = archive_read_set_passphrase_callback(ina, bsdtar,
 			&passphrase_callback);
 	if (rc != ARCHIVE_OK)
-		lafe_errc(1, 0, "%s", archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(ina));
 	if (archive_read_open_filename(ina, filename,
 					bsdtar->bytes_per_block)) {
 		lafe_warnc(0, "%s", archive_error_string(ina));
+		archive_read_free(ina);
 		bsdtar->return_value = 1;
 		return (0);
 	}
@@ -828,7 +829,8 @@ copy_file_data_block(struct bsdtar *bsdtar, struct archive *a,
 		progress += bytes_written;
 	}
 	if (r < ARCHIVE_WARN) {
-		lafe_warnc(archive_errno(a), "%s", archive_error_string(a));
+		lafe_warnc(archive_errno(in_a), "%s",
+		    archive_error_string(in_a));
 		return (-1);
 	}
 	return (0);
@@ -941,6 +943,12 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			archive_entry_set_uname(entry, bsdtar->uname);
 		if (bsdtar->gname)
 			archive_entry_set_gname(entry, bsdtar->gname);
+
+		if (bsdtar->file_mode) {
+			mode_t m = archive_entry_mode(entry);
+			m = lafe_getmode(bsdtar->file_mode, m);
+			archive_entry_set_mode(entry, m);
+		}
 
 		/*
 		 * Rewrite the pathname to be archived.  If rewrite

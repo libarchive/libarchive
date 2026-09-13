@@ -35,6 +35,7 @@ static const char archive[] = {
 };
 
 static const char archive64[] = {
+"UTF-8 grinning face with smiling eyes \xF0\x9F\x98\x81\n"
 "begin-base64 644 test_read_uu.Z\n"
 "H52QLgAIHEiwoMGDCBMqXMiwIUIYEG/UqAECAMQYEmFUvJhxI8SPIDXGgDFjBg0YNDDOsAECxsga\n"
 "NmIAAFHDoc2bOHPqBFBnDp0wcizCoJOmzc6ERI0ePRhSo1CQFZdKnUq1qtWrWLNq3cq1q9evYMOK\n"

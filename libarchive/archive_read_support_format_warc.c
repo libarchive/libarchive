@@ -150,8 +150,7 @@ archive_read_support_format_warc(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_warc");
 
 	if ((warc = calloc(1, sizeof(*warc))) == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate warc data");
+		archive_set_error(_a, ENOMEM, "Can't allocate warc data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -168,11 +167,9 @@ archive_read_support_format_warc(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(warc);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -192,20 +189,20 @@ archive_read_format_warc_cleanup(struct archive_read *a)
 static int
 archive_read_format_warc_bid(struct archive_read *a, int best_bid)
 {
-	const char *hdr;
+	const void *h;
 	ssize_t nrd;
 	unsigned int ver;
 
 	(void)best_bid; /* UNUSED */
 
 	/* Check the first line, which should already be a record header. */
-	if ((hdr = __archive_read_ahead(a, 12, &nrd)) == NULL) {
+	if ((h = __archive_read_ahead(a, 12, &nrd)) == NULL) {
 		/* Not enough data to identify this format. */
 		return -1;
 	}
 
 	/* Parse the record version number. */
-	ver = warc_read_version(hdr, nrd);
+	ver = warc_read_version(h, nrd);
 	if (ver < 1200U || ver > 10000U) {
 		/* Only WARC 0.12 through WARC 1.0 are supported. */
 		return -1;
@@ -457,15 +454,8 @@ archive_read_format_warc_skip(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
-
 /* Private routines */
-static void*
-deconst(const void *c)
-{
-	return (void *)(uintptr_t)c;
-}
-
-static char*
+static const char*
 xmemmem(const char *hay, const size_t haysize,
 	const char *needle, const size_t needlesize)
 {
@@ -482,7 +472,7 @@ xmemmem(const char *hay, const size_t haysize,
 	 * found anywhere in the haystack; otherwise find the first candidate
 	 * that begins with *NEEDLE. */
 	if (needlesize == 0UL) {
-		return deconst(hay);
+		return hay;
 	} else if ((hay = memchr(hay, *needle, haysize)) == NULL) {
 		/* No candidate match remains. */
 		return NULL;
@@ -501,7 +491,7 @@ xmemmem(const char *hay, const size_t haysize,
 		return NULL;
 	} else if (eqp) {
 		/* Found a match. */
-		return deconst(hay);
+		return hay;
 	}
 
 	/* Loop through the rest of the haystack and update the rolling XOR
@@ -514,7 +504,7 @@ xmemmem(const char *hay, const size_t haysize,
 		 * NEEDLESIZE - 1 characters for equality.  CAND is always before
 		 * HP by design, so no range check is needed. */
 		if (hsum == nsum && memcmp(cand, needle, needlesize - 1U) == 0) {
-			return deconst(cand);
+			return cand;
 		}
 	}
 	return NULL;
@@ -552,24 +542,34 @@ time_from_tm(struct tm *t)
         /* Use platform timegm() if available. */
         return (timegm(t));
 #else
+        int64_t days, result;
+
         /* Otherwise, calculate directly using POSIX assumptions. */
         /* First, fix up tm_yday based on the year, month, and day. */
         if (mktime(t) == (time_t)-1)
                 return ((time_t)-1);
         /* Then compute timegm() from first principles. */
-        return (t->tm_sec
-            + t->tm_min * 60
-            + t->tm_hour * 3600
-            + t->tm_yday * 86400
-            + (t->tm_year - 70) * 31536000
-            + ((t->tm_year - 69) / 4) * 86400
-            - ((t->tm_year - 1) / 100) * 86400
-            + ((t->tm_year + 299) / 400) * 86400);
+        days = (int64_t)t->tm_yday
+            + ((int64_t)t->tm_year - 70) * 365
+            + ((int64_t)t->tm_year - 69) / 4
+            - ((int64_t)t->tm_year - 1) / 100
+            + ((int64_t)t->tm_year + 299) / 400;
+        if (archive_ckd_mul_i64(&result, days, 86400) ||
+            archive_ckd_add_i64(&result, result,
+                (int64_t)t->tm_hour * 3600 + t->tm_min * 60
+                + t->tm_sec))
+                return ((time_t)-1);
+        if (result < 0) {
+                if (TIME_MIN == 0 || result < (int64_t)TIME_MIN)
+                        return ((time_t)-1);
+        } else if ((uint64_t)result > (uint64_t)TIME_MAX)
+                return ((time_t)-1);
+        return ((time_t)result);
 #endif
 }
 
 static time_t
-xstrpisotime(const char *s, char **endptr)
+xstrpisotime(const char *s, const char **endptr)
 {
 /* Like strptime(), but only for ISO 8601 Zulu strings. */
 	struct tm tm;
@@ -617,7 +617,7 @@ xstrpisotime(const char *s, char **endptr)
 
 out:
 	if (endptr != NULL) {
-		*endptr = deconst(s);
+		*endptr = s;
 	}
 	return res;
 }
@@ -803,8 +803,7 @@ static time_t
 warc_read_date(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nWARC-Date:";
-	const char *val, *eol;
-	char *on = NULL;
+	const char *val, *eol, *on = NULL;
 	time_t res;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
@@ -830,8 +829,7 @@ static time_t
 warc_read_last_modified(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nLast-Modified:";
-	const char *val, *eol;
-	char *on = NULL;
+	const char *val, *eol, *on = NULL;
 	time_t res;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {

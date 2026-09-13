@@ -266,4 +266,20 @@ __archive_check_child(int in, int out)
 #endif
 }
 
+#elif !(defined(_WIN32) && !defined(__CYGWIN__))
+
+#include "archive.h"
+
+int
+__archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
+		pid_t *out_child)
+{
+	return (ARCHIVE_FAILED);
+}
+
+void
+__archive_check_child(int in, int out)
+{
+}
+
 #endif /* defined(HAVE_PIPE) && defined(HAVE_VFORK) && defined(HAVE_FCNTL) */

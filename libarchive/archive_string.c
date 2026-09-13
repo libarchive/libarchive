@@ -62,6 +62,7 @@
 #endif
 
 #include "archive_endian.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_string.h"
 #include "archive_string_composition.h"
@@ -318,9 +319,8 @@ archive_string_ensure(struct archive_string *as, size_t s)
 		new_length = as->buffer_length + as->buffer_length;
 	else {
 		/* Buffers 8k and over grow by at least 25% each time. */
-		new_length = as->buffer_length + as->buffer_length / 4;
-		/* Be safe: If size wraps, fail. */
-		if (new_length < as->buffer_length) {
+		if (archive_ckd_add_size(&new_length,
+		    as->buffer_length, as->buffer_length / 4)) {
 			/* On failure, wipe the string and return NULL. */
 			archive_string_free(as);
 			errno = ENOMEM;/* Make sure errno has ENOMEM. */
@@ -445,7 +445,7 @@ static const char *
 default_iconv_charset(const char *charset) {
 	if (charset != NULL && charset[0] != '\0')
 		return charset;
-#if HAVE_LOCALE_CHARSET && !defined(__APPLE__)
+#if HAVE_LOCALE_CHARSET && HAVE_LOCALCHARSET_H && !defined(__APPLE__)
 	/* locale_charset() is broken on Mac OS */
 	return locale_charset();
 #elif HAVE_NL_LANGINFO
@@ -785,6 +785,10 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			r = WideCharToMultiByte(to_cp, 0, ws, (int)wslen,
 			    as->s + as->length,
 			    (int)(as->buffer_length - as->length - 1), NULL, dp);
+			if (r == 0 && wslen == 0) {
+				count = 0;
+				break;
+			}
 			if (r == 0 &&
 			    GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 				/* Expand the MBS buffer and retry. */

@@ -96,7 +96,7 @@ archive_read_support_filter_gzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
-	if (__archive_read_register_bidder(a, NULL, "gzip",
+	if (__archive_read_register_bidder(a, NULL,
 				&gzip_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
@@ -344,7 +344,7 @@ consume_header(struct archive_read_filter *f)
 	__archive_read_filter_consume(f->upstream, len);
 
 	/* Initialize CRC accumulator. */
-	gzip->crc = crc32(0L, NULL, 0);
+	gzip->crc = __archive_crc32(0L, NULL, 0);
 
 	/* Initialize compression library. */
 	gzip->stream.next_in = (unsigned char *)(uintptr_t)
