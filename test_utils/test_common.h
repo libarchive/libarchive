@@ -389,9 +389,6 @@ void *getXattr(const char *, const char *, size_t *);
 /* Set extended attribute */
 int setXattr(const char *, const char *, const void *, size_t);
 
-/* Return true if the file has large i-node number(>0xffffffff). */
-int is_LargeInode(const char *);
-
 #if ARCHIVE_ACL_SUNOS
 /* Fetch ACLs on Solaris using acl() or facl() */
 void *sunacl_get(int cmd, int *aclcnt, int fd, const char *path);
