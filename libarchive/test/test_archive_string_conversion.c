@@ -260,7 +260,7 @@ test_archive_string_normalization_nfc(const char *testdata)
 	int locale_is_utf8, wc_is_unicode;
 	int sconv_opt = SCONV_SET_OPT_NORMALIZATION_C;
 
-	locale_is_utf8 = (NULL != setlocale(LC_ALL, "en_US.UTF-8"));
+	locale_is_utf8 = setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4');
 	wc_is_unicode = is_wc_unicode();
 	/* If it doesn't exist, just warn and return. */
 	if (!locale_is_utf8 && !wc_is_unicode) {
@@ -471,7 +471,7 @@ test_archive_string_normalization_mac_nfd(const char *testdata)
 	int locale_is_utf8, wc_is_unicode;
 	int sconv_opt = SCONV_SET_OPT_NORMALIZATION_D;
 
-	locale_is_utf8 = (NULL != setlocale(LC_ALL, "en_US.UTF-8"));
+	locale_is_utf8 = setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4');
 	wc_is_unicode = is_wc_unicode();
 	/* If it doesn't exist, just warn and return. */
 	if (!locale_is_utf8 && !wc_is_unicode) {
@@ -998,7 +998,7 @@ DEFINE_TEST(test_archive_string_conversion_fail_latin1)
 	    /* Windows allows ".<code-page>" to change encoding.  */
 	    setlocale(LC_ALL, ".1252") == NULL
 #else
-	    setlocale(LC_ALL, "en_US.ISO8859-1") == NULL
+	    !setCheckedLocale("en_US.ISO8859-1", "\xA0", L'\x00A0')
 #endif
 	   ) {
 		skipping("No Latin-1 locale found on this system.");
@@ -1111,7 +1111,7 @@ DEFINE_TEST(test_archive_string_update_utf8_utf8)
 
 	memset(&mstr, 0, sizeof(mstr));
 
-	if (setlocale(LC_ALL, "en_US.UTF-8") == NULL) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("UTF-8 not supported on this system.");
 		return;
 	}
@@ -1139,7 +1139,7 @@ DEFINE_TEST(test_archive_string_update_utf8_koi8)
 
 	memset(&mstr, 0, sizeof(mstr));
 
-	if (setlocale(LC_ALL, "ru_RU.KOI8-R") == NULL) {
+	if (!setCheckedLocale("ru_RU.KOI8-R", "\xE1", L'\x0410')) {
 		skipping("KOI8-R locale not available on this system.");
 		return;
 	}

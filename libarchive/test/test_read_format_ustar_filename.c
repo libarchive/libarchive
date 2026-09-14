@@ -35,7 +35,7 @@ test_read_format_ustar_filename_eucJP_UTF8(const char *refname)
 	/*
 	 * Read eucJP filename in en_US.UTF-8 with "hdrcharset=eucJP" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -93,7 +93,7 @@ test_read_format_ustar_filename_CP866_KOI8R(const char *refname)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	    NULL == setlocale(LC_ALL, "Russian_Russia.20866") &&
 #endif
-	    NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+	    !setCheckedLocale("ru_RU.KOI8-R", "\xE1", L'\x0410')) {
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
 	}
@@ -147,7 +147,7 @@ test_read_format_ustar_filename_CP866_UTF8(const char *refname)
 	/*
 	 * Read CP866 filename in en_US.UTF-8 with "hdrcharset=CP866" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -206,7 +206,7 @@ test_read_format_ustar_filename_KOI8R_CP866(const char *refname)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	    NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
 #endif
-	    NULL == setlocale(LC_ALL, "ru_RU.CP866")) {
+	    !setCheckedLocale("ru_RU.CP866", "\x80", L'\x0410')) {
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
@@ -261,7 +261,7 @@ test_read_format_ustar_filename_KOI8R_UTF8(const char *refname)
 	/*
 	 * Read KOI8-R filename in en_US.UTF-8 with "hdrcharset=KOI8-R" option.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -320,7 +320,7 @@ test_read_format_ustar_filename_eucJP_CP932(const char *refname)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
 #endif
-	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+	    !setCheckedLocale("ja_JP.SJIS", "\x82\xA0", L'\x3042')) {
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
@@ -377,7 +377,7 @@ test_read_format_ustar_filename_CP866_CP1251(const char *refname)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
 #endif
-	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	    !setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
@@ -494,7 +494,7 @@ test_read_format_ustar_filename_KOI8R_CP1251(const char *refname)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
 #endif
-	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	    !setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
