@@ -1284,6 +1284,57 @@ DEFINE_TEST(test_read_format_7zip_deflate_arm64)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_7zip_deflate_arm64_unaligned_chunk)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[127536];
+	uint32_t computed_crc;
+
+	/*
+ 	 * This archive is large enough that the compressed stream does not
+ 	 * fit in the reader's input window, which makes the decompressor
+	 * return a chunk whose size is not a multiple of the filter's block
+	 * size. The bytes at the end of such a chunk cannot be converted
+	 * until the following chunk has been decompressed, so they must be
+	 * carried over instead of dropped.
+ 	 */
+	const char *refname = "test_read_format_7zip_deflate_arm64_large.7z";
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_gzip(a)) {
+		skipping(
+		    "7zip:deflate decoding is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("bcj-arm64.bin", archive_entry_pathname(ae));
+	assertEqualInt(sizeof(buff), archive_entry_size(ae));
+	assertEqualInt(sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
+	computed_crc = bitcrc32(0, buff, sizeof(buff));
+	assertEqualInt(computed_crc, 0xfef87379);
+
+	assertEqualInt(1, archive_file_count(a));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_deflate_arm_arm64)
 {
 	struct archive *a;
