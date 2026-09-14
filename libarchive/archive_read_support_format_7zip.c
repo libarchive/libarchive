@@ -351,8 +351,11 @@ struct _7zip {
 
 	/* Decoding BCJ and BCJ2 data. */
 	uint32_t		 bcj_state;
-	size_t			 odd_bcj_size;
-	unsigned char		 odd_bcj[8]; /* Big enough for RISCV's lookahead. */
+	size_t			 odd_bcj_size; /* Number of bytes currently stashed in odd_bcj. */
+	/* Bytes that a filter didn't have enough lookahead to transform yet.
+	 * Big enough to hold the largest lookahead (RISCV). */
+	unsigned char		 odd_bcj[8];
+
 	/* Decoding BCJ data. */
 	size_t			 bcj_prevPosT;
 	uint32_t		 bcj_prevMask;
@@ -462,6 +465,7 @@ static ssize_t	Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 static size_t	sparc_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	powerpc_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	riscv_Convert(struct _7zip *, uint8_t *, size_t);
+static size_t	bcj_lookahead(int64_t);
 static int64_t	seek_compat(struct archive_read *, int64_t, int, int);
 
 
@@ -1693,11 +1697,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	t_next_in = b;
 	t_next_out = buff;
 
-	if (zip->codec != _7Z_LZMA2 &&
-	    (zip->codec2 == _7Z_X86 || zip->codec2 == _7Z_RISCV)) {
+	if (zip->codec != _7Z_LZMA2 && bcj_lookahead(zip->codec2) != 0) {
 		int i;
-		/* X86 needs a lookahead of five bytes, RISCV needs eight. */
-		size_t min_out = (zip->codec2 == _7Z_RISCV) ? 8 : 5;
+		size_t min_out = bcj_lookahead(zip->codec2);
 
 		/* Do not copy out the BCJ remaining bytes when the output
 		 * buffer size is less than the filter's lookahead size. */
@@ -1966,41 +1968,49 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	/*
 	 * Decode BCJ.
 	 */
-	if (zip->codec != _7Z_LZMA2) {
-		if (zip->codec2 == _7Z_X86) {
-			size_t l = x86_Convert(zip, buff, *outbytes);
+	if (zip->codec != _7Z_LZMA2 && bcj_lookahead(zip->codec2) != 0) {
+		size_t l;
 
-			zip->odd_bcj_size = *outbytes - l;
-			if (zip->odd_bcj_size > 0 && zip->odd_bcj_size <= 4 &&
-			    o_avail_in && ret != ARCHIVE_EOF) {
-				memcpy(zip->odd_bcj,
-				    ((unsigned char *)buff) + l,
-				    zip->odd_bcj_size);
-				*outbytes = l;
-			} else
-				zip->odd_bcj_size = 0;
-		} else if (zip->codec2 == _7Z_ARM) {
-			*outbytes = arm_Convert(zip, buff, *outbytes);
-		} else if (zip->codec2 == _7Z_ARM64) {
-			*outbytes = arm64_Convert(zip, buff, *outbytes);
-		} else if (zip->codec2 == _7Z_SPARC) {
-			*outbytes = sparc_Convert(zip, buff, *outbytes);
-		} else if (zip->codec2 == _7Z_POWERPC) {
-			*outbytes = powerpc_Convert(zip, buff, *outbytes);
-		} else if (zip->codec2 == _7Z_RISCV) {
-			size_t l = riscv_Convert(zip, buff, *outbytes);
-
-			zip->odd_bcj_size = *outbytes - l;
-			if (zip->odd_bcj_size > 0 &&
-			    zip->odd_bcj_size <= sizeof(zip->odd_bcj) &&
-			    o_avail_in && ret != ARCHIVE_EOF) {
-				memcpy(zip->odd_bcj,
-				    ((unsigned char *)buff) + l,
-				    zip->odd_bcj_size);
-				*outbytes = l;
-			} else
-				zip->odd_bcj_size = 0;
+		switch (zip->codec2) {
+		case _7Z_X86:
+			l = x86_Convert(zip, buff, *outbytes);
+			break;
+		case _7Z_ARM:
+			l = arm_Convert(zip, buff, *outbytes);
+			break;
+		case _7Z_ARM64:
+			l = arm64_Convert(zip, buff, *outbytes);
+			break;
+		case _7Z_SPARC:
+			l = sparc_Convert(zip, buff, *outbytes);
+			break;
+		case _7Z_POWERPC:
+			l = powerpc_Convert(zip, buff, *outbytes);
+			break;
+		case _7Z_RISCV:
+			l = riscv_Convert(zip, buff, *outbytes);
+			break;
+		default:
+			/* Unreachable: bcj_lookahead() returns non-zero only
+			 * for the codecs handled above. Guards against the two
+			 * lists drifting apart. */
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+			    "BCJ filter internal error");
+			return (ARCHIVE_FAILED);
 		}
+
+		/* Keep the bytes which could not be converted yet, they are
+		 * prepended to the output buffer on the next call. */
+		zip->odd_bcj_size = *outbytes - l;
+		if (zip->odd_bcj_size > 0 &&
+		    zip->odd_bcj_size <= sizeof(zip->odd_bcj) &&
+		    o_avail_in && ret != ARCHIVE_EOF) {
+			memcpy(zip->odd_bcj,
+			    ((unsigned char *)buff) + l,
+			    zip->odd_bcj_size);
+			*outbytes = l;
+		} else
+			zip->odd_bcj_size = 0;
 	}
 
 	/*
@@ -3684,12 +3694,9 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		if (zip->uncompressed_buffer_bytes_remaining ==
 		    zip->uncompressed_buffer_size)
 			break;
-		if (zip->codec2 == _7Z_X86 && zip->odd_bcj_size &&
-		    zip->uncompressed_buffer_bytes_remaining + 5 >
-		    zip->uncompressed_buffer_size)
-			break;
-		if (zip->codec2 == _7Z_RISCV && zip->odd_bcj_size &&
-		    zip->uncompressed_buffer_bytes_remaining + 8 >
+		if (zip->odd_bcj_size &&
+		    zip->uncompressed_buffer_bytes_remaining +
+		    bcj_lookahead(zip->codec2) >
 		    zip->uncompressed_buffer_size)
 			break;
 		if (zip->pack_stream_inbytes_remaining == 0 &&
@@ -4579,6 +4586,31 @@ riscv_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 	zip->bcj_ip += (uint32_t)i;
 
 	return i;
+}
+
+/*
+ * The widest instruction the BCJ filters rewrite, and the smallest output
+ * buffer that those filters can make progress with. Filters leave up to one
+ * byte less than this unconverted at the end of a buffer (when they don't
+ * have enough data to continue). Returns 0 for codecs we do not filter
+ * ourselves.
+ */
+static size_t
+bcj_lookahead(int64_t codec2)
+{
+	switch (codec2) {
+	case _7Z_X86:
+		return (5);
+	case _7Z_RISCV:
+		return (8);
+	case _7Z_ARM:
+	case _7Z_ARM64:
+	case _7Z_POWERPC:
+	case _7Z_SPARC:
+		return (4);
+	default:
+		return (0);
+	}
 }
 
 /*
