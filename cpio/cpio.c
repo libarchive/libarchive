@@ -853,7 +853,11 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 			lafe_warnc(0, "Copying file instead");
 		} else
 #endif
-		return (0);
+		{
+			if (r != ARCHIVE_OK)
+				cpio->return_value = 1;
+			return (0);
+		}
 	}
 
 	/*
