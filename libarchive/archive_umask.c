@@ -35,6 +35,9 @@
 #include "archive_platform.h"
 #include "archive_umask_private.h"
 
+#ifdef HAVE_SYS_SINGLE_THREADED_H
+#include <sys/single_threaded.h>
+#endif
 #include <stddef.h>
 #include <stdio.h>
 #ifdef HAVE_UNISTD_H
@@ -49,33 +52,37 @@ __archive_get_umask(void)
 	mode_t mask;
 
 #ifdef __linux__
-	/*
-	 * Starting with Linux 4.7, the current process umask can be accessed
-	 * via /proc/self/status.
-	 */
+#ifdef HAVE_SYS_SINGLE_THREADED_H
+	if (!__libc_single_threaded)
+#endif
+	{
+		/*
+		* Starting with Linux 4.7, the current process umask can be accessed
+		* via /proc/self/status.
+		*/
 
-	// Lines in status files are almost always less than 100 bytes, so
-	// 1 KiB should be plenty. Plus, the umask field should show up in
-	// the first few lines & always be very short. So even if we split
-	// other lines, that should never happen with umask. We assume any
-	// lines we split do not contain "Umask:" in the middle of them.
-	char line[1024];
-	// The standard doesn't guarantee mode_t size, so scan a specific
-	// size ourselves. We know the umask will always be 9 bits, so 32
-	// bits should be plenty.
-	int int_umask = -1;
+		// Lines in status files are almost always less than 100 bytes, so
+		// 1 KiB should be plenty. Plus, the umask field should show up in
+		// the first few lines & always be very short. So even if we split
+		// other lines, that should never happen with umask. We assume any
+		// lines we split do not contain "Umask:" in the middle of them.
+		char line[1024];
+		// The standard doesn't guarantee mode_t size, so scan a specific
+		// size ourselves. We know the umask will always be 9 bits, so 32
+		// bits should be plenty.
+		int int_umask = -1;
 
-	FILE *fp = fopen("/proc/self/status", "re");
-	if (fp != NULL) {
-		while (fgets(line, sizeof(line), fp)) {
-			if (sscanf(line, "Umask: %o", &int_umask) == 1)
-				break;
+		FILE *fp = fopen("/proc/self/status", "re");
+		if (fp != NULL) {
+			while (fgets(line, sizeof(line), fp)) {
+				if (sscanf(line, "Umask: %o", &int_umask) == 1)
+					break;
+			}
+			fclose(fp);
+			if (int_umask != -1)
+				return (int_umask);
 		}
-		fclose(fp);
-		if (int_umask != -1)
-			return (int_umask);
 	}
-
 #elif defined(KERN_PROC_UMASK)
 	/*
 	 * FreeBSD has a sysctl interface for requesting the umask without
