@@ -1985,7 +1985,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			*outbytes = arm64_Convert(zip, buff, *outbytes);
 		} else if (zip->codec2 == _7Z_SPARC) {
 			*outbytes = sparc_Convert(zip, buff, *outbytes);
-		} else if (zip->codec2 == _7Z_POWERPC) {
+		} else if (zip->codec2 == _7Z_POWERPC &&
+		    zip->codec != _7Z_LZMA) {
+			/* liblzma already applies the PPC filter for LZMA. */
 			*outbytes = powerpc_Convert(zip, buff, *outbytes);
 		} else if (zip->codec2 == _7Z_RISCV) {
 			size_t l = riscv_Convert(zip, buff, *outbytes);
