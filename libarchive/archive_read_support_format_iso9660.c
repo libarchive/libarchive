@@ -423,7 +423,7 @@ static struct file_info *
 static int	parse_rockridge(struct archive_read *a,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
-static int	register_CE(struct archive_read *a, int32_t location,
+static int	register_CE(struct archive_read *a, uint32_t location,
 		    struct file_info *file);
 static int	read_CE(struct archive_read *a, struct iso9660 *iso9660);
 static void	parse_rockridge_NM1(struct file_info *,
@@ -2191,7 +2191,7 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 					 *   8 byte offset w/in above sector
 					 *   8 byte length of continuation
 					 */
-					int32_t location =
+					uint32_t location =
 					    archive_le32dec(data);
 					file->ce_offset =
 					    archive_le32dec(data+8);
@@ -2338,22 +2338,24 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 }
 
 static int
-register_CE(struct archive_read *a, int32_t location,
+register_CE(struct archive_read *a, uint32_t location,
     struct file_info *file)
 {
 	struct iso9660 *iso9660 = a->format->data;
 	struct read_ce_queue *heap;
-	uint64_t offset, parent_offset;
+	uint64_t offset, parent_offset, ce_end;
 	size_t hole, parent;
 
-	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
-	if (((file->mode & AE_IFMT) == AE_IFREG &&
+	if (archive_ckd_mul_u64(&offset, (uint64_t)location,
+	      (uint64_t)iso9660->logical_block_size) ||
+	    archive_ckd_add_u64(&ce_end, offset,
+	      ((uint64_t)file->ce_offset) + file->ce_size) ||
+	    ((file->mode & AE_IFMT) == AE_IFREG &&
 	    offset >= file->offset) ||
 	    offset < iso9660->current_position ||
 	    (((uint64_t)file->ce_offset) + file->ce_size)
 	      > (uint64_t)iso9660->logical_block_size ||
-	    offset + file->ce_offset + file->ce_size
-		  > iso9660->volume_size) {
+	    ce_end > iso9660->volume_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid parameter in SUSP \"CE\" extension");
 		return (ARCHIVE_FATAL);
