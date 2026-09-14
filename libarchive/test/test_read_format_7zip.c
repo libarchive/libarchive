@@ -1854,3 +1854,74 @@ DEFINE_TEST(test_read_format_7zip_lzma2_powerpc)
   
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * Regression for #2730: LZMA1 + PPC must not apply the PPC filter twice.
+ * The fixture contains only synthetic data.  ppc-small is the 16-byte
+ * pattern below; ppc-large is 131088 zero bytes with the same pattern at
+ * offsets 0, 65536 and 131072, exercising multiple decompression buffers.
+ * Created with 7-Zip 26.01:
+ * 7z a test_read_format_7zip_lzma_powerpc.7z ppc-small ppc-large \
+ *     -m0=PPC -m1=LZMA -ms=off -mhc=off -mtm=off -mta=off -mtc=off
+ */
+DEFINE_TEST(test_read_format_7zip_lzma_powerpc)
+{
+	const char *refname = "test_read_format_7zip_lzma_powerpc.7z";
+	const unsigned char pattern[] = {
+		0x60, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00, 0x09,
+		0x4b, 0xff, 0xff, 0xf9, 0x48, 0x00, 0x00, 0x01
+	};
+	const size_t block_sizes[] = { 1, 10240, 65536 };
+	struct archive *a;
+	struct archive_entry *ae;
+	unsigned char *expected, *buff;
+	size_t i;
+	const size_t size = 131088;
+
+	assert((a = archive_read_new()) != NULL);
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping("7zip:lzma decoding is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	expected = calloc(1, size);
+	buff = malloc(size);
+	if (!assert(expected != NULL && buff != NULL)) {
+		free(expected);
+		free(buff);
+		return;
+	}
+	memcpy(expected, pattern, sizeof(pattern));
+	memcpy(expected + 65536, pattern, sizeof(pattern));
+	memcpy(expected + 131072, pattern, sizeof(pattern));
+	extract_reference_file(refname);
+
+	for (i = 0; i < sizeof(block_sizes) / sizeof(block_sizes[0]); i++) {
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_format_7zip(a));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open_filename(a, refname, block_sizes[i]));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString("ppc-large", archive_entry_pathname(ae));
+		assertEqualInt(size, archive_entry_size(ae));
+		assertEqualIntA(a, size, archive_read_data(a, buff, size));
+		assertEqualMem(expected, buff, size);
+		assertEqualIntA(a, 0, archive_read_data(a, buff, size));
+
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString("ppc-small", archive_entry_pathname(ae));
+		assertEqualInt(sizeof(pattern), archive_entry_size(ae));
+		assertEqualIntA(a, sizeof(pattern),
+		    archive_read_data(a, buff, size));
+		assertEqualMem(pattern, buff, sizeof(pattern));
+		assertEqualIntA(a, 0, archive_read_data(a, buff, size));
+		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+	free(expected);
+	free(buff);
+}

@@ -916,6 +916,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma2_powerpc.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2_riscv.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2_sparc.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma_powerpc.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed3.7z.uu \
