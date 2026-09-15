@@ -1186,6 +1186,22 @@ DEFINE_TEST(test_read_format_7zip_lzma2_arm)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_7zip_lzma1_arm)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_arm_filter("test_read_format_7zip_lzma1_arm.7z");
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_ppmd)
 {
 	test_ppmd();
@@ -1266,6 +1282,22 @@ DEFINE_TEST(test_read_format_7zip_lzma2_arm64)
 #else
 	skipping("This version of liblzma does not support LZMA_FILTER_ARM64");
 #endif
+}
+
+DEFINE_TEST(test_read_format_7zip_lzma1_arm64)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_arm64_filter("test_read_format_7zip_lzma1_arm64.7z");
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_read_format_7zip_deflate_arm64)
@@ -1693,6 +1725,20 @@ DEFINE_TEST(test_read_format_7zip_lzma2_riscv)
 #endif
 }
 
+DEFINE_TEST(test_read_format_7zip_lzma1_riscv)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping("7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_riscv_filter("test_read_format_7zip_lzma1_riscv.7z");
+	}
+	archive_read_free(a);
+}
+
 DEFINE_TEST(test_read_format_7zip_deflate_riscv)
 {
 	struct archive *a;
@@ -1761,6 +1807,22 @@ DEFINE_TEST(test_read_format_7zip_lzma2_sparc)
 		    "7zip:lzma decoding is not supported on this platform");
 	} else {
 		test_sparc_filter("test_read_format_7zip_lzma2_sparc.7z");
+	}
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_lzma1_sparc)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_sparc_filter("test_read_format_7zip_lzma1_sparc.7z");
 	}
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -1851,6 +1913,22 @@ DEFINE_TEST(test_read_format_7zip_lzma2_powerpc)
 	} else {
 		test_powerpc_filter("test_read_format_7zip_lzma2_powerpc.7z");
 	}
-  
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_lzma1_powerpc)
+{
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+		skipping(
+		    "7zip:lzma decoding is not supported on this platform");
+	} else {
+		test_powerpc_filter("test_read_format_7zip_lzma1_powerpc.7z");
+	}
+
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
