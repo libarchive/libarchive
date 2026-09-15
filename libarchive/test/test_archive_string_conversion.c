@@ -987,6 +987,8 @@ DEFINE_TEST(test_archive_string_conversion_fail_latin1)
 {
 	struct archive *a;
 	struct archive_string_conv *sconv;
+	const char *charset;
+
 #if defined(__sun)
 	skipping("Solaris iconv substitutes unrepresentable UTF-8 characters");
 	return;
@@ -1010,16 +1012,20 @@ DEFINE_TEST(test_archive_string_conversion_fail_latin1)
 	assert((a = archive_write_new()) != NULL);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	assertA(NULL != (sconv =
-	    archive_string_conversion_to_charset(a, "CP1252", 0)));
-	assertEqualString("CP1252",
-	    archive_string_conversion_charset_name(sconv));
+	charset = "CP1252";
 #else
-	assertA(NULL != (sconv =
-	    archive_string_conversion_to_charset(a, "ISO8859-1", 0)));
-	assertEqualString("ISO8859-1",
-	    archive_string_conversion_charset_name(sconv));
+	charset = "ISO8859-1";
 #endif
+	sconv = archive_string_conversion_to_charset(a, charset, 0);
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	if (sconv == NULL) {
+		charset = "ISO-8859-1";
+		sconv = archive_string_conversion_to_charset(a, charset, 0);
+	}
+#endif
+	assertA(NULL != sconv);
+	assertEqualString(charset,
+	    archive_string_conversion_charset_name(sconv));
 	test_archive_string_conversion_fail_utf16_mbs(a, sconv);
 	test_archive_string_conversion_fail_utf8_mbs(a, sconv);
 
