@@ -462,6 +462,7 @@ static ssize_t	Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 static size_t	sparc_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	powerpc_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	riscv_Convert(struct _7zip *, uint8_t *, size_t);
+static size_t	bcj_lookahead(int64_t);
 static int64_t	seek_compat(struct archive_read *, int64_t, int, int);
 
 
@@ -1421,73 +1422,84 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			zip->codec2 = coder2->codec;
 
 			filters[fi].options = NULL;
-			switch (zip->codec2) {
-			case _7Z_X86:
-				if (zip->codec == _7Z_LZMA2) {
+			/*
+			 * Only LZMA2 gets liblzma's branch filters; for LZMA1
+			 * we run our own instead, for the reason given above.
+			 */
+			if (zip->codec != _7Z_LZMA2 &&
+			    bcj_lookahead(zip->codec2) != 0) {
+				/* Use our filter. */
+				if (zip->codec2 == _7Z_X86)
+					x86_Init(zip);
+				else if (zip->codec2 == _7Z_ARM)
+					arm_Init(zip);
+				else /* ARM64, POWERPC, RISCV, SPARC. */
+					zip->bcj_ip = 0;
+			} else {
+				switch (zip->codec2) {
+				case _7Z_X86:
 					filters[fi].id = LZMA_FILTER_X86;
 					fi++;
-				} else
+					break;
+				case _7Z_X86_BCJ2:
 					/* Use our filter. */
-					x86_Init(zip);
-				break;
-			case _7Z_X86_BCJ2:
-				/* Use our filter. */
-				zip->bcj_state = 0;
-				break;
-			case _7Z_DELTA:
-				if (coder2->propertiesSize != 1) {
-					archive_set_error(&a->archive,
-					    ARCHIVE_ERRNO_MISC,
-					    "Invalid Delta parameter");
-					return (ARCHIVE_FAILED);
-				}
-				filters[fi].id = LZMA_FILTER_DELTA;
-				memset(&delta_opt, 0, sizeof(delta_opt));
-				delta_opt.type = LZMA_DELTA_TYPE_BYTE;
-				delta_opt.dist =
-				    coder2->properties[0] + 1;
-				filters[fi].options = &delta_opt;
-				fi++;
-				break;
-			/* Following filters have not been tested yet. */
-			case _7Z_POWERPC:
-				filters[fi].id = LZMA_FILTER_POWERPC;
-				fi++;
-				break;
-			case _7Z_IA64:
-				filters[fi].id = LZMA_FILTER_IA64;
-				fi++;
-				break;
-			case _7Z_ARM:
-				filters[fi].id = LZMA_FILTER_ARM;
-				fi++;
-				break;
-			case _7Z_ARMTHUMB:
-				filters[fi].id = LZMA_FILTER_ARMTHUMB;
-				fi++;
-				break;
+					zip->bcj_state = 0;
+					break;
+				case _7Z_DELTA:
+					if (coder2->propertiesSize != 1) {
+						archive_set_error(&a->archive,
+						    ARCHIVE_ERRNO_MISC,
+						    "Invalid Delta parameter");
+						return (ARCHIVE_FAILED);
+					}
+					filters[fi].id = LZMA_FILTER_DELTA;
+					memset(&delta_opt, 0, sizeof(delta_opt));
+					delta_opt.type = LZMA_DELTA_TYPE_BYTE;
+					delta_opt.dist =
+					    coder2->properties[0] + 1;
+					filters[fi].options = &delta_opt;
+					fi++;
+					break;
+				/* Following filters have not been tested yet. */
+				case _7Z_POWERPC:
+					filters[fi].id = LZMA_FILTER_POWERPC;
+					fi++;
+					break;
+				case _7Z_IA64:
+					filters[fi].id = LZMA_FILTER_IA64;
+					fi++;
+					break;
+				case _7Z_ARM:
+					filters[fi].id = LZMA_FILTER_ARM;
+					fi++;
+					break;
+				case _7Z_ARMTHUMB:
+					filters[fi].id = LZMA_FILTER_ARMTHUMB;
+					fi++;
+					break;
 #ifdef LZMA_FILTER_ARM64
-			case _7Z_ARM64:
-				filters[fi].id = LZMA_FILTER_ARM64;
-				fi++;
-				break;
+				case _7Z_ARM64:
+					filters[fi].id = LZMA_FILTER_ARM64;
+					fi++;
+					break;
 #endif
 #ifdef LZMA_FILTER_RISCV
-			case _7Z_RISCV:
-				filters[fi].id = LZMA_FILTER_RISCV;
-				fi++;
-				break;
+				case _7Z_RISCV:
+					filters[fi].id = LZMA_FILTER_RISCV;
+					fi++;
+					break;
 #endif
-			case _7Z_SPARC:
-				filters[fi].id = LZMA_FILTER_SPARC;
-				fi++;
-				break;
-			default:
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_MISC,
-				    "Unexpected codec ID: %jX",
-				    (uintmax_t)zip->codec2);
-				return (ARCHIVE_FAILED);
+				case _7Z_SPARC:
+					filters[fi].id = LZMA_FILTER_SPARC;
+					fi++;
+					break;
+				default:
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Unexpected codec ID: %jX",
+					    (uintmax_t)zip->codec2);
+					return (ARCHIVE_FAILED);
+				}
 			}
 		}
 
@@ -4579,6 +4591,31 @@ riscv_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 	zip->bcj_ip += (uint32_t)i;
 
 	return i;
+}
+
+/*
+ * The widest instruction the BCJ filters rewrite, and the smallest output
+ * buffer that those filters can make progress with. Filters leave up to one
+ * byte less than this unconverted at the end of a buffer (when they don't
+ * have enough data to continue). Returns 0 for codecs we do not filter
+ * ourselves.
+ */
+static size_t
+bcj_lookahead(int64_t codec2)
+{
+	switch (codec2) {
+	case _7Z_X86:
+		return (5);
+	case _7Z_RISCV:
+		return (8);
+	case _7Z_ARM:
+	case _7Z_ARM64:
+	case _7Z_POWERPC:
+	case _7Z_SPARC:
+		return (4);
+	default:
+		return (0);
+	}
 }
 
 /*

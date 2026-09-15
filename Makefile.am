@@ -910,6 +910,11 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma1_lzma2.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_arm.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_arm64.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_powerpc.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_riscv.7z.uu \
+	libarchive/test/test_read_format_7zip_lzma1_sparc.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2_arm64.7z.uu \
 	libarchive/test/test_read_format_7zip_lzma2_arm.7z.uu \
