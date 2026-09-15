@@ -1228,6 +1228,53 @@ DEFINE_TEST(test_read_format_7zip_ppmd_small_block)
 }
 
 static void
+test_ppmd_filter(const char *refname, const char *pathname, size_t size,
+    uint32_t expected_crc)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[16384];
+	uint32_t computed_crc;
+
+	assert(size <= sizeof(buff));
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(pathname, archive_entry_pathname(ae));
+	assertEqualInt(size, archive_entry_size(ae));
+	assertEqualInt(size, archive_read_data(a, buff, size));
+	computed_crc = bitcrc32(0, buff, size);
+	assertEqualInt(computed_crc, expected_crc);
+
+	assertEqualInt(1, archive_file_count(a));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_ppmd_bcj)
+{
+	test_ppmd_filter("test_read_format_7zip_ppmd_bcj.7z",
+	    "ppmd-bcj.bin", 2000, 0x2247d78f);
+}
+
+DEFINE_TEST(test_read_format_7zip_ppmd_arm64)
+{
+	test_ppmd_filter("test_read_format_7zip_ppmd_arm64.7z",
+	    "ppmd-arm64.bin", 13066, 0x7b8abc67);
+}
+
+static void
 test_arm64_filter(const char *refname)
 {
 	struct archive *a;

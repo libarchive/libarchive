@@ -1701,6 +1701,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 	size_t t_avail_in, t_avail_out;
 	uint8_t *bcj2_next_out;
 	size_t bcj2_avail_out;
+	size_t odd_bcj_out = 0;
 	int r, ret = ARCHIVE_OK;
 
 	t_avail_in = o_avail_in = *used;
@@ -1724,8 +1725,17 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			*t_next_out++ = zip->odd_bcj[i];
 			t_avail_out--;
 			zip->odd_bcj_size--;
+			odd_bcj_out++;
 		}
-		if (o_avail_in == 0 || t_avail_out == 0) {
+		/*
+		 * PPMd is the only codec which can still produce output
+		 * after its packed stream has been consumed: it is asked
+		 * to flush the rest of the folder when called with no
+		 * input. Returning here would skip that flush and leave
+		 * the folder short, so let it through.
+		 */
+		if ((o_avail_in == 0 && zip->codec != _7Z_PPMD) ||
+		    t_avail_out == 0) {
 			*used = o_avail_in - t_avail_in;
 			*outbytes = o_avail_out - t_avail_out;
 			if (o_avail_in == 0)
@@ -1929,10 +1939,20 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			zip->ppmd7_stat = 1;
 		}
 
-		if (t_avail_in == 0)
-			/* XXX Flush out remaining decoded data XXX */
-			flush_bytes = zip->folder_outbytes_remaining;
-		else
+		if (t_avail_in == 0) {
+			/* XXX Flush out remaining decoded data XXX
+			 *
+			 * The bytes a BCJ filter parked on the previous call
+			 * have just been written to the output buffer, and
+			 * count towards what the folder still owes. Asking
+			 * PPMd to decode them a second time would run the
+			 * range decoder off the end of the packed stream. */
+			flush_bytes = zip->folder_outbytes_remaining -
+			    (int64_t)odd_bcj_out;
+			/* Those bytes were all that was left of the folder. */
+			if (flush_bytes <= 0)
+				break;
+		} else
 			flush_bytes = 0;
 
 		do {
