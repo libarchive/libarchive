@@ -176,6 +176,10 @@ On Mac OS X this option translates extended ACLs to NFSv4 ACLs.
 To store extended ACLs the
 .Fl Fl mac-metadata
 option is preferred.
+.It Fl Fl auto-rename
+(x mode only)
+If a file with the same name already exists during extraction, automatically rename the new file by appending a counter (e.g.,
+.Pa file_1.txt Ns ) .
 .It Fl B , Fl Fl read-full-blocks
 Ignored for compatibility with other
 .Xr tar 1
