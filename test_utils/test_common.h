@@ -389,6 +389,9 @@ void *getXattr(const char *, const char *, size_t *);
 /* Set extended attribute */
 int setXattr(const char *, const char *, const void *, size_t);
 
+/* Set locale and check its usability. */
+int setCheckedLocale(const char *, const char *, wchar_t);
+
 #if ARCHIVE_ACL_SUNOS
 /* Fetch ACLs on Solaris using acl() or facl() */
 void *sunacl_get(int cmd, int *aclcnt, int fd, const char *path);

@@ -3595,6 +3595,29 @@ set_environment(const char *key, const char *value)
 #endif
 }
 
+int
+setCheckedLocale(const char *locale, const char *mbc, wchar_t expected_wc)
+{
+#ifdef HAVE_MBRTOWC
+	mbstate_t state;
+	size_t len;
+	wchar_t wc;
+#endif
+
+	if (setlocale(LC_ALL, locale) == NULL)
+		return (0);
+
+#ifdef HAVE_MBRTOWC
+	memset(&state, 0, sizeof(state));
+	len = strlen(mbc);
+	if (mbrtowc(&wc, mbc, len, &state) != len ||
+	    wc != expected_wc)
+		return (0);
+#endif
+
+	return (1);
+}
+
 /*
  * Enforce C locale for (sub)processes.
  */
