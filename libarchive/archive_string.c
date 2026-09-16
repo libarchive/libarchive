@@ -1799,6 +1799,24 @@ archive_string_conversion_from_charset(struct archive *a, const char *charset,
 }
 
 /*
+ * Make and return a conversion object from UTF-8 or UTF-16 to UTF-8 in
+ * Unicode Form D.
+ */
+struct archive_string_conv *
+archive_string_conversion_to_utf8_nfd(struct archive *a,
+    const char *from_charset)
+{
+	struct archive_string_conv *sc;
+
+	sc = get_sconv_object(a, from_charset, "UTF-8",
+	    SCONV_TO_CHARSET | SCONV_BEST_EFFORT);
+	if (sc != NULL)
+		archive_string_conversion_set_opt(sc,
+		    SCONV_SET_OPT_NORMALIZATION_D);
+	return (sc);
+}
+
+/*
  * archive_string_default_conversion_*_archive() are provided for Windows
  * platform because other archiver application use CP_OEMCP for
  * MultiByteToWideChar() and WideCharToMultiByte() for the filenames
