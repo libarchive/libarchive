@@ -402,32 +402,32 @@ make_parent(char *path)
 {
 	struct stat sb;
 	char *sep;
+	size_t len;
 
+	/* Retrieve string length of parent directory. */
 	sep = strrchr(path, '/');
 	if (sep == NULL || sep == path)
 		return;
-	*sep = '\0';
-	if (lstat(path, &sb) == 0) {
-		if (S_ISDIR(sb.st_mode)) {
-			*sep = '/';
-			return;
-		}
-		system_unlink(path);
-	}
-	make_parent(path);
-	system_mkdir(path, 0755);
-	*sep = '/';
+	len = sep - path;
 
-#if 0
-	for (sep = path; (sep = strchr(sep, '/')) != NULL; sep++) {
-		/* root in case of absolute d_arg */
-		if (sep == path)
-			continue;
+	/* Find deepest already existing directory. */
+	do {
 		*sep = '\0';
-		make_dir(path, 0755);
-		*sep = '/';
+		if (lstat(path, &sb) == 0) {
+			if (S_ISDIR(sb.st_mode)) {
+				*sep = '/';
+				break;
+			}
+			system_unlink(path);
+		}
+		sep = strrchr(path, '/');
+	} while (sep != NULL && sep != path);
+
+	/* Create missing directories and restore path. */
+	while (strlen(path) <= len) {
+		system_mkdir(path, 0755);
+		path[strlen(path)] = '/';
 	}
-#endif
 }
 
 /*
