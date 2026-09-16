@@ -1345,11 +1345,19 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			break;
 		case EXT_FILESIZE:
 			if (datasize == sizeof(uint64_t) * 2) {
-				lha->compsize = archive_le64dec(extdheader);
+				uint64_t compsize, origsize;
+
+				/* Range-check before the conversion to the
+				 * signed type rather than relying on the
+				 * implementation-defined result of it. */
+				compsize = archive_le64dec(extdheader);
 				extdheader += sizeof(uint64_t);
-				lha->origsize = archive_le64dec(extdheader);
-				if (lha->compsize < 0 || lha->origsize < 0)
+				origsize = archive_le64dec(extdheader);
+				if (compsize > INT64_MAX ||
+				    origsize > INT64_MAX)
 					goto invalid;
+				lha->compsize = (int64_t)compsize;
+				lha->origsize = (int64_t)origsize;
 			}
 			break;
 		case EXT_CODEPAGE:
@@ -1554,7 +1562,7 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct lha *lha = a->format->data;
-	ssize_t bytes_avail;
+	ssize_t bytes_avail, max_in;
 	int r;
 
 	/* If we haven't yet read any data, initialize the decompressor. */
@@ -1600,6 +1608,17 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
 	}
 	if (bytes_avail > lha->entry_bytes_remaining)
 		bytes_avail = (ssize_t)lha->entry_bytes_remaining;
+
+	/* Setup buffer boundaries.  strm.avail_in is an int, and the
+	 * compressed size it is bounded by comes straight from the LHa
+	 * header, so clamp the available byte count before the
+	 * assignment. */
+	if (INT_MAX >= SSIZE_MAX)
+		max_in = SSIZE_MAX;
+	else
+		max_in = INT_MAX;
+	if (bytes_avail > max_in)
+		bytes_avail = max_in;
 
 	lha->strm.avail_in = (int)bytes_avail;
 	lha->strm.total_in = 0;
