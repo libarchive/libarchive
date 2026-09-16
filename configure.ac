@@ -379,7 +379,8 @@ AC_CHECK_HEADERS(m4_flatten([
 	sys/acl.h sys/cdefs.h sys/ea.h sys/extattr.h
 	sys/ioctl.h sys/mkdev.h sys/mount.h
 	sys/param.h sys/poll.h sys/richacl.h
-	sys/select.h sys/statfs.h sys/statvfs.h sys/sysctl.h
+	sys/select.h sys/single_threaded.h
+	sys/statfs.h sys/statvfs.h sys/sysctl.h
 	sys/sysmacros.h sys/time.h sys/utime.h sys/utsname.h
 	sys/vfs.h sys/xattr.h time.h unistd.h utime.h wchar.h
 	wctype.h
