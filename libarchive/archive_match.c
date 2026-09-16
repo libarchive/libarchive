@@ -169,6 +169,7 @@ static void	entry_list_add(struct entry_list *, struct match_file *);
 static void	entry_list_free(struct entry_list *);
 static void	entry_list_init(struct entry_list *);
 static int	error_nomem(struct archive_match *);
+static int	match_has_nonascii_brackets(const char *);
 static int	match_is_ascii_mbs(const char *);
 static int	match_is_ascii_wcs(const wchar_t *);
 static void	match_list_add(struct match_list *, struct match *);
@@ -854,6 +855,36 @@ path_excluded(struct archive_match *a, int mbs, const void *pathname)
 	return (0);
 }
 
+/* Decomposition can change the members of a bracket expression. */
+static int
+match_has_nonascii_brackets(const char *p)
+{
+	const char *end;
+	int nonascii;
+
+	for (; *p != '\0'; p++) {
+		if (*p == '\\' && p[1] != '\0')
+			p++;
+		else if (*p == '[') {
+			end = p + 1;
+			nonascii = 0;
+			while (*end != '\0' && *end != ']') {
+				if (*end == '\\' && end[1] != '\0')
+					end++;
+				if ((unsigned char)*end >= 0x80)
+					nonascii = 1;
+				end++;
+			}
+			if (*end == '\0')
+				return (0);
+			if (nonascii)
+				return (1);
+			p = end;
+		}
+	}
+	return (0);
+}
+
 /* True if the string is 7-bit ASCII. */
 static int
 match_is_ascii_mbs(const char *s)
@@ -910,16 +941,29 @@ match_normalize(struct archive_match *a, int mbs, const void *s, size_t len,
 
 /*
  * Return the pattern in Form D, converting it on first use.
- * Return NULL if it cannot be converted.  A failed allocation is retried
- * on the next call.
+ * Return NULL for non-ASCII bracket expressions or conversion failures.
+ * A failed allocation is retried on the next call.
  */
 static const char *
 match_pattern_norm(struct archive_match *a, struct match *m, int mbs,
     const void *p)
 {
+	const char *pattern;
 	size_t len;
 
 	if (m->norm_state == 0) {
+		pattern = p;
+		if (!mbs && archive_mstring_get_utf8(&(a->archive),
+		    &(m->pattern), &pattern) != 0) {
+			if (errno == ENOMEM)
+				return (NULL);
+			m->norm_state = -1;
+			return (NULL);
+		}
+		if (pattern != NULL && match_has_nonascii_brackets(pattern)) {
+			m->norm_state = -1;
+			return (NULL);
+		}
 		len = mbs ? strlen((const char *)p) :
 		    wcslen((const wchar_t *)p) * sizeof(wchar_t);
 		if (match_normalize(a, mbs, p, len, &(m->norm)) != 0) {

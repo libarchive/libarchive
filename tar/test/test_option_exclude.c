@@ -165,5 +165,29 @@ DEFINE_TEST(test_option_exclude)
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
 	assertChdir("..");
+
+	/* Test 13: a bracket expression must not exclude another letter. */
+	assertMakeFile("e\xC3\xB1.txt", 0644, "keep");
+	assertEqualInt(0, systemf("%s --format ustar -cf archive-bracket.tar "
+	    "--exclude '[\xC3\xA9]*.txt' e\xC3\xB1.txt", testprog));
+	assertMakeDir("test13", 0755);
+	assertChdir("test13");
+	assertEqualInt(0, systemf("%s -xf ../archive-bracket.tar "
+	    ">test.out 2>test.err", testprog));
+	assertFileContents("keep", 4, "e\xC3\xB1.txt");
+	assertEmptyFile("test.out");
+	assertEmptyFile("test.err");
+	assertChdir("..");
+
+	/* Test 14: normalize literals next to an ASCII bracket expression. */
+	assertMakeDir("test14", 0755);
+	assertChdir("test14");
+	assertEqualInt(0, systemf("%s -xf ../archive-nfd.tar "
+	    "--exclude 'caf\xC3\xA9_[0-9].txt' >test.out 2>test.err",
+	    testprog));
+	assertFileNotExists("cafe\xCC\x81_2.txt");
+	assertEmptyFile("test.out");
+	assertEmptyFile("test.err");
+	assertChdir("..");
 #endif
 }

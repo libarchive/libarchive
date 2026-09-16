@@ -213,6 +213,8 @@ specified on the command line.
 Patterns and pathnames are also compared in Unicode Normalization Form D,
 so a name that differs from the pattern only in canonical decomposition or
 in the order of its combining marks is excluded as well.
+Patterns containing non-ASCII characters in bracket expressions are matched
+without normalization.
 This does not cover every canonical equivalence, and matching stays case
 sensitive.
 On a filesystem that folds case or normalization, a name the filesystem

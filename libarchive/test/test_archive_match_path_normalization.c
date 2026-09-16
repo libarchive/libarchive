@@ -451,3 +451,165 @@ DEFINE_TEST(test_archive_match_path_normalization)
 	test_c_locale();
 #endif
 }
+
+DEFINE_TEST(test_archive_match_path_normalization_brackets)
+{
+	static const struct {
+		const char *pattern;
+		const char *pathname;
+		int excluded;
+		int normalized;
+	} tests[] = {
+		{ "[\xC3\xA9]*.txt", "e\xC3\xB1.txt", 0, 0 },
+		{ "[\xC3\xA9]*.txt", "\xC3\xA9.txt", 1, 1 },
+		{ "[!\xC3\xA9]*.txt", "e\xC3\xB1.txt", 1, 1 },
+		{ "caf\xC3\xA9[\xC3\xA9]*.txt",
+		    "cafe\xCC\x81\xC3\xA9.txt", 0, 0 },
+		{ "[\xC3\xA0-\xC3\xA9]*.txt", "e\xC3\xB1.txt", 0, 0 },
+		{ "[a-z]*.txt", "\xC3\xA9.txt", 0, 1 },
+		{ "[a-z]*.txt", "apple\xC3\xA9.txt", 1, 1 },
+		{ "[!e]*.txt", "\xC3\xA9.txt", 1, 1 },
+		{ "[^e]*.txt", "\xC3\xA9.txt", 1, 1 },
+		{ "[a][\xC3\xA9]*.txt", "ae\xC3\xB1.txt", 0, 0 },
+		{ "[\\]\xC3\xA9]*.txt", "e\xC3\xB1.txt", 0, 0 },
+		{ "\\\\[\xC3\xA9]*.txt", "\\e\xC3\xB1.txt", 0, 0 },
+		{ "[[]caf\xC3\xA9", "[cafe\xCC\x81", 0, 1 },
+		{ "[]*", NFC_MBS, 0, 0 },
+		{ "[!]*", NFC_MBS, 1, 1 },
+		{ "caf\xC3\xA9[ab]", "caf\xC3\xA9" "a", 1, 1 },
+		{ "caf\xC3\xA9[ab]", "cafe\xCC\x81" "a", 0, 1 },
+		{ "caf\xC3\xA9/[0-9].txt", "cafe\xCC\x81/1.txt", 0, 1 },
+		{ "caf\xC3\xA9/[!x].txt", "cafe\xCC\x81/y.txt", 0, 1 },
+		{ "caf\xC3\xA9/[^x].txt", "cafe\xCC\x81/y.txt", 0, 1 },
+		{ "[\\]]caf\xC3\xA9", "]cafe\xCC\x81", 0, 1 },
+		{ "[a][b]caf\xC3\xA9", "abcafe\xCC\x81", 0, 1 },
+		{ "\\[caf\xC3\xA9]", "[cafe\xCC\x81]", 0, 1 },
+		{ "[caf\xC3\xA9", "[cafe\xCC\x81", 0, 1 },
+		{ "[caf\xC3\xA9\\]", "[cafe\xCC\x81]", 0, 1 },
+		{ "caf\xC3\xA9[\\", "cafe\xCC\x81[\\", 0, 1 },
+		{ "caf\xC3\xA9*", NFD_MBS, 0, 1 }
+	};
+	struct archive_entry *ae;
+	struct archive *m;
+	size_t i;
+	int j, enabled;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (!have_utf8_locale()) {
+		skipping("Wide matching needs a UTF-8 locale");
+		return;
+	}
+#endif
+	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+		assert((m = archive_match_new()) != NULL);
+		assert((ae = archive_entry_new()) != NULL);
+		assertEqualIntA(m, ARCHIVE_OK,
+		    archive_match_exclude_pattern(m, tests[i].pattern));
+		archive_entry_copy_pathname(ae, tests[i].pathname);
+		for (j = 0; j < 3; j++) {
+			enabled = j != 1;
+			assertEqualIntA(m, ARCHIVE_OK,
+			    archive_match_set_pattern_normalization(m, enabled));
+			failure("pattern %s, pathname %s, normalization %d",
+			    tests[i].pattern, tests[i].pathname, enabled);
+			assertEqualIntA(m, enabled ? tests[i].normalized :
+			    tests[i].excluded, archive_match_path_excluded(m, ae));
+		}
+		archive_entry_free(ae);
+		archive_match_free(m);
+	}
+
+	/* Original matches still apply after a normalization skip. */
+	assert((m = archive_match_new()) != NULL);
+	assert((ae = archive_entry_new()) != NULL);
+	assertEqualIntA(m, ARCHIVE_OK,
+	    archive_match_exclude_pattern(m, "[\xC3\xA9]*.txt"));
+	archive_entry_copy_pathname(ae, "e\xC3\xB1.txt");
+	assertEqualIntA(m, 0, archive_match_path_excluded(m, ae));
+	archive_entry_copy_pathname(ae, "\xC3\xA9.txt");
+	assertEqualIntA(m, 1, archive_match_path_excluded(m, ae));
+	archive_entry_copy_pathname(ae, "e\xC3\xB1.txt");
+	assertEqualIntA(m, 0, archive_match_path_excluded(m, ae));
+	archive_entry_free(ae);
+	archive_match_free(m);
+}
+
+DEFINE_TEST(test_archive_match_path_normalization_brackets_wide)
+{
+	static const struct {
+		const wchar_t *pattern;
+		const wchar_t *pathname;
+		int excluded;
+		int normalized;
+	} tests[] = {
+		{ L"[\x00E9]*.txt", L"e\x00F1.txt", 0, 0 },
+		{ L"[\x00E9]*.txt", L"\x00E9.txt", 1, 1 },
+		{ L"[!\x00E9]*.txt", L"e\x00F1.txt", 1, 1 },
+		{ L"caf\x00E9[\x00E9]*.txt",
+		    L"cafe\x0301\x00E9.txt", 0, 0 },
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		{ L"[\x03B2]*caf\x00E9", L"\x03B3" L"caf\x00E9", 0, 0 },
+#endif
+		{ L"[\x00E0-\x00E9]*.txt", L"e\x00F1.txt", 0, 0 },
+		{ L"[a-z]*.txt", L"\x00E9.txt", 0, 1 },
+		{ L"[!e]*.txt", L"\x00E9.txt", 1, 1 },
+		{ L"[^e]*.txt", L"\x00E9.txt", 1, 1 },
+		{ L"[\\]\x00E9]*.txt", L"e\x00F1.txt", 0, 0 },
+		{ L"\\\\[\x00E9]*.txt", L"\\e\x00F1.txt", 0, 0 },
+		{ L"[[]caf\x00E9", L"[cafe\x0301", 0, 1 },
+		{ L"caf\x00E9[ab]", L"cafe\x0301" L"a", 0, 1 },
+		{ L"caf\x00E9/[0-9].txt", L"cafe\x0301/1.txt", 0, 1 },
+		{ L"caf\x00E9/[!x].txt", L"cafe\x0301/y.txt", 0, 1 },
+		{ L"caf\x00E9/[^x].txt", L"cafe\x0301/y.txt", 0, 1 },
+		{ L"[\\]]caf\x00E9", L"]cafe\x0301", 0, 1 },
+		{ L"[a][b]caf\x00E9", L"abcafe\x0301", 0, 1 },
+		{ L"\\[caf\x00E9]", L"[cafe\x0301]", 0, 1 },
+		{ L"[caf\x00E9", L"[cafe\x0301", 0, 1 },
+		{ L"[caf\x00E9\\]", L"[cafe\x0301]", 0, 1 },
+		{ L"caf\x00E9[\\", L"cafe\x0301[\\", 0, 1 },
+		{ L"caf\x00E9*", L"cafe\x0301.txt", 0, 1 }
+	};
+	struct archive_entry *ae;
+	struct archive *m;
+	size_t i;
+	int j, enabled;
+
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	if (!have_utf8_locale()) {
+		skipping("Wide patterns need a UTF-8 locale");
+		return;
+	}
+#endif
+	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+		assert((m = archive_match_new()) != NULL);
+		assert((ae = archive_entry_new()) != NULL);
+		assertEqualIntA(m, ARCHIVE_OK,
+		    archive_match_exclude_pattern_w(m, tests[i].pattern));
+		archive_entry_copy_pathname_w(ae, tests[i].pathname);
+		for (j = 0; j < 3; j++) {
+			enabled = j != 1;
+			assertEqualIntA(m, ARCHIVE_OK,
+			    archive_match_set_pattern_normalization(m, enabled));
+			failure("pattern %ls, pathname %ls, normalization %d",
+			    tests[i].pattern, tests[i].pathname, enabled);
+			assertEqualIntA(m, enabled ? tests[i].normalized :
+			    tests[i].excluded, archive_match_path_excluded(m, ae));
+		}
+		archive_entry_free(ae);
+		archive_match_free(m);
+	}
+
+	/* Original matches still apply after a normalization skip. */
+	assert((m = archive_match_new()) != NULL);
+	assert((ae = archive_entry_new()) != NULL);
+	assertEqualIntA(m, ARCHIVE_OK,
+	    archive_match_exclude_pattern_w(m, L"[\x00E9]*.txt"));
+	archive_entry_copy_pathname_w(ae, L"e\x00F1.txt");
+	assertEqualIntA(m, 0, archive_match_path_excluded(m, ae));
+	archive_entry_copy_pathname_w(ae, L"\x00E9.txt");
+	assertEqualIntA(m, 1, archive_match_path_excluded(m, ae));
+	archive_entry_copy_pathname_w(ae, L"e\x00F1.txt");
+	assertEqualIntA(m, 0, archive_match_path_excluded(m, ae));
+	archive_entry_free(ae);
+	archive_match_free(m);
+}
