@@ -548,6 +548,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_isorr_new_compress.c \
 	libarchive/test/test_read_format_isorr_rr_moved.c \
 	libarchive/test/test_read_format_isozisofs_compress.c \
+	libarchive/test/test_read_format_iso_rockridge_ce_overflow.c \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.c \
 	libarchive/test/test_read_format_iso_zisofs_overflow.c \
 	libarchive/test/test_read_format_lha.c \
@@ -999,6 +1000,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_rockridge.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_ce.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_ce_loop.iso.Z.uu \
+	libarchive/test/test_read_format_iso_rockridge_ce_overflow.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_new.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_rr_moved.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.iso.uu \
