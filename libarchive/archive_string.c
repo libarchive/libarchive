@@ -2175,6 +2175,17 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 				avail -= rbytes;
 			} else {
 				/* Skip the illegal input bytes. */
+				if (avail < 1) {
+					as->length = outp - as->s;
+					bs = as->buffer_length +
+					    (remaining * to_size) + 1;
+					if (NULL ==
+					    archive_string_ensure(as, bs))
+						return (-1);
+					outp = as->s + as->length;
+					avail = as->buffer_length
+					    - as->length - to_size;
+				}
 				*outp++ = '?';
 				avail--;
 			}
