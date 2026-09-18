@@ -41,10 +41,22 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
-#include "archive_integer.h"
 #include "archive_private.h"
+#include "archive_rb.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
+
+struct cpio_ino_key {
+	int64_t devmajor;
+	int64_t devminor;
+	int64_t ino;
+};
+
+struct cpio_ino_entry {
+	struct archive_rb_node rbnode;
+	struct cpio_ino_key key;
+	int64_t new_ino;
+};
 
 static ssize_t	archive_write_newc_data(struct archive_write *,
 		    const void *buff, size_t s);
@@ -64,15 +76,7 @@ struct cpio {
 	int		  padding;
 
 	int64_t		  ino_next;
-
-	struct {
-		int64_t old_devmajor;
-		int64_t old_devminor;
-		int64_t old_ino;
-		int64_t new_ino;
-	} *ino_list;
-	size_t		  ino_list_size;
-	size_t		  ino_list_next;
+	struct archive_rb_tree ino_tree;
 
 	struct archive_string_conv *opt_sconv;
 	struct archive_string_conv *sconv_default;
@@ -112,12 +116,46 @@ struct cpio {
 /* Logic trick: difference between 'n' and next multiple of 4 */
 #define PAD4(n)	(3 & (1 + ~(n)))
 
+static int
+ino_key_cmp(const struct cpio_ino_key *a, const struct cpio_ino_key *b)
+{
+	if (a->devmajor != b->devmajor)
+		return (a->devmajor < b->devmajor ? 1 : -1);
+	if (a->devminor != b->devminor)
+		return (a->devminor < b->devminor ? 1 : -1);
+	if (a->ino != b->ino)
+		return (a->ino < b->ino ? 1 : -1);
+	return (0);
+}
+
+static int
+ino_cmp_node(const struct archive_rb_node *n1,
+    const struct archive_rb_node *n2)
+{
+	const struct cpio_ino_entry *e1 = (const struct cpio_ino_entry *)n1;
+	const struct cpio_ino_entry *e2 = (const struct cpio_ino_entry *)n2;
+
+	return (ino_key_cmp(&e1->key, &e2->key));
+}
+
+static int
+ino_cmp_key(const struct archive_rb_node *n, const void *key)
+{
+	const struct cpio_ino_entry *entry =
+	    (const struct cpio_ino_entry *)n;
+
+	return (ino_key_cmp(&entry->key, key));
+}
+
 /*
  * Set output format to 'cpio' format.
  */
 int
 archive_write_set_format_cpio_newc(struct archive *_a)
 {
+	static const struct archive_rb_tree_ops rb_ops = {
+		ino_cmp_node, ino_cmp_key
+	};
 	struct archive_write *a = (struct archive_write *)_a;
 	struct cpio *cpio;
 
@@ -132,6 +170,7 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
+	__archive_rb_tree_init(&cpio->ino_tree, &rb_ops);
 	a->format_data = cpio;
 	a->format_name = "cpio";
 	a->format_options = archive_write_newc_options;
@@ -163,11 +202,10 @@ static int64_t
 synthesize_ino_value(struct archive_write *a, struct archive_entry *entry)
 {
 	struct cpio *cpio = a->format_data;
-	int64_t devmajor = archive_entry_devmajor(entry);
-	int64_t devminor = archive_entry_devminor(entry);
+	struct cpio_ino_key key;
+	struct cpio_ino_entry *ino_entry;
 	int64_t ino = archive_entry_ino64(entry);
 	int64_t ino_new;
-	size_t i;
 
 	if (ino == 0)
 		return (0);
@@ -183,13 +221,13 @@ synthesize_ino_value(struct archive_write *a, struct archive_entry *entry)
 		return (++cpio->ino_next);
 	}
 
-	/* TODO: Revisit the flat list if large hardlink sets become slow. */
-	for (i = 0; i < cpio->ino_list_next; ++i) {
-		if (cpio->ino_list[i].old_devmajor == devmajor &&
-		    cpio->ino_list[i].old_devminor == devminor &&
-		    cpio->ino_list[i].old_ino == ino)
-			return (cpio->ino_list[i].new_ino);
-	}
+	key.devmajor = archive_entry_devmajor(entry);
+	key.devminor = archive_entry_devminor(entry);
+	key.ino = ino;
+	ino_entry = (struct cpio_ino_entry *)__archive_rb_tree_find_node(
+	    &cpio->ino_tree, &key);
+	if (ino_entry != NULL)
+		return (ino_entry->new_ino);
 
 	if (cpio->ino_next == UINT32_MAX) {
 		archive_set_error(&a->archive, ERANGE,
@@ -197,40 +235,17 @@ synthesize_ino_value(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_FATAL);
 	}
 	ino_new = ++cpio->ino_next;
-
-	if (cpio->ino_list_size <= cpio->ino_list_next) {
-		size_t newsize, size;
-
-		if (cpio->ino_list_size < 512)
-			newsize = 512;
-		else if (archive_ckd_mul_size(&newsize,
-		    cpio->ino_list_size, 2)) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "No memory for inode translation table");
-			return (ARCHIVE_FATAL);
-		}
-		if (archive_ckd_mul_size(&size,
-		    newsize, sizeof(cpio->ino_list[0]))) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "No memory for inode translation table");
-			return (ARCHIVE_FATAL);
-		}
-		void *newlist = realloc(cpio->ino_list, size);
-		if (newlist == NULL) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "No memory for inode translation table");
-			return (ARCHIVE_FATAL);
-		}
-
-		cpio->ino_list_size = newsize;
-		cpio->ino_list = newlist;
+	ino_entry = malloc(sizeof(*ino_entry));
+	if (ino_entry == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "No memory for inode translation table");
+		return (ARCHIVE_FATAL);
 	}
-
-	cpio->ino_list[cpio->ino_list_next].old_devmajor = devmajor;
-	cpio->ino_list[cpio->ino_list_next].old_devminor = devminor;
-	cpio->ino_list[cpio->ino_list_next].old_ino = ino;
-	cpio->ino_list[cpio->ino_list_next].new_ino = ino_new;
-	++cpio->ino_list_next;
+	ino_entry->key = key;
+	ino_entry->new_ino = ino_new;
+	/* The preceding lookup guarantees that this key is unique. */
+	(void)__archive_rb_tree_insert_node(&cpio->ino_tree,
+	    &ino_entry->rbnode);
 	return (ino_new);
 }
 
@@ -512,8 +527,12 @@ static int
 archive_write_newc_free(struct archive_write *a)
 {
 	struct cpio *cpio = a->format_data;
+	struct archive_rb_node *node, *next;
 
-	free(cpio->ino_list);
+	ARCHIVE_RB_TREE_FOREACH_SAFE(node, &cpio->ino_tree, next) {
+		__archive_rb_tree_remove_node(&cpio->ino_tree, node);
+		free(node);
+	}
 	free(cpio);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
