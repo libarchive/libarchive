@@ -285,4 +285,16 @@ DEFINE_TEST(test_option_s)
 	    testprog);
 	assertFileContents("foo", 3, "test14/in/d1/fzo");
 	assertFileContents("bar", 3, "test14/in/d1/baz");
+
+	/*
+	 * Test 15: Basic substitution when listing archive.
+	 */
+	assertMakeDir("test15", 0755);
+	systemf("%s -cf test15.tar in/d1/foo in/d1/bar",
+	    testprog);
+	systemf("%s -tf test15.tar -s /o/z/g -s :in/d1/bar:: "
+	    ">test15/out 2>test15/err",
+	    testprog);
+	assertTextFileContents("in/d1/fzz\n", "test15/out");
+	assertEmptyFile("test15/err");
 }

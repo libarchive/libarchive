@@ -35,6 +35,11 @@ DEFINE_TEST(test_option_mode)
 	int rv;
 	char *p;
 
+	const char *includedmtree =
+		"#mtree\n"
+		"in/included-all mode=777 type=file\n"
+		"in/included-minimal mode=500 type=file\n";
+
 	const char *test3mtree =
 		"#mtree\n"
 		"in/all mode=777 type=file\n"
@@ -66,16 +71,19 @@ DEFINE_TEST(test_option_mode)
 	/* Create some files with different modes */
 	assertMakeFile("in/all", 0777, "");
 	assertMakeFile("in/minimal", 0500, "");
+	assertMakeFile("included.mtree", 0644, includedmtree);
 
 	/* Archive and override using an absolute mode */
 	assertEqualInt(0,
 		systemf("%s --mode 644 -cf archive1.tar "
-			"in/all in/minimal", testprog));
+			"in/all in/minimal @included.mtree", testprog));
 
 	/* Verify the modes */
 	p = slurpfile(NULL, "archive1.tar");
-	assertEqualString(p + 100,"000644 ");
-	assertEqualString(p + 612,"000644 ");
+	assertEqualString(p + 512*0 + 100,"000644 ");
+	assertEqualString(p + 512*1 + 100,"000644 ");
+	assertEqualString(p + 512*2 + 100,"000644 ");
+	assertEqualString(p + 512*3 + 100,"000644 ");
 	free(p);
 
 /* Skip relative symbolic mode checks on Windows; on-disk files always have
@@ -85,12 +93,14 @@ DEFINE_TEST(test_option_mode)
 	/* Archive and override using a symbolic mode */
 	assertEqualInt(0,
 		systemf("%s --mode u+rw-x,g+X,o-w -cf archive2.tar "
-			"in/all in/minimal", testprog));
+			"in/all in/minimal @included.mtree", testprog));
 
 	/* Verify the modes */
 	p = slurpfile(NULL, "archive2.tar");
-	assertEqualString(p + 100,"000675 ");
-	assertEqualString(p + 612,"000610 ");
+	assertEqualString(p + 512*0 + 100,"000675 ");
+	assertEqualString(p + 512*1 + 100,"000610 ");
+	assertEqualString(p + 512*2 + 100,"000675 ");
+	assertEqualString(p + 512*3 + 100,"000610 ");
 	free(p);
 #endif
 

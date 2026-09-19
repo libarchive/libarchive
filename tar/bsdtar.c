@@ -994,6 +994,10 @@ main(int argc, char **argv)
 		lafe_errc(1, 0,
 		    "--clamp-mtime is not valid without --mtime <date>");
 
+	/* Don't warn about files with leading slashes when listing. */
+	if (bsdtar->mode == 't')
+		bsdtar->flags |= OPTFLAG_ABSOLUTE_PATHS;
+
 	/*
 	 * When creating an archive from a directory tree, the directory
 	 * walking code will already avoid entering directories when
