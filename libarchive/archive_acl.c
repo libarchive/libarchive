@@ -232,30 +232,84 @@ archive_acl_add_entry_len_l(struct archive_acl *acl,
 }
 
 /*
- * If this ACL entry is part of the standard POSIX permissions set,
- * store the permissions in the stat structure and return zero.
+ * Translate ACL entry into POSIX file permissions and store them, then
+ * return zero if the entry mapped perfectly onto POSIX file permissions
+ * and non-zero if it requires further processing.
  */
 static int
 acl_special(struct archive_acl *acl, int type, int permset, int tag)
 {
-	if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
-	    && ((permset & ~007) == 0)) {
+	int bits;
+
+	switch (type) {
+	case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
+		/* POSIX ACL */
+		bits = permset & 7;
 		switch (tag) {
 		case ARCHIVE_ENTRY_ACL_USER_OBJ:
 			acl->mode &= ~0700;
-			acl->mode |= (permset & 7) << 6;
-			return (0);
+			acl->mode |= bits << 6;
+			break;
 		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
 			acl->mode &= ~0070;
-			acl->mode |= (permset & 7) << 3;
-			return (0);
+			acl->mode |= bits << 3;
+			break;
 		case ARCHIVE_ENTRY_ACL_OTHER:
 			acl->mode &= ~0007;
-			acl->mode |= permset & 7;
-			return (0);
+			acl->mode |= bits;
+			break;
+		default:
+			return (1);
 		}
+		return ((permset & ~7) != 0);
+	case ARCHIVE_ENTRY_ACL_TYPE_ALLOW:
+	case ARCHIVE_ENTRY_ACL_TYPE_DENY:
+		/* NFS4 ACL */
+		bits = permset & 7;
+		if (permset & ARCHIVE_ENTRY_ACL_READ_DATA)
+			bits |= 4;
+		if (permset & ARCHIVE_ENTRY_ACL_WRITE_DATA)
+			bits |= 2;
+		switch (tag) {
+		case ARCHIVE_ENTRY_ACL_USER_OBJ:
+			bits = bits << 6;
+			if (type == ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
+				acl->mode |= bits;
+			else
+				acl->mode &= ~bits;
+			break;
+		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
+			bits = bits << 3;
+			if (type == ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
+				acl->mode |= bits;
+			else
+				acl->mode &= ~bits;
+			break;
+		case ARCHIVE_ENTRY_ACL_OTHER:
+			if (type == ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
+				acl->mode |= bits;
+			else
+				acl->mode &= ~bits;
+			break;
+		case ARCHIVE_ENTRY_ACL_EVERYONE:
+			bits = (bits << 6) | (bits << 3) | bits;
+			if (type == ARCHIVE_ENTRY_ACL_TYPE_ALLOW)
+				acl->mode |= bits;
+			else
+				acl->mode &= ~bits;
+			break;
+		default:
+			return (1);
+		}
+#ifdef NOTYET
+		return ((permset & ~037) != 0);
+#else
+		/* returning zero here breaks test_acl_platform_nfs4 */
+		return (1);
+#endif
+	default:
+		return (1);
 	}
-	return (1);
 }
 
 /*
