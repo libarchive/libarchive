@@ -2101,6 +2101,8 @@ new_fixup(struct archive_write_disk *a, const wchar_t *pathname)
 	a->fixup_list = fe;
 	fe->fixup = 0;
 	fe->name = _wcsdup(pathname);
+	if (fe->name != NULL)
+		cleanup_pathname(a, fe->name);
 	fe->fflags_set = 0;
 	return (fe);
 }
