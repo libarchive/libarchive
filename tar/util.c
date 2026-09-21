@@ -71,6 +71,11 @@ safe_fputs(const char * restrict s, FILE * restrict f)
 	wchar_t wc;
 	char try_wc;
 
+	if (s == NULL) {
+		fputs("(null)", f);
+		return;
+	}
+
 	/* Note: mbrtowc() has a cleaner API, but mbtowc() seems a bit
 	 * more portable, so we use that here instead. */
 	if (mbtowc(NULL, NULL, 1) == -1) { /* Reset the shift state. */
