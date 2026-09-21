@@ -589,3 +589,41 @@ DEFINE_TEST(test_gnutar_filename_encoding_fail_UTF16_win)
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 #endif
 }
+
+DEFINE_TEST(test_gnutar_filename_encoding_UTF32_substitute)
+{
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
+		skipping("en_US.UTF-8 locale not available on this system.");
+		return;
+	}
+
+	/*
+	 * Verify that a filename mixing valid and untranslatable bytes does
+	 * not overrun the conversion buffer while substituting '?' for the
+	 * untranslatable characters under a four-byte hdrcharset (UTF-32).
+	 */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_gnutar(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-32") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-8 to UTF-32.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry,
+	    "aaaaaaa\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualIntA(a, ARCHIVE_WARN, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
