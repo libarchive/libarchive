@@ -460,6 +460,8 @@ static void	x86_Init(struct _7zip *);
 static size_t	x86_Convert(struct _7zip *, uint8_t *, size_t);
 static void	arm_Init(struct _7zip *);
 static size_t	arm_Convert(struct _7zip *, uint8_t *, size_t);
+static void	armthumb_Init(struct _7zip *);
+static size_t	armthumb_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	arm64_Convert(struct _7zip *, uint8_t *, size_t);
 static ssize_t	Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 static size_t	sparc_Convert(struct _7zip *, uint8_t *, size_t);
@@ -1351,6 +1353,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			if (coder2->codec != _7Z_X86 &&
 			    coder2->codec != _7Z_X86_BCJ2 &&
 			    coder2->codec != _7Z_ARM &&
+			    coder2->codec != _7Z_ARMTHUMB &&
 			    coder2->codec != _7Z_ARM64 &&
 			    coder2->codec != _7Z_POWERPC &&
 			    coder2->codec != _7Z_RISCV &&
@@ -1368,6 +1371,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 				x86_Init(zip);
 			else if (coder2->codec == _7Z_ARM)
 				arm_Init(zip);
+			else if (coder2->codec == _7Z_ARMTHUMB)
+				armthumb_Init(zip);
 			else if (coder2->codec == _7Z_ARM64 ||
 			    coder2->codec == _7Z_POWERPC ||
 			    coder2->codec == _7Z_RISCV ||
@@ -1436,6 +1441,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 					x86_Init(zip);
 				else if (zip->codec2 == _7Z_ARM)
 					arm_Init(zip);
+				else if (zip->codec2 == _7Z_ARMTHUMB)
+					armthumb_Init(zip);
 				else /* ARM64, POWERPC, RISCV, SPARC. */
 					zip->bcj_ip = 0;
 			} else {
@@ -2008,6 +2015,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			break;
 		case _7Z_ARM:
 			l = arm_Convert(zip, buff, *outbytes);
+			break;
+		case _7Z_ARMTHUMB:
+			l = armthumb_Convert(zip, buff, *outbytes);
 			break;
 		case _7Z_ARM64:
 			l = arm64_Convert(zip, buff, *outbytes);
@@ -4356,6 +4366,54 @@ arm_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 	return i;
 }
 
+static void
+armthumb_Init(struct _7zip *zip)
+{
+	zip->bcj_ip = 4;
+}
+
+static size_t
+armthumb_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
+{
+	// This function was adapted from
+	// static size_t bcj_armthumb(struct xz_dec_bcj *s, uint8_t *buf, size_t size)
+	// in https://git.tukaani.org/xz-embedded.git
+
+	/*
+	 * Branch/Call/Jump (BCJ) filter decoders
+	 *
+	 * Authors: Lasse Collin <lasse.collin@tukaani.org>
+	 *          Igor Pavlov <https://7-zip.org/>
+	 *
+	 * SPDX-License-Identifier: 0BSD
+	 */
+
+	size_t i;
+	uint32_t addr;
+
+	for (i = 0; i + 4 <= size; i += 2) {
+		if ((buf[i + 1] & 0xF8) == 0xF0
+		    && (buf[i + 3] & 0xF8) == 0xF8) {
+			addr = (((uint32_t)buf[i + 1] & 0x07) << 19)
+			    | ((uint32_t)buf[i] << 11)
+			    | (((uint32_t)buf[i + 3] & 0x07) << 8)
+			    | (uint32_t)buf[i + 2];
+			addr <<= 1;
+			addr -= zip->bcj_ip + (uint32_t)i;
+			addr >>= 1;
+			buf[i + 1] = (uint8_t)(0xF0 | ((addr >> 19) & 0x07));
+			buf[i] = (uint8_t)(addr >> 11);
+			buf[i + 3] = (uint8_t)(0xF8 | ((addr >> 8) & 0x07));
+			buf[i + 2] = (uint8_t)addr;
+			i += 2;
+		}
+	}
+
+	zip->bcj_ip += (uint32_t)i;
+
+	return i;
+}
+
 static size_t
 arm64_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 {
@@ -4635,6 +4693,7 @@ bcj_lookahead(int64_t codec2)
 	case _7Z_RISCV:
 		return (8);
 	case _7Z_ARM:
+	case _7Z_ARMTHUMB:
 	case _7Z_ARM64:
 	case _7Z_POWERPC:
 	case _7Z_SPARC:
