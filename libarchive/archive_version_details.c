@@ -108,7 +108,7 @@ archive_xml_version(struct archive_string* str)
 	archive_strcat(str, archive_libxml2_version());
 #elif defined(ARCHIVE_XML_USE_XMLLITE)
 	archive_strcat(str, " xmllite/");
-	archive_strcat(str, "system");
+	archive_strcat(str, archive_xmllite_version());
 #elif defined(ARCHIVE_XML_USE_BSDXML)
 	archive_strcat(str, " bsdxml/");
 	archive_strcat(str, archive_libbsdxml_version());
@@ -346,6 +346,16 @@ archive_libexpat_version(void)
 {
 #if defined(ARCHIVE_XML_USE_EXPAT)
 	return XML_ExpatVersion();
+#else
+	return NULL;
+#endif
+}
+
+const char *
+archive_xmllite_version(void)
+{
+#if defined(ARCHIVE_XML_USE_XMLLITE)
+	return "system";
 #else
 	return NULL;
 #endif

@@ -204,6 +204,7 @@ __LA_DECL const char *  archive_liblzo2_version(void);
 __LA_DECL const char *  archive_libexpat_version(void);
 __LA_DECL const char *  archive_libbsdxml_version(void);
 __LA_DECL const char *  archive_libxml2_version(void);
+__LA_DECL const char *  archive_xmllite_version(void);
 __LA_DECL const char *  archive_mbedtls_version(void);
 __LA_DECL const char *  archive_nettle_version(void);
 __LA_DECL const char *  archive_openssl_version(void);
