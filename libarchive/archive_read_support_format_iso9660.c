@@ -3060,14 +3060,28 @@ re_get_entry(struct iso9660 *iso9660)
 static inline int
 rede_add_entry(struct file_info *file)
 {
-	struct file_info *re;
+	struct file_info *re, *slow;
+	int slow_turn = 0;
 
 	/*
 	 * Find "RE" entry.
+	 *
+	 * A malformed image can chain "CL"/"RE" reparenting so that the
+	 * parent pointers form a cycle in which no node carries the "re"
+	 * flag.  Advance a second pointer at half speed (Floyd's cycle
+	 * detection) so such a loop is reported as a malformed archive
+	 * instead of spinning forever.
 	 */
-	re = file->parent;
-	while (re != NULL && !re->re)
+	re = slow = file->parent;
+	while (re != NULL && !re->re) {
 		re = re->parent;
+		if (slow_turn) {
+			slow = slow->parent;
+			if (re == slow)
+				return (-1);	/* Cyclic parent chain. */
+		}
+		slow_turn = !slow_turn;
+	}
 	if (re == NULL)
 		return (-1);
 
