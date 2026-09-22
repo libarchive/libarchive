@@ -105,6 +105,9 @@ archive_xml_version(struct archive_string* str)
 #if HAVE_LIBXML_XMLVERSION_H && HAVE_LIBXML2
 	archive_strcat(str, " libxml2/");
 	archive_strcat(str, archive_libxml2_version());
+#elif HAVE_XMLLITE_H && HAVE_LIBXMLLITE
+	archive_strcat(str, " xmllite/");
+	archive_strcat(str, "system");
 #elif HAVE_BSDXML_H && HAVE_LIBBSDXML
 	archive_strcat(str, " bsdxml/");
 	archive_strcat(str, archive_libbsdxml_version());
