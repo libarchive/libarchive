@@ -353,8 +353,8 @@ struct _7zip {
 	uint32_t		 bcj_state;
 	size_t			 odd_bcj_size; /* Number of bytes currently stashed in odd_bcj. */
 	/* Bytes that a filter didn't have enough lookahead to transform yet.
-	 * Big enough to hold the largest lookahead (RISCV). */
-	unsigned char		 odd_bcj[8];
+	 * Big enough to hold the largest lookahead (IA64). */
+	unsigned char		 odd_bcj[16];
 
 	/* Decoding BCJ data. */
 	size_t			 bcj_prevPosT;
@@ -467,6 +467,7 @@ static ssize_t	Bcj2_Decode(struct _7zip *, uint8_t *, size_t);
 static size_t	sparc_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	powerpc_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	riscv_Convert(struct _7zip *, uint8_t *, size_t);
+static size_t	ia64_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	bcj_lookahead(int64_t);
 static int64_t	seek_compat(struct archive_read *, int64_t, int, int);
 
@@ -1355,6 +1356,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			    coder2->codec != _7Z_ARM &&
 			    coder2->codec != _7Z_ARMTHUMB &&
 			    coder2->codec != _7Z_ARM64 &&
+			    coder2->codec != _7Z_IA64 &&
 			    coder2->codec != _7Z_POWERPC &&
 			    coder2->codec != _7Z_RISCV &&
 			    coder2->codec != _7Z_SPARC) {
@@ -1374,6 +1376,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			else if (coder2->codec == _7Z_ARMTHUMB)
 				armthumb_Init(zip);
 			else if (coder2->codec == _7Z_ARM64 ||
+			    coder2->codec == _7Z_IA64 ||
 			    coder2->codec == _7Z_POWERPC ||
 			    coder2->codec == _7Z_RISCV ||
 			    coder2->codec == _7Z_SPARC)
@@ -1443,7 +1446,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 					arm_Init(zip);
 				else if (zip->codec2 == _7Z_ARMTHUMB)
 					armthumb_Init(zip);
-				else /* ARM64, POWERPC, RISCV, SPARC. */
+				else /* ARM64, IA64, POWERPC, RISCV, SPARC. */
 					zip->bcj_ip = 0;
 			} else {
 				switch (zip->codec2) {
@@ -2030,6 +2033,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			break;
 		case _7Z_RISCV:
 			l = riscv_Convert(zip, buff, *outbytes);
+			break;
+		case _7Z_IA64:
+			l = ia64_Convert(zip, buff, *outbytes);
 			break;
 		default:
 			/* Unreachable: bcj_lookahead() returns non-zero only
@@ -4677,6 +4683,100 @@ riscv_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 	return i;
 }
 
+static size_t
+ia64_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
+{
+	// This function was adapted from
+	// static size_t bcj_ia64(struct xz_dec_bcj *s, uint8_t *buf, size_t size)
+	// in https://git.tukaani.org/xz-embedded.git
+
+	/*
+	 * Branch/Call/Jump (BCJ) filter decoders
+	 *
+	 * Authors: Lasse Collin <lasse.collin@tukaani.org>
+	 *          Igor Pavlov <https://7-zip.org/>
+	 *
+	 * SPDX-License-Identifier: 0BSD
+	 */
+
+	static const uint8_t branch_table[32] = {
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		4, 4, 6, 6, 0, 0, 7, 7,
+		4, 4, 0, 0, 4, 4, 0, 0
+	};
+
+	/* Loop counters */
+	size_t i;
+	size_t j;
+
+	/* Instruction slot (0, 1, or 2) in the 128-bit instruction word */
+	uint32_t slot;
+
+	/* Bitwise offset of the instruction indicated by slot */
+	uint32_t bit_pos;
+
+	/* bit_pos split into byte and bit parts */
+	uint32_t byte_pos;
+	uint32_t bit_res;
+
+	/* Address part of an instruction */
+	uint32_t addr;
+
+	/* Mask used to detect which instructions to convert */
+	uint32_t mask;
+
+	/* 41-bit instruction stored somewhere in the lowest 48 bits */
+	uint64_t instr;
+
+	/* Instruction normalized with bit_res for easier manipulation */
+	uint64_t norm;
+
+	size &= ~(size_t)15;
+
+	for (i = 0; i < size; i += 16) {
+		mask = branch_table[buf[i] & 0x1F];
+		for (slot = 0, bit_pos = 5; slot < 3; ++slot, bit_pos += 41) {
+			if (((mask >> slot) & 1) == 0)
+				continue;
+
+			byte_pos = bit_pos >> 3;
+			bit_res = bit_pos & 7;
+			instr = 0;
+			for (j = 0; j < 6; ++j)
+				instr |= (uint64_t)(buf[i + j + byte_pos])
+				    << (8 * j);
+
+			norm = instr >> bit_res;
+
+			if (((norm >> 37) & 0x0F) == 0x05
+			    && ((norm >> 9) & 0x07) == 0) {
+				addr = (norm >> 13) & 0x0FFFFF;
+				addr |= ((uint32_t)(norm >> 36) & 1) << 20;
+				addr <<= 4;
+				addr -= zip->bcj_ip + (uint32_t)i;
+				addr >>= 4;
+
+				norm &= ~((uint64_t)0x8FFFFF << 13);
+				norm |= (uint64_t)(addr & 0x0FFFFF) << 13;
+				norm |= (uint64_t)(addr & 0x100000)
+				    << (36 - 20);
+
+				instr &= (1U << bit_res) - 1;
+				instr |= norm << bit_res;
+
+				for (j = 0; j < 6; j++)
+					buf[i + j + byte_pos]
+					    = (uint8_t)(instr >> (8 * j));
+			}
+		}
+	}
+
+	zip->bcj_ip += (uint32_t)i;
+
+	return i;
+}
+
 /*
  * The widest instruction the BCJ filters rewrite, and the smallest output
  * buffer that those filters can make progress with. Filters leave up to one
@@ -4692,6 +4792,8 @@ bcj_lookahead(int64_t codec2)
 		return (5);
 	case _7Z_RISCV:
 		return (8);
+	case _7Z_IA64:
+		return (16);
 	case _7Z_ARM:
 	case _7Z_ARMTHUMB:
 	case _7Z_ARM64:
