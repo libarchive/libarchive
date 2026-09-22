@@ -3479,8 +3479,11 @@ run_filters(struct archive_read *a)
   if (tend < 0)
     return 0;
   end = (size_t)tend;
-  if (end != start + filter->blocklength)
+  if (end != start + filter->blocklength) {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+      "Bad RAR file data: filter block was not fully decompressed");
     return 0;
+  }
 
   if (!filters->vm)
   {

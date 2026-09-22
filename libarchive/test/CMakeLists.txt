@@ -195,6 +195,7 @@ IF(ENABLE_TEST)
     test_read_format_rar_encryption_partially.c
     test_read_format_rar_invalid1.c
     test_read_format_rar_filter.c
+    test_read_format_rar_filter_incomplete_block.c
     test_read_format_rar_overflow.c
     test_read_format_rar5.c
     test_read_format_rar5_bad_filter.c
