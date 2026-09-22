@@ -176,6 +176,7 @@ IF(ENABLE_TEST)
     test_read_format_isorr_rr_moved.c
     test_read_format_isozisofs_compress.c
     test_read_format_iso_rockridge_ce_overflow.c
+    test_read_format_iso_rockridge_cl_re_cycle.c
     test_read_format_iso_rockridge_zf_overflow.c
     test_read_format_iso_zisofs_overflow.c
     test_read_format_lha.c
