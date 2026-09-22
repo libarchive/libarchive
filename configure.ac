@@ -569,6 +569,10 @@ esac
 
 AC_ARG_WITH([xml2],
   AS_HELP_STRING([--without-xml2], [Don't build support for xar through libxml2]))
+AC_ARG_WITH([xmllite],
+  AS_HELP_STRING([--without-xmllite], [Don't build support for xar through XmlLite]))
+AC_ARG_WITH([bsdxml],
+  AS_HELP_STRING([--without-bsdxml], [Don't build support for xar through bsdxml]))
 AC_ARG_WITH([expat],
   AS_HELP_STRING([--without-expat], [Don't build support for xar through expat]))
 
@@ -584,9 +588,49 @@ if test "x$with_xml2" != "xno"; then
   AC_CHECK_HEADERS([libxml/xmlreader.h libxml/xmlwriter.h libxml/xmlversion.h])
 fi
 if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
-  if test "x$with_expat" != "xno"; then
-    AC_CHECK_HEADERS([expat.h])
-    AC_CHECK_LIB(expat,XML_ParserCreate)
+  if test "x$with_xmllite" != "xno"; then
+    AC_CHECK_HEADERS([xmllite.h])
+    if test "x$ac_cv_header_xmllite_h" == "xyes"; then
+      AC_MSG_CHECKING([for xmllite])
+      saved_LIBS=$LIBS
+      LIBS="$LIBS -lxmllite -luuid -lole32"
+      AC_LINK_IFELSE([AC_LANG_SOURCE([
+        #include <initguid.h>
+        #include <xmllite.h>
+        int main() {
+          return CreateXmlReader(&IID_IXmlReader, NULL, NULL);
+        }
+      ])],
+      [ AC_MSG_RESULT([yes])
+	AC_DEFINE([HAVE_LIBXMLLITE], [1], [Define to 1 if you have the 'xmllite' library.])
+        found_xmllite=yes
+      ],
+      [ AC_MSG_RESULT([no])
+        LIBS=$saved_LIBS
+      ])
+    fi
+  fi
+  if test "x$found_xmllite" != "xyes"; then
+    if test "x$with_expat" != "xno"; then
+      PKG_CHECK_MODULES(EXPAT_PC, [expat], [
+        CPPFLAGS="${CPPFLAGS} ${EXPAT_PC_CFLAGS}"
+        LIBS="${LIBS} ${EXPAT_PC_LIBS}"
+        AC_DEFINE(HAVE_LIBEXPAT, [1], [Define to 1 if you have the 'expat' library.])
+        have_libexpat="yes"
+      ], [
+        AC_CHECK_LIB(expat,XML_ParserCreate)
+        if test "x$ac_cv_lib_expat_XML_ParserCreate" != "xyes"; then
+          have_libexpat="yes"
+        fi
+      ])
+      AC_CHECK_HEADERS([expat.h])
+    fi
+    if test "x$ac_cv_header_expat_h" != "xyes" || test "x$have_libexpat" != "xyes"; then
+      if test "x$with_bsdxml" != "xno"; then
+        AC_CHECK_HEADERS([bsdxml.h])
+        AC_CHECK_LIB(bsdxml,XML_ParserCreate)
+      fi
+    fi
   fi
 fi
 
