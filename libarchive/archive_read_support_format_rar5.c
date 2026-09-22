@@ -942,16 +942,37 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
 {
 	uint64_t multiplier;
 	uint64_t result = 0;
-	size_t i;
+	size_t i, max_bytes;
 	const uint8_t* p;
 
-	/* We will read maximum of 10 bytes. We don't have to handle the
-	 * situation to read the RAR5 variable-sized value stored at the end of
-	 * the file, because such situation will never happen. */
-	if(!read_ahead(a, 10, &p))
-		return 0;
+	/* We will read a maximum of 10 bytes, since that's the longest a
+	 * RAR5 varint can legally be. Ask for a full 10-byte lookahead
+	 * first, since that's the common case. However, a varint is
+	 * self-terminating (a byte with the MSB clear ends the value, so
+	 * most varints take far fewer than 10 bytes), and it's legal for
+	 * one to end fewer than 10 bytes before the end of the archive --
+	 * e.g. a file header's extra field butting up against ENDARC with
+	 * no padding. If a full 10-byte lookahead isn't available, fall
+	 * back to however many bytes actually remain and decode within
+	 * that instead of failing outright; only reaching the real end of
+	 * the archive with zero bytes left, or exhausting the available
+	 * bytes without hitting a terminator, is a genuine error. */
+	p = __archive_read_ahead(a, 10, NULL);
+	if(p != NULL) {
+		max_bytes = 10;
+	} else {
+		ssize_t avail = 0;
 
-	for(multiplier = 1, i = 0; i < 10; i++, multiplier *= 128) {
+		p = __archive_read_ahead(a, 1, &avail);
+		if(p == NULL || avail <= 0)
+			return 0;
+
+		max_bytes = (size_t)avail;
+		if(max_bytes > 10)
+			max_bytes = 10;
+	}
+
+	for(multiplier = 1, i = 0; i < max_bytes; i++, multiplier *= 128) {
 		uint64_t val;
 		uint8_t b;
 
@@ -997,7 +1018,9 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
 		}
 	}
 
-	/* All continuation bits were set. This is an error. */
+	/* Either all 10 bytes had their continuation bit set (a malformed
+	 * varint), or fewer than 10 bytes were available and none of them
+	 * terminated the value (a truncated archive). Both are errors. */
 	return 0;
 }
 
