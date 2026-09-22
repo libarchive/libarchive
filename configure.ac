@@ -574,7 +574,7 @@ AC_ARG_WITH([expat],
 
 if test "x$with_xml2" != "xno"; then
   PKG_PROG_PKG_CONFIG
-  PKG_CHECK_MODULES(LIBXML2_PC, [libxml-2.0], [
+  PKG_CHECK_MODULES(LIBXML2_PC, [libxml-2.0 >= 2.7.3], [
     CPPFLAGS="${CPPFLAGS} ${LIBXML2_PC_CFLAGS}"
     LIBS="${LIBS} ${LIBXML2_PC_LIBS}"
     AC_CHECK_LIB(xml2,xmlInitParser,[true],AC_MSG_FAILURE(Missing xml2 library))

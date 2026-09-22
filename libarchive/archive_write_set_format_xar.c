@@ -34,9 +34,7 @@
 #include <stdlib.h>
 #if HAVE_LIBXML_XMLWRITER_H
 #include <libxml/xmlwriter.h>
-#if defined(LIBXML_VERSION) && LIBXML_VERSION >= 20703
 #define XAR_WRITER_HAS_XML
-#endif /* LIBXML_VERSION */
 #elif HAVE_XMLLITE_H
 #include <objidl.h>
 #include <initguid.h>
