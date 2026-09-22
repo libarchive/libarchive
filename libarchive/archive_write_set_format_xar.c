@@ -32,15 +32,6 @@
 #include <limits.h>
 #endif
 #include <stdlib.h>
-#if HAVE_LIBXML_XMLWRITER_H
-#include <libxml/xmlwriter.h>
-#define XAR_WRITER_HAS_XML
-#elif HAVE_XMLLITE_H
-#include <objidl.h>
-#include <initguid.h>
-#include <xmllite.h>
-#define XAR_WRITER_HAS_XML
-#endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif
@@ -60,6 +51,7 @@
 #include "archive_rb.h"
 #include "archive_string.h"
 #include "archive_write_private.h"
+#include "archive_xml_private.h"
 
 /*
  * Differences to xar utility.
@@ -76,9 +68,9 @@
  *
  */
 
-#if !defined(XAR_WRITER_HAS_XML) ||\
-	!defined(HAVE_ZLIB_H) || \
-	!defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
+#if !defined(ARCHIVE_XML_WRITE) ||\
+    !defined(HAVE_ZLIB_H) || \
+    !defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
 /*
  * xar needs several external libraries.
  *   o libxml2 or xmllite (on Windows)
@@ -3387,7 +3379,7 @@ getalgname(enum sumalg sumalg)
 	}
 }
 
-#if HAVE_LIBXML_XMLWRITER_H
+#if defined(ARCHIVE_XML_WRITER_XML2)
 
 #define BAD_CAST_CONST (const xmlChar *)
 
@@ -3515,7 +3507,7 @@ xml_writer_get_final_content_and_length(struct xml_writer *ctx,
 	return (0);
 }
 
-#elif HAVE_XMLLITE_H
+#elif defined(ARCHIVE_XML_WRITER_XMLLITE)
 
 struct xml_writer {
 	IXmlWriter *writer;
@@ -3785,6 +3777,6 @@ xml_writer_get_final_content_and_length(struct xml_writer *ctx,
 	return (hr);
 }
 
-#endif /* HAVE_LIBXML_XMLWRITER_H */
+#endif /* ARCHIVE_XML_WRITER_XML2 */
 
 #endif /* Support xar format */
