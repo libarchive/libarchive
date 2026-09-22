@@ -2772,7 +2772,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			/*
 			 * Read Pre-tree for first 256 elements of main tree.
 			 */
-			if (lzx_read_pre_tree(strm) < 0) {
+			if (lzx_read_pre_tree(strm) == ARCHIVE_EOF) {
 				ds->state = ST_RD_PRE_MAIN_TREE_256;
 				if (last)
 					goto failed;
@@ -2800,7 +2800,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			/*
 			 * Read Pre-tree for remaining elements of main tree.
 			 */
-			if (lzx_read_pre_tree(strm) < 0) {
+			if (lzx_read_pre_tree(strm) == ARCHIVE_EOF) {
 				ds->state = ST_RD_PRE_MAIN_TREE_REM;
 				if (last)
 					goto failed;
@@ -2830,7 +2830,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			/*
 			 * Read Pre-tree for remaining elements of main tree.
 			 */
-			if (lzx_read_pre_tree(strm) < 0) {
+			if (lzx_read_pre_tree(strm) == ARCHIVE_EOF) {
 				ds->state = ST_RD_PRE_LENGTH_TREE;
 				if (last)
 					goto failed;
