@@ -450,6 +450,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_xz.c \
 	libarchive/test/test_compat_zip.c \
 	libarchive/test/test_compat_zstd.c \
+	libarchive/test/test_create_child_environment.c \
 	libarchive/test/test_empty_write.c \
 	libarchive/test/test_entry.c \
 	libarchive/test/test_entry_strmode.c \
