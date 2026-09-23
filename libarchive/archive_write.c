@@ -639,26 +639,33 @@ _archive_write_close(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
+	int was_fatal;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_ANY, "archive_write_close");
+	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL,
+	    "archive_write_close");
 	if (a->archive.state == ARCHIVE_STATE_NEW
 	    || a->archive.state == ARCHIVE_STATE_CLOSED)
 		return (ARCHIVE_OK); /* Okay to close() when not open. */
 
-	archive_clear_error(&a->archive);
+	was_fatal = a->archive.state == ARCHIVE_STATE_FATAL;
+	if (was_fatal)
+		r = ARCHIVE_FATAL;
+	else {
+		archive_clear_error(&a->archive);
 
-	/* Finish the last entry if a finish callback is specified */
-	if (a->archive.state == ARCHIVE_STATE_DATA
-	    && a->format_finish_entry != NULL)
-		r = ((a->format_finish_entry)(a));
+		/* Finish the last entry if a finish callback is specified */
+		if (a->archive.state == ARCHIVE_STATE_DATA
+		    && a->format_finish_entry != NULL)
+			r = ((a->format_finish_entry)(a));
 
-	/* Finish off the archive. */
-	/* TODO: have format closers invoke compression close. */
-	if (a->format_close != NULL) {
-		r1 = (a->format_close)(a);
-		if (r1 < r)
-			r = r1;
+		/* Finish off the archive. */
+		/* TODO: have format closers invoke compression close. */
+		if (a->format_close != NULL) {
+			r1 = (a->format_close)(a);
+			if (r1 < r)
+				r = r1;
+		}
 	}
 
 	/* Finish the compression and close the stream. */
@@ -666,7 +673,7 @@ _archive_write_close(struct archive *_a)
 	if (r1 < r)
 		r = r1;
 
-	if (a->archive.state != ARCHIVE_STATE_FATAL)
+	if (!was_fatal && a->archive.state != ARCHIVE_STATE_FATAL)
 		a->archive.state = ARCHIVE_STATE_CLOSED;
 	return (r);
 }
@@ -745,7 +752,9 @@ _archive_write_free(struct archive *_a)
 	/* It is okay to call free() in state FATAL. */
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_write_free");
-	if (a->archive.state != ARCHIVE_STATE_FATAL)
+	if (a->archive.state == ARCHIVE_STATE_FATAL)
+		(void)archive_write_close(&a->archive);
+	else
 		r = archive_write_close(&a->archive);
 
 	/* Release format resources. */
