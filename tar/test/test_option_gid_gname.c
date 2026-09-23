@@ -14,11 +14,11 @@ DEFINE_TEST(test_option_gid_gname)
 	assertUmask(0);
 	assertMakeFile("file", 0644, "1234567890");
 
-	/* Create archive with no special options. */
+	/* Create archive with simple uid/gid options. */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive1 --format=ustar file >stdout1.txt 2>stderr1.txt",
-		testprog));
+	    systemf("%s cf archive1 --uid=0 --gid=0 --format=ustar file "
+		">stdout1.txt 2>stderr1.txt", testprog));
 	assertEmptyFile("stdout1.txt");
 	assertEmptyFile("stderr1.txt");
 	reference = slurpfile(&s, "archive1");
@@ -26,8 +26,9 @@ DEFINE_TEST(test_option_gid_gname)
 	/* Again with both --gid and --gname */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive2 --gid=17 --gname=foofoofoo --format=ustar file >stdout2.txt 2>stderr2.txt",
-		testprog));
+	    systemf("%s cf archive2 --uid=17 --gid=17 "
+		"--gname=foofoofoo --format=ustar file >stdout2.txt "
+		"2>stderr2.txt", testprog));
 	assertEmptyFile("stdout2.txt");
 	assertEmptyFile("stderr2.txt");
 	data = slurpfile(&s, "archive2");
@@ -39,8 +40,8 @@ DEFINE_TEST(test_option_gid_gname)
 	/* Again with just --gname */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive4 --gname=foofoofoo --format=ustar file >stdout4.txt 2>stderr4.txt",
-		testprog));
+	    systemf("%s cf archive4 --uid=0 --gid=0 --gname=foofoofoo "
+		"--format=ustar file >stdout4.txt 2>stderr4.txt", testprog));
 	assertEmptyFile("stdout4.txt");
 	assertEmptyFile("stderr4.txt");
 	data = slurpfile(&s, "archive4");
@@ -53,8 +54,8 @@ DEFINE_TEST(test_option_gid_gname)
 	/* Again with --gid  and force gname to empty. */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive3 --gid=17 --gname= --format=ustar file >stdout3.txt 2>stderr3.txt",
-		testprog));
+	    systemf("%s cf archive3 --uid=17 --gid=17 --gname= "
+		"--format=ustar file >stdout3.txt 2>stderr3.txt", testprog));
 	assertEmptyFile("stdout3.txt");
 	assertEmptyFile("stderr3.txt");
 	data = slurpfile(&s, "archive3");
