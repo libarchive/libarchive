@@ -77,6 +77,7 @@ IF(ENABLE_TEST)
     test_compat_xz.c
     test_compat_zip.c
     test_compat_zstd.c
+    test_create_child_environment.c
     test_empty_write.c
     test_entry.c
     test_entry_strmode.c
