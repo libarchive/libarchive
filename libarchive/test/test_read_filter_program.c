@@ -32,6 +32,57 @@ static unsigned char archive[] = {
 148,'d',230,226,'U','G','H',30,234,15,'8','=',10,'F',193,'(',24,5,131,28,
 0,0,29,172,5,240,0,6,0,0};
 
+DEFINE_TEST(test_read_filter_program_windows_quoted_argument)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	const char input[] = "x";
+	char *cmd;
+	const char *sep;
+	size_t cmdsize;
+	size_t testprogdir_len;
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	if (!assert(testprogdir != NULL))
+		return;
+	testprogdir_len = strlen(testprogdir);
+	sep = "";
+	if (testprogdir_len > 0 &&
+	    testprogdir[testprogdir_len - 1] != '/' &&
+	    testprogdir[testprogdir_len - 1] != '\\')
+		sep = "/";
+
+	cmdsize = testprogdir_len + strlen(sep) +
+	    sizeof("\"libarchive_test_argvfilter.exe\" \"safe value\"");
+	cmd = malloc(cmdsize);
+	if (!assert(cmd != NULL))
+		return;
+	r = snprintf(cmd, cmdsize, "\"%s%slibarchive_test_argvfilter.exe\" "
+	    "\"safe value\"", testprogdir, sep);
+	if (!assert(r >= 0 && (size_t)r < cmdsize)) {
+		free(cmd);
+		return;
+	}
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_program_signature(a,
+		cmd, "x", 1));
+	free(cmd);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, input, sizeof(input) - 1));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assertTextFileContents("ok\n", "argvfilter.out");
+#else
+	skipping("Windows-specific CreateProcess argument quoting test");
+#endif
+}
+
 DEFINE_TEST(test_read_filter_program)
 {
 	int r;
