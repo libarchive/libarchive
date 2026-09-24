@@ -612,6 +612,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.c \
 	libarchive/test/test_read_format_zip_ambiguous_timestamps.c \
 	libarchive/test/test_read_format_zip_comment_stored.c \
+	libarchive/test/test_read_format_zip_dos_mtime_precedence.c \
 	libarchive/test/test_read_format_zip_empty.c \
 	libarchive/test/test_read_format_zip_encryption_data.c \
 	libarchive/test/test_read_format_zip_encryption_partially.c \
@@ -626,6 +627,8 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_negative_timestamps.c \
 	libarchive/test/test_read_format_zip_nested.c \
 	libarchive/test/test_read_format_zip_nofiletype.c \
+	libarchive/test/test_read_format_zip_ntfs_precedence.c \
+	libarchive/test/test_read_format_zip_ntfs_timestamp.c \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_size_exceeds_declared.c \
