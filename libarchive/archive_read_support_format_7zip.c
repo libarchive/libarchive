@@ -1831,14 +1831,12 @@ decompress(struct archive_read *a, struct _7zip *zip,
 #endif
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	case _7Z_BZ2:
-		if (t_avail_in > UINT_MAX)
-			t_avail_in = UINT_MAX;
-		if (t_avail_out > UINT_MAX)
-			t_avail_out = UINT_MAX;
 		zip->bzstream.next_in = (char *)(uintptr_t)t_next_in;
-		zip->bzstream.avail_in = (unsigned int)t_avail_in;
+		zip->bzstream.avail_in =
+		    archive_saturating_cast_u32(t_avail_in);
 		zip->bzstream.next_out = (char *)(uintptr_t)t_next_out;
-		zip->bzstream.avail_out = (unsigned int)t_avail_out;
+		zip->bzstream.avail_out =
+		    archive_saturating_cast_u32(t_avail_out);
 		r = BZ2_bzDecompress(&(zip->bzstream));
 		switch (r) {
 		case BZ_STREAM_END: /* Found end of stream. */
@@ -1868,14 +1866,12 @@ decompress(struct archive_read *a, struct _7zip *zip,
 #endif
 #ifdef HAVE_ZLIB_H
 	case _7Z_DEFLATE:
-		if (t_avail_in > UINT_MAX)
-			t_avail_in = UINT_MAX;
-		if (t_avail_out > UINT_MAX)
-			t_avail_out = UINT_MAX;
 		zip->stream.next_in = (Bytef *)(uintptr_t)t_next_in;
-		zip->stream.avail_in = (uInt)t_avail_in;
+		zip->stream.avail_in =
+		    archive_saturating_cast_u32(t_avail_in);
 		zip->stream.next_out = t_next_out;
-		zip->stream.avail_out = (uInt)t_avail_out;
+		zip->stream.avail_out =
+		    archive_saturating_cast_u32(t_avail_out);
 		r = inflate(&(zip->stream), 0);
 		switch (r) {
 		case Z_STREAM_END: /* Found end of stream. */

@@ -71,6 +71,7 @@
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
 #include "archive_hmac_private.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_read_private.h"
@@ -2618,7 +2619,7 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct zip *zip = a->format->data;
-	ssize_t bytes_avail = 0, max_in, to_consume;
+	ssize_t bytes_avail = 0, to_consume;
 	const void *compressed_buff;
 	const void *sp;
 	int r;
@@ -2654,14 +2655,8 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 
 	/* Setup buffer boundaries.  bzstream.avail_in is 32 bits wide,
 	 * so clamp the available byte count before the assignment. */
-	if (UINT_MAX >= SSIZE_MAX)
-		max_in = SSIZE_MAX;
-	else
-		max_in = UINT_MAX;
-	if (bytes_avail > max_in)
-		bytes_avail = max_in;
 	zip->bzstream.next_in = (char*)(uintptr_t) compressed_buff;
-	zip->bzstream.avail_in = (uint32_t)bytes_avail;
+	zip->bzstream.avail_in = archive_saturating_cast_u32(bytes_avail);
 	zip->bzstream.total_in_hi32 = 0;
 	zip->bzstream.total_in_lo32 = 0;
 	zip->bzstream.next_out = (char*) zip->uncompressed_buffer;
@@ -2898,7 +2893,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct zip *zip = a->format->data;
-	ssize_t bytes_avail, max_in, to_consume = 0;
+	ssize_t bytes_avail, to_consume = 0;
 	const void *compressed_buff;
 	const void *sp;
 	int r;
@@ -2944,13 +2939,6 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	/* stream.avail_in is a uInt, which is 32 bits wide even where
 	 * ssize_t is 64 bits.  Clamp the available byte count so that a
 	 * read-ahead window larger than 4 GiB is not truncated. */
-	if (UINT_MAX >= SSIZE_MAX)
-		max_in = SSIZE_MAX;
-	else
-		max_in = UINT_MAX;
-	if (bytes_avail > max_in)
-		bytes_avail = max_in;
-
 	/*
 	 * A bug in zlib.h: stream.next_in should be marked 'const'
 	 * but isn't (the library never alters data through the
@@ -2958,7 +2946,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	 * cast to remove 'const'.
 	 */
 	zip->stream.next_in = (Bytef *)(uintptr_t)(const void *)compressed_buff;
-	zip->stream.avail_in = (uInt)bytes_avail;
+	zip->stream.avail_in = archive_saturating_cast_u32(bytes_avail);
 	zip->stream.total_in = 0;
 	zip->stream.next_out = zip->uncompressed_buffer;
 	zip->stream.avail_out = (uInt)zip->uncompressed_buffer_size;
@@ -4541,10 +4529,12 @@ zip_read_mac_metadata(struct archive_read *a, struct archive_entry *entry,
 				goto exit_mac_metadata;
 			zip->stream.next_in =
 			    (Bytef *)(uintptr_t)(const void *)p;
-			zip->stream.avail_in = (uInt)bytes_avail;
+			zip->stream.avail_in =
+			    archive_saturating_cast_u32(bytes_avail);
 			zip->stream.total_in = 0;
 			zip->stream.next_out = mp;
-			zip->stream.avail_out = (uInt)metadata_bytes;
+			zip->stream.avail_out =
+			    archive_saturating_cast_u32(metadata_bytes);
 			zip->stream.total_out = 0;
 
 			r = inflate(&zip->stream, 0);

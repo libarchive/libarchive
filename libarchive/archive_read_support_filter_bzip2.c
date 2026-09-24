@@ -46,6 +46,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -231,8 +232,6 @@ bzip2_filter_read(struct archive_read_filter *f, const void **p)
 
 	/* Try to fill the output buffer. */
 	for (;;) {
-		ssize_t max_in;
-
 		if (!bzip2->valid) {
 			if (bzip2_reader_bid(f->bidder, f->upstream) == 0) {
 				bzip2->eof = 1;
@@ -287,13 +286,7 @@ bzip2_filter_read(struct archive_read_filter *f, const void **p)
 			return (ARCHIVE_FATAL);
 		}
 		bzip2->stream.next_in = (char *)(uintptr_t)read_buf;
-		if (UINT_MAX >= SSIZE_MAX)
-			max_in = SSIZE_MAX;
-		else
-			max_in = UINT_MAX;
-		if (ret > max_in)
-			ret = max_in;
-		bzip2->stream.avail_in = (uint32_t)ret;
+		bzip2->stream.avail_in = archive_saturating_cast_u32(ret);
 
 		/* Decompress as much as we can in one pass. */
 		ret = BZ2_bzDecompress(&(bzip2->stream));
