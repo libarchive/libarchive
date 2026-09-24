@@ -527,7 +527,7 @@ const char *
 archive_inflatelib_version(void)
 {
 #if HAVE_INFLATELIB_H
-	return INFLATELIB_VERSION_STRING;
+	return inflatelib_version();
 #else
 	return NULL;
 #endif
