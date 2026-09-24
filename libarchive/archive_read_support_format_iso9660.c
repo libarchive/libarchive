@@ -1663,10 +1663,11 @@ zisofs_read_data(struct archive_read *a,
 		if (avail > zisofs->block_avail)
 			zisofs->stream.avail_in = zisofs->block_avail;
 		else
-			zisofs->stream.avail_in = (uInt)avail;
+			zisofs->stream.avail_in =
+			    (uInt)archive_saturating_cast_u32(avail);
 		zisofs->stream.next_out = zisofs->uncompressed_buffer;
 		zisofs->stream.avail_out =
-		    (uInt)zisofs->uncompressed_buffer_size;
+		    (uInt)archive_saturating_cast_u32(zisofs->uncompressed_buffer_size);
 
 		r = inflate(&zisofs->stream, 0);
 		switch (r) {
