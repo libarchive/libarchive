@@ -143,7 +143,17 @@ __archive_ntfs_to_unix(uint64_t ntfs, int64_t* secs, uint32_t* nsecs)
 		lldiv_t tdiv;
 		int64_t value = (int64_t)ntfs - (int64_t)NTFS_EPOC_TICKS;
 
+		/* lldiv() truncates toward zero, not toward -infinity, so
+		 * for a negative |value| that isn't an exact multiple of
+		 * NTFS_TICKS, tdiv.rem would itself come out negative here.
+		 * Adjust to floor division so *nsecs always ends up
+		 * non-negative, with the sign folded entirely into *secs,
+		 * as callers (e.g. struct timespec) expect. */
 		tdiv = lldiv(value, NTFS_TICKS);
+		if (tdiv.rem < 0) {
+			tdiv.quot -= 1;
+			tdiv.rem += NTFS_TICKS;
+		}
 		*secs = tdiv.quot;
 		*nsecs = (uint32_t)(tdiv.rem * 100);
 	}

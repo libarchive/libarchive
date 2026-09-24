@@ -402,6 +402,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_match_owner.c \
 	libarchive/test/test_archive_match_path.c \
 	libarchive/test/test_archive_match_time.c \
+	libarchive/test/test_archive_ntfs_time.c \
 	libarchive/test/test_archive_parse_date.c \
 	libarchive/test/test_archive_pathmatch.c \
 	libarchive/test/test_archive_pathmatch_oob.c \
