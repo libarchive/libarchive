@@ -389,7 +389,8 @@ DEFINE_TEST(test_read_append_filter_program)
 DEFINE_TEST(test_read_append_filter_wrong_program)
 {
   struct archive *a;
-#if !defined(_WIN32) || defined(__CYGWIN__)
+#if (!defined(_WIN32) || defined(__CYGWIN__)) && \
+    !(defined(__ANDROID__) && __ANDROID_API__ < 24)
   FILE * fp;
   int fd;
   fpos_t pos;
@@ -403,7 +404,8 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
     return;
   }
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
+#if (!defined(_WIN32) || defined(__CYGWIN__)) && \
+    !(defined(__ANDROID__) && __ANDROID_API__ < 24)
   /* bunzip2 will write to stderr, redirect it to a file */
   fflush(stderr);
   fgetpos(stderr, &pos);
@@ -419,7 +421,8 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
       archive_read_open_memory(a, archive, sizeof(archive)));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
-#if !defined(_WIN32) || defined(__CYGWIN__)
+#if (!defined(_WIN32) || defined(__CYGWIN__)) && \
+    !(defined(__ANDROID__) && __ANDROID_API__ < 24)
   /* restore stderr */
   if (fp != NULL) {
     fflush(stderr);
