@@ -148,6 +148,13 @@ struct trad_enc_ctx {
  * unlike mtime/atime, ZIP has no other source for it, so there's no
  * DOS-time fallback to rely on being already-set. */
 #define LA_HAS_NTFS_BIRTHTIME (1 << 2)
+/* Set once an extra field (as opposed to the DOS timestamp in the header
+ * itself) has supplied mtime. Lets the Local File Header's own DOS
+ * timestamp - which carries no information the Central Directory prescan
+ * didn't already have - act as a fallback default instead of
+ * unconditionally overwriting a more precise value that prescan already
+ * established from an extra field the Local Header doesn't repeat. */
+#define LA_MTIME_FROM_EXTRA (1 << 3)
 
 /*
  * See "WinZip - AES Encryption Information"
@@ -823,7 +830,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					zip_entry->birthtime = (time_t)secs;
 					zip_entry->birthtime_ns = nsecs;
 					zip_entry->flags |=
-					    LA_HAS_NTFS_BIRTHTIME;
+					    LA_HAS_NTFS_BIRTHTIME |
+					    LA_MTIME_FROM_EXTRA;
 				}
 				sub_offset += size;
 				sub_remaining -= size;
@@ -833,17 +841,24 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 		case 0x000d:
 			/* PKWARE Unix Extra Field fixed metadata. */
 			if (datasize >= 12) {
-				/* atime/mtime are signed 32-bit Unix
-				 * time, to allow pre-1970 dates. 1-second
+				/* atime/mtime are signed 32-bit Unix time,
+				 * to allow pre-1970 dates. 1-second
 				 * resolution: clear any nanoseconds a
 				 * previously-parsed NTFS extra field may
-				 * have recorded for a different value. */
-				zip_entry->atime =
+				 * have recorded, unless they're for this
+				 * same second, in which case they're still
+				 * accurate and worth keeping. */
+				int32_t const new_atime =
 				    (int32_t)archive_le32dec(p + offset);
-				zip_entry->atime_ns = 0;
-				zip_entry->mtime =
+				int32_t const new_mtime =
 				    (int32_t)archive_le32dec(p + offset + 4);
-				zip_entry->mtime_ns = 0;
+				if (zip_entry->atime != new_atime)
+					zip_entry->atime_ns = 0;
+				zip_entry->atime = new_atime;
+				if (zip_entry->mtime != new_mtime)
+					zip_entry->mtime_ns = 0;
+				zip_entry->mtime = new_mtime;
+				zip_entry->flags |= LA_MTIME_FROM_EXTRA;
 				zip_entry->uid =
 				    archive_le16dec(p + offset + 8);
 				zip_entry->gid =
@@ -896,10 +911,16 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					break;
 				/* Signed 32-bit Unix time, to allow
 				 * pre-1970 dates. 1-second resolution: see
-				 * the 0x000d case for why _ns is cleared. */
-				zip_entry->mtime =
-				    (int32_t)archive_le32dec(p + offset);
-				zip_entry->mtime_ns = 0;
+				 * the 0x000d case for why _ns is cleared
+				 * only when the value actually changes. */
+				{
+					int32_t const new_mtime =
+					    (int32_t)archive_le32dec(p + offset);
+					if (zip_entry->mtime != new_mtime)
+						zip_entry->mtime_ns = 0;
+					zip_entry->mtime = new_mtime;
+				}
+				zip_entry->flags |= LA_MTIME_FROM_EXTRA;
 				offset += 4;
 				datasize -= 4;
 			}
@@ -907,9 +928,13 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			{
 				if (datasize < 4)
 					break;
-				zip_entry->atime =
-				    (int32_t)archive_le32dec(p + offset);
-				zip_entry->atime_ns = 0;
+				{
+					int32_t const new_atime =
+					    (int32_t)archive_le32dec(p + offset);
+					if (zip_entry->atime != new_atime)
+						zip_entry->atime_ns = 0;
+					zip_entry->atime = new_atime;
+				}
 				offset += 4;
 				datasize -= 4;
 			}
@@ -930,13 +955,19 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			if (datasize >= 8) {
 				/* Signed 32-bit Unix time, to allow
 				 * pre-1970 dates. 1-second resolution: see
-				 * the 0x000d case for why _ns is cleared. */
-				zip_entry->atime =
+				 * the 0x000d case for why _ns is cleared
+				 * only when the value actually changes. */
+				int32_t const new_atime =
 				    (int32_t)archive_le32dec(p + offset);
-				zip_entry->atime_ns = 0;
-				zip_entry->mtime =
+				int32_t const new_mtime =
 				    (int32_t)archive_le32dec(p + offset + 4);
-				zip_entry->mtime_ns = 0;
+				if (zip_entry->atime != new_atime)
+					zip_entry->atime_ns = 0;
+				zip_entry->atime = new_atime;
+				if (zip_entry->mtime != new_mtime)
+					zip_entry->mtime_ns = 0;
+				zip_entry->mtime = new_mtime;
+				zip_entry->flags |= LA_MTIME_FROM_EXTRA;
 			}
 			if (datasize >= 12) {
 				zip_entry->uid =
@@ -1251,11 +1282,16 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	zip->init_decryption = (zip_entry->zip_flags & ZIP_ENCRYPTED);
 	zip_entry->compression = (char)archive_le16dec(p + 8);
-	zip_entry->mtime = __archive_dos_to_unix(archive_le32dec(p + 10));
-	/* This DOS timestamp has no sub-second precision: clear any
-	 * nanoseconds a previously-parsed (e.g. Central Directory) NTFS
-	 * extra field may have recorded for a different mtime value. */
-	zip_entry->mtime_ns = 0;
+	/* This DOS timestamp carries no information a Central Directory
+	 * prescan wouldn't already have, and no sub-second precision:
+	 * only use it (and reset mtime_ns to match, since it has none) as
+	 * a fallback default, not an unconditional override of a more
+	 * precise value the prescan may have already established from an
+	 * extra field the Local Header doesn't itself repeat. */
+	if (!(zip_entry->flags & LA_MTIME_FROM_EXTRA)) {
+		zip_entry->mtime = __archive_dos_to_unix(archive_le32dec(p + 10));
+		zip_entry->mtime_ns = 0;
+	}
 	zip_entry->crc32 = archive_le32dec(p + 14);
 	if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 		zip_entry->decdat = p[11];
