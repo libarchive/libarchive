@@ -3596,8 +3596,7 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
 	rar5->cstate.switch_multivolume = 1;
 
 	/* Reallocate the memory which will hold the whole block. */
-	if(rar5->vol.push_buf)
-		free((void*) rar5->vol.push_buf);
+	free(rar5->vol.push_buf);
 
 	/* Increasing the allocation block by 8 is due to bit reading functions,
 	 * which are using additional 2 or 4 bytes. Allocating the block size

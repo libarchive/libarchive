@@ -1514,8 +1514,7 @@ zisofs_read_data(struct archive_read *a,
 		if (zisofs->block_pointers_alloc < xsize) {
 			size_t alloc;
 
-			if (zisofs->block_pointers != NULL)
-				free(zisofs->block_pointers);
+			free(zisofs->block_pointers);
 			alloc = ((xsize >> 10) + 1) << 10;
 			zisofs->block_pointers = malloc(alloc);
 			if (zisofs->block_pointers == NULL) {
@@ -1530,8 +1529,7 @@ zisofs_read_data(struct archive_read *a,
 		/* Allocate uncompressed data buffer. */
 		xsize = (size_t)1UL << zisofs->pz_log2_bs;
 		if (zisofs->uncompressed_buffer_size < xsize) {
-			if (zisofs->uncompressed_buffer != NULL)
-				free(zisofs->uncompressed_buffer);
+			free(zisofs->uncompressed_buffer);
 			zisofs->uncompressed_buffer = malloc(xsize);
 			if (zisofs->uncompressed_buffer == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
