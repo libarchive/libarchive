@@ -567,8 +567,7 @@ read_more:
 				uu->mode_set = 1;
 				namelen = len - nl - 4 - l;
 				if (namelen > 1) {
-					if (uu->name != NULL)
-						free(uu->name);
+					free(uu->name);
 					uu->name = malloc(namelen + 1);
 					if (uu->name == NULL) {
 						archive_set_error(
