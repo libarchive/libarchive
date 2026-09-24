@@ -4069,8 +4069,12 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	/* Boyer-Moore search backwards from the end, since we want
 	 * to match the last EOCD in the file (there can be more than
 	 * one if there is an uncompressed Zip archive as a member
-	 * within this Zip archive). */
-	for (i = tail - 22; i > 0;) {
+	 * within this Zip archive).
+	 *
+	 * The lower bound is inclusive (>= 0, not > 0): a minimal,
+	 * valid, zero-entry archive is exactly 22 bytes long, putting
+	 * the EOCD signature at index 0 of this search window. */
+	for (i = tail - 22; i >= 0;) {
 		switch (h[i]) {
 		case 'P':
 			if (memcmp(h + i, "PK\005\006", 4) == 0) {
