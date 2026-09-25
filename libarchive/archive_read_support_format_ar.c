@@ -532,18 +532,20 @@ ar_parse_gnu_filename_table(struct archive_read *a)
 	size = ar->strtab_size;
 
 	for (p = ar->strtab; p < ar->strtab + size - 1; ++p) {
-		if (*p == '/') {
+		/* Normalize backslash, even before separator check. */
+		if (*p == '\\')
+			*p = '/';
+		if (*p == '/' && *(p + 1) == '\n') {
 			*p++ = '\0';
-			if (*p != '\n')
-				goto bad_string_table;
 			*p = '\0';
 		}
 	}
 	/*
 	 * GNU ar always pads the table to an even size.
 	 * The pad character is either '\n' or '`'.
+	 * For Windows Archive files, the pad character can be '\0'.
 	 */
-	if (p != ar->strtab + size && *p != '\n' && *p != '`')
+	if (p != ar->strtab + size && *p != '\n' && *p != '`' && *p != '\0')
 		goto bad_string_table;
 
 	/* Enforce zero termination. */
