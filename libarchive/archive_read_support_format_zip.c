@@ -762,9 +762,12 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 		case 0x000d:
 			/* PKWARE Unix Extra Field fixed metadata. */
 			if (datasize >= 12) {
-				zip_entry->atime = archive_le32dec(p + offset);
+				/* atime/mtime are signed 32-bit Unix
+				 * time, to allow pre-1970 dates. */
+				zip_entry->atime =
+				    (int32_t)archive_le32dec(p + offset);
 				zip_entry->mtime =
-				    archive_le32dec(p + offset + 4);
+				    (int32_t)archive_le32dec(p + offset + 4);
 				zip_entry->uid =
 				    archive_le16dec(p + offset + 8);
 				zip_entry->gid =
@@ -815,7 +818,10 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 #endif
 				if (datasize < 4)
 					break;
-				zip_entry->mtime = archive_le32dec(p + offset);
+				/* Signed 32-bit Unix time, to allow
+				 * pre-1970 dates. */
+				zip_entry->mtime =
+				    (int32_t)archive_le32dec(p + offset);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -823,7 +829,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			{
 				if (datasize < 4)
 					break;
-				zip_entry->atime = archive_le32dec(p + offset);
+				zip_entry->atime =
+				    (int32_t)archive_le32dec(p + offset);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -831,7 +838,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			{
 				if (datasize < 4)
 					break;
-				zip_entry->ctime = archive_le32dec(p + offset);
+				zip_entry->ctime =
+				    (int32_t)archive_le32dec(p + offset);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -841,9 +849,12 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 		{
 			/* Info-ZIP Unix Extra Field (old version) "UX". */
 			if (datasize >= 8) {
-				zip_entry->atime = archive_le32dec(p + offset);
+				/* Signed 32-bit Unix time, to allow
+				 * pre-1970 dates. */
+				zip_entry->atime =
+				    (int32_t)archive_le32dec(p + offset);
 				zip_entry->mtime =
-				    archive_le32dec(p + offset + 4);
+				    (int32_t)archive_le32dec(p + offset + 4);
 			}
 			if (datasize >= 12) {
 				zip_entry->uid =
