@@ -6776,17 +6776,24 @@ isoent_rr_move(struct archive_write *a)
 	/* If "rr_moved" directory is already existing,
 	 * we have to use it. */
 	rr_moved = isoent_find_child(rootent, "rr_moved");
-	if (rr_moved != NULL &&
-	    rr_moved != rootent->children.first) {
-		/*
-		 * It's necessary that rr_move is the first entry
-		 * of the root.
-		 */
-		/* Remove "rr_moved" entry from children chain. */
-		isoent_remove_child(rootent, rr_moved);
+	if (rr_moved != NULL) {
+		if (!rr_moved->dir) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Unable to relocate directories into rr_moved:"
+			    " the existing entry is not a directory");
+			return (ARCHIVE_FATAL);
+		}
+		if (rr_moved != rootent->children.first) {
+			/*
+			 * It's necessary that rr_move is the first entry
+			 * of the root.
+			 */
+			/* Remove "rr_moved" entry from children chain. */
+			isoent_remove_child(rootent, rr_moved);
 
-		/* Add "rr_moved" entry into the head of children chain. */
-		isoent_add_child_head(rootent, rr_moved);
+			/* Add "rr_moved" entry to the head of children chain. */
+			isoent_add_child_head(rootent, rr_moved);
+		}
 	}
 
 	/*
