@@ -62,5 +62,18 @@ DEFINE_TEST(test_option_uid_uname)
 	assertEqualMem(data + 265, "foofoofoo\0", 10);
 	free(data);
 
+	/* Again with --uid and --uname, copying entries from archive1 */
+	failure("Error invoking %s c", testprog);
+	assertEqualInt(0,
+	    systemf("%s cf archive5 --uid=65123 --uname=foofoofoo --format=ustar @archive1 >stdout5.txt 2>stderr5.txt",
+		testprog));
+	assertEmptyFile("stdout5.txt");
+	assertEmptyFile("stderr5.txt");
+	data = slurpfile(&s, "archive5");
+	/* Should force uid and uname fields in ustar header. */
+	assertEqualMem(data + 108, "177143 \0", 8);
+	assertEqualMem(data + 265, "foofoofoo\0", 10);
+	free(data);
+
 	free(reference);
 }
