@@ -66,7 +66,8 @@ DEFINE_TEST(test_option_gid_gname)
 	/* Again with --gid and --gname, copying entries from archive1 */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
-	    systemf("%s cf archive5 --gid=17 --gname=foofoofoo --format=ustar @archive1 >stdout5.txt 2>stderr5.txt",
+	    systemf("%s cf archive5 --uid=17 --gid=17 --gname=foofoofoo "
+		"--format=ustar @archive1 >stdout5.txt 2>stderr5.txt",
 		testprog));
 	assertEmptyFile("stdout5.txt");
 	assertEmptyFile("stderr5.txt");
