@@ -361,6 +361,11 @@ struct _7zip {
 	uint32_t		 bcj_prevMask;
 	uint32_t		 bcj_ip;
 
+	/* Decoding Delta data. */
+	unsigned		 delta_dist;
+	uint8_t			 delta_pos;
+	uint8_t			 delta_history[256];
+
 	/* Decoding BCJ2 data. */
 	int64_t			 main_stream_bytes_remaining;
 	unsigned char		*sub_stream_buff[3];
@@ -468,6 +473,8 @@ static size_t	sparc_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	powerpc_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	riscv_Convert(struct _7zip *, uint8_t *, size_t);
 static size_t	ia64_Convert(struct _7zip *, uint8_t *, size_t);
+static void	delta_Init(struct _7zip *, unsigned);
+static void	delta_Decode(struct _7zip *, uint8_t *, size_t);
 static size_t	bcj_lookahead(int64_t);
 static int64_t	seek_compat(struct archive_read *, int64_t, int, int);
 
@@ -1359,12 +1366,20 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			    coder2->codec != _7Z_IA64 &&
 			    coder2->codec != _7Z_POWERPC &&
 			    coder2->codec != _7Z_RISCV &&
-			    coder2->codec != _7Z_SPARC) {
+			    coder2->codec != _7Z_SPARC &&
+			    coder2->codec != _7Z_DELTA) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Unsupported filter %jx for %jx",
 				    (uintmax_t)coder2->codec,
 				    (uintmax_t)coder1->codec);
+				return (ARCHIVE_FAILED);
+			}
+			if (coder2->codec == _7Z_DELTA &&
+			    coder2->propertiesSize != 1) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Invalid Delta parameter");
 				return (ARCHIVE_FAILED);
 			}
 			zip->codec2 = coder2->codec;
@@ -1381,6 +1396,8 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			    coder2->codec == _7Z_RISCV ||
 			    coder2->codec == _7Z_SPARC)
 				zip->bcj_ip = 0;
+			else if (coder2->codec == _7Z_DELTA)
+				delta_Init(zip, coder2->properties[0] + 1);
 		}
 		break;
 	default:
@@ -2085,6 +2102,13 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		bcj2_avail_out -= bytes;
 		*outbytes = o_avail_out - bcj2_avail_out;
 	}
+
+	/*
+	 * Decode Delta. LZMA1 and LZMA2 use liblzma's Delta filter instead.
+	 */
+	if (zip->codec2 == _7Z_DELTA &&
+	    zip->codec != _7Z_LZMA && zip->codec != _7Z_LZMA2)
+		delta_Decode(zip, buff, *outbytes);
 
 	return (ret);
 }
@@ -4775,6 +4799,38 @@ ia64_Convert(struct _7zip *zip, uint8_t *buf, size_t size)
 	zip->bcj_ip += (uint32_t)i;
 
 	return i;
+}
+
+static void
+delta_Init(struct _7zip *zip, unsigned dist)
+{
+	zip->delta_dist = dist;
+	zip->delta_pos = 0;
+	memset(zip->delta_history, 0, sizeof(zip->delta_history));
+}
+
+static void
+delta_Decode(struct _7zip *zip, uint8_t *buf, size_t size)
+{
+	// This was adapted from src/liblzma/delta/delta_decoder.c's
+	// static void decode_buffer(lzma_delta_coder *coder, uint8_t *buffer, size_t size)
+	// function in https://github.com/tukaani-project/xz.git
+
+	/*
+	 * Delta filter decoder
+	 *
+	 * Author: Lasse Collin
+	 *
+	 * SPDX-License-Identifier: 0BSD
+	 */
+
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		buf[i] += zip->delta_history[
+			(zip->delta_dist + zip->delta_pos) & 0xFF];
+		zip->delta_history[zip->delta_pos--] = buf[i];
+	}
 }
 
 /*
