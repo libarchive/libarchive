@@ -520,6 +520,7 @@ static int
 archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 {
 	const char *h;
+	int bid;
 
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
@@ -531,6 +532,8 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 
 	if (memcmp(h, "MSCF\0\0\0\0", 8) == 0)
 		return (64);
+	/* Use a very low bid if reserved bytes are not 0. */
+	bid = memcmp(h, "MSCF", 4) == 0 ? 1 : 0;
 
 	/*
 	 * Attempt to handle self-extracting archives
@@ -552,7 +555,7 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 					window = bytes_avail - offset;
 					continue;
 				}
-				return (0);
+				return (bid);
 			}
 			if (bytes_avail > SFX_MAX_READAHEAD)
 				bytes_avail = SFX_MAX_READAHEAD;
@@ -564,7 +567,7 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 			}
 		}
 	}
-	return (0);
+	return (bid);
 }
 
 static int
