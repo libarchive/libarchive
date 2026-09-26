@@ -233,6 +233,7 @@ OPTION(ENABLE_ZSTD "Enable the use of the system zstd library if found" ON)
 OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
 OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
 OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
+OPTION(ENABLE_BSDXML "Enable the use of the system bsdxml library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
 OPTION(ENABLE_WIN32_XMLLITE "Enable the use of the Windows XmlLite library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
@@ -1208,7 +1209,7 @@ ENDIF(ENABLE_ICONV)
 # Find Libxml2
 #
 IF(ENABLE_LIBXML2 AND HAVE_ICONV)
-  FIND_PACKAGE(LibXml2)
+  FIND_PACKAGE(LibXml2 2.7.3)
 ELSE()
   SET(LIBXML2_FOUND FALSE)
 ENDIF()
@@ -1235,40 +1236,61 @@ IF(LIBXML2_FOUND)
   CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
 ELSE(LIBXML2_FOUND)
   #
-  # Find Expat
+  # Find XmlLite
   #
-  IF(ENABLE_EXPAT)
-    FIND_PACKAGE(EXPAT)
-  ELSE()
-    SET(EXPAT_FOUND FALSE)
-  ENDIF()
-  IF(EXPAT_FOUND)
-    CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
-    INCLUDE_DIRECTORIES(${EXPAT_INCLUDE_DIR})
-    LIST(APPEND ADDITIONAL_LIBS ${EXPAT_LIBRARIES})
-    SET(HAVE_LIBEXPAT 1)
-    LA_CHECK_INCLUDE_FILE("expat.h" HAVE_EXPAT_H)
-    CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
-  ELSE(EXPAT_FOUND)
-    IF(WIN32 AND ENABLE_WIN32_XMLLITE)
-      # Check linkage as well; versions of mingw-w64 before v11.0.0
-      # do not contain an import library for xmllite.
-      cmake_push_check_state()
-      SET(CMAKE_REQUIRED_LIBRARIES "xmllite" "uuid")
-      check_c_source_compiles("
-      #include <initguid.h>
-      #include <xmllite.h>
-      int main() {
-        return CreateXmlReader(&IID_IXmlReader, NULL, NULL);
-      }
-      " HAVE_XMLLITE_H)
-      cmake_pop_check_state()
-      IF(HAVE_XMLLITE_H)
-        SET(XMLLITE_FOUND TRUE)
-        LIST(APPEND ADDITIONAL_LIBS "xmllite" "uuid")
-      ENDIF()
-    ENDIF()
-  ENDIF(EXPAT_FOUND)
+  IF(WIN32 AND ENABLE_WIN32_XMLLITE)
+    # Check linkage as well; versions of mingw-w64 before v11.0.0
+    # do not contain an import library for XmlLite.
+    cmake_push_check_state()
+    SET(CMAKE_REQUIRED_LIBRARIES "xmllite" "uuid")
+    check_c_source_compiles("
+    #include <initguid.h>
+    #include <xmllite.h>
+    int main() {
+      return CreateXmlReader(&IID_IXmlReader, NULL, NULL);
+    }
+    " HAVE_XMLLITE_H)
+    cmake_pop_check_state()
+    IF(HAVE_XMLLITE_H)
+      SET(HAVE_LIBXMLLITE 1)
+      SET(XMLLITE_FOUND TRUE)
+      LIST(APPEND ADDITIONAL_LIBS "xmllite" "uuid")
+    ENDIF(HAVE_XMLLITE_H)
+  ENDIF(WIN32 AND ENABLE_WIN32_XMLLITE)
+  IF(NOT XMLLITE_FOUND)
+    #
+    # Find Expat
+    #
+    IF(ENABLE_EXPAT)
+      FIND_PACKAGE(EXPAT)
+    ELSE(ENABLE_EXPAT)
+      SET(EXPAT_FOUND FALSE)
+    ENDIF(ENABLE_EXPAT)
+    IF(EXPAT_FOUND)
+      CMAKE_PUSH_CHECK_STATE()	# Save the state of the variables
+      INCLUDE_DIRECTORIES(${EXPAT_INCLUDE_DIRS})
+      LIST(APPEND CMAKE_REQUIRED_INCLUDES ${EXPAT_INCLUDE_DIR})
+      LIST(APPEND ADDITIONAL_LIBS ${EXPAT_LIBRARIES})
+      SET(HAVE_LIBEXPAT 1)
+      LA_CHECK_INCLUDE_FILE("expat.h" HAVE_EXPAT_H)
+      CMAKE_POP_CHECK_STATE()	# Restore the state of the variables
+    ENDIF(EXPAT_FOUND)
+    #
+    # Find bsdxml
+    #
+    IF(NOT EXPAT_FOUND)
+      IF(ENABLE_BSDXML)
+        FIND_PATH(BSDXML_INCLUDE_DIR NAMES bsdxml.h)
+        FIND_LIBRARY(BSDXML_LIBRARY NAMES bsdxml)
+        IF(BSDXML_INCLUDE_DIR AND BSDXML_LIBRARY)
+          INCLUDE_DIRECTORIES(${BSDXML_INCLUDE_DIR})
+          LIST(APPEND ADDITIONAL_LIBS ${BSDXML_LIBRARY})
+          SET(HAVE_LIBBSDXML 1)
+          LA_CHECK_INCLUDE_FILE("bsdxml.h" HAVE_BSDXML_H)
+        ENDIF(BSDXML_INCLUDE_DIR AND BSDXML_LIBRARY)
+      ENDIF(ENABLE_BSDXML)
+    ENDIF(NOT EXPAT_FOUND)
+  ENDIF(NOT XMLLITE_FOUND)
 ENDIF(LIBXML2_FOUND)
 MARK_AS_ADVANCED(CLEAR LIBXML2_INCLUDE_DIR)
 MARK_AS_ADVANCED(CLEAR LIBXML2_LIBRARIES)
