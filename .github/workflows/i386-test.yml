@@ -1,0 +1,43 @@
+name: 32-bit (i386) build and test
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  i386:
+    runs-on: ubuntu-latest
+    container:
+      image: i386/debian:bookworm
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake git pkg-config \
+            libacl1-dev libbz2-dev liblz4-dev liblzma-dev \
+            libssl-dev libzstd-dev zlib1g-dev
+      # Plain git instead of the checkout action: the runner executes
+      # actions with its own 64-bit node, which cannot run inside a
+      # 32-bit container.
+      - name: Check out
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+      - name: Configure
+        run: ./build/ci/build.sh -a configure
+        env:
+          BS: cmake
+      - name: Build
+        run: ./build/ci/build.sh -a build
+        env:
+          BS: cmake
+          MAKE_ARGS: -j4
+      - name: Test
+        run: ./build/ci/build.sh -a test
+        env:
+          BS: cmake
