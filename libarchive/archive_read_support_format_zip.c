@@ -1210,12 +1210,23 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			    "Can't allocate memory for Pathname");
 			return (ARCHIVE_FATAL);
 		}
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Pathname cannot be converted "
-		    "from %s to current locale",
-		    archive_string_conversion_charset_name(sconv));
-		ret = ARCHIVE_WARN;
+		/*
+		 * UTF-8 zip names can fail locale conversion on Windows.
+		 * Keep the UTF-8 bytes, matching the symlink fallback below.
+		 */
+		if (sconv == zip->sconv_utf8 &&
+		    (zip_entry->zip_flags & ZIP_UTF8_NAME) &&
+		    archive_entry_copy_pathname_l(entry, h,
+			filename_length, NULL) == 0) {
+			/* pathname kept as UTF-8 */
+		} else {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Pathname cannot be converted "
+			    "from %s to current locale",
+			    archive_string_conversion_charset_name(sconv));
+			ret = ARCHIVE_WARN;
+		}
 	}
 	__archive_read_consume(a, filename_length);
 
