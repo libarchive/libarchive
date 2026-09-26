@@ -23,7 +23,8 @@ DEFINE_TEST(test_option_r)
 
 	/* Create an archive with one file. */
 	assertMakeFile("f1", 0644, "abc");
-	r = systemf("%s cf archive.tar --format=ustar f1 >step1.out 2>step1.err", testprog);
+	r = systemf("%s cf archive.tar --uid=0 --gid=0 --format=ustar f1 "
+		">step1.out 2>step1.err", testprog);
 	failure("Error invoking %s cf archive.tar f1", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("step1.out");
@@ -50,7 +51,8 @@ DEFINE_TEST(test_option_r)
 		buff[i] = "abcdefghijklmnopqrstuvwxyz"[rand() % 26];
 	buff[buff_size - 1] = '\0';
 	assertMakeFile("f1", 0644, buff);
-	r = systemf("%s rf archive.tar --format=ustar f1 >step2.out 2>step2.err", testprog);
+	r = systemf("%s rf archive.tar --uid=0 --gid=0 --format=ustar f1 "
+		">step2.out 2>step2.err", testprog);
 	failure("Error invoking %s rf archive.tar f1", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("step2.out");
@@ -76,7 +78,8 @@ DEFINE_TEST(test_option_r)
 
 	/* Update the archive by adding a different file. */
 	assertMakeFile("f2", 0644, "f2");
-	r = systemf("%s rf archive.tar --format=ustar f2 >step3.out 2>step3.err", testprog);
+	r = systemf("%s rf archive.tar --uid=0 --gid=0 --format=ustar f2 "
+		">step3.out 2>step3.err", testprog);
 	failure("Error invoking %s rf archive.tar f2", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("step3.out");
@@ -113,8 +116,9 @@ DEFINE_TEST(test_option_r)
 	free(p0);
 	p0 = NULL;
 	assertMakeFile("empty", 0644, "");
-	r = systemf("%s cf empty.tar.uu --format=ustar --uuencode -T empty "
-	    ">empty-create.out 2>empty-create.err", testprog);
+	r = systemf("%s cf empty.tar.uu --uid=0 --gid=0 --format=ustar "
+		"--uuencode -T empty >empty-create.out 2>empty-create.err",
+		testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("empty-create.out");
 	assertEmptyFile("empty-create.err");

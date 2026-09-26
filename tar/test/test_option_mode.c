@@ -55,12 +55,12 @@ DEFINE_TEST(test_option_mode)
 	assertMakeDir("in", 0755);
 
 	/* Test invalid modes */
-	rv = systemf("%s --mode 8 -cf archive.tar in > 1.out 2> 1.err",
-		testprog);
+	rv = systemf("%s --mode 8 --format=pax -cf archive.tar in "
+		"> 1.out 2> 1.err", testprog);
 	assert(rv != 0);
 
-	rv = systemf("%s --mode a+a -cf archive.tar in > 2.out 2> 2.err",
-		testprog);
+	rv = systemf("%s --mode a+a --format=pax -cf archive.tar in "
+		"> 2.out 2> 2.err", testprog);
 	assert(rv != 0);
 
 	/* Create some files with different modes */
@@ -69,8 +69,8 @@ DEFINE_TEST(test_option_mode)
 
 	/* Archive and override using an absolute mode */
 	assertEqualInt(0,
-		systemf("%s --mode 644 -cf archive1.tar "
-			"in/all in/minimal", testprog));
+		systemf("%s --mode 644 --uid=0 --gid=0 --format=ustar "
+			"-cf archive1.tar in/all in/minimal", testprog));
 
 	/* Verify the modes */
 	p = slurpfile(NULL, "archive1.tar");
@@ -84,8 +84,9 @@ DEFINE_TEST(test_option_mode)
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Archive and override using a symbolic mode */
 	assertEqualInt(0,
-		systemf("%s --mode u+rw-x,g+X,o-w -cf archive2.tar "
-			"in/all in/minimal", testprog));
+		systemf("%s --mode u+rw-x,g+X,o-w --uid=0 --gid=0 "
+			"--format=ustar -cf archive2.tar in/all in/minimal",
+			testprog));
 
 	/* Verify the modes */
 	p = slurpfile(NULL, "archive2.tar");
