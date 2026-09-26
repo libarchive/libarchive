@@ -776,11 +776,31 @@ static int
 pathname_is_insecure(const char* pathname)
 {
 	size_t len = strlen(pathname);
-	return (pathname[0] == '/' ||
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	const char *p;
+#endif
+
+	if (pathname[0] == '/' ||
 	    strcmp(pathname, "..") == 0 ||
 	    strncmp(pathname, "../", 3) == 0 ||
 	    strstr(pathname, "/../") != NULL ||
-	    (len >= 3 && strcmp(pathname + len - 3, "/..") == 0));
+	    (len >= 3 && strcmp(pathname + len - 3, "/..") == 0))
+		return 1;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (pathname[0] == '\\' ||
+	    (isalpha((unsigned char)pathname[0]) && pathname[1] == ':'))
+		return 1;
+
+	/* Windows treats both slash characters as path separators. */
+	for (p = pathname; *p != '\0'; ++p) {
+		if (p[0] == '.' && p[1] == '.' &&
+		    (p[2] == '\0' || p[2] == '/' || p[2] == '\\') &&
+		    (p == pathname || p[-1] == '/' || p[-1] == '\\'))
+			return 1;
+	}
+#endif
+	return 0;
 }
 
 /*
