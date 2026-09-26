@@ -4464,7 +4464,16 @@ static int rar5_read_data_skip(struct archive_read *a) {
 
 			if(ret < 0 || ret == ARCHIVE_EOF) {
 				/* Propagate any potential error conditions
-				 * to the caller. */
+				 * to the caller.  A block of a solid
+				 * stream that cannot be decoded cannot be
+				 * skipped over either: the window state
+				 * it would leave behind is needed by every
+				 * following entry.  Report a fatal error
+				 * instead of FAILED, which would send the
+				 * caller back to the header loop without
+				 * consuming any input. */
+				if(ret == ARCHIVE_FAILED)
+					return ARCHIVE_FATAL;
 				return ret;
 			}
 		}
