@@ -79,6 +79,7 @@ struct archive_dir {
 
 static int		 append_archive(struct bsdtar *, struct archive *,
 			     struct archive *ina);
+static void		 edit_owner(struct bsdtar *, struct archive_entry *);
 static int		 append_archive_filename(struct bsdtar *,
 			     struct archive *, const char *fname);
 static void		 archive_names_from_file(struct bsdtar *bsdtar,
@@ -698,6 +699,32 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	return (rc);
 }
 
+/*
+ * Apply --uid, --gid, --uname and --gname options.
+ */
+static void
+edit_owner(struct bsdtar *bsdtar, struct archive_entry *entry)
+{
+	if (bsdtar->uid >= 0) {
+		archive_entry_set_uid(entry, bsdtar->uid);
+		if (!bsdtar->uname)
+			archive_entry_set_uname(entry,
+			    archive_read_disk_uname(bsdtar->diskreader,
+				bsdtar->uid));
+	}
+	if (bsdtar->gid >= 0) {
+		archive_entry_set_gid(entry, bsdtar->gid);
+		if (!bsdtar->gname)
+			archive_entry_set_gname(entry,
+			    archive_read_disk_gname(bsdtar->diskreader,
+				bsdtar->gid));
+	}
+	if (bsdtar->uname)
+		archive_entry_set_uname(entry, bsdtar->uname);
+	if (bsdtar->gname)
+		archive_entry_set_gname(entry, bsdtar->gname);
+}
+
 static int
 append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 {
@@ -723,6 +750,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if ((bsdtar->flags & OPTFLAG_INTERACTIVE) &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
 			continue;
+		edit_owner(bsdtar, in_entry);
 		edit_mtime(bsdtar, in_entry);
 		if (bsdtar->verbose > 1) {
 			fputs("a ", stderr);
@@ -926,24 +954,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 				continue;
 		}
 
-		if (bsdtar->uid >= 0) {
-			archive_entry_set_uid(entry, bsdtar->uid);
-			if (!bsdtar->uname)
-				archive_entry_set_uname(entry,
-				    archive_read_disk_uname(bsdtar->diskreader,
-					bsdtar->uid));
-		}
-		if (bsdtar->gid >= 0) {
-			archive_entry_set_gid(entry, bsdtar->gid);
-			if (!bsdtar->gname)
-				archive_entry_set_gname(entry,
-				    archive_read_disk_gname(bsdtar->diskreader,
-					bsdtar->gid));
-		}
-		if (bsdtar->uname)
-			archive_entry_set_uname(entry, bsdtar->uname);
-		if (bsdtar->gname)
-			archive_entry_set_gname(entry, bsdtar->gname);
+		edit_owner(bsdtar, entry);
 
 		if (bsdtar->file_mode) {
 			mode_t m = archive_entry_mode(entry);
