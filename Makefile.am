@@ -621,9 +621,11 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_mac_metadata.c \
 	libarchive/test/test_read_format_zip_malformed.c \
 	libarchive/test/test_read_format_zip_msdos.c \
+	libarchive/test/test_read_format_zip_mtime_precedence.c \
 	libarchive/test/test_read_format_zip_negative_timestamps.c \
 	libarchive/test/test_read_format_zip_nested.c \
 	libarchive/test/test_read_format_zip_nofiletype.c \
+	libarchive/test/test_read_format_zip_ntfs_timestamp.c \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_size_exceeds_declared.c \
@@ -1201,6 +1203,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_msdos.zip.uu \
 	libarchive/test/test_read_format_zip_nested.zip.uu \
 	libarchive/test/test_read_format_zip_nofiletype.zip.uu \
+	libarchive/test/test_read_format_zip_ntfs_timestamp.zip.uu \
 	libarchive/test/test_read_format_zip_padded1.zip.uu \
 	libarchive/test/test_read_format_zip_padded2.zip.uu \
 	libarchive/test/test_read_format_zip_padded3.zip.uu \

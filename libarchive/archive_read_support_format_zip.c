@@ -97,6 +97,14 @@ struct zip_entry {
 	time_t			mtime;
 	time_t			atime;
 	time_t			ctime;
+	/* File creation time, from an 0x000A (NTFS) extra field only:
+	 * ZIP has no other source for it. See LA_HAS_NTFS_BIRTHTIME. */
+	time_t			birthtime;
+	/* Nanosecond precision, from an 0x000A (NTFS) extra field only:
+	 * every other ZIP timestamp source is 1-second resolution. */
+	uint32_t		mtime_ns;
+	uint32_t		atime_ns;
+	uint32_t		birthtime_ns;
 	uint32_t		crc32;
 	uint16_t		mode;
 	uint16_t		zip_flags; /* From GP Flags Field */
@@ -136,6 +144,17 @@ struct trad_enc_ctx {
 /* Bits used in flags. */
 #define LA_USED_ZIP64	(1 << 0)
 #define LA_FROM_CENTRAL_DIRECTORY (1 << 1)
+/* Set once an 0x000A (NTFS) extra field has supplied a creation time:
+ * unlike mtime/atime, ZIP has no other source for it, so there's no
+ * DOS-time fallback to rely on being already-set. */
+#define LA_HAS_NTFS_BIRTHTIME (1 << 2)
+/* Set once an extra field (as opposed to the DOS timestamp in the header
+ * itself) has supplied mtime. Lets the Local File Header's own DOS
+ * timestamp - which carries no information the Central Directory prescan
+ * didn't already have - act as a fallback default instead of
+ * unconditionally overwriting a more precise value that prescan already
+ * established from an extra field the Local Header doesn't repeat. */
+#define LA_MTIME_FROM_EXTRA (1 << 3)
 
 /*
  * See "WinZip - AES Encryption Information"
@@ -759,15 +778,87 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			 * on which file starts, but we don't handle
 			 * multi-volume Zip files. */
 			break;
+		case 0x000a:
+		{
+			/* NTFS Extra Field: 4 reserved bytes, then one or
+			 * more Tag(2)/Size(2)/Data(Size) attribute blocks.
+			 * Only Tag 1 (size 24: Mtime, Atime, Ctime, each an
+			 * 8-byte Windows FILETIME) is defined; skip any
+			 * other tag, per spec. Unlike every other ZIP
+			 * timestamp source, FILETIME has no negative/pre-
+			 * epoch ambiguity (it's unsigned ticks since
+			 * 1601), and it's 100ns-precision rather than
+			 * 1-second, so it also supplies mtime_ns/atime_ns.
+			 * "Ctime" here is Windows creation time, not POSIX
+			 * ctime, so it maps to birthtime. */
+			unsigned sub_offset = offset;
+			unsigned sub_remaining = datasize;
+
+			if (sub_remaining < 4)
+				break;
+			sub_offset += 4;
+			sub_remaining -= 4;
+
+			while (sub_remaining >= 4) {
+				unsigned short tag =
+				    archive_le16dec(p + sub_offset);
+				unsigned short size =
+				    archive_le16dec(p + sub_offset + 2);
+				sub_offset += 4;
+				sub_remaining -= 4;
+				if (size > sub_remaining)
+					break;
+				if (tag == 1 && size == 24) {
+					int64_t secs;
+					uint32_t nsecs;
+
+					__archive_ntfs_to_unix(
+					    archive_le64dec(p + sub_offset),
+					    &secs, &nsecs);
+					zip_entry->mtime = (time_t)secs;
+					zip_entry->mtime_ns = nsecs;
+
+					__archive_ntfs_to_unix(
+					    archive_le64dec(p + sub_offset + 8),
+					    &secs, &nsecs);
+					zip_entry->atime = (time_t)secs;
+					zip_entry->atime_ns = nsecs;
+
+					__archive_ntfs_to_unix(
+					    archive_le64dec(p + sub_offset + 16),
+					    &secs, &nsecs);
+					zip_entry->birthtime = (time_t)secs;
+					zip_entry->birthtime_ns = nsecs;
+					zip_entry->flags |=
+					    LA_HAS_NTFS_BIRTHTIME |
+					    LA_MTIME_FROM_EXTRA;
+				}
+				sub_offset += size;
+				sub_remaining -= size;
+			}
+			break;
+		}
 		case 0x000d:
 			/* PKWARE Unix Extra Field fixed metadata. */
 			if (datasize >= 12) {
-				/* atime/mtime are signed 32-bit Unix
-				 * time, to allow pre-1970 dates. */
-				zip_entry->atime =
+				/* atime/mtime are signed 32-bit Unix time,
+				 * to allow pre-1970 dates. 1-second
+				 * resolution: clear any nanoseconds a
+				 * previously-parsed NTFS extra field may
+				 * have recorded, unless they're for this
+				 * same second, in which case they're still
+				 * accurate and worth keeping. */
+				int32_t const new_atime =
 				    (int32_t)archive_le32dec(p + offset);
-				zip_entry->mtime =
+				int32_t const new_mtime =
 				    (int32_t)archive_le32dec(p + offset + 4);
+				if (zip_entry->atime != new_atime)
+					zip_entry->atime_ns = 0;
+				zip_entry->atime = new_atime;
+				if (zip_entry->mtime != new_mtime)
+					zip_entry->mtime_ns = 0;
+				zip_entry->mtime = new_mtime;
+				zip_entry->flags |= LA_MTIME_FROM_EXTRA;
 				zip_entry->uid =
 				    archive_le16dec(p + offset + 8);
 				zip_entry->gid =
@@ -819,9 +910,17 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				if (datasize < 4)
 					break;
 				/* Signed 32-bit Unix time, to allow
-				 * pre-1970 dates. */
-				zip_entry->mtime =
-				    (int32_t)archive_le32dec(p + offset);
+				 * pre-1970 dates. 1-second resolution: see
+				 * the 0x000d case for why _ns is cleared
+				 * only when the value actually changes. */
+				{
+					int32_t const new_mtime =
+					    (int32_t)archive_le32dec(p + offset);
+					if (zip_entry->mtime != new_mtime)
+						zip_entry->mtime_ns = 0;
+					zip_entry->mtime = new_mtime;
+				}
+				zip_entry->flags |= LA_MTIME_FROM_EXTRA;
 				offset += 4;
 				datasize -= 4;
 			}
@@ -829,8 +928,13 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			{
 				if (datasize < 4)
 					break;
-				zip_entry->atime =
-				    (int32_t)archive_le32dec(p + offset);
+				{
+					int32_t const new_atime =
+					    (int32_t)archive_le32dec(p + offset);
+					if (zip_entry->atime != new_atime)
+						zip_entry->atime_ns = 0;
+					zip_entry->atime = new_atime;
+				}
 				offset += 4;
 				datasize -= 4;
 			}
@@ -850,11 +954,20 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			/* Info-ZIP Unix Extra Field (old version) "UX". */
 			if (datasize >= 8) {
 				/* Signed 32-bit Unix time, to allow
-				 * pre-1970 dates. */
-				zip_entry->atime =
+				 * pre-1970 dates. 1-second resolution: see
+				 * the 0x000d case for why _ns is cleared
+				 * only when the value actually changes. */
+				int32_t const new_atime =
 				    (int32_t)archive_le32dec(p + offset);
-				zip_entry->mtime =
+				int32_t const new_mtime =
 				    (int32_t)archive_le32dec(p + offset + 4);
+				if (zip_entry->atime != new_atime)
+					zip_entry->atime_ns = 0;
+				zip_entry->atime = new_atime;
+				if (zip_entry->mtime != new_mtime)
+					zip_entry->mtime_ns = 0;
+				zip_entry->mtime = new_mtime;
+				zip_entry->flags |= LA_MTIME_FROM_EXTRA;
 			}
 			if (datasize >= 12) {
 				zip_entry->uid =
@@ -1169,7 +1282,16 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	zip->init_decryption = (zip_entry->zip_flags & ZIP_ENCRYPTED);
 	zip_entry->compression = (char)archive_le16dec(p + 8);
-	zip_entry->mtime = __archive_dos_to_unix(archive_le32dec(p + 10));
+	/* This DOS timestamp carries no information a Central Directory
+	 * prescan wouldn't already have, and no sub-second precision:
+	 * only use it (and reset mtime_ns to match, since it has none) as
+	 * a fallback default, not an unconditional override of a more
+	 * precise value the prescan may have already established from an
+	 * extra field the Local Header doesn't itself repeat. */
+	if (!(zip_entry->flags & LA_MTIME_FROM_EXTRA)) {
+		zip_entry->mtime = __archive_dos_to_unix(archive_le32dec(p + 10));
+		zip_entry->mtime_ns = 0;
+	}
 	zip_entry->crc32 = archive_le32dec(p + 14);
 	if (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
 		zip_entry->decdat = p[11];
@@ -1364,9 +1486,12 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_mode(entry, zip_entry->mode);
 	archive_entry_set_uid(entry, zip_entry->uid);
 	archive_entry_set_gid(entry, zip_entry->gid);
-	archive_entry_set_mtime(entry, zip_entry->mtime, 0);
+	archive_entry_set_mtime(entry, zip_entry->mtime, zip_entry->mtime_ns);
 	archive_entry_set_ctime(entry, zip_entry->ctime, 0);
-	archive_entry_set_atime(entry, zip_entry->atime, 0);
+	archive_entry_set_atime(entry, zip_entry->atime, zip_entry->atime_ns);
+	if (zip_entry->flags & LA_HAS_NTFS_BIRTHTIME)
+		archive_entry_set_birthtime(entry, zip_entry->birthtime,
+		    zip_entry->birthtime_ns);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
