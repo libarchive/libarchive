@@ -903,6 +903,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_deflate_arm64_large.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate_arm_arm64.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate_armthumb.7z.uu \
+	libarchive/test/test_read_format_7zip_deflate_delta.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate_ia64.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate_powerpc.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate_riscv.7z.uu \
