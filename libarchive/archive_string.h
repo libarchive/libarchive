@@ -95,6 +95,10 @@ struct archive_string_conv *
 archive_string_conversion_to_charset(struct archive *, const char *, int);
 struct archive_string_conv *
 archive_string_conversion_from_charset(struct archive *, const char *, int);
+/* Create a conversion object from a UTF-8 or UTF-16 charset to UTF-8 in
+ * Unicode Form D.  Return NULL if the conversion is not available. */
+struct archive_string_conv *
+archive_string_conversion_to_utf8_nfd(struct archive *, const char *);
 /* Create the default string conversion object for reading/writing an archive.
  * Return NULL if the conversion is unneeded.
  * Note: On non Windows platform this always returns NULL.

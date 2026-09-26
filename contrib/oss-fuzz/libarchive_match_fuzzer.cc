@@ -25,6 +25,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
     return 0;
   }
 
+  // Cover both byte-exact and Unicode Form D exclusion matching
+  archive_match_set_pattern_normalization(match, consumer.consume_byte() & 1);
+
   // Add various match patterns
   while (!consumer.empty() && consumer.remaining() > 5) {
     uint8_t match_type = consumer.consume_byte() % 6;
