@@ -1694,6 +1694,12 @@ static int process_head_file_extra(struct archive_read* a,
 				/* fallthrough */
 			default:
 				/* Skip unsupported entry. */
+				if (extra_field_size > (uint64_t)extra_data_size) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_FILE_FORMAT,
+					    "RAR5 extra-field size exceeds remaining extra-field data");
+					return ARCHIVE_FATAL;
+				}
 				extra_data_size -= extra_field_size;
 				if (ARCHIVE_OK != consume(a, extra_field_size)) {
 					return ARCHIVE_EOF;
