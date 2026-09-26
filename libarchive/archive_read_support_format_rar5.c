@@ -942,16 +942,27 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
 {
 	uint64_t multiplier;
 	uint64_t result = 0;
-	size_t i;
+	size_t i, can_read;
 	const uint8_t* p;
+	ssize_t avail = 0;
 
-	/* We will read maximum of 10 bytes. We don't have to handle the
-	 * situation to read the RAR5 variable-sized value stored at the end of
-	 * the file, because such situation will never happen. */
-	if(!read_ahead(a, 10, &p))
-		return 0;
+	/* We will read maximum of 10 bytes.  Ask for all of them at once so
+	 * that the usual case needs a single call, but also accept a value
+	 * that ends within the last few bytes of the file. */
+	if((p = __archive_read_ahead(a, 10, &avail)) == NULL) {
+		if(avail <= 0)
+			return 0;
+		/* Fewer than 10 bytes are left in the whole file, so read
+		 * however many bytes remain. */
+		if((p = __archive_read_ahead(a, 1, &avail)) == NULL ||
+		    avail <= 0) {
+			return 0;
+		}
+		can_read = (size_t)avail;
+	} else
+		can_read = 10;
 
-	for(multiplier = 1, i = 0; i < 10; i++, multiplier *= 128) {
+	for(multiplier = 1, i = 0; i < can_read; i++, multiplier *= 128) {
 		uint64_t val;
 		uint8_t b;
 
