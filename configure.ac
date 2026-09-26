@@ -475,8 +475,6 @@ if test "x$with_iconv" != "xno"; then
     AC_CHECK_HEADERS([localcharset.h])
     LIBS="${LIBS} ${LIBICONV}"
     if test -n "$LIBICONV"; then
-      AC_DEFINE([HAVE_LIBICONV], [1], [Define to 1 if you have the 'iconv' library (-liconv).])
-
       dnl Most platforms do not provide iconv.pc, but MSYS2 MinGW does.
       dnl We add it to our Requires.private only if it exists.
       PKG_CHECK_MODULES(ICONV_PC, [iconv], [
