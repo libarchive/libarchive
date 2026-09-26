@@ -205,6 +205,7 @@ IF(ENABLE_TEST)
     test_read_format_rar5_block_hdr_fail_loop.c
     test_read_format_rar5_header_size_wraparound.c
     test_read_format_rar5_loop_bug.c
+    test_read_format_rar5_solid_skip_truncated.c
     test_read_format_rar5_truncated_htime.c
     test_read_format_rar5_varint_near_eof.c
     test_read_format_raw.c

@@ -1,0 +1,59 @@
+#include "test.h"
+
+/*
+ * A solid RAR5 archive truncated in the middle of the first file's
+ * compressed data (the first 108 bytes of
+ * test_read_format_rar5_multiple_files_solid.rar).  Skipping an entry
+ * of a solid archive requires decompressing it, and a skip handler
+ * must not return ARCHIVE_FAILED: the caller goes back to reading
+ * headers without any input having been consumed, so a client that
+ * loops over archive_read_next_header() and
+ * archive_read_data_skip() -- `bsdtar -t' does exactly that -- never
+ * reaches the end of the archive.
+ */
+DEFINE_TEST(test_read_format_rar5_solid_skip_truncated)
+{
+	static const uint8_t data[] = {
+		0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x01, 0x00,
+		0x09, 0xef, 0xc8, 0x6f, 0x0b, 0x01, 0x05, 0x07,
+		0x04, 0x06, 0x01, 0x01, 0x80, 0x80, 0x80, 0x00,
+		0x19, 0x8c, 0x94, 0xff, 0x27, 0x02, 0x03, 0x0b,
+		0xf9, 0x02, 0x04, 0x80, 0x20, 0xa4, 0x83, 0x02,
+		0xc6, 0xb2, 0x13, 0x7e, 0x80, 0x1d, 0x01, 0x09,
+		0x74, 0x65, 0x73, 0x74, 0x31, 0x2e, 0x62, 0x69,
+		0x6e, 0x0a, 0x03, 0x13, 0x67, 0x5f, 0xac, 0x5b,
+		0x1a, 0x5a, 0x9e, 0x10, 0xc9, 0xe7, 0x75, 0x01,
+		0x18, 0x65, 0x54, 0x65, 0x26, 0xf4, 0x80, 0x57,
+		0xf5, 0xf3, 0xe7, 0xcf, 0x92, 0x49, 0x24, 0x92,
+		0x49, 0x24, 0x92, 0x49, 0x24, 0x92, 0x49, 0x24,
+		0x92, 0x49, 0x24, 0x92, 0x49, 0x24, 0x92, 0x49,
+		0x24, 0x92, 0x49, 0x24,
+	};
+
+	struct archive *a;
+	struct archive_entry *ae;
+	int rounds = 0;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_rar5(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, data, sizeof(data)));
+
+	/* Read headers and skip their data, like `bsdtar -t' does.  The
+	 * reader has to terminate here instead of spinning forever. */
+	for (;;) {
+		int r = archive_read_next_header(a, &ae);
+
+		if (r == ARCHIVE_EOF || r == ARCHIVE_FATAL)
+			break;
+		archive_read_data_skip(a);
+		if (++rounds >= 20)
+			break;
+	}
+	assert(rounds < 20);
+
+	/* The truncated solid stream cannot be skipped, so the reader
+	 * must give up on the whole archive. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
