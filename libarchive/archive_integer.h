@@ -247,6 +247,72 @@ archive_ckd_sub_i64(int64_t *result, int64_t a, int64_t b)
 #endif
 }
 
+/* Returns 0 on success, a non-zero value otherwise. */
+static inline int
+archive_ckd_sub_size(size_t *result, size_t a, size_t b)
+{
+#if USE_STDCKDINT
+	return ckd_sub(result, a, b);
+#elif USE_BUILTIN
+	return __builtin_sub_overflow(a, b, result);
+#elif USE_INTSAFE
+	return SizeTSub(a, b, result);
+#else
+	if (a < b)
+		return 1;
+	*result = a - b;
+	return 0;
+#endif
+}
+
+/* Returns 0 on success, a non-zero value otherwise. */
+static inline int
+archive_ckd_sub_u64(uint64_t *result, uint64_t a, uint64_t b)
+{
+#if USE_STDCKDINT
+	return ckd_sub(result, a, b);
+#elif USE_BUILTIN
+	return __builtin_sub_overflow(a, b, result);
+#elif USE_INTSAFE
+	ULONGLONG res;
+	int ret;
+
+	ret = ULongLongSub(a, b, &res);
+	*result = (uint64_t)res;
+	return ret;
+#else
+	if (a < b)
+		return 1;
+	*result = a - b;
+	return 0;
+#endif
+}
+
+/*
+ * Saturating casts for 32 bit decompressor fields such as
+ * z_stream.avail_in: byte counts above the field range are capped
+ * instead of truncated, and negative read results are turned into 0.
+ */
+static inline uint32_t
+archive_saturating_cast_u32(int64_t value)
+{
+	if (value <= 0)
+		return (0);
+	if (value > (int64_t)UINT32_MAX)
+		return (UINT32_MAX);
+	return ((uint32_t)value);
+}
+
+static inline int32_t
+archive_saturating_cast_i32(int64_t value)
+{
+	if (value <= 0)
+		return (0);
+	if (value > (int64_t)INT32_MAX)
+		return (INT32_MAX);
+	return ((int32_t)value);
+}
+
 #if !defined(TIME_MAX)
 #define TIME_MAX (((time_t)0 < (time_t)-1) ? (time_t)~0 :		\
 	    sizeof(time_t) == sizeof(long long) ? (time_t)LLONG_MAX :	\

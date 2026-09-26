@@ -41,6 +41,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_time_private.h"
@@ -1562,7 +1563,7 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
 	struct lha *lha = a->format->data;
-	ssize_t bytes_avail, max_in;
+	ssize_t bytes_avail;
 	int r;
 
 	/* If we haven't yet read any data, initialize the decompressor. */
@@ -1609,16 +1610,9 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
 	if (bytes_avail > lha->entry_bytes_remaining)
 		bytes_avail = (ssize_t)lha->entry_bytes_remaining;
 
-	/* Setup buffer boundaries.  strm.avail_in is an int, and the
-	 * compressed size it is bounded by comes straight from the LHa
-	 * header, so clamp the available byte count before the
-	 * assignment. */
-	if (INT_MAX >= SSIZE_MAX)
-		max_in = SSIZE_MAX;
-	else
-		max_in = INT_MAX;
-	if (bytes_avail > max_in)
-		bytes_avail = max_in;
+	/* Setup buffer boundaries.  strm.avail_in is an int; the clamped
+	 * count is also used for the final block check below. */
+	bytes_avail = archive_saturating_cast_i32(bytes_avail);
 
 	lha->strm.avail_in = (int)bytes_avail;
 	lha->strm.total_in = 0;

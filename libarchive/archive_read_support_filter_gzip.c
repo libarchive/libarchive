@@ -47,6 +47,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_endian.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -333,7 +334,7 @@ static int
 consume_header(struct archive_read_filter *f)
 {
 	struct gzip *gzip = f->data;
-	ssize_t avail, max_in;
+	ssize_t avail;
 	size_t len;
 	int ret;
 
@@ -355,13 +356,7 @@ consume_header(struct archive_read_filter *f)
 		    "Failed to read gzip input");
 		return (ARCHIVE_FATAL);
 	}
-	if (UINT_MAX >= SSIZE_MAX)
-		max_in = SSIZE_MAX;
-	else
-		max_in = UINT_MAX;
-	if (avail > max_in)
-		avail = max_in;
-	gzip->stream.avail_in = (uInt)avail;
+	gzip->stream.avail_in = (uInt)archive_saturating_cast_u32(avail);
 	ret = inflateInit2(&(gzip->stream),
 	    -15 /* Don't check for zlib header */);
 
@@ -432,7 +427,7 @@ gzip_filter_read(struct archive_read_filter *f, const void **p)
 {
 	struct gzip *gzip = f->data;
 	size_t decompressed;
-	ssize_t avail_in, max_in;
+	ssize_t avail_in;
 	int ret;
 
 	/* Empty our output buffer. */
@@ -464,12 +459,9 @@ gzip_filter_read(struct archive_read_filter *f, const void **p)
 			    "truncated gzip input");
 			return (ARCHIVE_FATAL);
 		}
-		if (UINT_MAX >= SSIZE_MAX)
-			max_in = SSIZE_MAX;
-		else
-			max_in = UINT_MAX;
-		if (avail_in > max_in)
-			avail_in = max_in;
+		/* avail_in is used for the consume count below, so the
+		 * clamped value has to be kept in the variable. */
+		avail_in = (ssize_t)archive_saturating_cast_u32(avail_in);
 		gzip->stream.avail_in = (uInt)avail_in;
 
 		/* Decompress and consume some of that data. */
