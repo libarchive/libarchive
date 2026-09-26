@@ -99,7 +99,11 @@ archive_write_add_filter_b64encode(struct archive *a)
 	if (f == NULL)
 		goto memerr;
 	f->name = "b64encode";
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	f->code = ARCHIVE_FILTER_UU;
+#else
+	f->code = ARCHIVE_FILTER_B64;
+#endif
 	f->data = b64encode;
 	f->options = archive_filter_b64encode_options;
 	f->open = archive_filter_b64encode_open;

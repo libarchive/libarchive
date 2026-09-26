@@ -321,6 +321,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FILTER_GRZIP	12
 #define	ARCHIVE_FILTER_LZ4	13
 #define	ARCHIVE_FILTER_ZSTD	14
+#define	ARCHIVE_FILTER_B64	15
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -334,6 +335,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_COMPRESSION_RPM		ARCHIVE_FILTER_RPM
 #define	ARCHIVE_COMPRESSION_LZIP	ARCHIVE_FILTER_LZIP
 #define	ARCHIVE_COMPRESSION_LRZIP	ARCHIVE_FILTER_LRZIP
+#define	ARCHIVE_COMPRESSION_B64		ARCHIVE_FILTER_B64
 #endif
 
 /*
