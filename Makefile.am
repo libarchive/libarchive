@@ -399,6 +399,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_api_feature.c \
 	libarchive/test/test_archive_clear_error.c \
 	libarchive/test/test_archive_cmdline.c \
+	libarchive/test/test_archive_ckd.c \
 	libarchive/test/test_archive_digest.c \
 	libarchive/test/test_archive_match_owner.c \
 	libarchive/test/test_archive_match_path.c \
