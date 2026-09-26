@@ -30,17 +30,6 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_LIBXML_XMLREADER_H
-#include <libxml/xmlreader.h>
-#elif HAVE_BSDXML_H
-#include <bsdxml.h>
-#elif HAVE_EXPAT_H
-#include <expat.h>
-#elif HAVE_XMLLITE_H
-#include <objidl.h>
-#include <initguid.h>
-#include <xmllite.h>
-#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -62,12 +51,11 @@
 #include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
+#include "archive_xml_private.h"
 
-#if (!defined(HAVE_LIBXML_XMLREADER_H) && \
-     !defined(HAVE_BSDXML_H) && !defined(HAVE_EXPAT_H) && \
-     !defined(HAVE_XMLLITE_H)) ||\
-	!defined(HAVE_ZLIB_H) || \
-	!defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
+#if !defined(ARCHIVE_XML_READ) ||\
+    !defined(HAVE_ZLIB_H) || \
+    !defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
 /*
  * xar needs several external libraries.
  *   o libxml2, expat or (Windows only) xmllite --- XML parser
@@ -437,7 +425,7 @@ static void	xml_end(void *, const char *);
 static int	xml_data(void *, const char *, size_t);
 static int	xml_parse_file_flags(struct xar *, const char *);
 static int	xml_parse_file_ext2(struct xar *, const char *);
-#if defined(HAVE_LIBXML_XMLREADER_H)
+#if defined(ARCHIVE_XML_READER_XML2)
 static int	xml2_xmlattr_setup(struct archive_read *,
     struct xmlattr_list *, xmlTextReaderPtr);
 static int	xml2_read_cb(void *, char *, int);
@@ -445,7 +433,7 @@ static int	xml2_close_cb(void *);
 static void	xml2_error_hdr(void *, const char *, xmlParserSeverities,
 		    xmlTextReaderLocatorPtr);
 static int	xml2_read_toc(struct archive_read *);
-#elif defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H)
+#elif defined(ARCHIVE_XML_READER_BSDXML) || defined(ARCHIVE_XML_READER_EXPAT)
 struct expat_userData {
 	int state;
 	struct archive_read *archive;
@@ -456,7 +444,7 @@ static void	expat_start_cb(void *, const XML_Char *, const XML_Char **);
 static void	expat_end_cb(void *, const XML_Char *);
 static void	expat_data_cb(void *, const XML_Char *, int);
 static int	expat_read_toc(struct archive_read *);
-#elif defined(HAVE_XMLLITE_H)
+#elif defined(ARCHIVE_XML_READER_XMLLITE)
 static int	xmllite_read_toc(struct archive_read *);
 #endif
 
@@ -605,11 +593,11 @@ read_toc(struct archive_read *a)
 	if (r != ARCHIVE_OK)
 		return (r);
 
-#ifdef HAVE_LIBXML_XMLREADER_H
+#ifdef ARCHIVE_XML_READER_XML2
 	r = xml2_read_toc(a);
-#elif defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H)
+#elif defined(ARCHIVE_XML_READER_BSDXML) || defined(ARCHIVE_XML_READER_EXPAT)
 	r = expat_read_toc(a);
-#elif defined(HAVE_XMLLITE_H)
+#elif defined(ARCHIVE_XML_READER_XMLLITE)
 	r = xmllite_read_toc(a);
 #endif
 	if (r != ARCHIVE_OK)
@@ -3182,7 +3170,7 @@ xml_parse_file_ext2(struct xar *xar, const char *name)
 	return (1);
 }
 
-#ifdef HAVE_LIBXML_XMLREADER_H
+#ifdef ARCHIVE_XML_READER_XML2
 
 static int
 xml2_xmlattr_setup(struct archive_read *a,
@@ -3339,7 +3327,7 @@ xml2_read_toc(struct archive_read *a)
 	return ((r == 0)?ARCHIVE_OK:ARCHIVE_FATAL);
 }
 
-#elif defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H)
+#elif defined(ARCHIVE_XML_READER_BSDXML) || defined(ARCHIVE_XML_READER_EXPAT)
 
 static int
 expat_xmlattr_setup(struct archive_read *a,
@@ -3463,7 +3451,7 @@ expat_read_toc(struct archive_read *a)
 	return (ud.state);
 }
 
-#elif defined(HAVE_XMLLITE_H)
+#elif defined(ARCHIVE_XML_READER_XMLLITE)
 
 struct ArchiveStreamAdapter {
 	const ISequentialStreamVtbl *lpVtbl; /* see asaStaticVtable */
@@ -3783,6 +3771,6 @@ out:
 
 	return r;
 }
-#endif /* defined(XMLLITE) */
+#endif /* defined(ARCHIVE_XML_READER_XMLLITE) */
 
 #endif /* Support xar format */

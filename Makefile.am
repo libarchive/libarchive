@@ -140,6 +140,7 @@ noinst_HEADERS= \
 	libarchive/archive_write_disk_private.h \
 	libarchive/archive_write_private.h \
 	libarchive/archive_write_set_format_private.h \
+	libarchive/archive_xml_private.h \
 	libarchive/archive_xxhash.h \
 	libarchive/config_freebsd.h \
 	libarchive/filter_fork.h

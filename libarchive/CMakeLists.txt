@@ -172,6 +172,7 @@ SET(libarchive_SOURCES
   archive_write_set_format_zip.c
   archive_write_set_options.c
   archive_write_set_passphrase.c
+  archive_xml_private.h
   archive_xxhash.h
   filter_fork_posix.c
   filter_fork.h

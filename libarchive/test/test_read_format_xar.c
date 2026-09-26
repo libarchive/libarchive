@@ -25,6 +25,9 @@
  */
 #include "test.h"
 
+#define __LIBARCHIVE_BUILD 1
+#include "archive_xml_private.h"
+
 #define UID	1001
 #define UNAME	"cue"
 #define GID	1001
@@ -1115,8 +1118,7 @@ DEFINE_TEST(test_read_format_xar_toc_premature_stream_end)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
-#if !defined(HAVE_LIBXML_XMLREADER_H) && !defined(HAVE_BSDXML_H) && \
-    !defined(HAVE_EXPAT_H) && defined(HAVE_XMLLITE_H)
+#if defined(ARCHIVE_XML_READER_XMLLITE)
 	skipping("Malformed XAR TOC behavior is not validated with XmlLite");
 #else
 	assert((a = archive_read_new()) != NULL);
@@ -1127,8 +1129,7 @@ DEFINE_TEST(test_read_format_xar_toc_premature_stream_end)
 	/* The declared TOC length continues past the end of the zlib stream. */
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 	assert(archive_errno(a) != 0);
-#if !defined(HAVE_LIBXML_XMLREADER_H) && \
-    (defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H))
+#if defined(ARCHIVE_XML_READER_EXPAT) || defined(ARCHIVE_XML_READER_BSDXML)
 	assertEqualString("XAR decompressor made no progress",
 	    archive_error_string(a));
 #endif
