@@ -1341,6 +1341,53 @@ DEFINE_TEST(test_read_format_7zip_lzma1_ia64)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_7zip_deflate_delta)
+{
+	const char *refname = "test_read_format_7zip_deflate_delta.7z";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[1024];
+	ssize_t bytes;
+	int64_t total = 0;
+	uint32_t computed_crc = 0;
+	uint32_t expected_crc = 0x0a49c61b;
+
+	assert((a = archive_read_new()) != NULL);
+
+	if (ARCHIVE_OK != archive_read_support_filter_gzip(a)) {
+		skipping(
+		    "7zip:deflate decoding is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("delta_payload.bin", archive_entry_pathname(ae));
+	assertEqualInt(262144, archive_entry_size(ae));
+	while ((bytes = archive_read_data(a, buff, sizeof(buff))) > 0) {
+		computed_crc = bitcrc32(computed_crc, buff, bytes);
+		total += bytes;
+	}
+	assertEqualInt(0, bytes);
+	assertEqualInt(262144, total);
+	assertEqualInt(computed_crc, expected_crc);
+
+	assertEqualInt(1, archive_file_count(a));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_ppmd)
 {
 	test_ppmd();
