@@ -35,6 +35,13 @@
  * with a single file written to it that uses Zip64 extensions.
  */
 
+/* Windows FILETIME (100ns ticks since 1601-01-01) for a Unix time. */
+static uint64_t
+ntfs_filetime(int64_t secs, uint32_t nsecs)
+{
+	return (uint64_t)(secs + 11644473600LL) * 10000000ULL + nsecs / 100;
+}
+
 DEFINE_TEST(test_write_format_zip_file_zip64)
 {
 	struct archive *a;
@@ -155,6 +162,16 @@ DEFINE_TEST(test_write_format_zip_file_zip64)
 	 * no reason to insert it then.  Info-Zip seems to do the same
 	 * thing. */
 
+	assertEqualInt(i2le(p), 0x000a); /* 'NTFS' extension header */
+	assertEqualInt(i2le(p + 2), 32); /* 'NTFS' size */
+	assertEqualInt(i4le(p + 4), 0); /* reserved */
+	assertEqualInt(i2le(p + 8), 1); /* NTFS attribute tag 1 */
+	assertEqualInt(i2le(p + 10), 24); /* NTFS attribute 1 size */
+	assertEqualInt(i8le(p + 12), ntfs_filetime(t, 0)); /* Mtime */
+	assertEqualInt(i8le(p + 20), 0); /* Atime: not set */
+	assertEqualInt(i8le(p + 28), 0); /* Ctime/birthtime: not set */
+	p += 4 + i2le(p + 2);
+
 	/* Just in case: Report any extra extensions. */
 	while (p < extension_end) {
 		failure("Unexpected extension 0x%04X", i2le(p));
@@ -201,7 +218,7 @@ DEFINE_TEST(test_write_format_zip_file_zip64)
 	assertEqualInt(i4le(p + 18), 0); /* Compressed size must be 0 because of length-at-end */
 	assertEqualInt(i4le(p + 22), 0); /* Uncompressed size must be 0 because of length-at-end. */
 	assertEqualInt(i2le(p + 26), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2le(p + 28), 37); /* Extra field length */
+	assertEqualInt(i2le(p + 28), 73); /* Extra field length */
 	assertEqualMem(p + 30, file_name, strlen(file_name)); /* Pathname */
 	p = extension_start = local_header + 30 + strlen(file_name);
 	extension_end = extension_start + i2le(local_header + 28);
@@ -227,6 +244,16 @@ DEFINE_TEST(test_write_format_zip_file_zip64)
 	assertEqualInt(i2le(p + 5) >> 8, 3); /* system & version made by */
 	assertEqualInt(i2le(p + 7), 0); /* internal file attributes */
 	assertEqualInt(i4le(p + 9) >> 16 & 01777, file_perm); /* external file attributes */
+	p += 4 + i2le(p + 2);
+
+	assertEqualInt(i2le(p), 0x000a); /* 'NTFS' extension header */
+	assertEqualInt(i2le(p + 2), 32); /* 'NTFS' size */
+	assertEqualInt(i4le(p + 4), 0); /* reserved */
+	assertEqualInt(i2le(p + 8), 1); /* NTFS attribute tag 1 */
+	assertEqualInt(i2le(p + 10), 24); /* NTFS attribute 1 size */
+	assertEqualInt(i8le(p + 12), ntfs_filetime(t, 0)); /* Mtime */
+	assertEqualInt(i8le(p + 20), 0); /* Atime: not set */
+	assertEqualInt(i8le(p + 28), 0); /* Ctime/birthtime: not set */
 	p += 4 + i2le(p + 2);
 
 	/* Just in case: Report any extra extensions. */

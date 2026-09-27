@@ -1326,6 +1326,41 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_le16enc(external_info + 2, (uint16_t)(e - (external_info + 4)));
 	}
 
+	/* NTFS extra data field, ID=0x000a: 4 reserved bytes, then a
+	 * single Tag(2)=1/Size(2)=24 attribute holding Mtime, Atime and
+	 * "Ctime" as 8-byte Windows FILETIMEs. As on read (see the
+	 * matching comment in archive_read_support_format_zip.c),
+	 * "Ctime" here means Windows creation time, so it's filled from
+	 * birthtime, not POSIX ctime. Unlike UT above, this also gives
+	 * mtime/atime 100ns precision instead of 1 second. Unlike UT,
+	 * there's no independent per-field flag to mark a slot absent,
+	 * so a timestamp that isn't set is written as a raw FILETIME of
+	 * 0; the reader treats that as "absent" rather than decoding it
+	 * as 1601-01-01 (see the matching comment on read). Written
+	 * last (after 'xl') so it doesn't shift the position of any
+	 * other extra field. */
+	if (archive_entry_mtime_is_set(entry)
+	    || archive_entry_atime_is_set(entry)
+	    || archive_entry_birthtime_is_set(entry)) {
+		memcpy(e, "\012\000\040\000\000\000\000\000\001\000\030\000", 12);
+		e += 12;
+		archive_le64enc(e, archive_entry_mtime_is_set(entry)
+		    ? __archive_unix_to_ntfs(archive_entry_mtime(entry),
+		          (uint32_t)archive_entry_mtime_nsec(entry))
+		    : 0);
+		e += 8;
+		archive_le64enc(e, archive_entry_atime_is_set(entry)
+		    ? __archive_unix_to_ntfs(archive_entry_atime(entry),
+		          (uint32_t)archive_entry_atime_nsec(entry))
+		    : 0);
+		e += 8;
+		archive_le64enc(e, archive_entry_birthtime_is_set(entry)
+		    ? __archive_unix_to_ntfs(archive_entry_birthtime(entry),
+		          (uint32_t)archive_entry_birthtime_nsec(entry))
+		    : 0);
+		e += 8;
+	}
+
 	/* Update local header with size of extra data and write it all out: */
 	archive_le16enc(local_header + 28, (uint16_t)(e - local_extra));
 
@@ -2146,6 +2181,40 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		/* Zip64 means version needs to be set to at least 4.5 */
 		if (archive_le16dec(zip->file_header + 6) < 45)
 			archive_le16enc(zip->file_header + 6, 45);
+	}
+
+	/* NTFS extra data field: see the matching comment in
+	 * archive_write_zip_header() above. Written last, after the
+	 * Zip64 extra field, so it doesn't shift any other field. */
+	if (archive_entry_mtime_is_set(zip->entry)
+	    || archive_entry_atime_is_set(zip->entry)
+	    || archive_entry_birthtime_is_set(zip->entry)) {
+		unsigned char ntfs[36];
+		unsigned char *n = ntfs, *nd;
+		memcpy(n, "\012\000\040\000\000\000\000\000\001\000\030\000", 12);
+		n += 12;
+		archive_le64enc(n, archive_entry_mtime_is_set(zip->entry)
+		    ? __archive_unix_to_ntfs(archive_entry_mtime(zip->entry),
+		          (uint32_t)archive_entry_mtime_nsec(zip->entry))
+		    : 0);
+		n += 8;
+		archive_le64enc(n, archive_entry_atime_is_set(zip->entry)
+		    ? __archive_unix_to_ntfs(archive_entry_atime(zip->entry),
+		          (uint32_t)archive_entry_atime_nsec(zip->entry))
+		    : 0);
+		n += 8;
+		archive_le64enc(n, archive_entry_birthtime_is_set(zip->entry)
+		    ? __archive_unix_to_ntfs(archive_entry_birthtime(zip->entry),
+		          (uint32_t)archive_entry_birthtime_nsec(zip->entry))
+		    : 0);
+		n += 8;
+		nd = cd_alloc(zip, n - ntfs);
+		if (nd == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+					  "Can't allocate zip data");
+			return (ARCHIVE_FATAL);
+		}
+		memcpy(nd, ntfs, n - ntfs);
 	}
 
 	/* Fix up central directory file header. */
