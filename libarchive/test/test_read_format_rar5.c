@@ -986,6 +986,21 @@ DEFINE_TEST(test_read_format_rar5_owner_name_toolong)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_group_name_toolong)
+{
+	/* Companion to test_read_format_rar5_owner_name_toolong: the crafted
+	 * HEAD_FILE declares an EX_UOWNER owner group name whose length
+	 * (0x8000000000000) is far larger than the extra field that contains
+	 * it. The length must be validated in 64 bits: 32-bit platforms used
+	 * to truncate it to zero and accept the header instead of rejecting
+	 * it. */
+	PROLOGUE("test_read_format_rar5_group_name_toolong.rar");
+
+	assertA(archive_read_next_header(a, &ae) < 0);
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_symlink)
 {
 	const int DATA_SIZE = 5;
