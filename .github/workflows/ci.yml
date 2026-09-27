@@ -73,6 +73,55 @@ jobs:
         name: libarchive-macos-${{ matrix.bs }}-${{ github.sha }}
         path: libarchive.tar.xz
 
+  debian-i386:
+    name: Debian (cmake, i386)
+    runs-on: ubuntu-latest
+    container:
+      image: i386/debian:bookworm
+    steps:
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends \
+          build-essential ca-certificates cmake git pkg-config \
+          libacl1-dev libbz2-dev liblz4-dev liblzma-dev \
+          libssl-dev libzstd-dev zlib1g-dev
+    # Plain git instead of the checkout action: the runner executes
+    # actions with its own 64-bit node, which cannot run inside a
+    # 32-bit container.
+    - name: Check out
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git init -q
+        git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+        git fetch -q --depth 1 origin "$GITHUB_SHA"
+        git checkout -q FETCH_HEAD
+    - name: Configure
+      run: ./build/ci/build.sh -a configure
+      env:
+        BS: cmake
+    - name: Build
+      run: ./build/ci/build.sh -a build
+      env:
+        BS: cmake
+        MAKE_ARGS: -j4
+    - name: Test
+      run: ./build/ci/build.sh -a test
+      env:
+        BS: cmake
+        CTEST_OUTPUT_ON_FAILURE: ON
+    - name: Install
+      run: ./build/ci/build.sh -a install
+      env:
+        BS: cmake
+    # The artifact is built like in the other jobs, but not uploaded:
+    # the upload-artifact action cannot run in this container either,
+    # for the same reason as the checkout action above.
+    - name: Artifact
+      run: ./build/ci/build.sh -a artifact
+      env:
+        BS: cmake
+
   Ubuntu:
     runs-on: ubuntu-24.04
     strategy:
