@@ -1011,6 +1011,15 @@ static int read_var_sized(struct archive_read* a, size_t* pvalue,
 				   : read_var(a, &v, NULL);
 
 	if(ret == 1 && pvalue) {
+		/* A varint larger than SIZE_MAX cannot be represented in
+		 * size_t; a plain cast would silently truncate it on 32-bit
+		 * platforms, and the truncated value could slip past the
+		 * caller's size checks. Saturate values above SIZE_MAX so an
+		 * oversized varint stays oversized for the caller's bounds
+		 * checks. */
+		if(v > (uint64_t)SIZE_MAX) {
+			v = (uint64_t)SIZE_MAX;
+		}
 		*pvalue = (size_t) v;
 	}
 
