@@ -1538,6 +1538,7 @@ static int parse_file_extra_owner(struct archive_read* a,
 	uint64_t flags = 0;
 	uint64_t value_size = 0;
 	uint64_t id = 0;
+	uint64_t name_size_64 = 0;
 	size_t name_len = 0;
 	size_t name_size = 0;
 	size_t varint_len = 0;
@@ -1551,18 +1552,25 @@ static int parse_file_extra_owner(struct archive_read* a,
 	*extra_data_size -= value_size;
 
 	if ((flags & OWNER_USER_NAME) != 0) {
-		if(!read_var_sized(a, &name_size, &varint_len))
+		/* Read the length in 64 bits and validate it before
+		 * narrowing it to size_t: on 32-bit platforms
+		 * read_var_sized() would truncate a crafted length like
+		 * 0x8000000000000 to zero, so the check below could not
+		 * reject it (GH #3066). */
+		if(!read_var(a, &name_size_64, &value_size))
 			return ARCHIVE_EOF;
+		varint_len = (size_t)value_size;
 
 		/* The name cannot be larger than the remaining extra data of
 		 * this field. Rejecting an oversized length here also avoids
 		 * requesting a huge allocation from read_ahead() below. */
 		if(*extra_data_size < 0 ||
-		    name_size > (uint64_t)*extra_data_size) {
+		    name_size_64 > (uint64_t)*extra_data_size) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT, "Owner name is too long");
 			return ARCHIVE_FATAL;
 		}
+		name_size = (size_t)name_size_64;
 		if(ARCHIVE_OK != consume(a, (int64_t)varint_len))
 			return ARCHIVE_EOF;
 		*extra_data_size -= (int64_t)(name_size + varint_len);
@@ -1584,15 +1592,18 @@ static int parse_file_extra_owner(struct archive_read* a,
 		archive_entry_set_uname(e, namebuf);
 	}
 	if ((flags & OWNER_GROUP_NAME) != 0) {
-		if(!read_var_sized(a, &name_size, &varint_len))
+		/* Same as above: validate in 64 bits, then narrow. */
+		if(!read_var(a, &name_size_64, &value_size))
 			return ARCHIVE_EOF;
+		varint_len = (size_t)value_size;
 
 		if(*extra_data_size < 0 ||
-		    name_size > (uint64_t)*extra_data_size) {
+		    name_size_64 > (uint64_t)*extra_data_size) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT, "Group name is too long");
 			return ARCHIVE_FATAL;
 		}
+		name_size = (size_t)name_size_64;
 		if(ARCHIVE_OK != consume(a, (int64_t)varint_len))
 			return ARCHIVE_EOF;
 		*extra_data_size -= (int64_t)(name_size + varint_len);
