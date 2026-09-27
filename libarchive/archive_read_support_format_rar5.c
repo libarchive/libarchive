@@ -1027,8 +1027,12 @@ static int read_var_sized(struct archive_read* a, size_t* pvalue,
 	uint64_t v;
 	uint64_t v_size = 0;
 
-	const int ret = pvalue_len ? read_var(a, &v, &v_size)
-				   : read_var(a, &v, NULL);
+	int ret = pvalue_len ? read_var(a, &v, &v_size)
+			     : read_var(a, &v, NULL);
+#if UINT64_MAX > SIZE_MAX
+	if(ret == 1 && v > SIZE_MAX)
+		ret = 0;
+#endif
 
 	if(ret == 1 && pvalue) {
 		*pvalue = (size_t) v;
