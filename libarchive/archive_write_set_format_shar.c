@@ -279,7 +279,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			if (archive_entry_size(entry) == 0) {
 				/* More portable than "touch." */
 				archive_string_sprintf(&shar->work,
-				    "test -e \"%s\" || :> \"%s\"\n",
+				    "test -e %s || :> %s\n",
 				    shar->quoted_name.s, shar->quoted_name.s);
 			} else {
 				if (shar->dump) {
