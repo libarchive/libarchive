@@ -1240,7 +1240,41 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		e += 2;
 	}
 
-	/* Copy ux, AES-extra into central directory as well. */
+	/* NTFS extra data field, ID=0x000a: 4 reserved bytes, then a
+	 * single Tag(2)=1/Size(2)=24 attribute holding Mtime, Atime and
+	 * "Ctime" as 8-byte Windows FILETIMEs. As on read (see the
+	 * matching comment in archive_read_support_format_zip.c),
+	 * "Ctime" here means Windows creation time, so it's filled from
+	 * birthtime, not POSIX ctime. Unlike UT below, this also gives
+	 * mtime/atime 100ns precision instead of 1 second, and it is the
+	 * same in the local header and in the central directory. Unlike
+	 * UT, there's no independent per-field flag to mark a slot
+	 * absent, so a timestamp that isn't set is written as a raw
+	 * FILETIME of 0; the reader treats that as "absent" rather than
+	 * decoding it as 1601-01-01 (see the matching comment on read). */
+	if (archive_entry_mtime_is_set(entry)
+	    || archive_entry_atime_is_set(entry)
+	    || archive_entry_birthtime_is_set(entry)) {
+		memcpy(e, "\012\000\040\000\000\000\000\000\001\000\030\000", 12);
+		e += 12;
+		archive_le64enc(e, archive_entry_mtime_is_set(entry)
+		    ? __archive_unix_to_ntfs(archive_entry_mtime(entry),
+		          (uint32_t)archive_entry_mtime_nsec(entry))
+		    : 0);
+		e += 8;
+		archive_le64enc(e, archive_entry_atime_is_set(entry)
+		    ? __archive_unix_to_ntfs(archive_entry_atime(entry),
+		          (uint32_t)archive_entry_atime_nsec(entry))
+		    : 0);
+		e += 8;
+		archive_le64enc(e, archive_entry_birthtime_is_set(entry)
+		    ? __archive_unix_to_ntfs(archive_entry_birthtime(entry),
+		          (uint32_t)archive_entry_birthtime_nsec(entry))
+		    : 0);
+		e += 8;
+	}
+
+	/* Copy ux, AES and NTFS extra into central directory as well. */
 	zip->file_header_extra_offset = zip->central_directory_bytes;
 	cd_extra = cd_alloc(zip, e - local_extra);
 	memcpy(cd_extra, local_extra, e - local_extra);
