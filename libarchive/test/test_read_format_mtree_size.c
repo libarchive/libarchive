@@ -51,9 +51,10 @@ verify(const char *spec, int expected_size)
 	    archive_read_open_memory(a, spec, strlen(spec)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "x");
-	assertEqualInt(archive_entry_size(ae), expected_size);
-	assertEqualInt(archive_read_data(a, buf, sizeof(buf)),
-	    expected_size);
+	assertEqualInt(expected_size, archive_entry_size(ae));
+	assertEqualIntA(a, expected_size,
+	    archive_read_data(a, buf, sizeof(buf)));
+	assertEqualIntA(a, 0, archive_read_data(a, buf, sizeof(buf)));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
