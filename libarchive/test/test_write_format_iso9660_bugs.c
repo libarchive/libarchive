@@ -328,9 +328,8 @@ DEFINE_TEST(test_write_format_iso9660_rockridge_deep_relocation)
 	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 
-	/* The relocated CL placeholder must not be traversed as a real
-	 * directory: current HEAD dereferences a NULL file->cur_content
-	 * while writing directory records during close. */
+	/* Closing writes the "." and ".." records of the relocated
+	 * directories, which share their file with the CL placeholder. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 	free(buff);

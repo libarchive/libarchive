@@ -2816,17 +2816,6 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		pxent = isoent;
 	}
 	file = isoent->file;
-	/*
-	 * A Rockridge relocated ("CL") directory placeholder shares its
-	 * file object with the real directory that was moved to
-	 * "rr_moved", and an earlier directory traversal can advance
-	 * that shared cur_content to NULL.  Restore it to the first
-	 * content, same as set_directory_record() does, so the "PX"
-	 * File Serial Number below is written from valid data instead
-	 * of dereferencing a NULL pointer.
-	 */
-	if (file->cur_content == NULL)
-		file->cur_content = &(file->content);
 
 	if (t != DIR_REC_NORMAL) {
 		rr_flag = RR_USE_PX | RR_USE_TF;
@@ -3479,16 +3468,6 @@ set_directory_record(unsigned char *p, size_t n, struct isoent *isoent,
 		file = isoent->file;
 		if (file->hardlink_target != NULL)
 			file = file->hardlink_target;
-		/*
-		 * A Rockridge relocated ("CL") directory placeholder shares
-		 * its file object with the real directory that was moved to
-		 * "rr_moved", and an earlier directory traversal can advance
-		 * that shared cur_content to NULL.  Restore it to the first
-		 * content so a non-directory record is written from valid
-		 * data instead of dereferencing a NULL pointer.
-		 */
-		if (file->cur_content == NULL)
-			file->cur_content = &(file->content);
 		/* Make a file flag. */
 		if (xisoent->dir)
 			flag = FILE_FLAG_DIRECTORY;
@@ -4370,6 +4349,15 @@ calculate_directory_descriptors(struct iso9660 *iso9660, struct vdd *vdd,
 	return (block);
 }
 
+static void
+rewind_cur_content(struct isofile *file)
+{
+	if (file->hardlink_target != NULL)
+		file = file->hardlink_target;
+	if (file->cur_content == NULL)
+		file->cur_content = &(file->content);
+}
+
 static int
 _write_directory_descriptors(struct archive_write *a, struct vdd *vdd,
     struct isoent *isoent, int depth)
@@ -4379,6 +4367,18 @@ _write_directory_descriptors(struct archive_write *a, struct vdd *vdd,
 	unsigned char *p, *wb;
 	int i, r;
 	int dr_l;
+
+	/*
+	 * A Rockridge relocated directory shares its file with the "CL"
+	 * placeholder left in its original parent, and listing that
+	 * placeholder there walks the shared cur_content to NULL.
+	 * Rewind the files the "." and ".." records below read from.
+	 */
+	rewind_cur_content(isoent->file);
+	if (isoent->rr_parent != NULL)
+		rewind_cur_content(isoent->rr_parent->file);
+	else
+		rewind_cur_content(isoent->parent->file);
 
 	p = wb = wb_buffptr(a);
 #define WD_REMAINING	(LOGICAL_BLOCK_SIZE - (p - wb))
