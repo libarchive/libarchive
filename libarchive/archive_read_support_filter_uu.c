@@ -276,6 +276,9 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *b,
 			return (0);
 		/* Get a length of decoded bytes. */
 		l = UUDECODE(*p++); len--;
+		if (l == 0)
+			/* empty encoded file */
+			return (firstline+30);
 		if (l > 45)
 			/* Normally, maximum length is 45(character 'M'). */
 			return (0);
