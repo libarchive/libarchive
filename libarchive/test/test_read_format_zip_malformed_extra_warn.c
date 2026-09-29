@@ -221,3 +221,163 @@ DEFINE_TEST(test_read_format_zip_malformed_extra_warn_central)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * The NTFS (0x000A) extra field parses its own Tag/Size/Data attribute
+ * blocks in an inner loop that, unlike every other extra field type
+ * above, used to stay completely silent when that inner data was
+ * malformed: it would just stop looking at further attributes without
+ * ever recording a warning. These two archives cover its two silent
+ * malformation paths: too few bytes for even the mandatory 4-byte
+ * reserved header, and a tag/size pair whose declared size overflows
+ * what's actually left in the field.
+ */
+
+/* NTFS field with datasize=0: too short for the 4-byte reserved header. */
+static const unsigned char archive_ntfs_too_short[] = {
+/* --- local file header --- */
+	0x50, 0x4b, 0x03, 0x04, /* local file header signature */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x04, 0x00,             /* extra field length = 4 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x00, 0x00,             /* extra field size = 0: too short */
+/* --- file data --- */
+	0x68, 0x69, 0x0a,       /* "hi\n" */
+/* --- central directory header --- */
+	0x50, 0x4b, 0x01, 0x02, /* central directory header signature */
+	0x14, 0x00,             /* version made by: 2.0, MS-DOS */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x04, 0x00,             /* extra field length = 4 */
+	0x00, 0x00,             /* file comment length */
+	0x00, 0x00,             /* disk number start */
+	0x00, 0x00,             /* internal file attributes */
+	0x00, 0x00, 0xa4, 0x81, /* external file attributes: -rw-r--r-- */
+	0x00, 0x00, 0x00, 0x00, /* relative offset of local header = 0 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x00, 0x00,             /* extra field size = 0: too short */
+/* --- end of central directory record --- */
+	0x50, 0x4b, 0x05, 0x06, /* end of central directory signature */
+	0x00, 0x00,             /* number of this disk */
+	0x00, 0x00,             /* disk with start of central directory */
+	0x01, 0x00,             /* central directory entries on this disk */
+	0x01, 0x00,             /* total central directory entries */
+	0x3a, 0x00, 0x00, 0x00, /* size of central directory = 58 */
+	0x2d, 0x00, 0x00, 0x00, /* offset of central directory = 45 */
+	0x00, 0x00,             /* .ZIP file comment length */
+};
+
+DEFINE_TEST(test_read_format_zip_malformed_ntfs_too_short)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive_ntfs_too_short,
+		sizeof(archive_ntfs_too_short)));
+
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString("test.txt", archive_entry_pathname(ae));
+	assertEqualInt(3, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/* NTFS field with a Tag/Size pair whose declared size (100) overflows
+ * the 0 bytes actually left after the 4-byte reserved header. */
+static const unsigned char archive_ntfs_attr_overflow[] = {
+/* --- local file header --- */
+	0x50, 0x4b, 0x03, 0x04, /* local file header signature */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x0c, 0x00,             /* extra field length = 12 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x08, 0x00,             /* extra field size = 8 */
+	0x00, 0x00, 0x00, 0x00, /* reserved */
+	0x01, 0x00,             /* attribute tag = 1 */
+	0x64, 0x00,             /* attribute size = 100: overflow */
+/* --- file data --- */
+	0x68, 0x69, 0x0a,       /* "hi\n" */
+/* --- central directory header --- */
+	0x50, 0x4b, 0x01, 0x02, /* central directory header signature */
+	0x14, 0x00,             /* version made by: 2.0, MS-DOS */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x0c, 0x00,             /* extra field length = 12 */
+	0x00, 0x00,             /* file comment length */
+	0x00, 0x00,             /* disk number start */
+	0x00, 0x00,             /* internal file attributes */
+	0x00, 0x00, 0xa4, 0x81, /* external file attributes: -rw-r--r-- */
+	0x00, 0x00, 0x00, 0x00, /* relative offset of local header = 0 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x08, 0x00,             /* extra field size = 8 */
+	0x00, 0x00, 0x00, 0x00, /* reserved */
+	0x01, 0x00,             /* attribute tag = 1 */
+	0x64, 0x00,             /* attribute size = 100: overflow */
+/* --- end of central directory record --- */
+	0x50, 0x4b, 0x05, 0x06, /* end of central directory signature */
+	0x00, 0x00,             /* number of this disk */
+	0x00, 0x00,             /* disk with start of central directory */
+	0x01, 0x00,             /* central directory entries on this disk */
+	0x01, 0x00,             /* total central directory entries */
+	0x42, 0x00, 0x00, 0x00, /* size of central directory = 66 */
+	0x35, 0x00, 0x00, 0x00, /* offset of central directory = 53 */
+	0x00, 0x00,             /* .ZIP file comment length */
+};
+
+DEFINE_TEST(test_read_format_zip_malformed_ntfs_attr_overflow)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive_ntfs_attr_overflow,
+		sizeof(archive_ntfs_attr_overflow)));
+
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString("test.txt", archive_entry_pathname(ae));
+	assertEqualInt(3, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
