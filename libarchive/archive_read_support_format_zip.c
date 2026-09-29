@@ -806,8 +806,13 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			unsigned sub_offset = offset;
 			unsigned sub_remaining = datasize;
 
-			if (sub_remaining < 4)
+			if (sub_remaining < 4) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Incomplete NTFS extra field");
+				ret = ARCHIVE_WARN;
 				break;
+			}
 			sub_offset += 4;
 			sub_remaining -= 4;
 
@@ -818,8 +823,16 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				    archive_le16dec(p + sub_offset + 2);
 				sub_offset += 4;
 				sub_remaining -= 4;
-				if (size > sub_remaining)
+				if (size > sub_remaining) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_FILE_FORMAT,
+					    "NTFS extra field attribute "
+					    "overflow: Need %d bytes but "
+					    "only found %d bytes",
+					    (int)size, (int)sub_remaining);
+					ret = ARCHIVE_WARN;
 					break;
+				}
 				if (tag == 1 && size == 24) {
 					/* A raw FILETIME of 0 marks a slot
 					 * the writer didn't have a value
