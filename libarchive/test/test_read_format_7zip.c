@@ -2201,6 +2201,31 @@ DEFINE_TEST(test_read_format_7zip_lzma2_powerpc)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * A degenerate 7-Zip header can leave __archive_read_filter_ahead() with an
+ * empty client buffer and an empty copy buffer, that is with
+ * f->client_next == NULL and f->avail == 0.  The unconditional
+ * "f->client_next -= f->avail" was then a zero offset applied to a null
+ * pointer; a UBSan build aborts on it.  The observable behaviour is
+ * unchanged, so only a sanitizer build catches a regression here.
+ */
+DEFINE_TEST(test_read_format_7zip_null_client_next)
+{
+	const char *refname = "test_read_format_7zip_null_client_next.7z";
+	struct archive *a;
+	struct archive_entry *ae;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_lzma1_powerpc)
 {
 	struct archive *a;
