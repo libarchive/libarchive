@@ -249,6 +249,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_jar.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_malformed.c
+    test_read_format_zip_malformed_extra_warn.c
     test_read_format_zip_msdos.c
     test_read_format_zip_negative_timestamps.c
     test_read_format_zip_nested.c
