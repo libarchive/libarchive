@@ -238,6 +238,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_7075_utf8_paths.c
     test_read_format_zip_ambiguous_timestamps.c
     test_read_format_zip_comment_stored.c
+    test_read_format_zip_dos_mtime_precedence.c
     test_read_format_zip_empty.c
     test_read_format_zip_encryption_data.c
     test_read_format_zip_encryption_header.c
@@ -252,6 +253,8 @@ IF(ENABLE_TEST)
     test_read_format_zip_negative_timestamps.c
     test_read_format_zip_nested.c
     test_read_format_zip_nofiletype.c
+    test_read_format_zip_ntfs_precedence.c
+    test_read_format_zip_ntfs_timestamp.c
     test_read_format_zip_padded.c
     test_read_format_zip_sfx.c
     test_read_format_zip_size_exceeds_declared.c
