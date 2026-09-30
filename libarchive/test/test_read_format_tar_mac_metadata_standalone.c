@@ -481,4 +481,102 @@ DEFINE_TEST(test_read_format_tar_mac_metadata_standalone)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Relative sidecars must not match absolute pathnames. */
+	used = 0;
+	memset(buff, 0, sizeof(buff));
+	build_tar_header(buff, "._.", '0', sizeof(appledouble));
+	memcpy(buff + TAR_BLOCK_SIZE, appledouble, sizeof(appledouble));
+	build_tar_header(buff + TAR_BLOCK_SIZE * 2, "/", '5', 0);
+	build_tar_header(buff + TAR_BLOCK_SIZE * 3, ".//._file", '0',
+	    sizeof(appledouble));
+	memcpy(buff + TAR_BLOCK_SIZE * 4, appledouble, sizeof(appledouble));
+	build_tar_header(buff + TAR_BLOCK_SIZE * 5, "/file", '0', 4);
+	memcpy(buff + TAR_BLOCK_SIZE * 6, "data", 4);
+	used = TAR_BLOCK_SIZE * 9;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_option(a, "tar", "mac-ext", "1"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("._.", archive_entry_pathname(ae));
+	metadata = archive_entry_mac_metadata(ae, &metadata_size);
+	assertEqualInt(0, metadata_size);
+	assert(metadata == NULL);
+	assertEqualIntA(a, sizeof(appledouble),
+	    archive_read_data(a, data, sizeof(data)));
+	assertEqualMem(appledouble, data, sizeof(appledouble));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("/", archive_entry_pathname(ae));
+	metadata = archive_entry_mac_metadata(ae, &metadata_size);
+	assertEqualInt(0, metadata_size);
+	assert(metadata == NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(".//._file", archive_entry_pathname(ae));
+	metadata = archive_entry_mac_metadata(ae, &metadata_size);
+	assertEqualInt(0, metadata_size);
+	assert(metadata == NULL);
+	assertEqualIntA(a, sizeof(appledouble),
+	    archive_read_data(a, data, sizeof(data)));
+	assertEqualMem(appledouble, data, sizeof(appledouble));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("/file", archive_entry_pathname(ae));
+	metadata = archive_entry_mac_metadata(ae, &metadata_size);
+	assertEqualInt(0, metadata_size);
+	assert(metadata == NULL);
+	assertEqualIntA(a, 4, archive_read_data(a, data, sizeof(data)));
+	assertEqualMem("data", data, 4);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Preserve the position of an error found while looking ahead. */
+	used = 0;
+	memset(buff, 0, sizeof(buff));
+	build_tar_header(buff, "._orphan", '0', 1);
+	buff[TAR_BLOCK_SIZE] = 'x';
+	build_tar_header(buff + TAR_BLOCK_SIZE * 2, "bad-header", '0', 0);
+	buff[TAR_BLOCK_SIZE * 2] ^= 1;
+	used = TAR_BLOCK_SIZE * 4;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_option(a, "tar", "mac-ext", "1"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("._orphan", archive_entry_pathname(ae));
+	assertEqualInt(0, (intmax_t)archive_read_header_position(a));
+	assertEqualIntA(a, 1, archive_read_data(a, data, sizeof(data)));
+	assertEqualMem("x", data, 1);
+	assertEqualIntA(a, ARCHIVE_RETRY, archive_read_next_header(a, &ae));
+	assertEqualInt(TAR_BLOCK_SIZE * 2,
+	    (intmax_t)archive_read_header_position(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Preserve the position of EOF found while looking ahead. */
+	used = 0;
+	memset(buff, 0, sizeof(buff));
+	build_tar_header(buff, "._orphan", '0', 1);
+	buff[TAR_BLOCK_SIZE] = 'x';
+	used = TAR_BLOCK_SIZE * 4;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_option(a, "tar", "mac-ext", "1"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("._orphan", archive_entry_pathname(ae));
+	assertEqualInt(0, (intmax_t)archive_read_header_position(a));
+	assertEqualIntA(a, 1, archive_read_data(a, data, sizeof(data)));
+	assertEqualMem("x", data, 1);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(TAR_BLOCK_SIZE * 2,
+	    (intmax_t)archive_read_header_position(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

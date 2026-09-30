@@ -673,7 +673,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			if (tar->mac_metadata.entry != NULL && r == ARCHIVE_EOF) {
 				tar->pending.status = r;
 				tar->pending.status_pending = 1;
-				tar->pending.header_position = a->header_position;
+				tar->pending.header_position = entry_header_position;
 				tar_save_error(&a->archive, &tar->pending.error,
 				    &tar->pending.error_number);
 				tar_swap_entries(entry, tar->mac_metadata.entry);
@@ -751,7 +751,7 @@ tar_header_done:
 			if (r != ARCHIVE_OK && r != ARCHIVE_WARN) {
 				tar->pending.status = r;
 				tar->pending.status_pending = 1;
-				tar->pending.header_position = a->header_position;
+				tar->pending.header_position = entry_header_position;
 				tar_save_error(&a->archive, &tar->pending.error,
 				    &tar->pending.error_number);
 				tar_swap_entries(entry, tar->mac_metadata.entry);
@@ -1909,8 +1909,12 @@ mac_metadata_path_matches(const char *metadata_name,
     const char *next_pathname)
 {
 	const char *metadata_base;
+	int metadata_is_absolute = metadata_name[0] == '/';
+	int next_is_absolute = next_pathname[0] == '/';
 	size_t base_offset, metadata_length, next_length, target_length;
 
+	if (metadata_is_absolute != next_is_absolute)
+		return 0;
 	while (metadata_name[0] == '.' && metadata_name[1] == '/')
 		metadata_name += 2;
 	while (next_pathname[0] == '.' && next_pathname[1] == '/')
@@ -1941,8 +1945,12 @@ mac_metadata_wpath_matches(const wchar_t *metadata_name,
     const wchar_t *next_pathname)
 {
 	const wchar_t *metadata_base;
+	int metadata_is_absolute = metadata_name[0] == L'/';
+	int next_is_absolute = next_pathname[0] == L'/';
 	size_t base_offset, metadata_length, next_length, target_length;
 
+	if (metadata_is_absolute != next_is_absolute)
+		return 0;
 	while (metadata_name[0] == L'.' && metadata_name[1] == L'/')
 		metadata_name += 2;
 	while (next_pathname[0] == L'.' && next_pathname[1] == L'/')
