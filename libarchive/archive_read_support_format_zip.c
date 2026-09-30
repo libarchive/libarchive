@@ -651,6 +651,23 @@ compression_name(const int compression)
 }
 
 /*
+ * Interpret a raw 32-bit Unix timestamp, preferring the signed
+ * (pre-1970-capable) reading unless it would land before 1960, in
+ * which case the unsigned (post-2038-capable) reading is used instead.
+ * On a platform where time_t is no wider than 32 bits, that unsigned
+ * reading could never be represented anyway, so it's always skipped.
+ * See https://github.com/libarchive/libarchive/issues/3550.
+ */
+static time_t
+to_time_t(uint32_t raw)
+{
+	const int32_t year_1960_offset = (10 * 365 + 3) * 24 * 60 * 60;
+	const int32_t t = (int32_t)raw;
+	return (sizeof(time_t) <= sizeof(raw) || t >= -year_1960_offset)
+	    ? (time_t)t : (time_t)raw;
+}
+
+/*
  * The extra data is stored as a list of
  *	id1+size1+data1 + id2+size2+data2 ...
  *  triplets.  id and size are 2 bytes each.
@@ -765,9 +782,9 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				/* atime/mtime are signed 32-bit Unix
 				 * time, to allow pre-1970 dates. */
 				zip_entry->atime =
-				    (int32_t)archive_le32dec(p + offset);
+				    to_time_t(archive_le32dec(p + offset));
 				zip_entry->mtime =
-				    (int32_t)archive_le32dec(p + offset + 4);
+				    to_time_t(archive_le32dec(p + offset + 4));
 				zip_entry->uid =
 				    archive_le16dec(p + offset + 8);
 				zip_entry->gid =
@@ -821,7 +838,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				/* Signed 32-bit Unix time, to allow
 				 * pre-1970 dates. */
 				zip_entry->mtime =
-				    (int32_t)archive_le32dec(p + offset);
+				    to_time_t(archive_le32dec(p + offset));
 				offset += 4;
 				datasize -= 4;
 			}
@@ -830,7 +847,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				if (datasize < 4)
 					break;
 				zip_entry->atime =
-				    (int32_t)archive_le32dec(p + offset);
+				    to_time_t(archive_le32dec(p + offset));
 				offset += 4;
 				datasize -= 4;
 			}
@@ -839,7 +856,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				if (datasize < 4)
 					break;
 				zip_entry->ctime =
-				    (int32_t)archive_le32dec(p + offset);
+				    to_time_t(archive_le32dec(p + offset));
 				offset += 4;
 				datasize -= 4;
 			}
@@ -852,9 +869,9 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				/* Signed 32-bit Unix time, to allow
 				 * pre-1970 dates. */
 				zip_entry->atime =
-				    (int32_t)archive_le32dec(p + offset);
+				    to_time_t(archive_le32dec(p + offset));
 				zip_entry->mtime =
-				    (int32_t)archive_le32dec(p + offset + 4);
+				    to_time_t(archive_le32dec(p + offset + 4));
 			}
 			if (datasize >= 12) {
 				zip_entry->uid =
