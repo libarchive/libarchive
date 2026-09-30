@@ -1863,6 +1863,20 @@ static int process_head_file(struct archive_read* a, struct rar5 *rar5,
 		if(r != ARCHIVE_OK)
 			return r;
 
+		/* The extra area is part of the file header, which
+		 * process_base_block() has already bounded to 2 MB. A declared
+		 * extra-area size larger than that cannot be valid, and if left
+		 * unchecked it is later used as the ceiling for the owner/group
+		 * name length in parse_file_extra_owner(), letting a crafted
+		 * archive drive read_ahead() into an attacker-controlled
+		 * allocation. Reject it here. */
+		if(edata_size > (2 * 1024 * 1024)) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "File extra data size is too large");
+			return ARCHIVE_FATAL;
+		}
+
 		/* Intentional type cast from unsigned to signed. */
 		extra_data_size = (int64_t) edata_size;
 	}
