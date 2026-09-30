@@ -1009,7 +1009,7 @@ DEFINE_TEST(test_read_format_rar5_extra_data_size_toolong)
 	 * so parse_file_extra_owner() passed an attacker-chosen length straight
 	 * to read_ahead(), attempting a multi-terabyte allocation.  The reader
 	 * must reject the oversized extra-area size instead. */
-	PROLOGUE("test_read_format_rar5_extra_data_size_toolong.rar");
+	PROLOGUE("test_read_format_rar5_extra_data_size_toolong.rar.Z");
 
 	assertA(archive_read_next_header(a, &ae) < 0);
 
