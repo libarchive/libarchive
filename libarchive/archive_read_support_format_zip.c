@@ -690,6 +690,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 {
 	struct zip *zip = a->format->data;
 	unsigned offset = 0;
+	int ret = ARCHIVE_OK;
 
 	if (extra_length == 0) {
 		return ARCHIVE_OK;
@@ -712,7 +713,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				    "Need at least 4 bytes, "
 				    "but only found %d bytes",
 				    (int)extra_length);
-				return ARCHIVE_FAILED;
+				return ARCHIVE_WARN;
 			}
 		}
 
@@ -729,7 +730,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			    ARCHIVE_ERRNO_FILE_FORMAT, "Extra data overflow: "
 			    "Need %d bytes but only found %d bytes",
 			    (int)datasize, (int)(extra_length - offset));
-			return ARCHIVE_FAILED;
+			return ARCHIVE_WARN;
 		}
 #ifdef DEBUG
 		fprintf(stderr, "Header id 0x%04x, length %d\n",
@@ -748,7 +749,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					    ARCHIVE_ERRNO_FILE_FORMAT,
 					    "Malformed 64-bit "
 					    "uncompressed size");
-					return ARCHIVE_FAILED;
+					ret = ARCHIVE_WARN;
+					break;
 				}
 				zip_entry->uncompressed_size = t;
 				offset += 8;
@@ -763,7 +765,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					    ARCHIVE_ERRNO_FILE_FORMAT,
 					    "Malformed 64-bit "
 					    "compressed size");
-					return ARCHIVE_FAILED;
+					ret = ARCHIVE_WARN;
+					break;
 				}
 				zip_entry->compressed_size = t;
 				offset += 8;
@@ -778,7 +781,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					    ARCHIVE_ERRNO_FILE_FORMAT,
 					    "Malformed 64-bit "
 					    "local header offset");
-					return ARCHIVE_FAILED;
+					ret = ARCHIVE_WARN;
+					break;
 				}
 				zip_entry->local_header_offset = t;
 				offset += 8;
@@ -913,7 +917,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Incomplete extended time field");
-				return ARCHIVE_FAILED;
+				ret = ARCHIVE_WARN;
+				break;
 			}
 			flags = p[offset];
 			offset++;
@@ -1212,7 +1217,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Incomplete AES field");
-				return ARCHIVE_FAILED;
+				ret = ARCHIVE_WARN;
+				break;
 			}
 			if (p[offset + 2] == 'A' && p[offset + 3] == 'E') {
 				/* Vendor version. */
@@ -1230,7 +1236,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 		}
 		offset += datasize;
 	}
-	return ARCHIVE_OK;
+	return ret;
 }
 
 /*
@@ -1360,7 +1366,11 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 
 	if (ARCHIVE_OK != process_extra(a, entry, h, extra_length,
 	    zip_entry)) {
-		return ARCHIVE_FATAL;
+		/* A malformed extra field is a warning, not a reason to
+		 * fail the whole archive_read object: process_extra() has
+		 * already skipped whatever it couldn't parse and left the
+		 * rest of the entry's metadata usable. */
+		ret = ARCHIVE_WARN;
 	}
 	__archive_read_consume(a, extra_length);
 
@@ -4493,10 +4503,17 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 			    "Truncated ZIP file header");
 			return ARCHIVE_FATAL;
 		}
-		if (ARCHIVE_OK != process_extra(a, entry, p + filename_length,
-		    extra_length, zip_entry)) {
-			return ARCHIVE_FATAL;
-		}
+		/* A malformed extra field is a warning, not a reason to
+		 * fail the whole archive: this is a prescan of every
+		 * entry's Central Directory record, well before any one
+		 * entry is returned to the caller, so there's no single
+		 * entry here to attach a warning to. process_extra() has
+		 * already skipped whatever it couldn't parse for this
+		 * entry; if the same malformed field is also present in
+		 * the Local Header, it will surface as ARCHIVE_WARN when
+		 * this entry is actually read. */
+		process_extra(a, entry, p + filename_length, extra_length,
+		    zip_entry);
 
 		/*
 		 * Mac resource fork files are stored under the
