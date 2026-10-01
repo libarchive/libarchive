@@ -648,7 +648,7 @@ __LA_DECL la_int64_t archive_seek_data(struct archive *, la_int64_t, int);
  * A zero-copy version of archive_read_data that also exposes the file offset
  * of each returned block.  Note that the client has no way to specify
  * the desired size of the block.  The API does guarantee that offsets will
- * be strictly increasing and that returned blocks will not overlap.
+ * be increasing and that returned blocks will not overlap.
  */
 __LA_DECL int archive_read_data_block(struct archive *a,
 		    const void **buff, size_t *size, la_int64_t *offset);
