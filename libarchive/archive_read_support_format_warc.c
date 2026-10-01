@@ -753,6 +753,11 @@ warc_read_uri(const char *buf, size_t bsz)
 		/* Unsupported URI scheme. */
 		return res;
 	}
+
+	/* Require valid C string representation. */
+	if (memchr(uri, '\0', eol - uri) != NULL)
+		return res;
+
 	res.str = uri;
 	res.len = eol - uri;
 	return res;
