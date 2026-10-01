@@ -4399,6 +4399,18 @@ _write_directory_descriptors(struct archive_write *a, struct vdd *vdd,
 			p += dr_l;
 			file->cur_content = file->cur_content->next;
 		} while (file->cur_content != NULL);
+		/*
+		 * Rockridge deep-directory relocation can leave one of
+		 * these children marked as a non-directory placeholder
+		 * (see isoent_rr_move_dir()) that the traversal in
+		 * write_directory_descriptors() still visits in its own
+		 * right afterwards, to write its self/parent records.
+		 * That later call reads this same file's cur_content
+		 * through set_directory_record()'s non-directory branch,
+		 * so leave it pointing at the head of the chain rather
+		 * than at the NULL the loop above ends on.
+		 */
+		file->cur_content = &(file->content);
 	}
 	memset(p, 0, WD_REMAINING);
 	return (wb_consume(a, LOGICAL_BLOCK_SIZE));

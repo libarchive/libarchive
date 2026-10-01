@@ -307,6 +307,75 @@ DEFINE_TEST(test_write_format_iso9660_boot_image_size_overflow)
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
 
+DEFINE_TEST(test_write_format_iso9660_rockridge_deep_relocation)
+{
+	/*
+	 * A deep enough path under Rockridge with depth limiting
+	 * disabled forces isoent_rr_move_dir() to relocate one of the
+	 * ancestor directories under rr_moved and mark the original
+	 * entry as a non-directory placeholder (the RRIP "CL" record).
+	 * That placeholder is still walked by the directory-descriptor
+	 * writer as a node in its own right, which used to crash with
+	 * a NULL pointer dereference; it just needs to survive.
+	 */
+	const char *pathname = "a/a/a/a/a/a/a/a/a";
+	struct archive *a;
+	struct archive_entry *entry;
+	unsigned char *buff;
+	size_t buffsize = 4 * 1024 * 1024;
+	size_t used = 0;
+
+	buff = malloc(buffsize);
+	assert(buff != NULL);
+	if (buff == NULL)
+		return;
+
+	assert((a = archive_write_new()) != NULL);
+	if (a == NULL) {
+		free(buff);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_iso9660(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_bytes_in_last_block(a, 1));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "iso9660:joliet"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "iso9660:rockridge"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "iso9660:iso-level=4"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_options(a, "iso9660:!limit-depth"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
+
+	entry = archive_entry_new();
+	if (!assert(entry != NULL)) {
+		archive_write_free(a);
+		free(buff);
+		return;
+	}
+	archive_entry_copy_pathname(entry, pathname);
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_perm(entry, 0644);
+	archive_entry_set_size(entry, 0);
+	archive_entry_set_uid(entry, 1000);
+	archive_entry_set_gid(entry, 1000);
+	archive_entry_set_uname(entry, "user");
+	archive_entry_set_gname(entry, "group");
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+
+	/* This used to segfault while writing out the directory
+	 * descriptors for the relocated placeholder entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+	free(buff);
+}
+
 DEFINE_TEST(test_write_format_iso9660_symlink)
 {
 	const size_t buffsize = 512 * 1024;
