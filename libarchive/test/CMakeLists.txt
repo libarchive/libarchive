@@ -297,6 +297,7 @@ IF(ENABLE_TEST)
     test_write_disk_perms.c
     test_write_disk_secure.c
     test_write_disk_secure_noabsolutepaths.c
+    test_write_disk_secure_physicaldrive.c
     test_write_disk_secure744.c
     test_write_disk_secure745.c
     test_write_disk_secure746.c
