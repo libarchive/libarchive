@@ -73,6 +73,9 @@ archive_entry_xattr_clear(struct archive_entry *entry)
 {
 	struct ae_xattr	*xp;
 
+	if (entry == NULL)
+		return;
+
 	while (entry->xattr_head != NULL) {
 		xp = entry->xattr_head->next;
 		free(entry->xattr_head->name);
@@ -91,16 +94,23 @@ archive_entry_xattr_add_entry(struct archive_entry *entry,
 {
 	struct ae_xattr	*xp;
 
+	if (entry == NULL || name == NULL)
+		return;
+
 	if ((xp = malloc(sizeof(struct ae_xattr))) == NULL)
 		__archive_errx(1, "Out of memory");
 
 	if ((xp->name = strdup(name)) == NULL)
 		__archive_errx(1, "Out of memory");
 
-	if ((xp->value = malloc(size)) == NULL)
-		__archive_errx(1, "Out of memory");
-
-	memcpy(xp->value, value, size);
+	if (size > 0 && value != NULL) {
+		if ((xp->value = malloc(size)) == NULL)
+			__archive_errx(1, "Out of memory");
+		memcpy(xp->value, value, size);
+	} else {
+		xp->value = NULL;
+		size = 0;
+	}
 	xp->size = size;
 
 	xp->next = entry->xattr_head;
@@ -117,6 +127,9 @@ archive_entry_xattr_count(struct archive_entry *entry)
 	struct ae_xattr *xp;
 	int count = 0;
 
+	if (entry == NULL)
+		return (0);
+
 	for (xp = entry->xattr_head; xp != NULL; xp = xp->next)
 		count++;
 
@@ -126,6 +139,9 @@ archive_entry_xattr_count(struct archive_entry *entry)
 int
 archive_entry_xattr_reset(struct archive_entry * entry)
 {
+	if (entry == NULL)
+		return (0);
+
 	entry->xattr_p = entry->xattr_head;
 
 	return archive_entry_xattr_count(entry);
@@ -135,6 +151,15 @@ int
 archive_entry_xattr_next(struct archive_entry * entry,
 	const char **name, const void **value, size_t *size)
 {
+	if (name != NULL)
+		*name = NULL;
+	if (value != NULL)
+		*value = NULL;
+	if (size != NULL)
+		*size = 0;
+	if (entry == NULL || name == NULL || value == NULL || size == NULL)
+		return (ARCHIVE_WARN);
+
 	if (entry->xattr_p) {
 		*name = entry->xattr_p->name;
 		*value = entry->xattr_p->value;

@@ -171,6 +171,9 @@ archive_entry_clone(struct archive_entry *entry)
 	size_t s;
 	const void *p;
 
+	if (entry == NULL)
+		return (NULL);
+
 	/* Allocate new structure and copy over all of the fields. */
 	/* TODO: Should we copy the archive over?  Or require a new archive
 	 * as an argument? */

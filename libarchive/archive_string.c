@@ -249,12 +249,18 @@ archive_wstring_append(struct archive_wstring *as, const wchar_t *p, size_t s)
 struct archive_string *
 archive_array_append(struct archive_string *as, const char *p, size_t s)
 {
+	if (as == NULL)
+		return (NULL);
+	if (p == NULL || s == 0)
+		return (as);
 	return archive_string_append(as, p, s);
 }
 
 void
 archive_string_concat(struct archive_string *dest, struct archive_string *src)
 {
+	if (dest == NULL || src == NULL || src->length == 0)
+		return;
 	if (archive_string_append(dest, src->s, src->length) == NULL)
 		__archive_errx(1, "Out of memory");
 }
@@ -263,6 +269,8 @@ void
 archive_wstring_concat(struct archive_wstring *dest,
     struct archive_wstring *src)
 {
+	if (dest == NULL || src == NULL || src->length == 0)
+		return;
 	if (archive_wstring_append(dest, src->s, src->length) == NULL)
 		__archive_errx(1, "Out of memory");
 }
@@ -270,6 +278,8 @@ archive_wstring_concat(struct archive_wstring *dest,
 void
 archive_string_free(struct archive_string *as)
 {
+	if (as == NULL)
+		return;
 	as->length = 0;
 	as->buffer_length = 0;
 	free(as->s);
@@ -279,6 +289,8 @@ archive_string_free(struct archive_string *as)
 void
 archive_wstring_free(struct archive_wstring *as)
 {
+	if (as == NULL)
+		return;
 	as->length = 0;
 	as->buffer_length = 0;
 	free(as->s);
@@ -288,6 +300,8 @@ archive_wstring_free(struct archive_wstring *as)
 struct archive_wstring *
 archive_wstring_ensure(struct archive_wstring *as, size_t s)
 {
+	if (as == NULL)
+		return (NULL);
 	return (struct archive_wstring *)
 		archive_string_ensure((struct archive_string *)as,
 					s * sizeof(wchar_t));
@@ -299,6 +313,9 @@ archive_string_ensure(struct archive_string *as, size_t s)
 {
 	char *p;
 	size_t new_length;
+
+	if (as == NULL)
+		return (NULL);
 
 	/* If buffer is already big enough, don't reallocate. */
 	if (as->s && (s <= as->buffer_length))
@@ -361,6 +378,11 @@ archive_strncat(struct archive_string *as, const void *_p, size_t n)
 	size_t s;
 	const char *p, *pp;
 
+	if (as == NULL)
+		return (NULL);
+	if (_p == NULL || n == 0)
+		return (as);
+
 	p = (const char *)_p;
 
 	/* Like strlen(p), except won't examine positions beyond p[n]. */
@@ -380,6 +402,11 @@ archive_wstrncat(struct archive_wstring *as, const wchar_t *p, size_t n)
 {
 	size_t s;
 	const wchar_t *pp;
+
+	if (as == NULL)
+		return (NULL);
+	if (p == NULL || n == 0)
+		return (as);
 
 	/* Like strlen(p), except won't examine positions beyond p[n]. */
 	s = 0;
@@ -415,6 +442,8 @@ archive_wstrcat(struct archive_wstring *as, const wchar_t *p)
 struct archive_string *
 archive_strappend_char(struct archive_string *as, char c)
 {
+	if (as == NULL)
+		return (NULL);
 	if ((as = archive_string_append(as, &c, 1)) == NULL)
 		__archive_errx(1, "Out of memory");
 	return (as);
@@ -423,6 +452,8 @@ archive_strappend_char(struct archive_string *as, char c)
 struct archive_wstring *
 archive_wstrappend_wchar(struct archive_wstring *as, wchar_t c)
 {
+	if (as == NULL)
+		return (NULL);
 	if ((as = archive_wstring_append(as, &c, 1)) == NULL)
 		__archive_errx(1, "Out of memory");
 	return (as);
@@ -3935,6 +3966,8 @@ best_effort_strncat_to_utf16le(struct archive_string *as16, const void *_p,
 void
 archive_mstring_clean(struct archive_mstring *aes)
 {
+	if (aes == NULL)
+		return;
 	archive_wstring_free(&(aes->aes_wcs));
 	archive_string_free(&(aes->aes_mbs));
 	archive_string_free(&(aes->aes_utf8));
@@ -3945,6 +3978,12 @@ archive_mstring_clean(struct archive_mstring *aes)
 void
 archive_mstring_copy(struct archive_mstring *dest, struct archive_mstring *src)
 {
+	if (dest == NULL)
+		return;
+	if (src == NULL) {
+		archive_mstring_clean(dest);
+		return;
+	}
 	dest->aes_set = src->aes_set;
 	archive_string_copy(&(dest->aes_mbs), &(src->aes_mbs));
 	archive_string_copy(&(dest->aes_utf8), &(src->aes_utf8));
@@ -3957,6 +3996,12 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
 {
 	struct archive_string_conv *sc;
 	int r;
+
+	if (p == NULL)
+		return (-1);
+	*p = NULL;
+	if (aes == NULL)
+		return (0);
 
 	/* If we already have a UTF8 form, return that immediately. */
 	if (aes->aes_set & AES_SET_UTF8) {
@@ -4019,6 +4064,12 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes,
 	struct archive_string_conv *sc;
 	int r, ret = 0;
 
+	if (p == NULL)
+		return (-1);
+	*p = NULL;
+	if (aes == NULL)
+		return (0);
+
 	/* If we already have an MBS form, return that immediately. */
 	if (aes->aes_set & AES_SET_MBS) {
 		*p = aes->aes_mbs.s;
@@ -4066,6 +4117,12 @@ archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes,
 	int r, ret = 0;
 
 	(void)a;/* UNUSED */
+	if (wp == NULL)
+		return (-1);
+	*wp = NULL;
+	if (aes == NULL)
+		return (0);
+
 	/* Return WCS form if we already have it. */
 	if (aes->aes_set & AES_SET_WCS) {
 		*wp = aes->aes_wcs.s;
@@ -4123,6 +4180,13 @@ archive_mstring_get_mbs_l(struct archive *a, struct archive_mstring *aes,
     const char **p, size_t *length, struct archive_string_conv *sc)
 {
 	int ret = 0;
+
+	if (p != NULL)
+		*p = NULL;
+	if (length != NULL)
+		*length = 0;
+	if (aes == NULL || p == NULL)
+		return (-1);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	int r;
 
@@ -4187,6 +4251,8 @@ archive_mstring_get_mbs_l(struct archive *a, struct archive_mstring *aes,
 int
 archive_mstring_copy_mbs(struct archive_mstring *aes, const char *mbs)
 {
+	if (aes == NULL)
+		return (0);
 	if (mbs == NULL) {
 		aes->aes_set = 0;
 		return (0);
@@ -4198,6 +4264,8 @@ int
 archive_mstring_copy_mbs_len(struct archive_mstring *aes, const char *mbs,
     size_t len)
 {
+	if (aes == NULL)
+		return (0);
 	if (mbs == NULL) {
 		aes->aes_set = 0;
 		return (0);
@@ -4212,6 +4280,8 @@ archive_mstring_copy_mbs_len(struct archive_mstring *aes, const char *mbs,
 int
 archive_mstring_copy_wcs(struct archive_mstring *aes, const wchar_t *wcs)
 {
+	if (aes == NULL)
+		return (0);
 	return archive_mstring_copy_wcs_len(aes, wcs,
 				wcs == NULL ? 0 : wcslen(wcs));
 }
@@ -4219,6 +4289,8 @@ archive_mstring_copy_wcs(struct archive_mstring *aes, const wchar_t *wcs)
 int
 archive_mstring_copy_utf8(struct archive_mstring *aes, const char *utf8)
 {
+  if (aes == NULL)
+    return (0);
   if (utf8 == NULL) {
     aes->aes_set = 0;
     return (0);
@@ -4234,6 +4306,8 @@ int
 archive_mstring_copy_wcs_len(struct archive_mstring *aes, const wchar_t *wcs,
     size_t len)
 {
+	if (aes == NULL)
+		return (0);
 	if (wcs == NULL) {
 		aes->aes_set = 0;
 		return (0);
@@ -4251,6 +4325,8 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 {
 	int r;
 
+	if (aes == NULL)
+		return (0);
 	if (mbs == NULL) {
 		aes->aes_set = 0;
 		return (0);
@@ -4345,6 +4421,8 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	struct archive_string_conv *sc;
 	int r;
 
+	if (aes == NULL)
+		return (0);
 	if (utf8 == NULL) {
 		aes->aes_set = 0;
 		return (0); /* Succeeded in clearing everything. */

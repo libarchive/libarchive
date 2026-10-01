@@ -40,6 +40,9 @@ archive_entry_sparse_clear(struct archive_entry *entry)
 {
 	struct ae_sparse *sp;
 
+	if (entry == NULL)
+		return;
+
 	while (entry->sparse_head != NULL) {
 		sp = entry->sparse_head->next;
 		free(entry->sparse_head);
@@ -55,6 +58,8 @@ archive_entry_sparse_add_entry(struct archive_entry *entry,
 {
 	struct ae_sparse *sp;
 
+	if (entry == NULL)
+		return;
 	if (offset < 0 || length < 0)
 		/* Invalid value */
 		return;
@@ -105,6 +110,9 @@ archive_entry_sparse_count(struct archive_entry *entry)
 	struct ae_sparse *sp;
 	int count = 0;
 
+	if (entry == NULL)
+		return (0);
+
 	for (sp = entry->sparse_head; sp != NULL; sp = sp->next)
 		count++;
 
@@ -128,8 +136,13 @@ archive_entry_sparse_count(struct archive_entry *entry)
 int
 archive_entry_sparse_reset(struct archive_entry * entry)
 {
+	int count;
+
+	if (entry == NULL)
+		return (0);
+
 	/* Counting can change sparse_head, so do it first */
-	int count = archive_entry_sparse_count(entry);
+	count = archive_entry_sparse_count(entry);
 	entry->sparse_p = entry->sparse_head;
 	return (count);
 }
@@ -138,6 +151,13 @@ int
 archive_entry_sparse_next(struct archive_entry * entry,
 	la_int64_t *offset, la_int64_t *length)
 {
+	if (offset != NULL)
+		*offset = 0;
+	if (length != NULL)
+		*length = 0;
+	if (entry == NULL || offset == NULL || length == NULL)
+		return (ARCHIVE_WARN);
+
 	if (entry->sparse_p) {
 		*offset = entry->sparse_p->offset;
 		*length = entry->sparse_p->length;

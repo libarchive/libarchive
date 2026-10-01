@@ -35,9 +35,14 @@
 const char *
 archive_entry_strmode(struct archive_entry *entry)
 {
-	char *bp = entry->strmode;
+	char *bp;
 	mode_t mask, mode;
 	int i;
+
+	if (entry == NULL)
+		return (NULL);
+
+	bp = entry->strmode;
 
 	switch (archive_entry_filetype(entry)) {
 	case AE_IFREG:  bp[0] = '-'; break;

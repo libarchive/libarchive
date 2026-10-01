@@ -32,24 +32,32 @@
 int
 archive_filter_code(struct archive *a, int n)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_filter_code == NULL)
+		return (ARCHIVE_FATAL);
 	return ((a->vtable->archive_filter_code)(a, n));
 }
 
 int
 archive_filter_count(struct archive *a)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_filter_count == NULL)
+		return (0);
 	return ((a->vtable->archive_filter_count)(a));
 }
 
 const char *
 archive_filter_name(struct archive *a, int n)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_filter_name == NULL)
+		return (NULL);
 	return ((a->vtable->archive_filter_name)(a, n));
 }
 
 la_int64_t
 archive_filter_bytes(struct archive *a, int n)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_filter_bytes == NULL)
+		return (-1);
 	return ((a->vtable->archive_filter_bytes)(a, n));
 }
 
@@ -64,18 +72,24 @@ archive_free(struct archive *a)
 int
 archive_write_close(struct archive *a)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_close == NULL)
+		return (ARCHIVE_OK);
 	return ((a->vtable->archive_close)(a));
 }
 
 int
 archive_read_close(struct archive *a)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_close == NULL)
+		return (ARCHIVE_OK);
 	return ((a->vtable->archive_close)(a));
 }
 
 int
 archive_write_fail(struct archive *a)
 {
+	if (a == NULL)
+		return (ARCHIVE_FATAL);
 	a->state = ARCHIVE_STATE_FATAL;
 	return a->state;
 }
@@ -113,6 +127,8 @@ archive_read_finish(struct archive *a)
 int
 archive_write_header(struct archive *a, struct archive_entry *entry)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_write_header == NULL)
+		return (ARCHIVE_FATAL);
 	++a->file_count;
 	return ((a->vtable->archive_write_header)(a, entry));
 }
@@ -120,12 +136,16 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 int
 archive_write_finish_entry(struct archive *a)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_write_finish_entry == NULL)
+		return (ARCHIVE_FATAL);
 	return ((a->vtable->archive_write_finish_entry)(a));
 }
 
 la_ssize_t
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_write_data == NULL)
+		return (ARCHIVE_FATAL);
 	return ((a->vtable->archive_write_data)(a, buff, s));
 }
 
@@ -133,6 +153,8 @@ la_ssize_t
 archive_write_data_block(struct archive *a, const void *buff, size_t s,
     la_int64_t o)
 {
+	if (a == NULL || a->vtable == NULL)
+		return (ARCHIVE_FATAL);
 	if (a->vtable->archive_write_data_block == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "archive_write_data_block not supported");
@@ -145,12 +167,18 @@ archive_write_data_block(struct archive *a, const void *buff, size_t s,
 int
 archive_read_next_header(struct archive *a, struct archive_entry **entry)
 {
+	if (entry != NULL)
+		*entry = NULL;
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_read_next_header == NULL)
+		return (ARCHIVE_FATAL);
 	return ((a->vtable->archive_read_next_header)(a, entry));
 }
 
 int
 archive_read_next_header2(struct archive *a, struct archive_entry *entry)
 {
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_read_next_header2 == NULL)
+		return (ARCHIVE_FATAL);
 	return ((a->vtable->archive_read_next_header2)(a, entry));
 }
 
@@ -158,5 +186,13 @@ int
 archive_read_data_block(struct archive *a,
     const void **buff, size_t *s, la_int64_t *o)
 {
+	if (buff != NULL)
+		*buff = NULL;
+	if (s != NULL)
+		*s = 0;
+	if (o != NULL)
+		*o = 0;
+	if (a == NULL || a->vtable == NULL || a->vtable->archive_read_data_block == NULL)
+		return (ARCHIVE_FATAL);
 	return ((a->vtable->archive_read_data_block)(a, buff, s, o));
 }

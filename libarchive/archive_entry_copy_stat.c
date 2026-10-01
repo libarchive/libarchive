@@ -35,6 +35,8 @@
 void
 archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
 {
+	if (entry == NULL || st == NULL)
+		return;
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
 	archive_entry_set_atime(entry, st->st_atime, st->st_atimespec.tv_nsec);
 	archive_entry_set_ctime(entry, st->st_ctime, st->st_ctimespec.tv_nsec);

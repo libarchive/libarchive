@@ -129,6 +129,9 @@ archive_acl_clear(struct archive_acl *acl)
 {
 	struct archive_acl_entry *ap;
 
+	if (acl == NULL)
+		return;
+
 	while (acl->acl_head != NULL) {
 		ap = acl->acl_head->next;
 		archive_mstring_clean(&acl->acl_head->name);
@@ -149,7 +152,13 @@ archive_acl_copy(struct archive_acl *dest, struct archive_acl *src)
 {
 	struct archive_acl_entry *ap, *ap2;
 
+	if (dest == NULL)
+		return;
+
 	archive_acl_clear(dest);
+
+	if (src == NULL)
+		return;
 
 	dest->mode = src->mode;
 	ap = src->acl_head;
@@ -381,6 +390,9 @@ archive_acl_count(struct archive_acl *acl, int want_type)
 	int count;
 	struct archive_acl_entry *ap;
 
+	if (acl == NULL)
+		return (0);
+
 	count = 0;
 	ap = acl->acl_head;
 	while (ap != NULL) {
@@ -400,6 +412,8 @@ archive_acl_count(struct archive_acl *acl, int want_type)
 int
 archive_acl_types(struct archive_acl *acl)
 {
+	if (acl == NULL)
+		return (0);
 	return (acl->acl_types);
 }
 
@@ -412,6 +426,9 @@ int
 archive_acl_reset(struct archive_acl *acl, int want_type)
 {
 	int count, cutoff;
+
+	if (acl == NULL)
+		return (0);
 
 	count = archive_acl_count(acl, want_type);
 
@@ -442,8 +459,18 @@ int
 archive_acl_next(struct archive *a, struct archive_acl *acl, int want_type,
     int *type, int *permset, int *tag, int *id, const char **name)
 {
-	*name = NULL;
-	*id = -1;
+	if (name != NULL)
+		*name = NULL;
+	if (id != NULL)
+		*id = -1;
+	if (type != NULL)
+		*type = 0;
+	if (permset != NULL)
+		*permset = 0;
+	if (tag != NULL)
+		*tag = 0;
+	if (acl == NULL || name == NULL || id == NULL || type == NULL || permset == NULL || tag == NULL)
+		return (ARCHIVE_WARN);
 
 	/*
 	 * The acl_state is either zero (no entries available), -1

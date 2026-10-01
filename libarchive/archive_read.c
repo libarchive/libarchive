@@ -861,6 +861,9 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 	size_t	 len;
 	int	 r;
 
+	if (_a == NULL || buff == NULL || s == 0)
+		return (0);
+
 	bytes_read = 0;
 	dest = (char *)buff;
 
@@ -1093,6 +1096,9 @@ _archive_read_close(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
+
+	if (_a == NULL)
+		return (ARCHIVE_OK);
 
 	archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_ANY | ARCHIVE_STATE_FATAL, "archive_read_close");

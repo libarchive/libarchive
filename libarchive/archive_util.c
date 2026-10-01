@@ -71,6 +71,8 @@ static int __LA_LIBC_CC archive_utility_string_sort_helper(const void *, const v
 int
 __archive_clean(struct archive *a)
 {
+	if (a == NULL)
+		return (ARCHIVE_OK);
 	archive_string_conversion_free(a);
 	return (ARCHIVE_OK);
 }
@@ -90,12 +92,16 @@ archive_version_string(void)
 int
 archive_errno(struct archive *a)
 {
+	if (a == NULL)
+		return (0);
 	return (a->archive_error_number);
 }
 
 const char *
 archive_error_string(struct archive *a)
 {
+	if (a == NULL)
+		return (NULL);
 	if (a->error != NULL && *a->error != '\0')
 		return (a->error);
 	else
@@ -105,18 +111,24 @@ archive_error_string(struct archive *a)
 int
 archive_file_count(struct archive *a)
 {
+	if (a == NULL)
+		return (0);
 	return (a->file_count);
 }
 
 int
 archive_format(struct archive *a)
 {
+	if (a == NULL)
+		return (0);
 	return (a->archive_format);
 }
 
 const char *
 archive_format_name(struct archive *a)
 {
+	if (a == NULL)
+		return (NULL);
 	return (a->archive_format_name);
 }
 
@@ -155,6 +167,8 @@ archive_position_uncompressed(struct archive *a)
 void
 archive_clear_error(struct archive *a)
 {
+	if (a == NULL)
+		return;
 	archive_string_empty(&a->error_string);
 	a->error = NULL;
 	a->archive_error_number = 0;
@@ -164,6 +178,9 @@ void
 archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 {
 	va_list ap;
+
+	if (a == NULL)
+		return;
 
 	a->archive_error_number = error_number;
 	if (fmt == NULL) {
@@ -181,6 +198,13 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 void
 archive_copy_error(struct archive *dest, struct archive *src)
 {
+	if (dest == NULL)
+		return;
+	if (src == NULL) {
+		archive_clear_error(dest);
+		return;
+	}
+
 	dest->archive_error_number = src->archive_error_number;
 
 	archive_string_copy(&dest->error_string, &src->error_string);

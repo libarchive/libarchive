@@ -145,11 +145,18 @@ __archive_check_magic(struct archive *a, unsigned int magic,
 	 * then the library user has screwed up so bad that
 	 * we don't even have a reliable way to report an error.
 	 */
+	if (a == NULL) {
+		errmsg("PROGRAMMER ERROR: Function ");
+		errmsg(function ? function : "(unknown)");
+		errmsg(" invoked with invalid archive handle (NULL)\n");
+		diediedie();
+	}
+
 	handle_type = archive_handle_type_name(a->magic);
 
 	if (!handle_type) {
 		errmsg("PROGRAMMER ERROR: Function ");
-		errmsg(function);
+		errmsg(function ? function : "(unknown)");
 		errmsg(" invoked with invalid archive handle\n");
 		diediedie();
 	}

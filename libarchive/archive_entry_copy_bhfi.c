@@ -37,6 +37,9 @@ archive_entry_copy_bhfi(struct archive_entry *entry,
 	int64_t secs;
 	uint32_t nsecs;
 
+	if (entry == NULL || bhfi == NULL)
+		return;
+
 	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(&bhfi->ftLastAccessTime), &secs, &nsecs);
 	archive_entry_set_atime(entry, secs, nsecs);
 	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(&bhfi->ftLastWriteTime), &secs, &nsecs);

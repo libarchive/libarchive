@@ -122,7 +122,12 @@ void
 archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
     int fmt)
 {
-	int fmtbase = fmt & ARCHIVE_FORMAT_BASE_MASK;
+	int fmtbase;
+
+	if (res == NULL)
+		return;
+
+	fmtbase = fmt & ARCHIVE_FORMAT_BASE_MASK;
 
 	switch (fmtbase) {
 	case ARCHIVE_FORMAT_7ZIP:
@@ -176,7 +181,11 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 	struct links_entry *le;
 	struct archive_entry *t;
 
-	*f = NULL; /* Default: Don't return a second entry. */
+	if (f != NULL)
+		*f = NULL; /* Default: Don't return a second entry. */
+
+	if (res == NULL || e == NULL || f == NULL)
+		return;
 
 	if (*e == NULL) {
 		le = next_entry(res, NEXT_ENTRY_DEFERRED);
