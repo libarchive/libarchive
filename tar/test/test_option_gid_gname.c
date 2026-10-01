@@ -27,27 +27,32 @@ DEFINE_TEST(test_option_gid_gname)
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
 	    systemf("%s cf archive2 --uid=17 --gid=17 "
-		"--gname=foofoofoo --format=ustar file >stdout2.txt "
-		"2>stderr2.txt", testprog));
+		"--gname=foofoofoo --format=ustar file @archive1 "
+		">stdout2.txt 2>stderr2.txt", testprog));
 	assertEmptyFile("stdout2.txt");
 	assertEmptyFile("stderr2.txt");
 	data = slurpfile(&s, "archive2");
 	/* Should force gid and gname fields in ustar header. */
 	assertEqualMem(data + 116, "000021 \0", 8);
 	assertEqualMem(data + 297, "foofoofoo\0", 10);
+	assertEqualMem(data + 116 + 1024, "000021 \0", 8);
+	assertEqualMem(data + 297 + 1024, "foofoofoo\0", 10);
 	free(data);
 
 	/* Again with just --gname */
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
 	    systemf("%s cf archive4 --uid=0 --gid=0 --gname=foofoofoo "
-		"--format=ustar file >stdout4.txt 2>stderr4.txt", testprog));
+		"--format=ustar file @archive1 >stdout4.txt 2>stderr4.txt",
+		testprog));
 	assertEmptyFile("stdout4.txt");
 	assertEmptyFile("stderr4.txt");
 	data = slurpfile(&s, "archive4");
 	/* Gid should be unchanged from original reference. */
 	assertEqualMem(data + 116, reference + 116, 8);
 	assertEqualMem(data + 297, "foofoofoo\0", 10);
+	assertEqualMem(data + 116 + 1024, reference + 116, 8);
+	assertEqualMem(data + 297 + 1024, "foofoofoo\0", 10);
 	free(data);
 	free(reference);
 
@@ -55,13 +60,17 @@ DEFINE_TEST(test_option_gid_gname)
 	failure("Error invoking %s c", testprog);
 	assertEqualInt(0,
 	    systemf("%s cf archive3 --uid=17 --gid=17 --gname= "
-		"--format=ustar file >stdout3.txt 2>stderr3.txt", testprog));
+		"--format=ustar file @archive1 >stdout3.txt 2>stderr3.txt",
+		testprog));
 	assertEmptyFile("stdout3.txt");
 	assertEmptyFile("stderr3.txt");
 	data = slurpfile(&s, "archive3");
 	assertEqualMem(data + 116, "000021 \0", 8);
 	/* Gname field in ustar header should be empty. */
 	assertEqualMem(data + 297, "\0", 1);
+	assertEqualMem(data + 116 + 1024, "000021 \0", 8);
+	/* Gname field in ustar header should be empty. */
+	assertEqualMem(data + 297 + 1024, "\0", 1);
 	free(data);
 
 	/* Again with --gid and --gname, copying entries from archive1 */
