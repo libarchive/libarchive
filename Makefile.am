@@ -581,6 +581,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar5_header_size_wraparound.c \
 	libarchive/test/test_read_format_rar5_loop_bug.c \
 	libarchive/test/test_read_format_rar5_truncated_htime.c \
+	libarchive/test/test_read_format_rar5_varint_near_eof.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
 	libarchive/test/test_read_format_tar_acl_oob_read.c \
@@ -1101,6 +1102,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_extra_field_underflow.rar.uu \
 	libarchive/test/test_read_format_rar5_extra_field_version.rar.uu \
 	libarchive/test/test_read_format_rar5_fileattr.rar.uu \
+	libarchive/test/test_read_format_rar5_group_name_toolong.rar.uu \
 	libarchive/test/test_read_format_rar5_hardlink.rar.uu \
 	libarchive/test/test_read_format_rar5_invalid_dict_reference.rar.uu \
 	libarchive/test/test_read_format_rar5_leftshift1.rar.uu \
