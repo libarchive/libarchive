@@ -72,6 +72,7 @@
 #include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
+#include "archive_string.h"
 
 typedef enum {
 	WT_NONE,
@@ -95,16 +96,6 @@ typedef enum {
 	LAST_WT
 } warc_type_t;
 
-typedef struct {
-	size_t len;
-	const char *str;
-} warc_string_t;
-
-typedef struct {
-	size_t len;
-	char *str;
-} warc_strbuf_t;
-
 struct warc {
 	/* Content length of the current record */
 	int64_t cntlen;
@@ -113,8 +104,8 @@ struct warc {
 	/* Bytes to consume before the next read */
 	int64_t unconsumed;
 
-	/* String pool */
-	warc_strbuf_t pool;
+	/* Reusable buffer while parsing file names. */
+	struct archive_string fname;
 	/* Previous version */
 	unsigned int pver;
 	/* Stringified format name */
@@ -132,7 +123,8 @@ static int	archive_read_format_warc_read_header(struct archive_read *,
 /* Private routines */
 static unsigned int	warc_read_version(const char *, size_t);
 static unsigned int	warc_read_type(const char *, size_t);
-static warc_string_t	warc_read_uri(const char *, size_t);
+static void		warc_read_uri(const char *, size_t,
+			    struct archive_string *);
 static int64_t		warc_read_length(const char *, size_t);
 static time_t		warc_read_date(const char *, size_t);
 static time_t		warc_read_last_modified(const char *, size_t);
@@ -177,9 +169,7 @@ archive_read_format_warc_cleanup(struct archive_read *a)
 {
 	struct warc *warc = a->format->data;
 
-	if (warc->pool.len > 0U) {
-		free(warc->pool.str);
-	}
+	archive_string_free(&warc->fname);
 	archive_string_free(&warc->sver);
 	free(warc);
 	a->format->data = NULL;
@@ -222,9 +212,6 @@ archive_read_format_warc_read_header(struct archive_read *a,
 	const char *buf;
 	ssize_t nrd;
 	const char *eoh;
-	char *tmp;
-	/* Reuse the header buffer while parsing the file name. */
-	warc_string_t fnam;
 	/* WARC record type */
 	warc_type_t ftyp;
 	/* Content length, or a negative error indicator */
@@ -311,31 +298,14 @@ start_over:
 	case WT_RSP:
 		/* Read the filename only for record types that are expected to
 		 * have a target URI. */
-		fnam = warc_read_uri(buf, eoh - buf);
+		warc_read_uri(buf, eoh - buf, &warc->fname);
 		/* Avoid creating directory endpoints as files. */
-		if (fnam.len == 0 || fnam.str[fnam.len - 1] == '/') {
+		if (archive_strlen(&warc->fname) == 0 ||
+		    warc->fname.s[warc->fname.length - 1] == '/') {
 			/* Skip this record. */
-			fnam.len = 0U;
-			fnam.str = NULL;
+			archive_string_empty(&warc->fname);
 			break;
 		}
-		/* Copy the name into the reusable string pool to avoid a malloc/free
-		 * roundtrip for each entry. */
-		if (fnam.len + 1U > warc->pool.len) {
-			warc->pool.len = ((fnam.len + 64U) / 64U) * 64U;
-			tmp = realloc(warc->pool.str, warc->pool.len);
-			if (tmp == NULL) {
-				archive_set_error(
-					&a->archive, ENOMEM,
-					"Out of memory");
-				return (ARCHIVE_FATAL);
-			}
-			warc->pool.str = tmp;
-		}
-		memcpy(warc->pool.str, fnam.str, fnam.len);
-		warc->pool.str[fnam.len] = '\0';
-		/* Hide the pool implementation behind the parsed string. */
-		fnam.str = warc->pool.str;
 
 		/* Use a Last-Modified record header when present; otherwise fall back
 		 * to WARC-Date. */
@@ -352,8 +322,7 @@ start_over:
 	case WT_CONT:
 	case LAST_WT:
 	default:
-		fnam.len = 0U;
-		fnam.str = NULL;
+		archive_string_empty(&warc->fname);
 		break;
 	}
 
@@ -363,10 +332,10 @@ start_over:
 	switch (ftyp) {
 	case WT_RSRC:
 	case WT_RSP:
-		if (fnam.len > 0U) {
+		if (archive_strlen(&warc->fname) > 0) {
 			/* Populate the entry object. */
 			archive_entry_set_filetype(entry, AE_IFREG);
-			archive_entry_copy_pathname(entry, fnam.str);
+			archive_entry_copy_pathname(entry, warc->fname.s);
 			archive_entry_set_size(entry, cntlen);
 			archive_entry_set_perm(entry, 0644);
 			/* WARC-Date becomes ctime; mtime comes from Last-Modified or WARC-Date. */
@@ -701,22 +670,23 @@ warc_read_type(const char *buf, size_t bsz)
 	return WT_NONE;
 }
 
-static warc_string_t
-warc_read_uri(const char *buf, size_t bsz)
+static void
+warc_read_uri(const char *buf, size_t bsz, struct archive_string *str)
 {
 	static const char _key[] = "\r\nWARC-Target-URI:";
 	const char *val, *uri, *eol, *p;
-	warc_string_t res = {0U, NULL};
+
+	archive_string_empty(str);
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
 		/* Header field is absent. */
-		return res;
+		return;
 	}
 	/* Skip leading whitespace. */
 	val += sizeof(_key) - 1U;
 	if ((eol = warc_find_eol(val, buf + bsz - val)) == NULL) {
 		/* Header field has no end of line. */
-		return res;
+		return;
 	}
 
 	while (val < eol && (*val == ' ' || *val == '\t'))
@@ -725,18 +695,18 @@ warc_read_uri(const char *buf, size_t bsz)
 	/* Locate the :// separator. */
 	if ((uri = xmemmem(val, eol - val, "://", 3U)) == NULL) {
 		/* Ignore values without a :// separator. */
-		return res;
+		return;
 	}
 
 	/* Spaces inside a URI are not allowed; CRLF should follow. */
 	for (p = val; p < eol; p++) {
 		if (isspace((unsigned char)*p))
-			return res;
+			return;
 	}
 
 	/* Require enough room for the shortest supported scheme. */
 	if (uri < (val + 3U))
-		return res;
+		return;
 
 	/* Move uri past the :// separator. */
 	uri += 3U;
@@ -751,16 +721,14 @@ warc_read_uri(const char *buf, size_t bsz)
 		while (uri < eol && *uri++ != '/');
 	} else {
 		/* Unsupported URI scheme. */
-		return res;
+		return;
 	}
 
 	/* Require valid C string representation. */
 	if (memchr(uri, '\0', eol - uri) != NULL)
-		return res;
+		return;
 
-	res.str = uri;
-	res.len = eol - uri;
-	return res;
+	archive_strncpy(str, uri, eol - uri);
 }
 
 static int64_t
