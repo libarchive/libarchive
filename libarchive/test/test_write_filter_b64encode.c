@@ -55,7 +55,11 @@ DEFINE_TEST(test_write_filter_b64encode)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_b64encode(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, 10));
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
 	assertEqualString("b64encode", archive_filter_name(a, 0));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used1));
@@ -84,7 +88,11 @@ DEFINE_TEST(test_write_filter_b64encode)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -133,7 +141,11 @@ DEFINE_TEST(test_write_filter_b64encode)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
+#if ARCHIVE_VERSION_NUMBER < 4000000
 	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+#else
+	assertEqualInt(ARCHIVE_FILTER_B64, archive_filter_code(a, 0));
+#endif
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
