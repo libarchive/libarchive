@@ -2489,17 +2489,18 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 		}
 	}
 
-	if(zip->end_of_entry && zip->entry_bytes_remaining > 0) {
-		ssize_t remaining = (ssize_t)zip->entry_bytes_remaining;
-		const void *p = __archive_read_ahead(a, remaining, NULL);
-		if (p != NULL) {
-			if (zip->hctx_valid)
-				archive_hmac_sha1_update(&zip->hctx,
-				    p, remaining);
-			__archive_read_consume(a, remaining);
-			zip->entry_compressed_bytes_read += remaining;
-			zip->entry_bytes_remaining = 0;
-		}
+	while(zip->end_of_entry && zip->entry_bytes_remaining > 0) {
+		const void *p = __archive_read_ahead(a, 1, &bytes_avail);
+		if (p == NULL || bytes_avail <= 0)
+			break;
+		if (bytes_avail > zip->entry_bytes_remaining)
+			bytes_avail = (ssize_t)zip->entry_bytes_remaining;
+		if (zip->hctx_valid)
+			archive_hmac_sha1_update(&zip->hctx,
+			    p, bytes_avail);
+		__archive_read_consume(a, bytes_avail);
+		zip->entry_compressed_bytes_read += bytes_avail;
+		zip->entry_bytes_remaining -= bytes_avail;
 	}
 
 	/* Free lzma decoder handle because we'll no longer need it. */
