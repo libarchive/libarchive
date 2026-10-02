@@ -248,6 +248,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_filename.c
     test_read_format_zip_high_compression.c
     test_read_format_zip_jar.c
+    test_read_format_zip_lzma_alone_large_size.c
     test_read_format_zip_mac_metadata.c
     test_read_format_zip_malformed.c
     test_read_format_zip_msdos.c
