@@ -45,6 +45,13 @@ static const short folder_gid = 40;
 
 static time_t now;
 
+/* Windows FILETIME (100ns ticks since 1601-01-01) for a Unix time. */
+static uint64_t
+ntfs_filetime(int64_t secs, uint32_t nsecs)
+{
+	return (uint64_t)(secs + 11644473600LL) * 10000000ULL + nsecs / 100;
+}
+
 static void verify_write_uncompressed(struct archive *a)
 {
 	struct archive_entry *entry;
@@ -140,7 +147,7 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	assertEqualInt(i4le(p + 20), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
 	assertEqualInt(i4le(p + 24), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
 	assertEqualInt(i2le(p + 28), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2le(p + 30), 24); /* Extra field length */
+	assertEqualInt(i2le(p + 30), 60); /* Extra field length */
 	assertEqualInt(i2le(p + 32), 0); /* File comment length */
 	assertEqualInt(i2le(p + 34), 0); /* Disk number start */
 	assertEqualInt(i2le(p + 36), 0); /* Internal file attrs */
@@ -160,6 +167,16 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	assertEqualInt(i4le(p + 5), now); /* 'UT' mtime */
 	p = p + 4 + i2le(p + 2);
 
+	assertEqualInt(i2le(p), 0x000a); /* 'NTFS' extension header */
+	assertEqualInt(i2le(p + 2), 32); /* 'NTFS' size */
+	assertEqualInt(i4le(p + 4), 0); /* reserved */
+	assertEqualInt(i2le(p + 8), 1); /* NTFS attribute tag 1 */
+	assertEqualInt(i2le(p + 10), 24); /* NTFS attribute 1 size */
+	assertEqualInt(i8le(p + 12), ntfs_filetime(now, 0)); /* Mtime */
+	assertEqualInt(i8le(p + 20), ntfs_filetime(now + 3, 0)); /* Atime */
+	assertEqualInt(i8le(p + 28), 0); /* Ctime/birthtime: not set */
+	p = p + 4 + i2le(p + 2);
+
 	/* Verify local header of file entry. */
 	local_header = q = buff;
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
@@ -172,7 +189,7 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	assertEqualInt(i4le(q + 18), 0); /* Compressed size, must be zero because of length-at-end */
 	assertEqualInt(i4le(q + 22), 0); /* Uncompressed size, must be zero because of length-at-end */
 	assertEqualInt(i2le(q + 26), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2le(q + 28), 41); /* Extra field length */
+	assertEqualInt(i2le(q + 28), 77); /* Extra field length */
 	assertEqualMem(q + 30, file_name, strlen(file_name)); /* Pathname */
 	extra_start = q = q + 30 + strlen(file_name);
 
@@ -198,6 +215,16 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	assertEqualInt(i2le(q + 5) >> 8, 3); /* system & version made by */
 	assertEqualInt(i2le(q + 7), 0); /* internal file attributes */
 	assertEqualInt(i4le(q + 9) >> 16 & 01777, file_perm); /* external file attributes */
+	q = q + 4 + i2le(q + 2);
+
+	assertEqualInt(i2le(q), 0x000a); /* 'NTFS' extension header */
+	assertEqualInt(i2le(q + 2), 32); /* 'NTFS' size */
+	assertEqualInt(i4le(q + 4), 0); /* reserved */
+	assertEqualInt(i2le(q + 8), 1); /* NTFS attribute tag 1 */
+	assertEqualInt(i2le(q + 10), 24); /* NTFS attribute 1 size */
+	assertEqualInt(i8le(q + 12), ntfs_filetime(now, 0)); /* Mtime */
+	assertEqualInt(i8le(q + 20), ntfs_filetime(now + 3, 0)); /* Atime */
+	assertEqualInt(i8le(q + 28), 0); /* Ctime/birthtime: not set */
 	q = q + 4 + i2le(q + 2);
 
 	assert(q == extra_start + i2le(local_header + 28));
@@ -228,7 +255,7 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	assertEqualInt(i4le(p + 20), 0); /* Compressed size */
 	assertEqualInt(i4le(p + 24), 0); /* Uncompressed size */
 	assertEqualInt(i2le(p + 28), strlen(folder_name)); /* Pathname length */
-	assertEqualInt(i2le(p + 30), 24); /* Extra field length */
+	assertEqualInt(i2le(p + 30), 60); /* Extra field length */
 	assertEqualInt(i2le(p + 32), 0); /* File comment length */
 	assertEqualInt(i2le(p + 34), 0); /* Disk number start */
 	assertEqualInt(i2le(p + 36), 0); /* Internal file attrs */
@@ -252,6 +279,16 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	assertEqualInt(i4le(p + 5), now); /* 'UT' mtime */
 	p = p + 4 + i2le(p + 2);
 
+	assertEqualInt(i2le(p), 0x000a); /* 'NTFS' extension header */
+	assertEqualInt(i2le(p + 2), 32); /* 'NTFS' size */
+	assertEqualInt(i4le(p + 4), 0); /* reserved */
+	assertEqualInt(i2le(p + 8), 1); /* NTFS attribute tag 1 */
+	assertEqualInt(i2le(p + 10), 24); /* NTFS attribute 1 size */
+	assertEqualInt(i8le(p + 12), ntfs_filetime(now, 0)); /* Mtime */
+	assertEqualInt(i8le(p + 20), 0); /* Atime: not set */
+	assertEqualInt(i8le(p + 28), 0); /* Ctime/birthtime: not set */
+	p = p + 4 + i2le(p + 2);
+
 	/* Verify local header of folder entry. */
 	local_header = q;
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
@@ -264,7 +301,7 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	assertEqualInt(i4le(q + 18), 0); /* Compressed size */
 	assertEqualInt(i4le(q + 22), 0); /* Uncompressed size */
 	assertEqualInt(i2le(q + 26), strlen(folder_name)); /* Pathname length */
-	assertEqualInt(i2le(q + 28), 41); /* Extra field length */
+	assertEqualInt(i2le(q + 28), 77); /* Extra field length */
 	assertEqualMem(q + 30, folder_name, strlen(folder_name)); /* Pathname */
 	extra_start = q = q + 30 + strlen(folder_name);
 
@@ -290,6 +327,16 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	assertEqualInt(i2le(q + 5) >> 8, 3); /* system & version made by */
 	assertEqualInt(i2le(q + 7), 0); /* internal file attributes */
 	assertEqualInt(i4le(q + 9) >> 16 & 01777, folder_perm); /* external file attributes */
+	q = q + 4 + i2le(q + 2);
+
+	assertEqualInt(i2le(q), 0x000a); /* 'NTFS' extension header */
+	assertEqualInt(i2le(q + 2), 32); /* 'NTFS' size */
+	assertEqualInt(i4le(q + 4), 0); /* reserved */
+	assertEqualInt(i2le(q + 8), 1); /* NTFS attribute tag 1 */
+	assertEqualInt(i2le(q + 10), 24); /* NTFS attribute 1 size */
+	assertEqualInt(i8le(q + 12), ntfs_filetime(now, 0)); /* Mtime */
+	assertEqualInt(i8le(q + 20), 0); /* Atime: not set */
+	assertEqualInt(i8le(q + 28), 0); /* Ctime/birthtime: not set */
 	q = q + 4 + i2le(q + 2);
 
 	assert(q == extra_start + i2le(local_header + 28));
