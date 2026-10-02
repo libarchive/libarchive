@@ -1001,6 +1001,21 @@ DEFINE_TEST(test_read_format_rar5_group_name_toolong)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_extra_data_size_toolong)
+{
+	/* A crafted HEAD_FILE declares a file-header extra-area size
+	 * (edata_size) far larger than the 2 MB header cap.  That value was
+	 * used, unbounded, as the ceiling for the EX_UOWNER owner-name length,
+	 * so parse_file_extra_owner() passed an attacker-chosen length straight
+	 * to read_ahead(), attempting a multi-terabyte allocation.  The reader
+	 * must reject the oversized extra-area size instead. */
+	PROLOGUE("test_read_format_rar5_extra_data_size_toolong.rar.Z");
+
+	assertA(archive_read_next_header(a, &ae) < 0);
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_symlink)
 {
 	const int DATA_SIZE = 5;

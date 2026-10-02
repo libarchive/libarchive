@@ -100,6 +100,9 @@ static const size_t g_unpack_window_size = 0x20000;
 #define MAX_NAME_IN_CHARS 2048
 #define MAX_NAME_IN_BYTES (4 * MAX_NAME_IN_CHARS)
 
+/* maximum header size for RAR5 is 2MB */
+#define MAX_HEADER_SIZE (2 * 1024 * 1024)
+
 struct file_header {
 	ssize_t bytes_remaining;
 	ssize_t unpacked_size;
@@ -1863,6 +1866,20 @@ static int process_head_file(struct archive_read* a, struct rar5 *rar5,
 		if(r != ARCHIVE_OK)
 			return r;
 
+		/* The extra area is part of the file header, which
+		 * process_base_block() has already bounded to MAX_HEADER_SIZE.
+		 * A declared extra-area size larger than that cannot be valid,
+		 * and if left unchecked it is later used as the ceiling for
+		 * the owner/group name length in parse_file_extra_owner(),
+		 * letting a crafted archive drive read_ahead() into an
+		 * attacker-controlled allocation. Reject it here. */
+		if(edata_size > MAX_HEADER_SIZE) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "File extra data size is too large");
+			return ARCHIVE_FATAL;
+		}
+
 		/* Intentional type cast from unsigned to signed. */
 		extra_data_size = (int64_t) edata_size;
 	}
@@ -2429,10 +2446,10 @@ static int process_base_block(struct archive_read* a,
 		return ret;
 	}
 
-	/* Sanity check, maximum header size for RAR5 is 2MB.  Bounding
-	 * raw_hdr_size (instead of the sum) also ensures that adding
-	 * hdr_size_len below cannot wrap hdr_size around SIZE_MAX. */
-	if(raw_hdr_size > (2 * 1024 * 1024) - hdr_size_len) {
+	/* Sanity check.  Bounding raw_hdr_size (instead of the sum) also
+	 * ensures that adding hdr_size_len below cannot wrap hdr_size
+	 * around SIZE_MAX. */
+	if(raw_hdr_size > MAX_HEADER_SIZE - hdr_size_len) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Base block header is too large");
 
