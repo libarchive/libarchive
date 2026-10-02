@@ -1483,7 +1483,6 @@ static int parse_file_extra_redir(struct archive_read* a,
 		return ARCHIVE_EOF;
 	if(ARCHIVE_OK != consume(a, (int64_t)varint_len))
 		return ARCHIVE_EOF;
-	*extra_data_size -= (int64_t)(target_size + varint_len);
 
 	if(target_size > (MAX_NAME_IN_CHARS - 1)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1496,6 +1495,14 @@ static int parse_file_extra_redir(struct archive_read* a,
 		    "No link target specified");
 		return ARCHIVE_FATAL;
 	}
+
+	if((int64_t)(target_size + varint_len) > *extra_data_size) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Extra data size is too small for link target");
+		return ARCHIVE_FATAL;
+	}
+
+	*extra_data_size -= (int64_t)(target_size + varint_len);
 
 	if(!read_ahead(a, target_size, &p))
 		return ARCHIVE_EOF;
