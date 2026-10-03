@@ -43,6 +43,7 @@ IF "%1%"=="configure" (
     D:\cygwin\bin\bash.exe --login -c "cd '%cd%'; ./build/ci/build.sh -a build" || EXIT /b 1
   )
 ) ELSE IF "%1%"=="test" (
+  SET _VERBOSITY_LEVEL=2
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     CD build_ci\cmake

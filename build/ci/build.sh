@@ -144,10 +144,10 @@ for action in ${ACTIONS}; do
 		test)
 			case "${BS}" in
 				autotools)
-					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci/test_driver"
+					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci/test_driver" _VERBOSITY_LEVEL=2
 					;;
 				cmake)
-					${MAKE} ${MAKE_ARGS} test
+					${MAKE} ${MAKE_ARGS} test _VERBOSITY_LEVEL=2
 					;;
 			esac
 			RET="$?"
