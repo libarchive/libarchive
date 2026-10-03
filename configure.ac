@@ -286,21 +286,13 @@ dnl
 dnl Options for building bsdunzip.
 dnl
 dnl Default is to build bsdunzip, but allow people to override that.
-dnl Bsdunzip has not yet been ported for Windows
 dnl
-case "$host_os" in
-  *mingw* | *msys*)
-	enable_bsdunzip=no
-	;;
-  *)
-	AC_ARG_ENABLE([bsdunzip],
-	  [AS_HELP_STRING([--enable-bsdunzip], [enable build of bsdunzip (default)])
-	  AS_HELP_STRING([--enable-bsdunzip=static], [force static build of bsdunzip])
-	  AS_HELP_STRING([--enable-bsdunzip=shared], [force dynamic build of bsdunzip])
-	  AS_HELP_STRING([--disable-bsdunzip], [disable build of bsdunzip])],
-	  [], [enable_bsdunzip=yes])
-	;;
-esac
+AC_ARG_ENABLE([bsdunzip],
+  [AS_HELP_STRING([--enable-bsdunzip], [enable build of bsdunzip (default)])
+  AS_HELP_STRING([--enable-bsdunzip=static], [force static build of bsdunzip])
+  AS_HELP_STRING([--enable-bsdunzip=shared], [force dynamic build of bsdunzip])
+  AS_HELP_STRING([--disable-bsdunzip], [disable build of bsdunzip])],
+  [], [enable_bsdunzip=yes])
 
 case "$enable_bsdunzip" in
 yes)
