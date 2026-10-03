@@ -257,31 +257,6 @@ esac
 AM_CONDITIONAL([BUILD_BSDCPIO], [ test "$build_bsdcpio" = yes ])
 AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 
-dnl Set up defines needed before including any headers
-case $host in
-  *mingw* | *cygwin* | *msys*  )
-  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
-    [[#include <windows.h>
-     #ifdef _WIN32_WINNT
-     # error _WIN32_WINNT already defined
-     #endif
-    ]],[[;]])
-  ],[
-    AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
-    AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
-  ])
-  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
-    [[#include <windows.h>
-     #ifdef WINVER
-     # error WINVER already defined
-     #endif
-    ]],[[;]])
-  ],[
-    AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
-  ])
-  ;;
-esac
-
 dnl
 dnl Options for building bsdunzip.
 dnl
@@ -325,6 +300,31 @@ esac
 
 AM_CONDITIONAL([BUILD_BSDUNZIP], [ test "$build_bsdunzip" = yes ])
 AM_CONDITIONAL([STATIC_BSDUNZIP], [ test "$static_bsdunzip" = yes ])
+
+dnl Set up defines needed before including any headers
+case $host in
+  *mingw* | *cygwin* | *msys*  )
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
+    [[#include <windows.h>
+     #ifdef _WIN32_WINNT
+     # error _WIN32_WINNT already defined
+     #endif
+    ]],[[;]])
+  ],[
+    AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+    AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
+  ])
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
+    [[#include <windows.h>
+     #ifdef WINVER
+     # error WINVER already defined
+     #endif
+    ]],[[;]])
+  ],[
+    AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+  ])
+  ;;
+esac
 
 dnl Checks for header files.
 AC_HEADER_DIRENT
