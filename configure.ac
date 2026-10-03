@@ -217,7 +217,7 @@ AM_CONDITIONAL([STATIC_BSDCAT], [ test "$static_bsdcat" = yes ])
 dnl
 dnl Options for building bsdcpio.
 dnl
-dnl Default is not to build bsdcpio, but that can be overridden.
+dnl Default is to build bsdcpio, but allow people to override that.
 dnl
 AC_ARG_ENABLE([bsdcpio],
 	[AS_HELP_STRING([--enable-bsdcpio], [enable build of bsdcpio (default)])
@@ -257,50 +257,17 @@ esac
 AM_CONDITIONAL([BUILD_BSDCPIO], [ test "$build_bsdcpio" = yes ])
 AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 
-dnl Set up defines needed before including any headers
-case $host in
-  *mingw* | *cygwin* | *msys*  )
-  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
-    [[#include <windows.h>
-     #ifdef _WIN32_WINNT
-     # error _WIN32_WINNT already defined
-     #endif
-    ]],[[;]])
-  ],[
-    AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
-    AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
-  ])
-  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
-    [[#include <windows.h>
-     #ifdef WINVER
-     # error WINVER already defined
-     #endif
-    ]],[[;]])
-  ],[
-    AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
-  ])
-  ;;
-esac
-
 dnl
 dnl Options for building bsdunzip.
 dnl
 dnl Default is to build bsdunzip, but allow people to override that.
-dnl Bsdunzip has not yet been ported for Windows
 dnl
-case "$host_os" in
-  *mingw* | *msys*)
-	enable_bsdunzip=no
-	;;
-  *)
-	AC_ARG_ENABLE([bsdunzip],
-	  [AS_HELP_STRING([--enable-bsdunzip], [enable build of bsdunzip (default)])
-	  AS_HELP_STRING([--enable-bsdunzip=static], [force static build of bsdunzip])
-	  AS_HELP_STRING([--enable-bsdunzip=shared], [force dynamic build of bsdunzip])
-	  AS_HELP_STRING([--disable-bsdunzip], [disable build of bsdunzip])],
-	  [], [enable_bsdunzip=yes])
-	;;
-esac
+AC_ARG_ENABLE([bsdunzip],
+  [AS_HELP_STRING([--enable-bsdunzip], [enable build of bsdunzip (default)])
+  AS_HELP_STRING([--enable-bsdunzip=static], [force static build of bsdunzip])
+  AS_HELP_STRING([--enable-bsdunzip=shared], [force dynamic build of bsdunzip])
+  AS_HELP_STRING([--disable-bsdunzip], [disable build of bsdunzip])],
+  [], [enable_bsdunzip=yes])
 
 case "$enable_bsdunzip" in
 yes)
@@ -334,12 +301,37 @@ esac
 AM_CONDITIONAL([BUILD_BSDUNZIP], [ test "$build_bsdunzip" = yes ])
 AM_CONDITIONAL([STATIC_BSDUNZIP], [ test "$static_bsdunzip" = yes ])
 
+dnl Set up defines needed before including any headers
+case $host in
+  *mingw* | *cygwin* | *msys*  )
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
+    [[#include <windows.h>
+     #ifdef _WIN32_WINNT
+     # error _WIN32_WINNT already defined
+     #endif
+    ]],[[;]])
+  ],[
+    AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+    AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
+  ])
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
+    [[#include <windows.h>
+     #ifdef WINVER
+     # error WINVER already defined
+     #endif
+    ]],[[;]])
+  ],[
+    AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+  ])
+  ;;
+esac
+
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(m4_flatten([
 	acl/libacl.h attr/xattr.h
-	copyfile.h ctype.h
+	copyfile.h ctype.h direct.h
 	errno.h ext2fs/ext2_fs.h fcntl.h fnmatch.h grp.h
 ]))
 
