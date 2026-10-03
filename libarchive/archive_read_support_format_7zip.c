@@ -978,7 +978,13 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		}
 	}
 
-	if (archive_entry_copy_pathname_l(entry,
+	if (zip_entry->utf16name == NULL) {
+		/*
+		 * No kName property (eg from`7z a -si`): 7-Zip derives the
+		 * name from the archive filename, which we don't know.
+		 */
+		archive_entry_set_pathname(entry, "data");
+	} else if (archive_entry_copy_pathname_l(entry,
 	    (const char *)zip_entry->utf16name,
 	    zip_entry->name_len, zip->sconv) != 0) {
 		if (errno == ENOMEM) {
