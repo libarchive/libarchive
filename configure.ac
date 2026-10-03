@@ -217,7 +217,7 @@ AM_CONDITIONAL([STATIC_BSDCAT], [ test "$static_bsdcat" = yes ])
 dnl
 dnl Options for building bsdcpio.
 dnl
-dnl Default is not to build bsdcpio, but that can be overridden.
+dnl Default is to build bsdcpio, but allow people to override that.
 dnl
 AC_ARG_ENABLE([bsdcpio],
 	[AS_HELP_STRING([--enable-bsdcpio], [enable build of bsdcpio (default)])
