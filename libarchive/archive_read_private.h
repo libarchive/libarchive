@@ -212,7 +212,7 @@ struct archive_read {
 		int	(*cleanup)(struct archive_read *);
 		int	(*format_capabilties)(struct archive_read *);
 		int	(*has_encrypted_entries)(struct archive_read *);
-	}	formats[16];
+	}	formats[17];
 	struct archive_format_descriptor	*format; /* Active format. */
 
 	/*
