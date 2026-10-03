@@ -339,7 +339,7 @@ AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(m4_flatten([
 	acl/libacl.h attr/xattr.h
-	copyfile.h ctype.h
+	copyfile.h ctype.h direct.h
 	errno.h ext2fs/ext2_fs.h fcntl.h fnmatch.h grp.h
 ]))
 
