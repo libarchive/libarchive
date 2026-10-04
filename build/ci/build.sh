@@ -26,7 +26,6 @@ CMAKE_ARGS="${CMAKE_ARGS:-}"
 CONFIGURE_ARGS="${CONFIGURE_ARGS:-}"
 CURDIR=`pwd`
 SRCDIR="${SRCDIR:-`pwd`}"
-RET=0
 
 usage () {
 	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck ] [ -a ... ] [ -d builddir ] [-c openssl|nettle|mbedtls] [-s srcdir ]"
@@ -126,7 +125,6 @@ for action in ${ACTIONS}; do
 				autotools)
 					cd "${SRCDIR}"
 					sh build/autogen.sh
-					RET="$?"
 				;;
 			esac
 		;;
@@ -135,11 +133,9 @@ for action in ${ACTIONS}; do
 				autotools) "${SRCDIR}/configure" ${CONFIGURE_ARGS} ;;
 				cmake) ${CMAKE} ${CMAKE_ARGS} "${SRCDIR}" ;;
 			esac
-			RET="$?"
 		;;
 		build)
 			${MAKE} ${MAKE_ARGS}
-			RET="$?"
 		;;
 		test)
 			case "${BS}" in
@@ -150,17 +146,14 @@ for action in ${ACTIONS}; do
 					${MAKE} ${MAKE_ARGS} test _VERBOSITY_LEVEL=2
 					;;
 			esac
-			RET="$?"
 		;;
 		install)
 			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
-			RET="$?"
 			cd "${BUILDDIR}/destdir" && ls -lR .
 			./usr/local/bin/bsdtar --version
 		;;
 		distcheck)
 			${MAKE} ${MAKE_ARGS} distcheck _VERBOSITY_LEVEL=2
-			RET="$?"
 		;;
 		artifact)
 			tar -c -J -C "${BUILDDIR}/destdir" -f "${CURDIR}/libarchive.tar.xz" usr
@@ -172,9 +165,5 @@ for action in ${ACTIONS}; do
 			ls -l "${CURDIR}/libarchive-dist.tar"
 		;;
 	esac
-	if [ "${RET}" != "0" ]; then
-		exit "${RET}"
-	fi
 	cd "${CURDIR}"
 done
-exit "${RET}"
