@@ -4,6 +4,7 @@
 #
 # Variables that can be passed via environment:
 # BS=			# build system (autotools or cmake)
+# BUILD_SYSTEM=	# alias for BS, overrides BS if set
 # CRYPTO=		# cryptography provider (openssl, nettle or mbedtls)
 # BUILDDIR=		# build directory
 # SRCDIR=		# source directory
@@ -28,7 +29,7 @@ CURDIR=`pwd`
 SRCDIR="${SRCDIR:-`pwd`}"
 
 usage () {
-	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck ] [ -a ... ] [ -d builddir ] [-c openssl|nettle|mbedtls] [-s srcdir ]"
+	echo "Usage: $0 [-b autotools|cmake] [-a autogen|configure|build|test|install|distcheck|artifact|dist-artifact ] [ -a ... ] [ -d builddir ] [-c openssl|nettle|mbedtls] [-s srcdir ]"
 }
 inputerror () {
 	echo $1
