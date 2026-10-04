@@ -151,7 +151,6 @@ for action in ${ACTIONS}; do
 					;;
 			esac
 			RET="$?"
-			find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \; 2>/dev/null || /bin/true
 		;;
 		install)
 			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
@@ -160,12 +159,7 @@ for action in ${ACTIONS}; do
 			./usr/local/bin/bsdtar --version
 		;;
 		distcheck)
-			${MAKE} ${MAKE_ARGS} distcheck || (
-				RET="$?"
-				find . -name 'test-suite.log' -print -exec cat {} \;
-				find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \; 2>/dev/null || /bin/true
-				exit "${RET}"
-			)
+			${MAKE} ${MAKE_ARGS} distcheck _VERBOSITY_LEVEL=2
 			RET="$?"
 		;;
 		artifact)
