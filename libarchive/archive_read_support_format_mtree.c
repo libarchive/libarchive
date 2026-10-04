@@ -1712,6 +1712,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			    ARCHIVE_ENTRY_DIGEST_SHA512);
 		}
 		if (strcmp(key, "size") == 0) {
+			*parsed_kws |= MTREE_HAS_SIZE;
 			archive_entry_set_size(entry, mtree_atol(&val, 10));
 			return (ARCHIVE_OK);
 		}
