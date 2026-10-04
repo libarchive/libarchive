@@ -254,6 +254,21 @@ struct archive_entry;
 /* #define	ARCHIVE_ERRNO_MISC */
 
 /*
+ * Encryption errors. These are not platform errno codes, so they cannot
+ * clash with one: archive_errno() returns one of them, instead of one of
+ * the generic codes above, when reading fails because of the encryption of
+ * the archive. Unlike the platform codes above, their values are the same
+ * on every platform and will not change, as they are part of the ABI.
+ */
+/* The data is encrypted, and no passphrase is available to decrypt it. */
+#define	ARCHIVE_ERRNO_PASSPHRASE_REQUIRED	(-100)
+/* The data is encrypted, and none of the passphrases available is right. */
+#define	ARCHIVE_ERRNO_PASSPHRASE_INCORRECT	(-101)
+/* The data is encrypted in a way that this version of libarchive, or the
+ * way it was built, cannot decrypt, whatever the passphrase is. */
+#define	ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED	(-102)
+
+/*
  * Callbacks are invoked to automatically read/skip/write/open/close the
  * archive. You can provide your own for complex tasks (like breaking
  * archives across multiple tapes) or use standard ones built into the

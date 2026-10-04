@@ -2543,7 +2543,7 @@ static int process_base_block(struct archive_read* a,
 			rar5->has_encrypted_entries = 1;
 			rar5->headers_are_encrypted = 1;
 			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 			    "Encryption is not supported");
 			return ARCHIVE_FATAL;
 		case HEAD_ENDARC:
@@ -4465,7 +4465,7 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	}
 
 	if (rar5->headers_are_encrypted || rar5->cstate.data_encrypted) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 		    "Reading encrypted data is not currently supported");
 		return ARCHIVE_FAILED;
 	}

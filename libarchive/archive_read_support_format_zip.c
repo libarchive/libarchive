@@ -3201,7 +3201,7 @@ read_decryption_header(struct archive_read *a)
 	/* Check if format version is supported. */
 	if (archive_le16dec(p+4) != 3) {
 		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 		    "Unsupported encryption format version: %u",
 		    archive_le16dec(p+4));
 		return (ARCHIVE_FAILED);
@@ -3227,7 +3227,7 @@ read_decryption_header(struct archive_read *a)
 		break;
 	default:
 		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 		    "Unknown encryption algorithm: %u", zip->alg_id);
 		return (ARCHIVE_FAILED);
 	}
@@ -3248,14 +3248,14 @@ read_decryption_header(struct archive_read *a)
 		break;
 	default:
 		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 		    "Unknown encryption flag: %u", zip->flags);
 		return (ARCHIVE_FAILED);
 	}
 	if ((zip->flags & 0xf000) == 0 ||
 	    (zip->flags & 0xf000) == 0x4000) {
 		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
+		    ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 		    "Unknown encryption flag: %u", zip->flags);
 		return (ARCHIVE_FAILED);
 	}
@@ -3333,7 +3333,7 @@ read_decryption_header(struct archive_read *a)
 
 	/*return (ARCHIVE_OK);
 	 * This is not fully implemented yet.*/
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 	    "Encrypted file is unsupported");
 	return (ARCHIVE_FAILED);
 truncated:
@@ -3406,10 +3406,15 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 
 		passphrase = __archive_read_next_passphrase(a);
 		if (passphrase == NULL) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    (retry > 0)?
-				"Incorrect passphrase":
-				"Passphrase required for this entry");
+			if (retry > 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_PASSPHRASE_INCORRECT,
+				    "Incorrect passphrase");
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_PASSPHRASE_REQUIRED,
+				    "Passphrase required for this entry");
+			}
 			return (ARCHIVE_FAILED);
 		}
 
@@ -3422,7 +3427,8 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 			break;/* The passphrase is OK. */
 		if (retry > 10000) {
 			/* Avoid infinity loop. */
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_PASSPHRASE_INCORRECT,
 			    "Too many incorrect passphrases");
 			return (ARCHIVE_FAILED);
 		}
@@ -3470,19 +3476,30 @@ init_WinZip_AES_decryption(struct archive_read *a)
 
 		passphrase = __archive_read_next_passphrase(a);
 		if (passphrase == NULL) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    (retry > 0)?
-				"Incorrect passphrase":
-				"Passphrase required for this entry");
+			if (retry > 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_PASSPHRASE_INCORRECT,
+				    "Incorrect passphrase");
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_PASSPHRASE_REQUIRED,
+				    "Passphrase required for this entry");
+			}
 			return (ARCHIVE_FAILED);
 		}
 		memset(derived_key, 0, sizeof(derived_key));
 		r = archive_pbkdf2_sha1(passphrase, strlen(passphrase),
 		    p, salt_len, 1000, derived_key, key_len * 2 + 2);
 		if (r != 0) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    r == CRYPTOR_STUB_FUNCTION ? "Decryption is unsupported due "
-				"to lack of crypto library" : "Failed to process passphrase");
+			if (r == CRYPTOR_STUB_FUNCTION) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
+				    "Decryption is unsupported due to lack of crypto library");
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Failed to process passphrase");
+			}
 			return (ARCHIVE_FAILED);
 		}
 
@@ -3493,7 +3510,8 @@ init_WinZip_AES_decryption(struct archive_read *a)
 			break;/* The passphrase is OK. */
 		if (retry > 10000) {
 			/* Avoid infinity loop. */
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_PASSPHRASE_INCORRECT,
 			    "Too many incorrect passphrases");
 			return (ARCHIVE_FAILED);
 		}
@@ -3501,7 +3519,7 @@ init_WinZip_AES_decryption(struct archive_read *a)
 
 	r = archive_decrypto_aes_ctr_init(&zip->cctx, derived_key, key_len);
 	if (r != 0) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 		    "Decryption is unsupported due to lack of crypto library");
 		return (ARCHIVE_FAILED);
 	}

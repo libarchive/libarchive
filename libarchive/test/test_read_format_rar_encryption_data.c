@@ -51,6 +51,7 @@ DEFINE_TEST(test_read_format_rar_encryption_data)
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
 	assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED, archive_errno(a));
 	
 	/* Verify encrypted file "bar.txt" */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -61,6 +62,7 @@ DEFINE_TEST(test_read_format_rar_encryption_data)
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
 	assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED, archive_errno(a));
 	
 	assertEqualInt(2, archive_file_count(a));
 
