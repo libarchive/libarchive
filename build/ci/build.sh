@@ -117,6 +117,15 @@ fi
 if [ -z "${BUILDDIR:-}" ]; then
 	BUILDDIR="${CURDIR}/build_ci/${BS}"
 fi
+# The loop below cd's around, so make these absolute.
+case "${SRCDIR}" in
+	/*) ;;
+	*) SRCDIR="${CURDIR}/${SRCDIR}" ;;
+esac
+case "${BUILDDIR}" in
+	/*) ;;
+	*) BUILDDIR="${CURDIR}/${BUILDDIR}" ;;
+esac
 mkdir -p "${BUILDDIR}"
 for action in ${ACTIONS}; do
 	cd "${BUILDDIR}"
