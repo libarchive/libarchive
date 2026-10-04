@@ -3765,7 +3765,9 @@ xml_writer_get_final_content_and_length(struct xml_writer *ctx,
 
 	*out = (const char *)GlobalLock(gbl);
 	if (*out == NULL) {
-		hr = HRESULT_FROM_WIN32(GetLastError());
+		DWORD e = GetLastError();
+
+		hr = (e == ERROR_SUCCESS) ? E_FAIL : HRESULT_FROM_WIN32(e);
 		return (hr);
 	}
 
