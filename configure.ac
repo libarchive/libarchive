@@ -301,6 +301,20 @@ esac
 AM_CONDITIONAL([BUILD_BSDUNZIP], [ test "$build_bsdunzip" = yes ])
 AM_CONDITIONAL([STATIC_BSDUNZIP], [ test "$static_bsdunzip" = yes ])
 
+dnl Set up libtool bindir for dll generation on Windows
+AC_MSG_CHECKING([if Windows libtool -bindir is needed])
+case "$host_os" in
+  *cygwin* | *mingw* | *msys*)
+    AC_MSG_RESULT([yes])
+    DLL_BINDIR="-bindir \$(bindir)"
+    ;;
+  *)
+    AC_MSG_RESULT([no])
+    DLL_BINDIR=""
+    ;;
+esac
+AC_SUBST([DLL_BINDIR])
+
 dnl Set up defines needed before including any headers
 case $host in
   *mingw* | *cygwin* | *msys*  )
