@@ -143,9 +143,11 @@ struct trad_enc_ctx {
 #define LA_USED_ZIP64	(1 << 0)
 #define LA_FROM_CENTRAL_DIRECTORY (1 << 1)
 #define LA_MTIME_FROM_EXTRA (1 << 2)
-#define LA_NTFS_MTIME (1 << 3)
-#define LA_NTFS_ATIME (1 << 4)
-#define LA_NTFS_BTIME (1 << 5)
+#define LA_ATIME_FROM_EXTRA (1 << 3)
+#define LA_CTIME_FROM_EXTRA (1 << 4)
+#define LA_NTFS_MTIME (1 << 5)
+#define LA_NTFS_ATIME (1 << 6)
+#define LA_NTFS_BTIME (1 << 7)
 
 /*
  * See "WinZip - AES Encryption Information"
@@ -844,6 +846,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 						zip_entry->atime = (time_t)secs;
 						zip_entry->atime_ns = nsecs;
 						zip_entry->flags |= LA_NTFS_ATIME;
+						zip_entry->flags |= LA_ATIME_FROM_EXTRA;
 					}
 
 					raw = archive_le64dec(p + sub_offset + 16);
@@ -867,6 +870,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					zip_entry->atime =
 					    to_time_t(archive_le32dec(p + offset));
 					zip_entry->atime_ns = 0;
+					zip_entry->flags |= LA_ATIME_FROM_EXTRA;
 				}
 				if (!(zip_entry->flags & LA_NTFS_MTIME)) {
 					zip_entry->mtime =
@@ -941,6 +945,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					zip_entry->atime =
 					    to_time_t(archive_le32dec(p + offset));
 					zip_entry->atime_ns = 0;
+					zip_entry->flags |= LA_ATIME_FROM_EXTRA;
 				}
 				offset += 4;
 				datasize -= 4;
@@ -951,6 +956,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					break;
 				zip_entry->ctime =
 				    to_time_t(archive_le32dec(p + offset));
+				zip_entry->flags |= LA_CTIME_FROM_EXTRA;
 				offset += 4;
 				datasize -= 4;
 			}
@@ -964,6 +970,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					zip_entry->atime =
 					    to_time_t(archive_le32dec(p + offset));
 					zip_entry->atime_ns = 0;
+					zip_entry->flags |= LA_ATIME_FROM_EXTRA;
 				}
 				if (!(zip_entry->flags & LA_NTFS_MTIME)) {
 					zip_entry->mtime =
@@ -1490,8 +1497,13 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_uid(entry, zip_entry->uid);
 	archive_entry_set_gid(entry, zip_entry->gid);
 	archive_entry_set_mtime(entry, zip_entry->mtime, zip_entry->mtime_ns);
-	archive_entry_set_ctime(entry, zip_entry->ctime, 0);
-	archive_entry_set_atime(entry, zip_entry->atime, zip_entry->atime_ns);
+	/* Without an extra field to supply them, leave atime and ctime
+	 * unset, rather than reporting them as set to the Unix epoch. */
+	if (zip_entry->flags & LA_CTIME_FROM_EXTRA)
+		archive_entry_set_ctime(entry, zip_entry->ctime, 0);
+	if (zip_entry->flags & LA_ATIME_FROM_EXTRA)
+		archive_entry_set_atime(entry, zip_entry->atime,
+		    zip_entry->atime_ns);
 	if (zip_entry->flags & LA_NTFS_BTIME)
 		archive_entry_set_birthtime(entry, zip_entry->btime,
 		    zip_entry->btime_ns);

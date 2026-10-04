@@ -641,6 +641,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_symlink_unsupported_compression.c \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.c \
 	libarchive/test/test_read_format_zip_uncompressed_size_off_by_4gib.c \
+	libarchive/test/test_read_format_zip_unset_times.c \
 	libarchive/test/test_read_format_zip_winzip_aes.c \
 	libarchive/test/test_read_format_zip_winzip_aes_large.c \
 	libarchive/test/test_read_format_zip_zip64.c \
