@@ -305,7 +305,10 @@ endif
 
 # -no-undefined marks that libarchive doesn't rely on symbols
 # defined in the application.  This is mandatory for cygwin.
-libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) $(DEAD_CODE_REMOVAL)
+# For Windows, set libtool bindir.
+libarchive_la_LDFLAGS= -no-undefined -version-info $(ARCHIVE_LIBTOOL_VERSION) \
+	$(DEAD_CODE_REMOVAL) $(DLL_BINDIR)
+
 libarchive_la_LIBADD= $(LTLIBICONV)
 
 # Manpages to install
