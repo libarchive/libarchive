@@ -134,7 +134,7 @@
 #define MAX_SYMBOL_LENGTH 0xF
 #define MAX_SYMBOLS       20
 
-#define SFX_MAX_READAHEAD (1024 * 128)
+#define SFX_MAX_READAHEAD (1024 * 512)
 
 /* Virtual Machine Properties */
 #define VM_MEMORY_SIZE 0x40000
@@ -838,7 +838,7 @@ skip_sfx(struct archive_read *a)
 
   total = 0;
   window = 4096;
-  while (total + window <= (1024 * 128)) {
+  while (total + window <= SFX_MAX_READAHEAD) {
     h = __archive_read_ahead(a, window, &bytes);
     if (h == NULL) {
       /* Remaining bytes are less than window. */

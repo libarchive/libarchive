@@ -210,7 +210,7 @@ struct lha {
 #define H_LEVEL_OFFSET	20	/* Header Level.  */
 #define H_SIZE		22	/* Minimum header size. */
 
-#define SFX_MAX_READAHEAD	(1024 * 24)
+#define SFX_MAX_READAHEAD	(1024 * 512)
 
 static int      archive_read_format_lha_bid(struct archive_read *, int);
 static int      archive_read_format_lha_options(struct archive_read *,
