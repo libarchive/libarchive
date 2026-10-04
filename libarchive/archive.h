@@ -386,6 +386,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FORMAT_7ZIP			0xE0000
 #define	ARCHIVE_FORMAT_WARC			0xF0000
 #define	ARCHIVE_FORMAT_RAR_V5			0x100000
+#define	ARCHIVE_FORMAT_RPM			0x110000
 
 /*
  * Codes returned by archive_read_format_capabilities().
@@ -500,6 +501,7 @@ __LA_DECL int archive_read_support_format_mtree(struct archive *);
 __LA_DECL int archive_read_support_format_rar(struct archive *);
 __LA_DECL int archive_read_support_format_rar5(struct archive *);
 __LA_DECL int archive_read_support_format_raw(struct archive *);
+__LA_DECL int archive_read_support_format_rpm(struct archive *);
 __LA_DECL int archive_read_support_format_tar(struct archive *);
 __LA_DECL int archive_read_support_format_warc(struct archive *);
 __LA_DECL int archive_read_support_format_xar(struct archive *);
