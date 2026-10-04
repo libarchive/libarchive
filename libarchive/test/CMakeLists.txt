@@ -262,6 +262,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_symlink_unsupported_compression.c
     test_read_format_zip_traditional_encryption_data.c
     test_read_format_zip_uncompressed_size_off_by_4gib.c
+    test_read_format_zip_unset_times.c
     test_read_format_zip_winzip_aes.c
     test_read_format_zip_winzip_aes_large.c
     test_read_format_zip_zip64.c
