@@ -526,11 +526,16 @@ archive_read_format_cab_bid(struct archive_read *a, int best_bid)
 	if (best_bid > 64)
 		return (-1);
 
-	if ((h = __archive_read_ahead(a, 8, NULL)) == NULL)
+	if ((h = __archive_read_ahead(a, 16, NULL)) == NULL)
 		return (-1);
 
-	if (memcmp(h, "MSCF\0\0\0\0", 8) == 0)
-		return (64);
+	if (memcmp(h, "MSCF", 4) == 0) {
+		if (memcmp(h + 4, "\0\0\0\0", 4) == 0)
+			return (64);
+		/* Some archives do not have all reserved bits set to zero. */
+		if (memcmp(h + 12, "\0\0\0\0", 4) == 0)
+			return (32);
+	}
 
 	/*
 	 * Attempt to handle self-extracting archives
