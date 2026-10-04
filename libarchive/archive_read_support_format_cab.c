@@ -286,7 +286,7 @@ struct lzx_stream {
 #define MAX_UNCOMPRESS_SIZE	0x8000
 #define MAX_FILE_SIZE		(UINT16_MAX * MAX_UNCOMPRESS_SIZE)
 #define MAX_E8_TRANSLATION	(0x8000 * MAX_UNCOMPRESS_SIZE)
-#define SFX_MAX_READAHEAD	(1024 * 128)
+#define SFX_MAX_READAHEAD	(1024 * 512)
 
 static const char * const compression_name[] = {
 	"NONE",

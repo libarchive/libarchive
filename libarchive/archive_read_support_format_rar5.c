@@ -2646,7 +2646,7 @@ static int try_skip_sfx(struct archive_read *a)
 
 		rar5_signature(signature);
 
-		while (total + window <= (1024 * 512)) {
+		while (total + window <= SFX_MAX_READAHEAD) {
 			h = __archive_read_ahead(a, window, &bytes);
 			if (h == NULL) {
 				/* Remaining bytes are less than window. */
