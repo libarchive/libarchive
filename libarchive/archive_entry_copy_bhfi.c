@@ -36,6 +36,7 @@ archive_entry_copy_bhfi(struct archive_entry *entry,
 {
 	int64_t secs;
 	uint32_t nsecs;
+	uint64_t ino, size;
 
 	__archive_ntfs_to_unix(__archive_FILETIME_to_ntfs(&bhfi->ftLastAccessTime), &secs, &nsecs);
 	archive_entry_set_atime(entry, secs, nsecs);
@@ -45,11 +46,13 @@ archive_entry_copy_bhfi(struct archive_entry *entry,
 	archive_entry_set_birthtime(entry, secs, nsecs);
 	archive_entry_set_ctime(entry, secs, nsecs);
 	archive_entry_set_dev(entry, bhfi->dwVolumeSerialNumber);
-	archive_entry_set_ino64(entry, (((int64_t)bhfi->nFileIndexHigh) << 32)
-		+ bhfi->nFileIndexLow);
+	ino = (((uint64_t)bhfi->nFileIndexHigh) << 32) | (uint64_t)bhfi->nFileIndexLow;
+	archive_entry_set_ino64(entry, (int64_t)ino);
 	archive_entry_set_nlink(entry, bhfi->nNumberOfLinks);
-	archive_entry_set_size(entry, (((int64_t)bhfi->nFileSizeHigh) << 32)
-		+ bhfi->nFileSizeLow);
+	size = (((uint64_t)bhfi->nFileSizeHigh) << 32) | (uint64_t)bhfi->nFileSizeLow;
+	if (size > (uint64_t)INT64_MAX)
+		size = (uint64_t)INT64_MAX;
+	archive_entry_set_size(entry, (int64_t)size);
 	/* archive_entry_set_mode(entry, st->st_mode); */
 }
 #endif

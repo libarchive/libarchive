@@ -1016,3 +1016,51 @@ DEFINE_TEST(test_entry_mac_metadata_self_copy)
 
 	archive_entry_free(entry);
 }
+
+DEFINE_TEST(test_entry_copy_bhfi)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	struct archive_entry *entry;
+	BY_HANDLE_FILE_INFORMATION bhfi;
+
+	assert((entry = archive_entry_new()) != NULL);
+	memset(&bhfi, 0, sizeof(bhfi));
+
+	/*
+	 * Values with the high bit set in the high DWORDs.
+	 * In the unfixed code, signed left-shift of 0x80000000 by 32 bits
+	 * overflows int64_t (undefined behavior), and file size wraps to negative.
+	 */
+	bhfi.nFileIndexHigh = 0x80000000UL;
+	bhfi.nFileIndexLow = 0x12345678UL;
+	bhfi.nFileSizeHigh = 0x80000000UL;
+	bhfi.nFileSizeLow = 0x12345678UL;
+
+	archive_entry_copy_bhfi(entry, &bhfi);
+
+	/*
+	 * When ino > INT64_MAX, archive_entry_set_ino64 rejects the negative
+	 * signed value and leaves the inode unset.
+	 */
+	assert(!archive_entry_ino_is_set(entry));
+	/* File sizes exceeding INT64_MAX are clamped to INT64_MAX. */
+	assertEqualInt(archive_entry_size(entry), INT64_MAX);
+
+	/* Check normal 64-bit values within range. */
+	memset(&bhfi, 0, sizeof(bhfi));
+	bhfi.nFileIndexHigh = 0x01234567UL;
+	bhfi.nFileIndexLow = 0x89abcdefUL;
+	bhfi.nFileSizeHigh = 0x00000001UL; /* 4 GiB + 100 bytes */
+	bhfi.nFileSizeLow = 0x00000064UL;
+
+	archive_entry_copy_bhfi(entry, &bhfi);
+
+	assert(archive_entry_ino_is_set(entry));
+	assertEqualInt(archive_entry_ino64(entry), (int64_t)0x0123456789abcdefULL);
+	assertEqualInt(archive_entry_size(entry), (int64_t)0x100000064LL);
+
+	archive_entry_free(entry);
+#else
+	skipping("archive_entry_copy_bhfi() is only supported on Windows");
+#endif
+}
