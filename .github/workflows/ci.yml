@@ -182,6 +182,7 @@ jobs:
     - name: Distcheck
       run: ./build/ci/build.sh -a distcheck
       env:
+        CTEST_OUTPUT_ON_FAILURE: ON
         SKIP_OPEN_FD_ERR_TEST: 1
     - name: Dist-Artifact
       run: ./build/ci/build.sh -a dist-artifact
