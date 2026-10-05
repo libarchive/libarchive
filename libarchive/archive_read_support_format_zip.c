@@ -694,6 +694,27 @@ to_time_t(uint32_t raw)
  *  triplets.  id and size are 2 bytes each.
  */
 /*
+ * Is this the file type of a Unix mode? The type tells that the mode is
+ * really a Unix one, and not just some bits that happen to be set.
+ */
+static int
+is_unix_file_type(unsigned mode)
+{
+	switch (mode & AE_IFMT) {
+	case AE_IFREG:
+	case AE_IFDIR:
+	case AE_IFLNK:
+	case AE_IFCHR:
+	case AE_IFBLK:
+	case AE_IFIFO:
+	case AE_IFSOCK:
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+/*
  * Sets the mode of an entry from its external file attributes, according to
  * the system that made the entry.
  */
@@ -701,12 +722,22 @@ static void
 set_mode_from_external_attributes(struct zip_entry *zip_entry,
     uint32_t external_attributes)
 {
-	if (zip_entry->system == 3) {
-		zip_entry->mode = external_attributes >> 16;
+	const uint16_t unix_mode = (uint16_t)(external_attributes >> 16);
+
+	/*
+	 * The upper 16 bits are a Unix mode if the system is Unix. PKZIP for
+	 * Unix says that the system is MS-DOS, which is the value that
+	 * PKWARE's APPNOTE tells to use when the attributes can be read by
+	 * PKZIP for DOS, but it also stores a Unix mode there. Trust it if
+	 * it has a valid file type.
+	 */
+	if (zip_entry->system == 3 ||
+	    (zip_entry->system == 0 && is_unix_file_type(unix_mode))) {
+		zip_entry->mode = unix_mode;
 		/* PKWARE's hard link flag. The name of the original file is
 		 * in the PKWARE Unix extra field. */
 		if ((external_attributes & 0x800) != 0 &&
-		    (zip_entry->mode & AE_IFMT) != AE_IFDIR)
+		    (unix_mode & AE_IFMT) != AE_IFDIR)
 			zip_entry->flags |= LA_PKWARE_HARDLINK;
 	} else if (zip_entry->system == 0) {
 		// Interpret MSDOS directory bit

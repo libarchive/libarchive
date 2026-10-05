@@ -28,7 +28,9 @@
  * PKWARE's Unix extra field (0x000D) ends with data that depends on the file
  * type: the major and minor numbers of a device, or the name of the file that
  * a link points to. PKZIP for Unix stores the target of a symlink there, and
- * not in the data of the entry.
+ * not in the data of the entry. It also marks a hard link with a flag in the
+ * external attributes, and says that MS-DOS made the entry although the
+ * external attributes hold a Unix mode.
  *
  * Each test builds a ZIP file in memory and reads it back.
  */
@@ -184,13 +186,17 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_symlink)
 	struct archive *a;
 
 	memset(&b, 0, sizeof(b));
+	/* Made by Unix. */
 	add_entry(&b, "symlink", AE_IFLNK | 0777, 3, 0, "target.txt", 10, "");
+	/* Made by MS-DOS, as PKZIP for Unix does. */
+	add_entry(&b, "dos-symlink", AE_IFLNK | 0777, 0, 0, "target.txt", 10,
+	    "");
 	/* The data of the entry is preferred. */
 	add_entry(&b, "both", AE_IFLNK | 0777, 3, 0, "from-extra", 10,
 	    "from-data");
 	/* Hard link flag: it is a symlink to the name in the field. PKZIP
 	 * sets it on symlinks with more than one link. */
-	add_entry(&b, "flagged", AE_IFLNK | 0777, 3, 0x800, "target.txt", 10,
+	add_entry(&b, "flagged", AE_IFLNK | 0777, 0, 0x800, "target.txt", 10,
 	    "");
 	/* Nothing in the extra field: the target stays empty. */
 	add_entry(&b, "empty", AE_IFLNK | 0777, 3, 0, "", 0, "");
@@ -199,6 +205,11 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_symlink)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualString("target.txt", archive_entry_symlink(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("dos-symlink", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualInt(0777, archive_entry_perm(ae));
 	assertEqualString("target.txt", archive_entry_symlink(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("both", archive_entry_pathname(ae));
@@ -228,7 +239,7 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_hardlink)
 	add_entry(&b, "link1", AE_IFREG | 0644, 3, 0x800, "original.txt", 12,
 	    "");
 	/* A link to a link. */
-	add_entry(&b, "link2", AE_IFREG | 0644, 3, 0x800, "link1", 5, "");
+	add_entry(&b, "link2", AE_IFREG | 0644, 0, 0x800, "link1", 5, "");
 	/* Without the flag, the name is not a hard link. */
 	add_entry(&b, "not-a-link", AE_IFREG | 0644, 3, 0, "original.txt", 12,
 	    "");
@@ -282,7 +293,7 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_device)
 	memset(&b, 0, sizeof(b));
 	put32(numbers, 4);
 	put32(numbers + 4, 64);
-	add_entry(&b, "char", AE_IFCHR | 0620, 3, 0, numbers, 8, "");
+	add_entry(&b, "char", AE_IFCHR | 0620, 0, 0, numbers, 8, "");
 	put32(numbers, 8);
 	put32(numbers + 4, 1);
 	add_entry(&b, "block", AE_IFBLK | 0660, 3, 0, numbers, 8, "");
@@ -320,6 +331,61 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_device)
 }
 
 /*
+ * The external attributes hold a Unix mode when PKZIP says that MS-DOS made
+ * the entry, as long as it has a valid file type. Otherwise they are DOS
+ * attributes.
+ */
+DEFINE_TEST(test_read_format_zip_pkware_unix_dos_attributes)
+{
+	static struct zip_builder b;
+	struct archive_entry *ae;
+	struct archive *a;
+
+	memset(&b, 0, sizeof(b));
+	/* A Unix mode, with a file type. */
+	add_entry(&b, "unix", AE_IFREG | 0600, 0, 0, "", 0, "");
+	add_entry(&b, "socket", AE_IFSOCK | 0600, 0, 0, "", 0, "");
+	/* MS-DOS attributes: a read-only file, and a directory. */
+	add_entry(&b, "dos-readonly", 0, 0, 0x01, "", 0, "");
+	add_entry(&b, "dos-file", 0, 0, 0x20, "", 0, "");
+	add_entry(&b, "dos-dir/", 0, 0, 0x10, "", 0, "");
+	/* Not a file type: these are not a Unix mode. */
+	add_entry(&b, "not-a-type", 0100, 0, 0x01, "", 0, "");
+
+	a = open_zip(&b, 1);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("unix", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(0600, archive_entry_perm(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("socket", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFSOCK, archive_entry_filetype(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("dos-readonly", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(0444, archive_entry_perm(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("dos-file", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(0664, archive_entry_perm(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("dos-dir/", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("not-a-type", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(0444, archive_entry_perm(ae));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
  * The streaming reader only sees the Local Headers, which have no external
  * attributes: it can't tell what the variable data of the extra field is for.
  * It reads the entries as before.
@@ -341,7 +407,7 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_streaming)
 	a = open_zip(&b, 0);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
-	assertEqualString(NULL, archive_entry_symlink(ae));
+	assertEqualString(NULL, archive_entry_hardlink(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("link", archive_entry_pathname(ae));
 	assertEqualString(NULL, archive_entry_hardlink(ae));
