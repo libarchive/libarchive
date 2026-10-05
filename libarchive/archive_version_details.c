@@ -44,6 +44,9 @@
 #ifdef HAVE_LZ4_H
 #include <lz4.h>
 #endif
+#ifdef HAVE_BROTLI_DECODE_H
+#include <brotli/decode.h>
+#endif
 #ifdef HAVE_ZSTD_H
 #include <zstd.h>
 #include <stdio.h>
@@ -176,6 +179,7 @@ archive_version_details(void)
 	const char *bzlib = archive_bzlib_version();
 	const char *liblz4 = archive_liblz4_version();
 	const char *libzstd = archive_libzstd_version();
+	const char *libbrotlidec = archive_libbrotlidec_version();
 	const char *liblzo = archive_liblzo2_version();
 	const char *libiconv = archive_libiconv_version();
 	const char *libacl = archive_libacl_version();
@@ -209,6 +213,10 @@ archive_version_details(void)
 		if (libzstd) {
 			archive_strcat(&str, " libzstd/");
 			archive_strcat(&str, libzstd);
+		}
+		if (libbrotlidec) {
+			archive_strcat(&str, " libbrotlidec/");
+			archive_strcat(&str, libbrotlidec);
 		}
 		if (liblzo) {
 			archive_strcat(&str, " liblzo2/");
@@ -288,6 +296,23 @@ archive_liblz4_version(void)
 #undef NUMBER
 #undef str
 #endif
+#else
+	return NULL;
+#endif
+}
+
+const char *
+archive_libbrotlidec_version(void)
+{
+#if HAVE_BROTLI_DECODE_H && HAVE_LIBBROTLIDEC
+	/* The version is major << 24 | minor << 12 | patch. */
+	static char brotli_version[16];
+	const uint32_t v = BrotliDecoderVersion();
+
+	snprintf(brotli_version, sizeof(brotli_version), "%u.%u.%u",
+	    (unsigned)(v >> 24), (unsigned)((v >> 12) & 0xfff),
+	    (unsigned)(v & 0xfff));
+	return brotli_version;
 #else
 	return NULL;
 #endif

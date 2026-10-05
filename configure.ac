@@ -515,6 +515,21 @@ if test "x$with_zstd" != "xno"; then
     AC_DEFINE([HAVE_ZSTD_minCLevel], [1], [Define to 1 if you have a 'zstd' library version with ZSTD_minCLevel().]))
 fi
 
+AC_ARG_WITH([brotli],
+  AS_HELP_STRING([--without-brotli], [Don't build support for brotli through libbrotlidec]))
+
+if test "x$with_brotli" != "xno"; then
+  PKG_PROG_PKG_CONFIG
+  PKG_CHECK_MODULES(BROTLIDEC_PC, [libbrotlidec], [
+    CPPFLAGS="${CPPFLAGS} ${BROTLIDEC_PC_CFLAGS}"
+    LIBS="${LIBS} ${BROTLIDEC_PC_LIBS}"
+    AC_DEFINE(HAVE_LIBBROTLIDEC, [1], [Define to 1 if you have the 'brotlidec' library.])
+  ], [
+    AC_CHECK_LIB(brotlidec,BrotliDecoderDecompressStream,,,[-lbrotlicommon])
+  ])
+  AC_CHECK_HEADERS([brotli/decode.h])
+fi
+
 AC_ARG_WITH([lzma],
   AS_HELP_STRING([--without-lzma], [Don't build support for xz through lzma]))
 

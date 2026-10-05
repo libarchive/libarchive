@@ -200,6 +200,7 @@ __LA_DECL const char *  archive_liblzma_version(void);
 __LA_DECL const char *  archive_bzlib_version(void);
 __LA_DECL const char *  archive_liblz4_version(void);
 __LA_DECL const char *  archive_libzstd_version(void);
+__LA_DECL const char *  archive_libbrotlidec_version(void);
 __LA_DECL const char *  archive_liblzo2_version(void);
 __LA_DECL const char *  archive_libexpat_version(void);
 __LA_DECL const char *  archive_libbsdxml_version(void);
@@ -322,6 +323,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FILTER_GRZIP	12
 #define	ARCHIVE_FILTER_LZ4	13
 #define	ARCHIVE_FILTER_ZSTD	14
+#define	ARCHIVE_FILTER_BROTLI	15
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -463,6 +465,7 @@ __LA_DECL int archive_read_support_compression_xz(struct archive *)
 #endif
 
 __LA_DECL int archive_read_support_filter_all(struct archive *);
+__LA_DECL int archive_read_support_filter_brotli(struct archive *);
 __LA_DECL int archive_read_support_filter_by_code(struct archive *, int);
 __LA_DECL int archive_read_support_filter_bzip2(struct archive *);
 __LA_DECL int archive_read_support_filter_compress(struct archive *);

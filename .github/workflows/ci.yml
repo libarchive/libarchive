@@ -18,7 +18,7 @@ jobs:
         apt-get install -y --no-install-recommends \
           build-essential ca-certificates cmake git pkg-config \
           libacl1-dev libbz2-dev liblz4-dev liblzma-dev \
-          libssl-dev libzstd-dev zlib1g-dev
+          libbrotli-dev libssl-dev libzstd-dev zlib1g-dev
     # Plain git instead of the checkout action: the runner executes
     # actions with its own 64-bit node, which cannot run inside a
     # 32-bit container.
@@ -133,7 +133,7 @@ jobs:
     - name: Update apt cache
       run: sudo apt-get update
     - name: Install dependencies
-      run: sudo apt-get install -y autoconf automake build-essential cmake git libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zlib1g-dev
+      run: sudo apt-get install -y autoconf automake build-essential cmake git libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbrotli-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zlib1g-dev
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
       env:
@@ -174,7 +174,7 @@ jobs:
     - name: Update package definitions
       run: sudo apt-get update
     - name: Install dependencies
-      run: sudo apt-get install -y autoconf automake bsdmainutils build-essential cmake ghostscript git groff libssl-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zip zlib1g-dev
+      run: sudo apt-get install -y autoconf automake bsdmainutils build-essential cmake ghostscript git groff libssl-dev libacl1-dev libbrotli-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zip zlib1g-dev
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
     - name: Configure

@@ -72,6 +72,8 @@ archive_read_support_filter_all(struct archive *a)
 	archive_read_support_filter_lz4(a);
 	/* Zstd falls back to "zstd -d -qq" command-line. */
 	archive_read_support_filter_zstd(a);
+	/* Brotli data has no signature to detect it with, so it is not
+	 * enabled here: use archive_read_append_filter(). */
 
 	/* Note: We always return ARCHIVE_OK here, even if some of the
 	 * above return ARCHIVE_WARN.  The intent here is to enable

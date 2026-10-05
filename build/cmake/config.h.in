@@ -408,6 +408,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <bcrypt.h> header file. */
 #cmakedefine HAVE_BCRYPT_H 1
 
+/* Define to 1 if you have the <brotli/decode.h> header file. */
+#cmakedefine HAVE_BROTLI_DECODE_H 1
+
 /* Define to 1 if you have the <bsdxml.h> header file. */
 #cmakedefine HAVE_BSDXML_H 1
 
@@ -737,6 +740,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the 'attr' library (-lattr). */
 #cmakedefine HAVE_LIBATTR 1
+
+/* Define to 1 if you have the 'brotlidec' library (-lbrotlidec). */
+#cmakedefine HAVE_LIBBROTLIDEC 1
 
 /* Define to 1 if you have the 'bsdxml' library (-lbsdxml). */
 #cmakedefine HAVE_LIBBSDXML 1
