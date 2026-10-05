@@ -1290,6 +1290,7 @@ libarchive_test_EXTRA_DIST=\
 #
 noinst_HEADERS+= \
 	libarchive_fe/lafe_err.h \
+	libarchive_fe/lafe_explicit_bzero.h \
 	libarchive_fe/lafe_fnmatch.h \
 	libarchive_fe/lafe_getline.h \
 	libarchive_fe/lafe_platform.h \
@@ -1298,6 +1299,7 @@ noinst_HEADERS+= \
 	libarchive_fe/passphrase.h
 libarchive_fe_la_SOURCES= \
 	libarchive_fe/lafe_err.c \
+	libarchive_fe/lafe_explicit_bzero.c \
 	libarchive_fe/lafe_fnmatch.c \
 	libarchive_fe/lafe_getline.c \
 	libarchive_fe/lafe_setmode.c \

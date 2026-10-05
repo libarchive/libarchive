@@ -556,6 +556,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <expat.h> header file. */
 #cmakedefine HAVE_EXPAT_H 1
 
+/* Define to 1 if you have the 'explicit_bzero' function. */
+#cmakedefine HAVE_EXPLICIT_BZERO 1
+
 /* Define to 1 if you have the <ext2fs/ext2_fs.h> header file. */
 #cmakedefine HAVE_EXT2FS_EXT2_FS_H 1
 
@@ -918,6 +921,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the 'memmove' function. */
 #cmakedefine HAVE_MEMMOVE 1
+
+/* Define to 1 if you have the 'memset_explicit' function. */
+#cmakedefine HAVE_MEMSET_EXPLICIT 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #cmakedefine HAVE_MEMORY_H 1
