@@ -33,6 +33,7 @@
 #include "archive_digest_private.h"
 #include "archive_endian.h"
 
+#if defined(ARCHIVE_HAS_SHA256)
 /*
  * Securely clear sensitive memory to prevent compiler dead-store elimination.
  * Uses the same volatile function pointer pattern as archive_blake2_impl.h.
@@ -44,6 +45,7 @@ cryptor_secure_clear(void *p, size_t len)
 	if (p != NULL && len > 0)
 		memset_v(p, 0, len);
 }
+#endif
 
 /*
  * Crypto Backend 1: Apple CommonCrypto (macOS / iOS / Darwin)
@@ -823,6 +825,7 @@ aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
 }
 #endif /* ARCHIVE_CRYPTOR_STUB */
 
+#if defined(ARCHIVE_HAS_SHA256)
 static size_t
 utf8_to_utf16le(const char *utf8, uint8_t *utf16, size_t max_utf16_bytes)
 {
@@ -880,6 +883,8 @@ utf8_to_utf16le(const char *utf8, uint8_t *utf16, size_t max_utf16_bytes)
 	}
 	return o;
 }
+
+#endif
 
 static int
 kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
