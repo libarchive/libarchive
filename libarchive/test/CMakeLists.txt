@@ -119,6 +119,7 @@ IF(ENABLE_TEST)
     test_read_format_7zip.c
     test_read_format_7zip_encryption_data.c
     test_read_format_7zip_encryption_header.c
+    test_read_format_7zip_encryption_lzma2.c
     test_read_format_7zip_encryption_partially.c
     test_read_format_7zip_entries_oom.c
     test_read_format_7zip_folders_oom.c
