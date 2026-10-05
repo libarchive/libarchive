@@ -1,0 +1,33 @@
+ZIP archive with a ZIPx LZMA symlink "link" whose LZMA stream has no end
+marker, followed by a stored regular file "file".  Local and central
+directory CRC, compression, and size fields agree.  The local 0x6c78
+extra field supplies the symlink mode.
+
+begin 644 test_read_format_zip_symlink_lzma_no_eos.zip
+M4$L#!!0#```.``````"B:M?<&0````L````$``D`;&EN:WAL!0`$``#_H0D4
+M!0!=``"````YF$D&FMLC-Y(.%^_'DYA02P,$%````````````"BA6L"$`P``
+MA`,```0```!F:6QE5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,
+M24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!
+M1E1%4BU364U,24Y+4$L!`A0#%`````X``````*)JU]P9````"P````0`````
+M`````````/^A`````&QI;FM02P$"%`,4````````````**%:P(0#``"$`P``
+L!`````````````````!$````9FEL95!+!08``````@`"`&0```#J`P``````
+`
+end

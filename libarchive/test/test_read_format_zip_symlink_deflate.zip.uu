@@ -1,0 +1,32 @@
+ZIP archive with a deflated symlink "link" followed by a stored regular
+file "file".  Local and central directory CRC, compression, and size
+fields agree.  The local 0x6c78 extra field supplies the symlink mode.
+
+begin 644 test_read_format_zip_symlink_deflate.zip
+M4$L#!!0#   (      "B:M?<#0    L    $  D ;&EN:WAL!0 $  #_H2M.
+M3$O5+4DL2D\M 0!02P,$%            "BA6L"$ P  A ,   0   !F:6QE
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%
+M4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+5$%)3"U!1E1%4BU364U,24Y+
+M4$L! A0#%     @      *)JU]P-    "P    0              /^A````
+M &QI;FM02P$"% ,4            **%:P(0#  "$ P  !```````````````
+@   X    9FEL95!+!08      @ " &0   #> P``````
+`
+end
