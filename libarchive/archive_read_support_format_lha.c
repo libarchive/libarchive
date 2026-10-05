@@ -589,6 +589,9 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	if (err < ARCHIVE_WARN)
 		return (err);
 
+	if (!lha->directory && archive_strlen(&lha->filename) == 0)
+		if (memcmp(lha->method, "lh0", 3) == 0 && archive_strlen(&lha->dirname) > 0)
+			lha->directory = 1; /* empty directory entry */
 
 	if (!lha->directory && archive_strlen(&lha->filename) == 0)
 		/* The filename has not been set */
