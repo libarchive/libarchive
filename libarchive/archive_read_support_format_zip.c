@@ -155,6 +155,8 @@ struct trad_enc_ctx {
 #define LA_NTFS_BTIME (1 << 7)
 /* A PKWARE Unix extra field supplied device numbers. */
 #define LA_HAS_RDEV (1 << 8)
+/* The PKWARE hard link flag is set in the external attributes. */
+#define LA_PKWARE_HARDLINK (1 << 9)
 
 /*
  * See "WinZip - AES Encryption Information"
@@ -701,6 +703,11 @@ set_mode_from_external_attributes(struct zip_entry *zip_entry,
 {
 	if (zip_entry->system == 3) {
 		zip_entry->mode = external_attributes >> 16;
+		/* PKWARE's hard link flag. The name of the original file is
+		 * in the PKWARE Unix extra field. */
+		if ((external_attributes & 0x800) != 0 &&
+		    (zip_entry->mode & AE_IFMT) != AE_IFDIR)
+			zip_entry->flags |= LA_PKWARE_HARDLINK;
 	} else if (zip_entry->system == 0) {
 		// Interpret MSDOS directory bit
 		if (0x10 == (external_attributes & 0x10)) {
@@ -741,6 +748,7 @@ process_pkware_unix_data(struct zip_entry *zip_entry, const char *data,
 			zip_entry->flags |= LA_HAS_RDEV;
 		}
 		break;
+	case AE_IFREG:
 	case AE_IFLNK:
 		archive_strncpy(&zip_entry->link_name, data, size);
 		break;
@@ -1284,6 +1292,21 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 /*
  * Assumes file pointer is at beginning of local file header.
  */
+/*
+ * The character set conversion to use for the name of a link.
+ */
+static struct archive_string_conv *
+link_name_sconv(struct zip *zip)
+{
+	struct archive_string_conv *sconv = zip->sconv;
+
+	if (sconv == NULL && (zip->entry->zip_flags & ZIP_UTF8_NAME))
+		sconv = zip->sconv_utf8;
+	if (sconv == NULL)
+		sconv = zip->sconv_default;
+	return (sconv);
+}
+
 static int
 zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
     struct zip *zip)
@@ -1562,6 +1585,27 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	     (zip_entry->mode & AE_IFMT) == AE_IFBLK)) {
 		archive_entry_set_rdevmajor(entry, zip_entry->rdevmajor);
 		archive_entry_set_rdevminor(entry, zip_entry->rdevminor);
+	}
+	if ((zip_entry->flags & LA_PKWARE_HARDLINK) &&
+	    (zip_entry->mode & AE_IFMT) == AE_IFREG &&
+	    zip_entry->compressed_size == 0 &&
+	    archive_strlen(&zip_entry->link_name) > 0) {
+		sconv = link_name_sconv(zip);
+
+		if (archive_entry_copy_hardlink_l(entry,
+		    zip_entry->link_name.s, archive_strlen(&zip_entry->link_name),
+		    sconv) != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for hard link");
+				return (ARCHIVE_FATAL);
+			}
+			/* There is no character set regulation for the names
+			 * of links: use it as it is. */
+			archive_entry_copy_hardlink_l(entry,
+			    zip_entry->link_name.s,
+			    archive_strlen(&zip_entry->link_name), NULL);
+		}
 	}
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
