@@ -94,6 +94,8 @@ struct zip_entry {
 	int64_t			gid;
 	int64_t			uid;
 	struct archive_string	rsrcname;
+	/* The "linked to" file name from a PKWARE Unix extra field. */
+	struct archive_string	link_name;
 	time_t			mtime;
 	time_t			atime;
 	time_t			ctime;
@@ -103,12 +105,15 @@ struct zip_entry {
 	uint32_t		mtime_ns;
 	uint32_t		atime_ns;
 	uint32_t		btime_ns;
+	/* Device numbers from a PKWARE Unix extra field */
+	uint32_t		rdevmajor;
+	uint32_t		rdevminor;
 	uint32_t		crc32;
 	uint16_t		mode;
 	uint16_t		zip_flags; /* From GP Flags Field */
+	uint16_t		flags; /* Our extra markers. */
 	unsigned char		compression;
 	unsigned char		system; /* From "version written by" */
-	unsigned char		flags; /* Our extra markers. */
 	unsigned char		decdat;/* Used for Decryption check */
 
 	/* WinZip AES encryption extra field should be available
@@ -148,6 +153,8 @@ struct trad_enc_ctx {
 #define LA_NTFS_MTIME (1 << 5)
 #define LA_NTFS_ATIME (1 << 6)
 #define LA_NTFS_BTIME (1 << 7)
+/* A PKWARE Unix extra field supplied device numbers. */
+#define LA_HAS_RDEV (1 << 8)
 
 /*
  * See "WinZip - AES Encryption Information"
@@ -684,6 +691,36 @@ to_time_t(uint32_t raw)
  *	id1+size1+data1 + id2+size2+data2 ...
  *  triplets.  id and size are 2 bytes each.
  */
+/*
+ * Processes the variable data that ends a PKWARE Unix extra field, after
+ * the access and modification times, the user ID and the group ID. It
+ * depends on the file type. It is made of the major and minor device
+ * numbers, as two little-endian 32-bit values, for a device. It is the name
+ * of the original file, which is not NUL-terminated, for a link.
+ *
+ * It is only meaningful if the file type is known, which is the case with
+ * the Central Directory entries of the seekable reader, but not when
+ * reading a Local Header alone.
+ */
+static void
+process_pkware_unix_data(struct zip_entry *zip_entry, const char *data,
+    size_t size)
+{
+	switch (zip_entry->mode & AE_IFMT) {
+	case AE_IFCHR:
+	case AE_IFBLK:
+		if (size >= 8) {
+			zip_entry->rdevmajor = archive_le32dec(data);
+			zip_entry->rdevminor = archive_le32dec(data + 4);
+			zip_entry->flags |= LA_HAS_RDEV;
+		}
+		break;
+	case AE_IFLNK:
+		archive_strncpy(&zip_entry->link_name, data, size);
+		break;
+	}
+}
+
 static int
 process_extra(struct archive_read *a, struct archive_entry *entry,
      const char *p, size_t extra_length, struct zip_entry* zip_entry)
@@ -885,7 +922,12 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				/*
 				 * APPNOTE.TXT also defines additional data after
 				 * this fixed metadata, depending on file type.
+				 * Only the entries of the Central Directory have
+				 * a known file type to interpret it with.
 				 */
+				if (zip_entry->flags & LA_FROM_CENTRAL_DIRECTORY)
+					process_pkware_unix_data(zip_entry,
+					    p + offset + 12, datasize - 12);
 			}
 			break;
 #ifdef DEBUG
@@ -1508,6 +1550,14 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		archive_entry_set_birthtime(entry, zip_entry->btime,
 		    zip_entry->btime_ns);
 
+	/* Data from a PKWARE Unix extra field of the Central Directory. */
+	if ((zip_entry->flags & LA_HAS_RDEV) &&
+	    ((zip_entry->mode & AE_IFMT) == AE_IFCHR ||
+	     (zip_entry->mode & AE_IFMT) == AE_IFBLK)) {
+		archive_entry_set_rdevmajor(entry, zip_entry->rdevmajor);
+		archive_entry_set_rdevminor(entry, zip_entry->rdevminor);
+	}
+
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
 
@@ -1521,9 +1571,17 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 
 		archive_entry_set_size(entry, 0);
 
-		// take into account link compression if any
 		size_t linkname_full_length = linkname_length;
-		if (zip->entry->compression != 0)
+		if (linkname_length == 0 &&
+		    archive_strlen(&zip_entry->link_name) > 0)
+		{
+			// PKZIP for Unix has the target in the PKWARE Unix
+			// extra field, and no data
+			p = zip_entry->link_name.s;
+			linkname_full_length = archive_strlen(&zip_entry->link_name);
+		}
+		// take into account link compression if any
+		else if (zip->entry->compression != 0)
 		{
 			// symlink target string appeared to be compressed
 			int status = ARCHIVE_FATAL;
@@ -3718,6 +3776,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 		while (zip_entry != NULL) {
 			next_zip_entry = zip_entry->next;
 			archive_string_free(&zip_entry->rsrcname);
+			archive_string_free(&zip_entry->link_name);
 			free(zip_entry);
 			zip_entry = next_zip_entry;
 		}
