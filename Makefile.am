@@ -559,6 +559,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.c \
 	libarchive/test/test_read_format_iso_zisofs_overflow.c \
 	libarchive/test/test_read_format_lha.c \
+	libarchive/test/test_read_format_lha_amiga_script.c \
 	libarchive/test/test_read_format_lha_bugfix_0.c \
 	libarchive/test/test_read_format_lha_filename.c \
 	libarchive/test/test_read_format_lha_filename_utf16.c \
@@ -1037,6 +1038,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_xorriso.iso.Z.uu \
 	libarchive/test/test_read_format_iso_zisofs.iso.Z.uu \
 	libarchive/test/test_read_format_iso_zisofs_overflow.iso.uu \
+	libarchive/test/test_read_format_lha_amiga_script.lha.uu \
 	libarchive/test/test_read_format_lha_bugfix_0.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_cp932.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_utf16.lzh.uu \
