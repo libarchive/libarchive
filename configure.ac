@@ -107,7 +107,7 @@ AS_IF([test $inc_windows_files = yes], [AC_CHECK_TOOL([WINDRES], [windres])])
 dnl Defines that are required for specific platforms (e.g. -D_POSIX_SOURCE, etc)
 PLATFORMCPPFLAGS=
 case "$host_os" in
-  *mingw* ) PLATFORMCPPFLAGS="-D__USE_MINGW_ANSI_STDIO -D__MINGW_USE_VC2005_COMPAT" ;;
+  *mingw* ) PLATFORMCPPFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -D__MINGW_USE_VC2005_COMPAT=1" ;;
 esac
 AC_SUBST(PLATFORMCPPFLAGS)
 
