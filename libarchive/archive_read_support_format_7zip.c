@@ -3914,6 +3914,12 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		    zip->folder_outbytes_remaining == 0 &&
 		    (!zip->is_encrypted || zip->decrypted_bytes_pos >= zip->decrypted_bytes_avail))
 			break;
+		/*
+		 * A decoder that finds the end of its stream by itself stops
+		 * before the padding that AES adds to the pack stream.
+		 */
+		if (zip->is_encrypted && zip->folder_outbytes_remaining == 0)
+			break;
 		if (end_of_data || (bytes_in == 0 && bytes_out == 0)) {
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC, "Damaged 7-Zip archive");
