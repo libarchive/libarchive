@@ -195,7 +195,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        be: [mingw-gcc, cygwin-gcc, msvc]
+        be: [mingw, cygwin-gcc, msvc]
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Install Cygwin
@@ -211,7 +211,7 @@ jobs:
           libzstd-devel libssl-devel
     - name: Install MinGW (msys2)
       uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
-      if:  ${{ matrix.be=='mingw-gcc' }}
+      if:  ${{ matrix.be=='mingw' }}
       with:
         location: "D:\\"
         suppress-deprecation-warnings: msystem-mingw64
