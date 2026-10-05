@@ -188,6 +188,10 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_symlink)
 	/* The data of the entry is preferred. */
 	add_entry(&b, "both", AE_IFLNK | 0777, 3, 0, "from-extra", 10,
 	    "from-data");
+	/* Hard link flag: it is a symlink to the name in the field. PKZIP
+	 * sets it on symlinks with more than one link. */
+	add_entry(&b, "flagged", AE_IFLNK | 0777, 3, 0x800, "target.txt", 10,
+	    "");
 	/* Nothing in the extra field: the target stays empty. */
 	add_entry(&b, "empty", AE_IFLNK | 0777, 3, 0, "", 0, "");
 
@@ -200,8 +204,69 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_symlink)
 	assertEqualString("both", archive_entry_pathname(ae));
 	assertEqualString("from-data", archive_entry_symlink(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("flagged", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualString("target.txt", archive_entry_symlink(ae));
+	assertEqualString(NULL, archive_entry_hardlink(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("empty", archive_entry_pathname(ae));
 	assertEqualString("", archive_entry_symlink(ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/* A hard link has a flag in the external attributes, and the name of the
+ * original file in the extra field. */
+DEFINE_TEST(test_read_format_zip_pkware_unix_hardlink)
+{
+	static struct zip_builder b;
+	struct archive_entry *ae;
+	struct archive *a;
+
+	memset(&b, 0, sizeof(b));
+	add_entry(&b, "original.txt", AE_IFREG | 0644, 3, 0, "", 0, "hello\n");
+	add_entry(&b, "link1", AE_IFREG | 0644, 3, 0x800, "original.txt", 12,
+	    "");
+	/* A link to a link. */
+	add_entry(&b, "link2", AE_IFREG | 0644, 3, 0x800, "link1", 5, "");
+	/* Without the flag, the name is not a hard link. */
+	add_entry(&b, "not-a-link", AE_IFREG | 0644, 3, 0, "original.txt", 12,
+	    "");
+	/* A directory is never a hard link. */
+	add_entry(&b, "dir/", AE_IFDIR | 0755, 3, 0x800, "original.txt", 12,
+	    "");
+	/* The flag without a name is ignored. */
+	add_entry(&b, "no-name", AE_IFREG | 0644, 3, 0x800, "", 0, "");
+
+	a = open_zip(&b, 1);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("original.txt", archive_entry_pathname(ae));
+	assertEqualString(NULL, archive_entry_hardlink(ae));
+	assertEqualInt(6, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("link1", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualString("original.txt", archive_entry_hardlink(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("link2", archive_entry_pathname(ae));
+	assertEqualString("link1", archive_entry_hardlink(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("not-a-link", archive_entry_pathname(ae));
+	assertEqualString(NULL, archive_entry_hardlink(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("dir/", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualString(NULL, archive_entry_hardlink(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("no-name", archive_entry_pathname(ae));
+	assertEqualString(NULL, archive_entry_hardlink(ae));
+
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -270,12 +335,16 @@ DEFINE_TEST(test_read_format_zip_pkware_unix_streaming)
 	put32(numbers, 4);
 	put32(numbers + 4, 64);
 	add_entry(&b, "symlink", AE_IFLNK | 0777, 3, 0, "target.txt", 10, "");
+	add_entry(&b, "link", AE_IFREG | 0644, 3, 0x800, "symlink", 7, "");
 	add_entry(&b, "char", AE_IFCHR | 0620, 3, 0, numbers, 8, "");
 
 	a = open_zip(&b, 0);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
 	assertEqualString(NULL, archive_entry_symlink(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("link", archive_entry_pathname(ae));
+	assertEqualString(NULL, archive_entry_hardlink(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("char", archive_entry_pathname(ae));
 	assertEqualInt(0, archive_entry_rdevmajor(ae));
