@@ -10,7 +10,7 @@ IF NOT "%BE%"=="mingw" (
 
 SET ORIGPATH=%PATH%
 IF "%BE%"=="mingw" (
-  SET MINGWPATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;D:\msys64\mingw64\bin;C:\Program Files\cmake\bin
+  SET MINGWPATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;D:\msys64\%MSYSTEM%\bin;C:\Program Files\cmake\bin
 )
 
 IF "%1%"=="configure" (
