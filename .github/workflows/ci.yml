@@ -214,6 +214,7 @@ jobs:
       if:  ${{ matrix.be=='mingw-gcc' }}
       with:
         location: "D:\\"
+        suppress-deprecation-warnings: msystem-mingw64
         install: |-
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-autotools
