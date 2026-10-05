@@ -692,6 +692,32 @@ to_time_t(uint32_t raw)
  *  triplets.  id and size are 2 bytes each.
  */
 /*
+ * Sets the mode of an entry from its external file attributes, according to
+ * the system that made the entry.
+ */
+static void
+set_mode_from_external_attributes(struct zip_entry *zip_entry,
+    uint32_t external_attributes)
+{
+	if (zip_entry->system == 3) {
+		zip_entry->mode = external_attributes >> 16;
+	} else if (zip_entry->system == 0) {
+		// Interpret MSDOS directory bit
+		if (0x10 == (external_attributes & 0x10)) {
+			zip_entry->mode = AE_IFDIR | 0775;
+		} else {
+			zip_entry->mode = AE_IFREG | 0664;
+		}
+		if (0x01 == (external_attributes & 0x01)) {
+			// Read-only bit; strip write permissions
+			zip_entry->mode &= 0555;
+		}
+	} else {
+		zip_entry->mode = 0;
+	}
+}
+
+/*
  * Processes the variable data that ends a PKWARE Unix extra field, after
  * the access and modification times, the user ID and the group ID. It
  * depends on the file type. It is made of the major and minor device
@@ -1103,28 +1129,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					break;
 				external_attributes
 				    = archive_le32dec(p + offset);
-				if (zip_entry->system == 3) {
-					zip_entry->mode
-					    = external_attributes >> 16;
-				} else if (zip_entry->system == 0) {
-					// Interpret MSDOS directory bit
-					if (0x10 == (external_attributes &
-					    0x10)) {
-						zip_entry->mode =
-						    AE_IFDIR | 0775;
-					} else {
-						zip_entry->mode =
-						    AE_IFREG | 0664;
-					}
-					if (0x01 == (external_attributes &
-					    0x01)) {
-						/* Read-only bit;
-						 * strip write permissions */
-						zip_entry->mode &= 0555;
-					}
-				} else {
-					zip_entry->mode = 0;
-				}
+				set_mode_from_external_attributes(zip_entry,
+				    external_attributes);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -4524,22 +4530,8 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 		/* If we can't guess the mode, leave it zero here;
 		   when we read the local file header we might get
 		   more information. */
-		if (zip_entry->system == 3) {
-			zip_entry->mode = external_attributes >> 16;
-		} else if (zip_entry->system == 0) {
-			// Interpret MSDOS directory bit
-			if (0x10 == (external_attributes & 0x10)) {
-				zip_entry->mode = AE_IFDIR | 0775;
-			} else {
-				zip_entry->mode = AE_IFREG | 0664;
-			}
-			if (0x01 == (external_attributes & 0x01)) {
-				// Read-only bit; strip write permissions
-				zip_entry->mode &= 0555;
-			}
-		} else {
-			zip_entry->mode = 0;
-		}
+		set_mode_from_external_attributes(zip_entry,
+		    external_attributes);
 
 		/* We're done with the regular data; get the filename and
 		 * extra data. */
