@@ -215,6 +215,7 @@ struct tree {
 
 static int
 tree_dir_next_windows(struct tree *t, const wchar_t *pattern);
+static int get_find_data(const wchar_t *, WIN32_FIND_DATAW *);
 
 /* Initiate/terminate a tree traversal. */
 static struct tree *tree_open(const wchar_t *, int, int);
@@ -1751,6 +1752,7 @@ tree_open(const wchar_t *path, int symlink_mode, int restore_time)
 		free(t);
 		return (NULL);
 	}
+	t->path.s[0] = L'\0';
 	t->initial_symlink_mode = symlink_mode;
 	return (tree_reopen(t, path, restore_time));
 }
@@ -1774,6 +1776,10 @@ tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
 	t->symlink_mode = t->initial_symlink_mode;
 	archive_string_empty(&(t->full_path));
 	archive_string_empty(&t->path);
+	if (t->path.s != NULL)
+		t->path.s[0] = L'\0';
+	if (t->full_path.s != NULL)
+		t->full_path.s[0] = L'\0';
 	t->entry_fh = INVALID_HANDLE_VALUE;
 	t->entry_eof = 0;
 	t->entry_remaining_bytes = 0;
@@ -1936,15 +1942,12 @@ tree_next(struct tree *t)
 					continue;
 				return (r);
 			} else {
-				HANDLE h = FindFirstFileW(t->stack->full_path.s, &t->_findData);
-				if (h == INVALID_HANDLE_VALUE) {
-					la_dosmaperr(GetLastError());
+				if (get_find_data(t->stack->full_path.s, &t->_findData) != 0) {
 					t->tree_errno = errno;
 					t->visit_type = TREE_ERROR_DIR;
 					return (t->visit_type);
 				}
 				t->findData = &t->_findData;
-				FindClose(h);
 			}
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
@@ -2010,7 +2013,8 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 			      + 2 + wcslen(pattern)) == NULL)
 				return (TREE_ERROR_FATAL);
 			archive_wstring_copy(&pt, &(t->full_path));
-			archive_wstrappend_wchar(&pt, L'\\');
+			if (pt.length == 0 || pt.s[pt.length - 1] != L'\\')
+				archive_wstrappend_wchar(&pt, L'\\');
 			archive_wstrcat(&pt, pattern);
 			t->d = FindFirstFileW(pt.s, &t->_findData);
 			archive_wstring_free(&pt);
@@ -2045,6 +2049,37 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 			return (r);
 		return (t->visit_type = TREE_REGULAR);
 	}
+}
+
+static int
+get_find_data(const wchar_t *path, WIN32_FIND_DATAW *findData)
+{
+	HANDLE h;
+	WIN32_FILE_ATTRIBUTE_DATA fad;
+
+	h = FindFirstFileW(path, findData);
+	if (h != INVALID_HANDLE_VALUE) {
+		FindClose(h);
+		return (0);
+	}
+
+	/*
+	 * FindFirstFileW fails on root directories (e.g. "C:\", "\\?\C:\",
+	 * "\\server\share\"). Fall back to GetFileAttributesExW.
+	 */
+	if (GetFileAttributesExW(path, GetFileExInfoStandard, &fad)) {
+		memset(findData, 0, sizeof(*findData));
+		findData->dwFileAttributes = fad.dwFileAttributes;
+		findData->ftCreationTime = fad.ftCreationTime;
+		findData->ftLastAccessTime = fad.ftLastAccessTime;
+		findData->ftLastWriteTime = fad.ftLastWriteTime;
+		findData->nFileSizeHigh = fad.nFileSizeHigh;
+		findData->nFileSizeLow = fad.nFileSizeLow;
+		return (0);
+	}
+
+	la_dosmaperr(GetLastError());
+	return (-1);
 }
 
 static void
@@ -2258,6 +2293,8 @@ tree_current_access_path(struct tree *t)
 static const wchar_t *
 tree_current_path(struct tree *t)
 {
+	if (t->path.length == 0 && t->stack != NULL)
+		return (t->stack->name.s);
 	return (t->path.s);
 }
 
@@ -2357,14 +2394,11 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			CREATEFILE2_EXTENDED_PARAMETERS createExParams;
 #endif
 
-			h = FindFirstFileW(path, &findData);
-			if (h == INVALID_HANDLE_VALUE) {
-				la_dosmaperr(GetLastError());
+			if (get_find_data(path, &findData) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't FindFirstFileW");
 				return (ARCHIVE_FAILED);
 			}
-			FindClose(h);
 
 			flag = FILE_FLAG_BACKUP_SEMANTICS;
 			if (!a->follow_symlinks &&
