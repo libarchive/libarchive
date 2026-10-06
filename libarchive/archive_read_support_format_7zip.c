@@ -51,13 +51,15 @@
 #endif
 
 #include "archive.h"
+/* Before archive_integer.h, which includes <windows.h> on Cygwin: Windows'
+ * headers define macros (X509_NAME...) that break OpenSSL's headers. */
+#include "archive_cryptor_private.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
 #include "archive_integer.h"
 #include "archive_ppmd7_private.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
-#include "archive_cryptor_private.h"
 #include "archive_time_private.h"
 #include "archive_endian.h"
 
