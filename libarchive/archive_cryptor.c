@@ -561,26 +561,57 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 	return 0;
 }
 
+/*
+ * Block decryption function with the signature that cbc_decrypt() expects.
+ * Only AES-256 is needed for CBC decryption (7-Zip's AES uses 256-bit keys).
+ */
+static void
+aes_cbc_decrypt_block(const void *ctx, size_t length, uint8_t *dst,
+    const uint8_t *src)
+{
+#if NETTLE_VERSION_MAJOR < 3
+	aes_decrypt(ctx, length, dst, src);
+#else
+	aes256_decrypt(ctx, length, dst, src);
+#endif
+}
+
 static int
 decrypto_aes_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key,
     size_t key_len, const uint8_t *iv, size_t iv_len)
 {
-	(void)ctx; (void)key; (void)key_len; (void)iv; (void)iv_len;
-	return CRYPTOR_STUB_FUNCTION;
+	if (key_len != AES256_KEY_SIZE)
+		return -1;
+	memset(ctx, 0, sizeof(*ctx));
+#if NETTLE_VERSION_MAJOR < 3
+	aes_set_decrypt_key(&ctx->ctx, key_len, key);
+#else
+	aes256_set_decrypt_key(&ctx->ctx.c256, key);
+#endif
+	ctx->key_len = (unsigned)key_len;
+	/* The nonce holds the chaining value: the IV at first, then the last
+	 * ciphertext block that was processed. */
+	if (iv != NULL && iv_len <= AES_BLOCK_SIZE)
+		memcpy(ctx->nonce, iv, iv_len);
+	return 0;
 }
 
 static int
 decrypto_aes_cbc_update(archive_crypto_ctx *ctx, const uint8_t * const in,
     size_t in_len, uint8_t * const out, size_t *out_len)
 {
-	(void)ctx; (void)in; (void)in_len; (void)out; (void)out_len;
-	return CRYPTOR_STUB_FUNCTION;
+	if (in_len % AES_BLOCK_SIZE != 0)
+		return -1;
+	cbc_decrypt(&ctx->ctx, aes_cbc_decrypt_block, AES_BLOCK_SIZE,
+	    ctx->nonce, in_len, out, in);
+	*out_len = in_len;
+	return 0;
 }
 
 static int
 decrypto_aes_cbc_release(archive_crypto_ctx *ctx)
 {
-	(void)ctx;
+	memset(ctx, 0, sizeof(*ctx));
 	return 0;
 }
 
