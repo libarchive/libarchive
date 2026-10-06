@@ -670,23 +670,6 @@ archive_read_format_tar_read_header(struct archive_read *a,
 				goto tar_header_done;
 			}
 
-			if (tar->mac_metadata.entry != NULL && r == ARCHIVE_EOF) {
-				tar->pending.status = r;
-				tar->pending.status_pending = 1;
-				tar->pending.header_position = entry_header_position;
-				tar_save_error(&a->archive, &tar->pending.error,
-				    &tar->pending.error_number);
-				tar_swap_entries(entry, tar->mac_metadata.entry);
-				archive_entry_free(tar->mac_metadata.entry);
-				tar->mac_metadata.entry = NULL;
-				tar->mac_metadata_active = 1;
-				tar->mac_metadata_offset = 0;
-				a->header_position = tar->mac_metadata.header_position;
-				tar_restore_error(&a->archive, &tar->mac_metadata.error,
-				    tar->mac_metadata.error_number);
-				return (tar->mac_metadata.status);
-			}
-
 			if (r != ARCHIVE_OK && r != ARCHIVE_WARN)
 				goto tar_header_done;
 
