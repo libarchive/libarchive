@@ -378,7 +378,7 @@ archive_read_set_callback_data2(struct archive *_a, void *client_data,
 		return ARCHIVE_FATAL;
 	}
 	a->client.dataset[iindex].data = client_data;
-	a->client.dataset[iindex].begin_position = -1;
+	a->client.dataset[iindex].begin_position = 0;
 	a->client.dataset[iindex].total_size = -1;
 	return ARCHIVE_OK;
 }
@@ -422,11 +422,11 @@ archive_read_add_callback_data(struct archive *_a, void *client_data,
 
 	for (i = a->client.nodes - 1; i > iindex; i--) {
 		a->client.dataset[i].data = a->client.dataset[i-1].data;
-		a->client.dataset[i].begin_position = -1;
+		a->client.dataset[i].begin_position = 0;
 		a->client.dataset[i].total_size = -1;
 	}
 	a->client.dataset[iindex].data = client_data;
-	a->client.dataset[iindex].begin_position = -1;
+	a->client.dataset[iindex].begin_position = 0;
 	a->client.dataset[iindex].total_size = -1;
 	return ARCHIVE_OK;
 }
@@ -1728,8 +1728,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		cursor = 0;
 		while (1)
 		{
-			if (client->dataset[cursor].begin_position < 0 ||
-			    client->dataset[cursor].total_size < 0 ||
+			if (client->dataset[cursor].total_size < 0 ||
 			    client->dataset[cursor].begin_position +
 			      client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
@@ -1768,8 +1767,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 	case SEEK_END:
 		cursor = 0;
 		while (1) {
-			if (client->dataset[cursor].begin_position < 0 ||
-			    client->dataset[cursor].total_size < 0 ||
+			if (client->dataset[cursor].total_size < 0 ||
 			    cursor + 1 >= client->nodes)
 				break;
 			r = client->dataset[cursor].begin_position +
