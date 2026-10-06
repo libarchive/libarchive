@@ -1970,7 +1970,19 @@ _archive_write_disk_close(struct archive *_a)
 	p = sort_dir_list(a->fixup_list);
 
 	while (p != NULL) {
+		mode_t fmode;
+		BY_HANDLE_FILE_INFORMATION fst;
+
 		a->pst = NULL; /* Mark stat cache as out-of-date. */
+		if (file_information(p->name, &fst, &fmode, 1) != 0 ||
+		    !S_ISDIR(fmode)) {
+			next = p->next;
+			archive_acl_clear(&p->acl);
+			free(p->name);
+			free(p);
+			p = next;
+			continue;
+		}
 		if (p->fixup & TODO_TIMES) {
 			set_times(a, INVALID_HANDLE_VALUE, p->mode, p->name,
 			    p->atime, p->atime_nanos,
@@ -2101,6 +2113,8 @@ new_fixup(struct archive_write_disk *a, const wchar_t *pathname)
 	a->fixup_list = fe;
 	fe->fixup = 0;
 	fe->name = _wcsdup(pathname);
+	if (fe->name != NULL)
+		cleanup_pathname(a, fe->name);
 	fe->fflags_set = 0;
 	return (fe);
 }
