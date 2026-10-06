@@ -1741,10 +1741,13 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 			r = client_switch_proxy(f, cursor);
 			if (r != ARCHIVE_OK)
 				goto clear_buffer;
-			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
-				goto clear_buffer;
-			sought = 1;
-			client->dataset[cursor].total_size = r;
+			if (client->dataset[cursor].total_size < 0) {
+				if ((r = client_seek_proxy(f,
+				    0, SEEK_END)) < 0)
+					goto clear_buffer;
+				sought = 1;
+				client->dataset[cursor].total_size = r;
+			}
 			if (client->dataset[cursor].begin_position +
 			    client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
