@@ -1115,6 +1115,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_group_name_toolong.rar.uu \
 	libarchive/test/test_read_format_rar5_hardlink.rar.uu \
 	libarchive/test/test_read_format_rar5_invalid_dict_reference.rar.uu \
+	libarchive/test/test_read_format_rar5_last_block.rar.uu \
 	libarchive/test/test_read_format_rar5_leftshift1.rar.uu \
 	libarchive/test/test_read_format_rar5_leftshift2.rar.uu \
 	libarchive/test/test_read_format_rar5_loop_bug.rar.uu \
