@@ -2159,6 +2159,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	return (file);
 fail:
 	archive_string_free(&file->name);
+	archive_string_free(&file->symlink);
 	free(file);
 	return (NULL);
 }
