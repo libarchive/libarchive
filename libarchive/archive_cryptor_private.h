@@ -96,6 +96,7 @@ typedef struct {
 #include <nettle/pbkdf2.h>
 #endif
 #include <nettle/aes.h>
+#include <nettle/cbc.h>
 #include <nettle/version.h>
 #define	ARCHIVE_CRYPTOR_USE_NETTLE 1
 
