@@ -1140,7 +1140,8 @@ unzip(const char *fn)
 		}
 	}
 
-	ac(archive_read_free(a));
+	ac(archive_read_close(a));
+	archive_read_free(a);
 
 	if (passphrase_buf != NULL) {
 		explicit_bzero(passphrase_buf, PPBUFF_SIZE);
