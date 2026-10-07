@@ -435,6 +435,7 @@ static void	parse_rockridge_TF1(struct file_info *,
 static void	parse_rockridge_ZF1(struct file_info *,
 		    const unsigned char *, int);
 static void	register_file(struct iso9660 *, struct file_info *);
+static void	release_file(struct file_info *);
 static void	release_files(struct iso9660 *);
 static inline void re_add_entry(struct iso9660 *, struct file_info *);
 static inline struct file_info * re_get_entry(struct iso9660 *);
@@ -2158,9 +2159,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	register_file(iso9660, file);
 	return (file);
 fail:
-	archive_string_free(&file->name);
-	archive_string_free(&file->symlink);
-	free(file);
+	release_file(file);
 	return (NULL);
 }
 
@@ -2763,25 +2762,31 @@ register_file(struct iso9660 *iso9660, struct file_info *file)
 }
 
 static void
-release_files(struct iso9660 *iso9660)
+release_file(struct file_info *file)
 {
 	struct content *con, *connext;
+
+	archive_string_free(&file->name);
+	archive_string_free(&file->symlink);
+	free(file->utf16be_name);
+	con = file->contents.first;
+	while (con != NULL) {
+		connext = con->next;
+		free(con);
+		con = connext;
+	}
+	free(file);
+}
+
+static void
+release_files(struct iso9660 *iso9660)
+{
 	struct file_info *file;
 
 	file = iso9660->use_files;
 	while (file != NULL) {
 		struct file_info *next = file->use_next;
-
-		archive_string_free(&file->name);
-		archive_string_free(&file->symlink);
-		free(file->utf16be_name);
-		con = file->contents.first;
-		while (con != NULL) {
-			connext = con->next;
-			free(con);
-			con = connext;
-		}
-		free(file);
+		release_file(file);
 		file = next;
 	}
 }
