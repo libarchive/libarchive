@@ -178,6 +178,19 @@ only to modules whose name matches
 .\"
 .Sh OPTIONS
 .Bl -tag -compact -width indent
+.It Format 7zip
+.Bl -tag -compact -width indent
+.It Cm seekable-only
+Do not recognize an input as a 7-Zip archive if it cannot seek,
+so that another format, such as
+.Dq raw ,
+can take it over.
+7-Zip archives usually need to be read in a random order.
+By default, an input that looks like a 7-Zip archive is always handled as such,
+and reading it fails if it cannot seek.
+An input cannot seek if it is decompressed by a filter,
+or if no seek callback was provided.
+.El
 .It Format cab
 .Bl -tag -compact -width indent
 .It Cm hdrcharset

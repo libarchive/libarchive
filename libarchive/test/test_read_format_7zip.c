@@ -2241,3 +2241,82 @@ DEFINE_TEST(test_read_format_7zip_lzma1_powerpc)
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * By default, 7-Zip bids for an input that it recognizes, even if it can't
+ * seek. With the "seekable-only" option, it doesn't, and another format, such
+ * as "raw", can take the input over.
+ */
+DEFINE_TEST(test_read_format_7zip_seekable_only)
+{
+	const char *refname = "test_read_format_7zip_copy.7z";
+	struct archive_entry *ae;
+	struct archive *a;
+	char *data;
+	size_t size;
+	char buff[1024];
+
+	extract_reference_file(refname);
+	data = slurpfile(&size, "%s", refname);
+	assert(size > 0 && size < sizeof(buff));
+
+	/* An input that can't seek is read as a 7-Zip archive by default. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, data, size, 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_FORMAT_7ZIP, archive_format(a));
+	assertEqualString("file1", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* With the option, the "raw" format takes the input over. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "7zip:seekable-only"));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, data, size, 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_FORMAT_RAW, archive_format(a));
+	assertEqualInt((int)size, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(buff, data, size);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Without another format to fall back on, the input is rejected. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format_option(a, "7zip", "seekable-only", "1"));
+	assertEqualIntA(a, ARCHIVE_FATAL, read_open_memory(a, data, size, 7));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* An input that can seek is still read as a 7-Zip archive. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "7zip:seekable-only"));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, data, size, 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_FORMAT_7ZIP, archive_format(a));
+	assertEqualString("file1", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* The option can be turned off. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_options(a, "7zip:seekable-only,7zip:!seekable-only"));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, data, size, 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_FORMAT_7ZIP, archive_format(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	free(data);
+}
