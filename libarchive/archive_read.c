@@ -1728,7 +1728,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 			if (client->dataset[cursor].begin_position < 0 ||
 			    client->dataset[cursor].total_size < 0 ||
 			    client->dataset[cursor].begin_position +
-			      client->dataset[cursor].total_size - 1 > offset ||
+			      client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
 				break;
 			r = client->dataset[cursor].begin_position +
@@ -1743,7 +1743,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 				goto clear_buffer;
 			client->dataset[cursor].total_size = r;
 			if (client->dataset[cursor].begin_position +
-			    client->dataset[cursor].total_size - 1 > offset ||
+			    client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
 				break;
 			r = client->dataset[cursor].begin_position +
