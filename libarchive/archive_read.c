@@ -1657,13 +1657,13 @@ advance_file_pointer(struct archive_read_filter *f, int64_t request)
 		 */
 		int64_t bytes_skipped;
 		int64_t before = f->position;
-		int64_t after = client_seek_proxy(f, request, SEEK_CUR);
+		int64_t after = __archive_read_filter_seek(f,
+		    request, SEEK_CUR);
 		if (after != before + request) {
 			f->fatal = 1;
 			return (ARCHIVE_FATAL);
 		}
 		bytes_skipped = after - before;
-		f->position += bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 		request -= bytes_skipped;
 		if (request == 0)
