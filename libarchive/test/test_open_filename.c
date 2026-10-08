@@ -24,7 +24,12 @@
  */
 #include "test.h"
 
+#ifdef HAVE_LOCALE_H
 #include <locale.h>
+#endif
+
+#define __LIBARCHIVE_TEST
+#include "archive_read_private.h"
 
 static void
 test_open_filename_mbs(void)
@@ -205,7 +210,9 @@ DEFINE_TEST(test_open_filename_wcs_oob)
 	struct archive *a;
 
 	/* Continue even if not available for best test coverage. */
+#ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "en_US.UTF-8");
+#endif
 
 	/*
 	 * Try to open file with filename which might use more bytes in
@@ -217,6 +224,43 @@ DEFINE_TEST(test_open_filename_wcs_oob)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_filename_w(a, L"\u20AC\u20AC\u20AC", 512));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * A pipe can never seek, but a regular file can.
+ */
+DEFINE_TEST(test_open_filename_seekability)
+{
+	struct archive *a;
+
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	int fd;
+
+	/* Keep the pipe open for writing, so that opening it for reading
+	 * doesn't block. */
+	assertEqualInt(0, mkfifo("fifo", 0600));
+	fd = open("fifo", O_RDWR);
+	assert(fd >= 0);
+	assertEqualInt(1, write(fd, "x", 1));
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, "fifo", 512));
+	assertEqualInt(0, ((struct archive_read *)a)->filter->can_seek);
+	assertEqualInt(0, ((struct archive_read *)a)->filter->can_skip);
+	/* Closing the archive reads the pipe until its end. */
+	close(fd);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
+
+	assertMakeFile("file", 0600, "x");
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, "file", 512));
+	assertEqualInt(1, ((struct archive_read *)a)->filter->can_seek);
+	assertEqualInt(1, ((struct archive_read *)a)->filter->can_skip);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
