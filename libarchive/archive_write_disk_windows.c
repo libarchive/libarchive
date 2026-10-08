@@ -1202,16 +1202,14 @@ _archive_write_disk_finish_entry(struct archive *_a)
 
 	/*
 	 * Look up the "real" UID only if we're going to need it.
-	 * TODO: the TODO_SGID condition can be dropped here, can't it?
 	 */
-	if (a->todo & (TODO_OWNER | TODO_SUID | TODO_SGID)) {
+	if (a->todo & (TODO_OWNER | TODO_SUID)) {
 		a->uid = archive_write_disk_uid(&a->archive,
 		    archive_entry_uname(a->entry),
 		    archive_entry_uid(a->entry));
 	}
 	/* Look up the "real" GID only if we're going to need it. */
-	/* TODO: the TODO_SUID condition can be dropped here, can't it? */
-	if (a->todo & (TODO_OWNER | TODO_SGID | TODO_SUID)) {
+	if (a->todo & (TODO_OWNER | TODO_SGID)) {
 		a->gid = archive_write_disk_gid(&a->archive,
 		    archive_entry_gname(a->entry),
 		    archive_entry_gid(a->entry));
