@@ -24,6 +24,9 @@
  */
 #include "test.h"
 
+#define __LIBARCHIVE_TEST
+#include "archive_read_private.h"
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define open _open
 #if !defined(__BORLANDC__)
@@ -130,4 +133,45 @@ DEFINE_TEST(test_open_fd)
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
+}
+
+/*
+ * A pipe can never seek, but a regular file can.
+ */
+DEFINE_TEST(test_open_fd_seekability)
+{
+	struct archive *a;
+	int fd;
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	int fds[2];
+
+	assertEqualInt(0, pipe(fds));
+	assertEqualInt(1, write(fds[1], "x", 1));
+	close(fds[1]);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_fd(a, fds[0], 512));
+	assertEqualInt(0, ((struct archive_read *)a)->filter->can_seek);
+	assertEqualInt(0, ((struct archive_read *)a)->filter->can_skip);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	close(fds[0]);
+#endif
+
+#if defined(__BORLANDC__)
+	fd = open("file", O_RDWR | O_CREAT | O_BINARY);
+#else
+	fd = open("file", O_RDWR | O_CREAT | O_BINARY, 0600);
+#endif
+	assert(fd >= 0);
+	assertEqualInt(1, write(fd, "x", 1));
+	assertEqualInt(0, lseek(fd, 0, SEEK_SET));
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_fd(a, fd, 512));
+	assertEqualInt(1, ((struct archive_read *)a)->filter->can_seek);
+	assertEqualInt(1, ((struct archive_read *)a)->filter->can_skip);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	close(fd);
 }

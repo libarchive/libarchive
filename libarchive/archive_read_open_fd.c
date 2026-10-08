@@ -105,8 +105,13 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 #endif
 
 	archive_read_set_read_callback(a, file_read);
-	archive_read_set_skip_callback(a, file_skip);
-	archive_read_set_seek_callback(a, file_seek);
+	if (la_use_seek(&st)) {
+		archive_read_set_skip_callback(a, file_skip);
+		archive_read_set_seek_callback(a, file_seek);
+	} else {
+		/* A pipe or a socket can't skip or seek. */
+		mine->use_lseek = 0;
+	}
 	archive_read_set_close_callback(a, file_close);
 	r = archive_read_set_callback_data(a, mine);
 	if (r < 0) {
