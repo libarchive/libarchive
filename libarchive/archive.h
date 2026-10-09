@@ -274,7 +274,8 @@ typedef la_int64_t	archive_skip_callback(struct archive *,
 
 /* Seeks to specified location in the file and returns the position.
  * Whence values are SEEK_SET, SEEK_CUR, SEEK_END from stdio.h.
- * Return ARCHIVE_FATAL if the seek fails for any reason.
+ * Return ARCHIVE_FAILED if the seek failed in a way that keeps its
+ * current read position, ARCHIVE_FATAL for any other error reason.
  */
 typedef la_int64_t	archive_seek_callback(struct archive *,
     void *_client_data, la_int64_t offset, int whence);

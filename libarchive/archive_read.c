@@ -1708,7 +1708,8 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 {
 	struct archive_read_client *client;
 	int64_t r;
-	unsigned int cursor;
+	unsigned int cursor, old_cursor;
+	int sought = 0;
 
 	if (f->closed || f->fatal)
 		return (ARCHIVE_FATAL);
@@ -1716,6 +1717,8 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		return (ARCHIVE_FAILED);
 
 	client = &(f->archive->client);
+	old_cursor = client->cursor;
+
 	switch (whence) {
 	case SEEK_CUR:
 		/* Adjust the offset and use SEEK_SET instead */
@@ -1741,6 +1744,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 				goto clear_buffer;
 			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
 				goto clear_buffer;
+			sought = 1;
 			client->dataset[cursor].total_size = r;
 			if (client->dataset[cursor].begin_position +
 			    client->dataset[cursor].total_size > offset ||
@@ -1758,6 +1762,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		}
 		if ((r = client_seek_proxy(f, offset, SEEK_SET)) < 0)
 			goto clear_buffer;
+		sought = 1;
 		break;
 
 	case SEEK_END:
@@ -1777,6 +1782,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 				goto clear_buffer;
 			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
 				goto clear_buffer;
+			sought = 1;
 			client->dataset[cursor].total_size = r;
 			r = client->dataset[cursor].begin_position +
 				client->dataset[cursor].total_size;
@@ -1801,6 +1807,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		r = client_seek_proxy(f, offset, SEEK_SET);
 		if (r < ARCHIVE_OK)
 			goto clear_buffer;
+		sought = 1;
 		break;
 
 	default:
@@ -1809,6 +1816,11 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 	r += client->dataset[cursor].begin_position;
 
 clear_buffer:
+	if (r == ARCHIVE_FAILED && !sought && old_cursor == client->cursor) {
+		/* Seek failed without moving position: keep buffer */
+		return (r);
+	}
+
 	/*
 	 * Ouch.  Clearing the buffer like this hurts, especially
 	 * at bid time.  A lot of our efficiency at bid time comes
