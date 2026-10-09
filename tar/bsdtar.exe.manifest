@@ -8,8 +8,10 @@
     </security>
   </trustInfo>
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
-    <windowsSettings xmlns:ws2="http://schemas.microsoft.com/SMI/2016/WindowsSettings">
+    <windowsSettings xmlns:ws2="http://schemas.microsoft.com/SMI/2016/WindowsSettings"
+                     xmlns:ws3="http://schemas.microsoft.com/SMI/2019/WindowsSettings">
       <ws2:longPathAware>true</ws2:longPathAware>
+      <ws3:activeCodePage>UTF-8</ws3:activeCodePage>
     </windowsSettings>
   </application>
 </assembly>
