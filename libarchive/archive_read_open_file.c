@@ -162,7 +162,7 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 	}
 
 #ifdef __ANDROID__
-        /* fileno() isn't safe on all platforms ... see above. */
+	/* fileno() isn't safe on all platforms ... see above. */
 	old_offset = lseek(fileno(mine->f), 0, SEEK_CUR);
 #elif HAVE__FSEEKI64
 	old_offset = _ftelli64(mine->f);
@@ -209,8 +209,14 @@ FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
 #else
 	long seek = (long)request;
 #endif
+	int64_t old_offset = -1, new_offset = -2;
 	int seek_bits = sizeof(seek) * 8 - 1;
+
 	(void)a; /* UNUSED */
+
+	/* If we can't seek, return ARCHIVE_FAILED. */
+	if (!mine->can_skip)
+		return (ARCHIVE_FAILED);
 
 	/* Do not perform a seek which cannot be fulfilled. */
 	if (sizeof(request) > sizeof(seek)) {
@@ -224,28 +230,41 @@ FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
 	}
 
 #ifdef __ANDROID__
-	/* Newer Android versions have fseeko...to meditate. */
-	int64_t ret = lseek(fileno(mine->f), seek, whence);
-	if (ret >= 0) {
-		return ret;
-	}
+	/* fileno() isn't safe on all platforms ... see above. */
+	old_offset = lseek(fileno(mine->f), 0, whence);
 #elif HAVE__FSEEKI64
-	if (_fseeki64(mine->f, seek, whence) == 0) {
-		return _ftelli64(mine->f);
-	}
+	old_offset = _ftelli64(mine->f);
 #elif HAVE_FSEEKO
-	if (fseeko(mine->f, seek, whence) == 0) {
-		return ftello(mine->f);
-	}
+	old_offset = ftello(mine->f);
 #else
-	if (fseek(mine->f, seek, whence) == 0) {
-		return ftell(mine->f);
-	}
+	old_offset = ftell(mine->f);
 #endif
-	/* If we arrive here, the input is corrupted or truncated so fail. */
+	if (old_offset >= 0) {
+#ifdef __ANDROID__
+		/* Newer Android versions have fseeko...to meditate. */
+		new_offset = lseek(fileno(mine->f), seek, whence);
+#elif HAVE__FSEEKI64
+		if (_fseeki64(mine->f, seek, whence) == 0)
+			new_offset = _ftelli64(mine->f);
+#elif HAVE_FSEEKO
+		if (fseeko(mine->f, seek, whence) == 0)
+			new_offset = ftello(mine->f);
+#else
+		if (fseek(mine->f, seek, whence) == 0)
+			new_offset = ftell(mine->f);
+#endif
+		if (new_offset >= 0)
+			return (new_offset);
+	}
+
 err:
+	/*
+	 * If we arrive here, the input does not support seeking,
+	 * is corrupted, or is truncated so fail.
+	 */
+	mine->can_skip = 0;
 	archive_set_error(a, errno, "Error seeking in FILE* pointer");
-	return (ARCHIVE_FATAL);
+	return (old_offset == new_offset ? ARCHIVE_FAILED : ARCHIVE_FATAL);
 }
 
 static int

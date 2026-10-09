@@ -248,12 +248,12 @@ memory_read_seek(struct archive *a, void *client_data,
 		p = mine->end + offset;
 		break;
 	default:
-		return ARCHIVE_FATAL;
+		return ARCHIVE_FAILED;
 	}
 	if (p < mine->start)
-		return ARCHIVE_FATAL;
+		return ARCHIVE_FAILED;
 	if (p > mine->end)
-		return ARCHIVE_FATAL;
+		return ARCHIVE_FAILED;
 	mine->p = p;
 	return (mine->p - mine->start);
 }

@@ -215,16 +215,10 @@ file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 		return r;
 
 err:
-	if (errno == ESPIPE) {
-		archive_set_error(a, errno,
-		    "A file descriptor(%d) is not seekable(PIPE)", mine->fd);
-		return (ARCHIVE_FAILED);
-	} else {
-		/* If the input is corrupted or truncated, fail. */
-		archive_set_error(a, errno,
-		    "Error seeking in a file descriptor(%d)", mine->fd);
-		return (ARCHIVE_FATAL);
-	}
+	/* If the input is corrupted or truncated, fail. */
+	archive_set_error(a, errno,
+	    "Error seeking in a file descriptor(%d)", mine->fd);
+	return (ARCHIVE_FAILED);
 }
 
 static int

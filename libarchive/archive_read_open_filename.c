@@ -593,7 +593,7 @@ err:
 	else
 		archive_set_error(a, errno, "Error seeking in '%ls'",
 		    mine->filename.w);
-	return (ARCHIVE_FATAL);
+	return (ARCHIVE_FAILED);
 }
 
 static int
