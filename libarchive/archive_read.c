@@ -1657,13 +1657,13 @@ advance_file_pointer(struct archive_read_filter *f, int64_t request)
 		 */
 		int64_t bytes_skipped;
 		int64_t before = f->position;
-		int64_t after = client_seek_proxy(f, request, SEEK_CUR);
+		int64_t after = __archive_read_filter_seek(f,
+		    request, SEEK_CUR);
 		if (after != before + request) {
 			f->fatal = 1;
 			return (ARCHIVE_FATAL);
 		}
 		bytes_skipped = after - before;
-		f->position += bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 		request -= bytes_skipped;
 		if (request == 0)
@@ -1728,7 +1728,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 			if (client->dataset[cursor].begin_position < 0 ||
 			    client->dataset[cursor].total_size < 0 ||
 			    client->dataset[cursor].begin_position +
-			      client->dataset[cursor].total_size - 1 > offset ||
+			      client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
 				break;
 			r = client->dataset[cursor].begin_position +
@@ -1743,7 +1743,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 				goto clear_buffer;
 			client->dataset[cursor].total_size = r;
 			if (client->dataset[cursor].begin_position +
-			    client->dataset[cursor].total_size - 1 > offset ||
+			    client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
 				break;
 			r = client->dataset[cursor].begin_position +
