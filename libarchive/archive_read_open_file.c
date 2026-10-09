@@ -55,7 +55,7 @@ struct read_FILE_data {
 	size_t	 block_size;
 	int64_t	 size;
 	void	*buffer;
-	char	 can_skip;
+	char	 use_seek;
 };
 
 static int	FILE_close(struct archive *, void *);
@@ -93,7 +93,7 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	if (la_seek_fstat(fileno(mine->f), &st) == 0 && S_ISREG(st.st_mode)) {
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		/* Enable the seek optimization only for regular files. */
-		mine->can_skip = 1;
+		mine->use_seek = 1;
 		mine->size = st.st_size;
 	}
 
@@ -148,7 +148,7 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 	 * If we can't skip, return 0 as the amount we did step and
 	 * the caller will work around by reading and discarding.
 	 */
-	if (!mine->can_skip)
+	if (!mine->use_seek)
 		return (0);
 	if (request == 0)
 		return (0);
@@ -191,7 +191,7 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 		}
 	}
 
-	mine->can_skip = 0;
+	mine->use_seek = 0;
 	return (0);
 }
 
@@ -215,7 +215,7 @@ FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
 	(void)a; /* UNUSED */
 
 	/* If we can't seek, return ARCHIVE_FAILED. */
-	if (!mine->can_skip)
+	if (!mine->use_seek)
 		return (ARCHIVE_FAILED);
 
 	/* Do not perform a seek which cannot be fulfilled. */
@@ -262,7 +262,7 @@ err:
 	 * If we arrive here, the input does not support seeking,
 	 * is corrupted, or is truncated so fail.
 	 */
-	mine->can_skip = 0;
+	mine->use_seek = 0;
 	archive_set_error(a, errno, "Error seeking in FILE* pointer");
 	return (old_offset == new_offset ? ARCHIVE_FAILED : ARCHIVE_FATAL);
 }
