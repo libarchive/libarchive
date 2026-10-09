@@ -84,8 +84,9 @@ Block output to records of 5120 bytes.
 Encode the archive with base64, after any compression.
 In input mode, this option is ignored; base64-encoded archives are
 recognized automatically on input.
-This option cannot be combined with
-.Fl Fl uuencode .
+If both this option and
+.Fl Fl uuencode
+are given, the last one specified is used.
 .It Fl C Ar size
 (o mode only)
 Block output to records of
@@ -284,8 +285,9 @@ Encode the archive with
 after any compression.
 In input mode, this option is ignored; uuencoded archives are
 recognized automatically on input.
-This option cannot be combined with
-.Fl Fl b64encode .
+If both this option and
+.Fl Fl b64encode
+are given, the last one specified is used.
 .It Fl V , Fl Fl dot
 Print a dot to stderr for each file as it is processed.
 Superseded by
