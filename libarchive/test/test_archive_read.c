@@ -207,10 +207,31 @@ memory_read(struct archive *a, void *client_data, const void **buff)
 }
 
 /*
+ * Advancing is just as simple.  Again, this is doing more than
+ * necessary in order to better exercise internal code when used
+ * as a test harness.
+ */
+static int64_t
+memory_read_skip(struct archive *a, void *client_data, int64_t skip)
+{
+	struct read_memory_data *mine = (struct read_memory_data *)client_data;
+
+	(void)a; /* UNUSED */
+	if ((int64_t)skip > (int64_t)(mine->end - mine->p))
+		skip = mine->end - mine->p;
+	/* Round down to block size. */
+	skip /= mine->read_size;
+	skip *= mine->read_size;
+	mine->p += skip;
+	return (skip);
+}
+
+/*
  * Seeking.
  */
 static int64_t
-memory_read_seek(struct archive *a, void *client_data, int64_t offset, int whence)
+memory_read_seek(struct archive *a, void *client_data,
+    int64_t offset, int whence)
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 	const unsigned char *p;
@@ -235,6 +256,22 @@ memory_read_seek(struct archive *a, void *client_data, int64_t offset, int whenc
 		return ARCHIVE_FATAL;
 	mine->p = p;
 	return (mine->p - mine->start);
+}
+
+/*
+ * Seeking always fails.
+ */
+static int64_t
+memory_read_failing_seek(struct archive *a, void *client_data,
+    int64_t offset, int whence)
+{
+	(void)a; /* UNUSED */
+	(void)client_data;
+	(void)offset;
+	(void)whence;
+
+	errno = ESPIPE;
+	return (ARCHIVE_FAILED);
 }
 
 /*
@@ -349,4 +386,43 @@ DEFINE_TEST(test_archive_read_consume_beyond_eof)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_archive_read_seek_fails)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	struct read_memory_data *mine;
+	char *buff;
+	size_t size;
+
+	size = 1024;
+	buff = calloc(1, size);
+	assert(buff != NULL);
+
+	assert((a = archive_read_new()) != NULL);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	/* Create memory reader which fails seeking. */
+	mine = calloc(1, sizeof(*mine));
+	assert(mine != NULL);
+	mine->start = mine->p = (const unsigned char *)buff;
+	mine->end = mine->start + size;
+	mine->read_size = 512;
+	archive_read_set_open_callback(a, memory_read_open);
+	archive_read_set_read_callback(a, memory_read);
+	archive_read_set_seek_callback(a, memory_read_failing_seek);
+	archive_read_set_skip_callback(a, memory_read_skip);
+	archive_read_set_close_callback(a, memory_read_close);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_set_callback_data(a, mine));
+
+	/* Read empty tar archive. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open1(a));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FORMAT_TAR, archive_format(a));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(buff);
 }
