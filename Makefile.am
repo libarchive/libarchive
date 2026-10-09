@@ -638,6 +638,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_ntfs_precedence.c \
 	libarchive/test/test_read_format_zip_ntfs_timestamp.c \
 	libarchive/test/test_read_format_zip_padded.c \
+	libarchive/test/test_read_format_zip_passphrase_errno.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_size_exceeds_declared.c \
 	libarchive/test/test_read_format_zip_symlink_unsupported_compression.c \

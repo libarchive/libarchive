@@ -1002,7 +1002,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
         archive_entry_set_is_metadata_encrypted(entry, 1);
         archive_entry_set_is_data_encrypted(entry, 1);
         rar->has_encrypted_entries = 1;
-         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+         archive_set_error(&a->archive, ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
                           "RAR encryption support unavailable");
         return (ARCHIVE_FATAL);
       }
@@ -1116,6 +1116,16 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
     *size = 0;
     *offset = rar->offset;
     return (ARCHIVE_EOF);
+  }
+
+  if (rar->file_flags & FHD_PASSWORD)
+  {
+    /* The data is encrypted, and we can't decrypt it. Fail with that
+     * reason, rather than with whatever error decoding the ciphertext
+     * ends up causing. */
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
+                      "RAR encryption support unavailable");
+    return (ARCHIVE_FAILED);
   }
 
   switch (rar->compression_method)
@@ -1469,7 +1479,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   {
     archive_entry_set_is_data_encrypted(entry, 1);
     rar->has_encrypted_entries = 1;
-    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
                       "RAR encryption support unavailable");
     /* Since it is only the data part itself that is encrypted we can at least
        extract information about the currently processed entry and don't need

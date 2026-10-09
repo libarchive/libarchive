@@ -1711,7 +1711,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			archive_entry_set_is_data_encrypted(a->entry, 1);
 			zip->has_encrypted_entries = 1;
 		}
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 		    "Crypto codec not supported yet (ID: 0x%jX)",
 		    (uintmax_t)zip->codec);
 		return (ARCHIVE_FAILED);
@@ -3980,7 +3980,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 					archive_entry_set_is_metadata_encrypted(a->entry, 1);
 				}
 				archive_set_error(&(a->archive),
-					ARCHIVE_ERRNO_MISC,
+					ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED,
 					"The %s is encrypted, "
 					"but currently not supported", cname);
 				return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);

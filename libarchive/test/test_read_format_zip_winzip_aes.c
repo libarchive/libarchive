@@ -68,6 +68,7 @@ test_winzip_aes(const char *refname, int need_libz)
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
 	assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(ARCHIVE_ERRNO_PASSPHRASE_REQUIRED, archive_errno(a));
 	assertEqualInt(1, archive_file_count(a));
 
 	/* End of archive. */
