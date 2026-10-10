@@ -631,6 +631,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_lzma_alone_large_size.c \
 	libarchive/test/test_read_format_zip_mac_metadata.c \
 	libarchive/test/test_read_format_zip_malformed.c \
+	libarchive/test/test_read_format_zip_malformed_extra_warn.c \
 	libarchive/test/test_read_format_zip_msdos.c \
 	libarchive/test/test_read_format_zip_negative_timestamps.c \
 	libarchive/test/test_read_format_zip_nested.c \
