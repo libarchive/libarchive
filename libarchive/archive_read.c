@@ -482,8 +482,6 @@ archive_read_open1(struct archive *_a)
 	f->vtable = &none_reader_vtable;
 	f->name = "none";
 	f->code = ARCHIVE_FILTER_NONE;
-	f->can_skip = a->client.skipper != NULL;
-	f->can_seek = a->client.seeker != NULL;
 
 	/* Open data source. */
 	if (a->client.opener != NULL) {
@@ -496,6 +494,13 @@ archive_read_open1(struct archive *_a)
 			return (e);
 		}
 	}
+
+	/*
+	 * The opener may have found out that the data source can't skip or
+	 * seek, so check the callbacks only now.
+	 */
+	f->can_skip = a->client.skipper != NULL;
+	f->can_seek = a->client.seeker != NULL;
 
 	a->client.dataset[0].begin_position = 0;
 	if (!a->filter || !a->bypass_filter_bidding)
