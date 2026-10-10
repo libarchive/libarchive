@@ -110,6 +110,7 @@ archive_read_append_filter(struct archive *_a, int code)
     case ARCHIVE_FILTER_XZ:
       r1 = archive_read_support_filter_xz(_a);
       break;
+    case ARCHIVE_FILTER_B64:
     case ARCHIVE_FILTER_UU:
       r1 = archive_read_support_filter_uu(_a);
       break;
