@@ -185,6 +185,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_set_format.c \
 	libarchive/archive_read_set_options.c \
 	libarchive/archive_read_support_filter_all.c \
+	libarchive/archive_read_support_filter_brotli.c \
 	libarchive/archive_read_support_filter_by_code.c \
 	libarchive/archive_read_support_filter_bzip2.c \
 	libarchive/archive_read_support_filter_compress.c \
@@ -480,6 +481,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_extract.c \
 	libarchive/test/test_read_file_nonexistent.c \
 	libarchive/test/test_read_files_compressed.c \
+	libarchive/test/test_read_filter_brotli.c \
 	libarchive/test/test_read_filter_compress.c \
 	libarchive/test/test_read_filter_grzip.c \
 	libarchive/test/test_read_filter_gzip_recursive.c \

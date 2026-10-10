@@ -134,6 +134,9 @@ archive_read_append_filter(struct archive *_a, int code)
     case ARCHIVE_FILTER_GRZIP:
       r1 = archive_read_support_filter_grzip(_a);
       break;
+    case ARCHIVE_FILTER_BROTLI:
+      r1 = archive_read_support_filter_brotli(_a);
+      break;
     default:
       archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
           "Invalid filter code specified");
