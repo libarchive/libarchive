@@ -94,6 +94,8 @@ struct zip_entry {
 	int64_t			gid;
 	int64_t			uid;
 	struct archive_string	rsrcname;
+	/* The "linked to" file name from a PKWARE Unix extra field. */
+	struct archive_string	link_name;
 	time_t			mtime;
 	time_t			atime;
 	time_t			ctime;
@@ -103,12 +105,15 @@ struct zip_entry {
 	uint32_t		mtime_ns;
 	uint32_t		atime_ns;
 	uint32_t		btime_ns;
+	/* Device numbers from a PKWARE Unix extra field */
+	uint32_t		rdevmajor;
+	uint32_t		rdevminor;
 	uint32_t		crc32;
 	uint16_t		mode;
 	uint16_t		zip_flags; /* From GP Flags Field */
+	uint16_t		flags; /* Our extra markers. */
 	unsigned char		compression;
 	unsigned char		system; /* From "version written by" */
-	unsigned char		flags; /* Our extra markers. */
 	unsigned char		decdat;/* Used for Decryption check */
 
 	/* WinZip AES encryption extra field should be available
@@ -148,6 +153,10 @@ struct trad_enc_ctx {
 #define LA_NTFS_MTIME (1 << 5)
 #define LA_NTFS_ATIME (1 << 6)
 #define LA_NTFS_BTIME (1 << 7)
+/* A PKWARE Unix extra field supplied device numbers. */
+#define LA_HAS_RDEV (1 << 8)
+/* The PKWARE hard link flag is set in the external attributes. */
+#define LA_PKWARE_HARDLINK (1 << 9)
 
 /*
  * See "WinZip - AES Encryption Information"
@@ -684,6 +693,99 @@ to_time_t(uint32_t raw)
  *	id1+size1+data1 + id2+size2+data2 ...
  *  triplets.  id and size are 2 bytes each.
  */
+/*
+ * Is this the file type of a Unix mode? The type tells that the mode is
+ * really a Unix one, and not just some bits that happen to be set.
+ */
+static int
+is_unix_file_type(unsigned mode)
+{
+	switch (mode & AE_IFMT) {
+	case AE_IFREG:
+	case AE_IFDIR:
+	case AE_IFLNK:
+	case AE_IFCHR:
+	case AE_IFBLK:
+	case AE_IFIFO:
+	case AE_IFSOCK:
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+/*
+ * Sets the mode of an entry from its external file attributes, according to
+ * the system that made the entry.
+ */
+static void
+set_mode_from_external_attributes(struct zip_entry *zip_entry,
+    uint32_t external_attributes)
+{
+	const uint16_t unix_mode = (uint16_t)(external_attributes >> 16);
+
+	/*
+	 * The upper 16 bits are a Unix mode if the system is Unix. PKZIP for
+	 * Unix says that the system is MS-DOS, which is the value that
+	 * PKWARE's APPNOTE tells to use when the attributes can be read by
+	 * PKZIP for DOS, but it also stores a Unix mode there. Trust it if
+	 * it has a valid file type.
+	 */
+	if (zip_entry->system == 3 ||
+	    (zip_entry->system == 0 && is_unix_file_type(unix_mode))) {
+		zip_entry->mode = unix_mode;
+		/* PKWARE's hard link flag. The name of the original file is
+		 * in the PKWARE Unix extra field. */
+		if ((external_attributes & 0x800) != 0 &&
+		    (unix_mode & AE_IFMT) != AE_IFDIR)
+			zip_entry->flags |= LA_PKWARE_HARDLINK;
+	} else if (zip_entry->system == 0) {
+		// Interpret MSDOS directory bit
+		if (0x10 == (external_attributes & 0x10)) {
+			zip_entry->mode = AE_IFDIR | 0775;
+		} else {
+			zip_entry->mode = AE_IFREG | 0664;
+		}
+		if (0x01 == (external_attributes & 0x01)) {
+			// Read-only bit; strip write permissions
+			zip_entry->mode &= 0555;
+		}
+	} else {
+		zip_entry->mode = 0;
+	}
+}
+
+/*
+ * Processes the variable data that ends a PKWARE Unix extra field, after
+ * the access and modification times, the user ID and the group ID. It
+ * depends on the file type. It is made of the major and minor device
+ * numbers, as two little-endian 32-bit values, for a device. It is the name
+ * of the original file, which is not NUL-terminated, for a link.
+ *
+ * It is only meaningful if the file type is known, which is the case with
+ * the Central Directory entries of the seekable reader, but not when
+ * reading a Local Header alone.
+ */
+static void
+process_pkware_unix_data(struct zip_entry *zip_entry, const char *data,
+    size_t size)
+{
+	switch (zip_entry->mode & AE_IFMT) {
+	case AE_IFCHR:
+	case AE_IFBLK:
+		if (size >= 8) {
+			zip_entry->rdevmajor = archive_le32dec(data);
+			zip_entry->rdevminor = archive_le32dec(data + 4);
+			zip_entry->flags |= LA_HAS_RDEV;
+		}
+		break;
+	case AE_IFREG:
+	case AE_IFLNK:
+		archive_strncpy(&zip_entry->link_name, data, size);
+		break;
+	}
+}
+
 static int
 process_extra(struct archive_read *a, struct archive_entry *entry,
      const char *p, size_t extra_length, struct zip_entry* zip_entry)
@@ -885,7 +987,12 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 				/*
 				 * APPNOTE.TXT also defines additional data after
 				 * this fixed metadata, depending on file type.
+				 * Only the entries of the Central Directory have
+				 * a known file type to interpret it with.
 				 */
+				if (zip_entry->flags & LA_FROM_CENTRAL_DIRECTORY)
+					process_pkware_unix_data(zip_entry,
+					    p + offset + 12, datasize - 12);
 			}
 			break;
 #ifdef DEBUG
@@ -1061,28 +1168,8 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 					break;
 				external_attributes
 				    = archive_le32dec(p + offset);
-				if (zip_entry->system == 3) {
-					zip_entry->mode
-					    = external_attributes >> 16;
-				} else if (zip_entry->system == 0) {
-					// Interpret MSDOS directory bit
-					if (0x10 == (external_attributes &
-					    0x10)) {
-						zip_entry->mode =
-						    AE_IFDIR | 0775;
-					} else {
-						zip_entry->mode =
-						    AE_IFREG | 0664;
-					}
-					if (0x01 == (external_attributes &
-					    0x01)) {
-						/* Read-only bit;
-						 * strip write permissions */
-						zip_entry->mode &= 0555;
-					}
-				} else {
-					zip_entry->mode = 0;
-				}
+				set_mode_from_external_attributes(zip_entry,
+				    external_attributes);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -1236,6 +1323,21 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 /*
  * Assumes file pointer is at beginning of local file header.
  */
+/*
+ * The character set conversion to use for the name of a link.
+ */
+static struct archive_string_conv *
+link_name_sconv(struct zip *zip)
+{
+	struct archive_string_conv *sconv = zip->sconv;
+
+	if (sconv == NULL && (zip->entry->zip_flags & ZIP_UTF8_NAME))
+		sconv = zip->sconv_utf8;
+	if (sconv == NULL)
+		sconv = zip->sconv_default;
+	return (sconv);
+}
+
 static int
 zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
     struct zip *zip)
@@ -1508,6 +1610,35 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		archive_entry_set_birthtime(entry, zip_entry->btime,
 		    zip_entry->btime_ns);
 
+	/* Data from a PKWARE Unix extra field of the Central Directory. */
+	if ((zip_entry->flags & LA_HAS_RDEV) &&
+	    ((zip_entry->mode & AE_IFMT) == AE_IFCHR ||
+	     (zip_entry->mode & AE_IFMT) == AE_IFBLK)) {
+		archive_entry_set_rdevmajor(entry, zip_entry->rdevmajor);
+		archive_entry_set_rdevminor(entry, zip_entry->rdevminor);
+	}
+	if ((zip_entry->flags & LA_PKWARE_HARDLINK) &&
+	    (zip_entry->mode & AE_IFMT) == AE_IFREG &&
+	    zip_entry->compressed_size == 0 &&
+	    archive_strlen(&zip_entry->link_name) > 0) {
+		sconv = link_name_sconv(zip);
+
+		if (archive_entry_copy_hardlink_l(entry,
+		    zip_entry->link_name.s, archive_strlen(&zip_entry->link_name),
+		    sconv) != 0) {
+			if (errno == ENOMEM) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for hard link");
+				return (ARCHIVE_FATAL);
+			}
+			/* There is no character set regulation for the names
+			 * of links: use it as it is. */
+			archive_entry_copy_hardlink_l(entry,
+			    zip_entry->link_name.s,
+			    archive_strlen(&zip_entry->link_name), NULL);
+		}
+	}
+
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
 
@@ -1521,9 +1652,17 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 
 		archive_entry_set_size(entry, 0);
 
-		// take into account link compression if any
 		size_t linkname_full_length = linkname_length;
-		if (zip->entry->compression != 0)
+		if (linkname_length == 0 &&
+		    archive_strlen(&zip_entry->link_name) > 0)
+		{
+			// PKZIP for Unix has the target in the PKWARE Unix
+			// extra field, and no data
+			p = zip_entry->link_name.s;
+			linkname_full_length = archive_strlen(&zip_entry->link_name);
+		}
+		// take into account link compression if any
+		else if (zip->entry->compression != 0)
 		{
 			// symlink target string appeared to be compressed
 			int status = ARCHIVE_FATAL;
@@ -3719,6 +3858,7 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 		while (zip_entry != NULL) {
 			next_zip_entry = zip_entry->next;
 			archive_string_free(&zip_entry->rsrcname);
+			archive_string_free(&zip_entry->link_name);
 			free(zip_entry);
 			zip_entry = next_zip_entry;
 		}
@@ -4466,22 +4606,8 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 		/* If we can't guess the mode, leave it zero here;
 		   when we read the local file header we might get
 		   more information. */
-		if (zip_entry->system == 3) {
-			zip_entry->mode = external_attributes >> 16;
-		} else if (zip_entry->system == 0) {
-			// Interpret MSDOS directory bit
-			if (0x10 == (external_attributes & 0x10)) {
-				zip_entry->mode = AE_IFDIR | 0775;
-			} else {
-				zip_entry->mode = AE_IFREG | 0664;
-			}
-			if (0x01 == (external_attributes & 0x01)) {
-				// Read-only bit; strip write permissions
-				zip_entry->mode &= 0555;
-			}
-		} else {
-			zip_entry->mode = 0;
-		}
+		set_mode_from_external_attributes(zip_entry,
+		    external_attributes);
 
 		/* We're done with the regular data; get the filename and
 		 * extra data. */
