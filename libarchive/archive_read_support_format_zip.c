@@ -1504,9 +1504,12 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	if (zip_entry->flags & LA_ATIME_FROM_EXTRA)
 		archive_entry_set_atime(entry, zip_entry->atime,
 		    zip_entry->atime_ns);
+	/* Prefer the higher-precision NTFS creation time when both are present. */
 	if (zip_entry->flags & LA_NTFS_BTIME)
 		archive_entry_set_birthtime(entry, zip_entry->btime,
 		    zip_entry->btime_ns);
+	else if (zip_entry->flags & LA_CTIME_FROM_EXTRA)
+		archive_entry_set_birthtime(entry, zip_entry->ctime, 0);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
