@@ -2243,6 +2243,8 @@ read_Digests(struct archive_read *a, struct _7z_digests *d, size_t num)
 
 	if (num == 0)
 		return (-1);
+	if (num > SIZE_MAX / sizeof(*d->digests))
+		return (-1);
 	memset(d, 0, sizeof(*d));
 
 	d->defineds = malloc(num);
@@ -2314,6 +2316,8 @@ read_PackInfo(struct archive_read *a, struct _7z_pack_info *pi)
 		return (0);
 	if (*p != kSize)
 		return (-1);
+	if (pi->numPackStreams > SIZE_MAX / sizeof(int64_t))
+		return (-1);
 	pi->sizes = calloc(pi->numPackStreams, sizeof(int64_t));
 	pi->positions = calloc(pi->numPackStreams, sizeof(int64_t));
 	if (pi->sizes == NULL || pi->positions == NULL)
@@ -2331,6 +2335,8 @@ read_PackInfo(struct archive_read *a, struct _7z_pack_info *pi)
 		return (-1);
 	if (*p == kEnd) {
 		/* PackStreamDigests[num] are not present. */
+		if (pi->numPackStreams > SIZE_MAX / sizeof(*pi->digest.digests))
+			return (-1);
 		pi->digest.defineds =
 		    calloc(pi->numPackStreams, sizeof(*pi->digest.defineds));
 		pi->digest.digests =
@@ -2389,6 +2395,8 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 		return (-1);
 	if (f->numCoders > 4)
 		/* Too many coders. */
+		return (-1);
+	if (f->numCoders > SIZE_MAX / sizeof(*f->coders))
 		return (-1);
 
 	f->coders = calloc(f->numCoders, sizeof(*f->coders));
@@ -2465,6 +2473,8 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 	if ((uint64_t)zip->header_bytes_remaining < f->numBindPairs)
 			return (-1);
 	if (f->numBindPairs > 0) {
+		if (f->numBindPairs > SIZE_MAX / sizeof(*f->bindPairs))
+			return (-1);
 		f->bindPairs =
 			calloc(f->numBindPairs, sizeof(*f->bindPairs));
 		if (f->bindPairs == NULL)
@@ -2554,6 +2564,8 @@ read_CodersInfo(struct archive_read *a, struct _7z_coders_info *ci)
 		goto failed;
 	switch (*p) {
 	case 0:
+		if (ci->numFolders > SIZE_MAX / sizeof(*ci->folders))
+			goto failed;
 		ci->folders =
 			calloc(ci->numFolders, sizeof(*ci->folders));
 		if (ci->folders == NULL)
@@ -2587,6 +2599,8 @@ read_CodersInfo(struct archive_read *a, struct _7z_coders_info *ci)
 		struct _7z_folder *folder = &(ci->folders[i]);
 		size_t j;
 
+		if (folder->numOutStreams > SIZE_MAX / sizeof(*folder->unPackSize))
+			goto failed;
 		folder->unPackSize =
 		    calloc(folder->numOutStreams, sizeof(*folder->unPackSize));
 		if (folder->unPackSize == NULL)
@@ -2700,6 +2714,8 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 
 	ss->unpack_streams = unpack_streams;
 	if (unpack_streams) {
+		if (unpack_streams > SIZE_MAX / sizeof(*ss->unpackSizes))
+			return (-1);
 		ss->unpackSizes = calloc(unpack_streams,
 		    sizeof(*ss->unpackSizes));
 		ss->digestsDefined = calloc(unpack_streams,
