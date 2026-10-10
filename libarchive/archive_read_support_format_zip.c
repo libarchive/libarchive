@@ -1342,12 +1342,51 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			    "Can't allocate memory for Pathname");
 			return (ARCHIVE_FATAL);
 		}
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Pathname cannot be converted "
-		    "from %s to current locale",
-		    archive_string_conversion_charset_name(sconv));
-		ret = ARCHIVE_WARN;
+		/*
+		 * UTF-8 zip names can fail locale conversion on Windows.
+		 * Keep the UTF-8 bytes marked AES_SET_UTF8 so
+		 * archive_entry_pathname_w() uses CP_UTF8 rather than
+		 * treating the bytes as ACP/MBS (NULL converter sets
+		 * AES_SET_MBS and breaks Windows extraction).
+		 */
+		if (sconv == zip->sconv_utf8 &&
+		    (zip_entry->zip_flags & ZIP_UTF8_NAME)) {
+			struct archive_string utf8_path;
+
+			archive_string_init(&utf8_path);
+			archive_strncpy(&utf8_path, h, filename_length);
+			if (utf8_path.s == NULL) {
+				archive_string_free(&utf8_path);
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Pathname");
+				return (ARCHIVE_FATAL);
+			}
+			if (archive_entry_update_pathname_utf8(entry,
+			    utf8_path.s)) {
+				/* pathname kept as UTF-8 */
+			} else if (errno == ENOMEM) {
+				archive_string_free(&utf8_path);
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate memory for Pathname");
+				return (ARCHIVE_FATAL);
+			} else {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Pathname cannot be converted "
+				    "from %s to current locale",
+				    archive_string_conversion_charset_name(
+					sconv));
+				ret = ARCHIVE_WARN;
+			}
+			archive_string_free(&utf8_path);
+		} else {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Pathname cannot be converted "
+			    "from %s to current locale",
+			    archive_string_conversion_charset_name(sconv));
+			ret = ARCHIVE_WARN;
+		}
 	}
 	__archive_read_consume(a, filename_length);
 
