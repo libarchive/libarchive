@@ -37,6 +37,14 @@
 # endif
 #endif
 
+#if defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_VERSION_H)
+#include <mbedtls/version.h>
+#if MBEDTLS_VERSION_MAJOR >= 4
+/* Mbed TLS 4.x only provides HMAC through the PSA Crypto API. */
+#define ARCHIVE_HMAC_USE_MBED_PSA 1
+#endif
+#endif
+
 #ifdef ARCHIVE_HMAC_USE_Apple_CommonCrypto
 #include <CommonCrypto/CommonHMAC.h>
 
@@ -51,6 +59,14 @@ typedef struct {
 	DWORD				hash_len;
 	PBYTE				hash;
 
+} archive_hmac_sha1_ctx;
+
+#elif defined(ARCHIVE_HMAC_USE_MBED_PSA)
+#include <psa/crypto.h>
+
+typedef struct {
+	psa_key_id_t		key;
+	psa_mac_operation_t	op;
 } archive_hmac_sha1_ctx;
 
 #elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_MD_H)
