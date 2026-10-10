@@ -30,6 +30,9 @@
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 /* #include <stdint.h> */ /* See archive_platform.h */
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
@@ -1663,7 +1666,7 @@ zisofs_read_data(struct archive_read *a,
 		if (avail > zisofs->block_avail)
 			zisofs->stream.avail_in = zisofs->block_avail;
 		else
-			zisofs->stream.avail_in = (uInt)avail;
+			zisofs->stream.avail_in = (uInt)(avail > UINT_MAX ? UINT_MAX : avail);
 		zisofs->stream.next_out = zisofs->uncompressed_buffer;
 		zisofs->stream.avail_out =
 		    (uInt)zisofs->uncompressed_buffer_size;

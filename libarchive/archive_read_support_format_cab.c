@@ -1614,6 +1614,8 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 		}
 		if (bytes_avail > cfdata->compressed_bytes_remaining)
 			bytes_avail = cfdata->compressed_bytes_remaining;
+		if (bytes_avail > UINT_MAX)
+			bytes_avail = UINT_MAX;
 		/*
 		 * A bug in zlib.h: stream.next_in should be marked 'const'
 		 * but isn't (the library never alters data through the
