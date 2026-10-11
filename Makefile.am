@@ -911,6 +911,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_bcj_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_bzip2.7z.uu \
+	libarchive/test/test_read_format_7zip_chained_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_copy.7z.uu \
 	libarchive/test/test_read_format_7zip_copy_2.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate.7z.uu \
