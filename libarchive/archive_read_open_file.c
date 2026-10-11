@@ -37,6 +37,9 @@
 #ifdef HAVE_IO_H
 #include <io.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -48,7 +51,17 @@
 #endif
 
 #include "archive.h"
+#include "archive_integer.h"
 #include "archive_platform_stat.h"
+
+/* Android's LP32 stdio interfaces become 64-bit only at API 24. */
+#if defined(__ANDROID__) && !defined(__LP64__)
+#if __ANDROID_API__ < 24
+#define USE_ANDROID_STDIO32
+#else
+#define USE_ANDROID_STDIO64
+#endif
+#endif
 
 struct read_FILE_data {
 	FILE    *f;
@@ -62,6 +75,8 @@ static int	FILE_close(struct archive *, void *);
 static ssize_t	FILE_read(struct archive *, void *, const void **buff);
 static int64_t	FILE_seek(struct archive *, void *, int64_t, int);
 static int64_t	FILE_skip(struct archive *, void *, int64_t);
+static int64_t	FILE_tell(struct read_FILE_data *);
+static int	FILE_reposition(struct read_FILE_data *, int64_t, int);
 
 int
 archive_read_open_FILE(struct archive *a, FILE *f)
@@ -71,6 +86,7 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	size_t block_size = 128 * 1024;
 	void *b;
 	int r;
+	int can_seek = 1;
 
 	archive_clear_error(a);
 	mine = calloc(1, sizeof(*mine));
@@ -90,20 +106,55 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	 * streams that don't support fileno()).  As a result, fileno()
 	 * should be used cautiously.)
 	 */
-	if (la_seek_fstat(fileno(mine->f), &st) == 0 && S_ISREG(st.st_mode)) {
-		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
-		/* Enable the seek optimization only for regular files. */
-		mine->can_skip = 1;
-		mine->size = st.st_size;
+	if (la_seek_fstat(fileno(mine->f), &st) == 0) {
+		if (S_ISREG(st.st_mode)) {
+			archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
+			/* Enable the seek optimization only for regular files. */
+			mine->can_skip = 1;
+			mine->size = st.st_size;
+#if defined(USE_ANDROID_STDIO32)
+			/*
+			 * Narrow FILE positions cannot safely represent
+			 * offsets throughout a large regular file.
+			 */
+			if (st.st_size < 0 ||
+			    st.st_size > LONG_MAX) {
+				mine->can_skip = 0;
+				can_seek = 0;
+			}
+#endif
+		}
+		if (S_ISFIFO(st.st_mode))
+			can_seek = 0;
+#ifdef S_ISSOCK
+		if (S_ISSOCK(st.st_mode))
+			can_seek = 0;
+#endif
 	}
 
+#if defined(USE_ANDROID_STDIO32)
+	{
+		int fd = fileno(f);
+
+		if (fd >= 0) {
+			off64_t physical =
+			    lseek64(fd, 0, SEEK_CUR);
+
+			if (physical < 0 ||
+			    physical > LONG_MAX) {
+				mine->can_skip = 0;
+				can_seek = 0;
+			}
+		}
+	}
+#endif
 #if defined(__CYGWIN__) || defined(_WIN32)
 	setmode(fileno(mine->f), O_BINARY);
 #endif
 
 	archive_read_set_read_callback(a, FILE_read);
-	archive_read_set_skip_callback(a, FILE_skip);
-	archive_read_set_seek_callback(a, FILE_seek);
+	archive_read_set_skip_callback(a, can_seek ? FILE_skip : NULL);
+	archive_read_set_seek_callback(a, can_seek ? FILE_seek : NULL);
 	archive_read_set_close_callback(a, FILE_close);
 	r = archive_read_set_callback_data(a, mine);
 	if (r < 0) {
@@ -124,25 +175,107 @@ FILE_read(struct archive *a, void *client_data, const void **buff)
 	bytes_read = fread(mine->buffer, 1, mine->block_size, mine->f);
 	if (bytes_read < mine->block_size && ferror(mine->f)) {
 		archive_set_error(a, errno, "Error reading file");
+		return (-1);
 	}
 	return (bytes_read);
+}
+
+static int64_t
+FILE_tell(struct read_FILE_data *mine)
+{
+	FILE *f = mine->f;
+
+#if defined(USE_ANDROID_STDIO32)
+	return (ftell(f));
+#elif defined(USE_ANDROID_STDIO64)
+	return (ftello64(f));
+#elif HAVE__FSEEKI64
+	return (_ftelli64(f));
+#elif HAVE_FSEEKO
+	return (ftello(f));
+#else
+	return (ftell(f));
+#endif
+}
+
+static int
+FILE_reposition(struct read_FILE_data *mine, int64_t offset, int whence)
+{
+	FILE *f = mine->f;
+
+#if defined(USE_ANDROID_STDIO32)
+	int64_t target = offset;
+	la_seek_stat_t st;
+	int fd;
+
+	/*
+	 * Old Bionic has a narrow FILE position cache.
+	 * Never mix descriptor seeks with buffered stdio.
+	 */
+	if (whence == SEEK_CUR) {
+		long old_offset = ftell(f);
+
+		if (old_offset < 0)
+			return (-1);
+
+		if (archive_ckd_add_i64(
+		    &target, old_offset, offset)) {
+			errno = EOVERFLOW;
+			return (-1);
+		}
+
+		whence = SEEK_SET;
+	} else if (whence == SEEK_END) {
+		fd = fileno(f);
+
+		if (fd >= 0) {
+			if (la_seek_fstat(fd, &st) != 0 ||
+			    !S_ISREG(st.st_mode) ||
+			    st.st_size < 0 ||
+			    st.st_size > LONG_MAX ||
+			    archive_ckd_add_i64(
+			    &target, (int64_t)st.st_size, offset)) {
+				errno = EOVERFLOW;
+				return (-1);
+			}
+
+			whence = SEEK_SET;
+		}
+	}
+
+	if (target < LONG_MIN ||
+	    target > LONG_MAX ||
+	    (whence == SEEK_SET && target < 0)) {
+		errno = EOVERFLOW;
+		return (-1);
+	}
+
+	return (fseek(f, (long)target, whence));
+#elif defined(USE_ANDROID_STDIO64)
+	return (fseeko64(f, (off64_t)offset, whence));
+#elif HAVE__FSEEKI64
+	return (_fseeki64(f, offset, whence));
+#elif HAVE_FSEEKO
+	return (fseeko(f, (off_t)offset, whence));
+#else
+	return (fseek(f, (long)offset, whence));
+#endif
 }
 
 static int64_t
 FILE_skip(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
-#if HAVE__FSEEKI64
+#if defined(USE_ANDROID_STDIO32) || defined(USE_ANDROID_STDIO64) || \
+    HAVE__FSEEKI64
 	int64_t skip = request;
 #elif HAVE_FSEEKO
 	off_t skip = (off_t)request;
 #else
 	long skip = (long)request;
 #endif
-	int64_t old_offset, new_offset = -1;
+	int64_t old_offset, new_offset;
 	int skip_bits = sizeof(skip) * 8 - 1;
-
-	(void)a; /* UNUSED */
 
 	/*
 	 * If we can't skip, return 0 as the amount we did step and
@@ -150,48 +283,41 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 	 */
 	if (!mine->can_skip)
 		return (0);
+	if (ferror(mine->f))
+		return (0);
 	if (request == 0)
 		return (0);
 
 	/* If request is too big for a long or an off_t, reduce it. */
-	if (sizeof(request) > sizeof(skip)) {
+	if (skip_bits < 63) {
 		const int64_t max_skip =
 		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 		if (request > max_skip)
 			skip = max_skip;
 	}
 
-#ifdef __ANDROID__
-        /* fileno() isn't safe on all platforms ... see above. */
-	old_offset = lseek(fileno(mine->f), 0, SEEK_CUR);
-#elif HAVE__FSEEKI64
-	old_offset = _ftelli64(mine->f);
-#elif HAVE_FSEEKO
-	old_offset = ftello(mine->f);
-#else
-	old_offset = ftell(mine->f);
-#endif
-	if (old_offset >= 0) {
-		if (old_offset < mine->size &&
-		    skip <= mine->size - old_offset) {
-#ifdef __ANDROID__
-			new_offset = lseek(fileno(mine->f), skip, SEEK_CUR);
-#elif HAVE__FSEEKI64
-			if (_fseeki64(mine->f, skip, SEEK_CUR) == 0)
-				new_offset = _ftelli64(mine->f);
-#elif HAVE_FSEEKO
-			if (fseeko(mine->f, skip, SEEK_CUR) == 0)
-				new_offset = ftello(mine->f);
-#else
-			if (fseek(mine->f, skip, SEEK_CUR) == 0)
-				new_offset = ftell(mine->f);
-#endif
+	old_offset = FILE_tell(mine);
+	if (old_offset < 0) {
+		mine->can_skip = 0;
+		return (0);
+	}
+	if (old_offset < mine->size &&
+	    skip <= mine->size - old_offset) {
+		if (FILE_reposition(mine, skip, SEEK_CUR) == 0) {
+			new_offset = FILE_tell(mine);
 			if (new_offset >= 0)
 				return (new_offset - old_offset);
 		}
+		mine->can_skip = 0;
+		if (FILE_tell(mine) != old_offset &&
+		    FILE_reposition(mine, old_offset, SEEK_SET) != 0) {
+			archive_set_error(a, errno, "Error skipping in FILE* pointer");
+			return (ARCHIVE_FATAL);
+		}
+		/* Discard an error from the rejected skip, not a prior error. */
+		clearerr(mine->f);
 	}
 
-	mine->can_skip = 0;
 	return (0);
 }
 
@@ -202,7 +328,8 @@ static int64_t
 FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
-#if HAVE__FSEEKI64
+#if defined(USE_ANDROID_STDIO32) || defined(USE_ANDROID_STDIO64) || \
+    HAVE__FSEEKI64
 	int64_t seek = request;
 #elif HAVE_FSEEKO
 	off_t seek = (off_t)request;
@@ -210,41 +337,38 @@ FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
 	long seek = (long)request;
 #endif
 	int seek_bits = sizeof(seek) * 8 - 1;
-	(void)a; /* UNUSED */
+	int64_t old_offset, new_offset;
+	int had_error;
 
 	/* Do not perform a seek which cannot be fulfilled. */
-	if (sizeof(request) > sizeof(seek)) {
+	if (seek_bits < 63) {
 		const int64_t max_seek =
 		    (((int64_t)1 << (seek_bits - 1)) - 1) * 2 + 1;
 		const int64_t min_seek = ~max_seek;
 		if (request < min_seek || request > max_seek) {
 			errno = EOVERFLOW;
-			goto err;
+			archive_set_error(a, errno, "Error seeking in FILE* pointer");
+			return (ARCHIVE_FAILED);
 		}
 	}
 
-#ifdef __ANDROID__
-	/* Newer Android versions have fseeko...to meditate. */
-	int64_t ret = lseek(fileno(mine->f), seek, whence);
-	if (ret >= 0) {
-		return ret;
+	old_offset = FILE_tell(mine);
+	had_error = ferror(mine->f);
+	if (FILE_reposition(mine, seek, whence) == 0) {
+		new_offset = FILE_tell(mine);
+		if (new_offset >= 0)
+			return (new_offset);
 	}
-#elif HAVE__FSEEKI64
-	if (_fseeki64(mine->f, seek, whence) == 0) {
-		return _ftelli64(mine->f);
-	}
-#elif HAVE_FSEEKO
-	if (fseeko(mine->f, seek, whence) == 0) {
-		return ftello(mine->f);
-	}
-#else
-	if (fseek(mine->f, seek, whence) == 0) {
-		return ftell(mine->f);
-	}
-#endif
-	/* If we arrive here, the input is corrupted or truncated so fail. */
-err:
 	archive_set_error(a, errno, "Error seeking in FILE* pointer");
+	new_offset = FILE_tell(mine);
+	if (old_offset >= 0 &&
+	    (new_offset == old_offset ||
+	    FILE_reposition(mine, old_offset, SEEK_SET) == 0) &&
+	    !had_error) {
+		/* Discard an error from the rejected seek, not a prior error. */
+		clearerr(mine->f);
+		return (ARCHIVE_FAILED);
+	}
 	return (ARCHIVE_FATAL);
 }
 
