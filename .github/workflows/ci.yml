@@ -61,12 +61,12 @@ jobs:
       matrix:
         bs: [autotools, cmake]
     steps:
-    - name: Build and test on a FreeBSD 15 firecracker VM
+    - name: Build and test on a FreeBSD 15.1 firecracker VM
       uses: acj/freebsd-firecracker-action@ba4f70408ef1d979acdd7bd36fc4b27e06fe5abe # v0.12.0
       with:
         run-in-vm: |
           chflags -R noschg / && \
-          fetch -o - https://download.freebsd.org/releases/amd64/15.0-RELEASE/base.txz | bsdtar -x -C / -f - && \
+          fetch -o - https://download.freebsd.org/releases/amd64/15.1-RELEASE/base.txz | bsdtar -x -C / -f - && \
           pkg bootstrap -y && \
           cd firecracker-freebsd && \
           env BS=${{ matrix.bs }} ./build/ci/github_actions/freebsd.sh prepare && \
