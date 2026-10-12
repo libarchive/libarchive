@@ -73,7 +73,6 @@ struct lz4 {
 		int	 block_maximum_size;
 	} flags;
 	int64_t		 stream_size;
-	uint32_t	 dict_id;
 	char		*out_block;
 	size_t		 out_block_size;
 
@@ -82,7 +81,6 @@ struct lz4 {
 	size_t		 decoded_size;
 	void		*xxh32_state;
 
-	char		 valid; /* True = decompressor is initialized */
 	char		 eof; /* True = found end of compressed data. */
 };
 
