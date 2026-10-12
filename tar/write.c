@@ -66,17 +66,6 @@
 #define	O_BINARY 0
 #endif
 
-struct archive_dir_entry {
-	struct archive_dir_entry	*next;
-	time_t			 mtime_sec;
-	int			 mtime_nsec;
-	char			*name;
-};
-
-struct archive_dir {
-	struct archive_dir_entry *head, *tail;
-};
-
 static int		 append_archive(struct bsdtar *, struct archive *,
 			     struct archive *ina);
 static void		 edit_owner(struct bsdtar *, struct archive_entry *);
@@ -361,11 +350,6 @@ tar_mode_u(struct bsdtar *bsdtar)
 	struct archive		*a;
 	struct archive_entry	*entry;
 	int			 format;
-	struct archive_dir_entry	*p;
-	struct archive_dir	 archive_dir;
-
-	bsdtar->archive_dir = &archive_dir;
-	memset(&archive_dir, 0, sizeof(archive_dir));
 
 	format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 
@@ -429,14 +413,6 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 	close(bsdtar->fd);
 	bsdtar->fd = -1;
-
-	while (bsdtar->archive_dir->head != NULL) {
-		p = bsdtar->archive_dir->head->next;
-		free(bsdtar->archive_dir->head->name);
-		free(bsdtar->archive_dir->head);
-		bsdtar->archive_dir->head = p;
-	}
-	bsdtar->archive_dir->tail = NULL;
 }
 
 
@@ -934,7 +910,6 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		bsdtar->return_value = 1;
 		return;
 	}
-	bsdtar->first_fs = -1;
 
 	for (;;) {
 		archive_entry_free(entry);

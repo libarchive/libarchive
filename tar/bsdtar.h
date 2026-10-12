@@ -82,15 +82,9 @@ struct bsdtar {
 	 */
 	struct archive		*diskreader;	/* for write.c */
 	struct archive_entry_linkresolver *resolver; /* for write.c */
-	struct archive_dir	*archive_dir;	/* for write.c */
-	struct name_cache	*gname_cache;	/* for write.c */
 	char			*buff;		/* for write.c */
 	size_t			 buff_size;	/* for write.c */
-	int			 first_fs;	/* for write.c */
 	struct archive		*matching;	/* for matching.c */
-	struct security		*security;	/* for read.c */
-	struct name_cache	*uname_cache;	/* for write.c */
-	struct siginfo_data	*siginfo;	/* for siginfo.c */
 	struct substitution	*substitution;	/* for subst.c */
 	char			*ppbuff;	/* for util.c */
 };
