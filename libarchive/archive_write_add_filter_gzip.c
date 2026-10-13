@@ -263,8 +263,8 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		}
 		if (ofn_length < ofn_max_length) {
 			gzip->compressed[3] |= 0x8;
-			strcpy((char*)gzip->compressed + 10,
-			       gzip->original_filename);
+			memcpy(gzip->compressed + 10,
+			       gzip->original_filename, ofn_length + 1);
 			gzip->stream.next_out += ofn_length + 1;
 			gzip->stream.avail_out -= ofn_length + 1;
 		} else {
