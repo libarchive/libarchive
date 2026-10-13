@@ -173,9 +173,7 @@ struct links_entry {
         char                    *name;
 };
 
-#define	CPIO_MAGIC   0x13141516
 struct cpio {
-	int			  magic;
 	int			(*read_header)(struct archive_read *, struct cpio *,
 				     struct archive_entry *, size_t *, size_t *);
 	struct links_entry	 *links_head;
@@ -237,7 +235,6 @@ archive_read_support_format_cpio(struct archive *_a)
 		archive_set_error(_a, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
-	cpio->magic = CPIO_MAGIC;
 
 	r = __archive_read_register_format(a,
 	    cpio,

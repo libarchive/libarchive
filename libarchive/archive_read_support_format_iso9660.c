@@ -320,9 +320,6 @@ struct heap_queue {
 };
 
 struct iso9660 {
-	int	magic;
-#define ISO9660_MAGIC   0x96609660
-
 	int opt_support_joliet;
 	int opt_support_rockridge;
 
@@ -467,7 +464,6 @@ archive_read_support_format_iso9660(struct archive *_a)
 		archive_set_error(_a, ENOMEM, "Can't allocate iso9660 data");
 		return (ARCHIVE_FATAL);
 	}
-	iso9660->magic = ISO9660_MAGIC;
 	iso9660->cache_files.first = NULL;
 	iso9660->cache_files.last = &(iso9660->cache_files.first);
 	iso9660->re_files.first = NULL;

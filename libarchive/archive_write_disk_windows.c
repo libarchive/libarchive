@@ -170,8 +170,6 @@ struct archive_write_disk {
 	int64_t			 total_bytes_written;
 	/* Maximum size of file, -1 if unknown. */
 	int64_t			 filesize;
-	/* Dir we were in before this restore; only for deep paths. */
-	int			 restore_pwd;
 	/* Mode we should use for this entry; affected by _PERM and umask. */
 	mode_t			 mode;
 	/* UID/GID to use in restoring this entry. */
@@ -831,7 +829,6 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	a->fh = INVALID_HANDLE_VALUE;
 	a->fd_offset = 0;
 	a->offset = 0;
-	a->restore_pwd = -1;
 	a->uid = a->user_uid;
 	a->mode = archive_entry_mode(a->entry);
 	if (archive_entry_size_is_set(a->entry))

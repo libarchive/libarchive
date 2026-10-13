@@ -187,10 +187,6 @@ struct archive_read {
 	 */
 	int64_t		  entry_bytes_declared;
 
-	/* Nodes and offsets of compressed data block */
-	unsigned int data_start_node;
-	unsigned int data_end_node;
-
 	/*
 	 * Format detection is mostly the same as compression
 	 * detection, with one significant difference: The bidders
