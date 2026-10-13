@@ -1818,6 +1818,45 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	}
 
 	/*
+	 * The metadata restored below is applied with syscalls that are
+	 * selected from the file type declared by the archive entry, but
+	 * that need not be the type of the object that was actually
+	 * created.  A hardlink to a symlink is the clearest case:
+	 * create_filesystem_object() deliberately creates it with linkat()
+	 * (or link()), neither of which follows the source, so the new name
+	 * can be a symlink while the entry still claims AE_IFREG.  set_mode()
+	 * would then select chmod(), which *does* follow symlinks, and the
+	 * mode carried by the archive would be applied to whatever the link
+	 * points at -- possibly outside the extraction directory and even
+	 * when ARCHIVE_EXTRACT_SECURE_SYMLINKS is in effect.  The deferred
+	 * fixup pass below already re-checks the on-disk file type before it
+	 * applies any metadata (see la_verify_filetype()); do the same here
+	 * so that both passes agree on what the object really is.
+	 */
+	if (a->fd < 0 && a->name != NULL) {
+		struct stat st;
+#ifdef HAVE_LSTAT
+		int r2 = lstat(a->name, &st);
+#else
+		int r2 = la_stat(a->name, &st);
+#endif
+		if (r2 == 0 && la_verify_filetype(st.st_mode,
+		    (__LA_MODE_T)(a->mode & AE_IFMT)) == 0) {
+			/*
+			 * Correct the file type in a->mode, but leave the
+			 * permission bits alone: they have already been
+			 * filtered (umask applied, and set-uid/set-gid/sticky
+			 * stripped when ARCHIVE_EXTRACT_PERM is unset), so
+			 * re-reading them from the entry would undo that.
+			 */
+			archive_entry_set_filetype(a->entry,
+			    (unsigned int)(st.st_mode & AE_IFMT));
+			a->mode = (a->mode & ~(__LA_MODE_T)AE_IFMT)
+			    | (__LA_MODE_T)(st.st_mode & AE_IFMT);
+		}
+	}
+
+	/*
 	 * Look up the "real" UID only if we're going to need it.
 	 * TODO: the TODO_SGID condition can be dropped here, can't it?
 	 */
