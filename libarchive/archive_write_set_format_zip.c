@@ -1255,16 +1255,18 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	/* UT timestamp: length depends on what timestamps are set.
 	 * This header appears in the Central Directory also, but
 	 * according to Info-Zip specification, the CD form
-	 * only holds mtime, so we format it separately. */
+	 * only holds mtime, so we format it separately.
+	 * The third time is the creation time, so it is the birthtime
+	 * and not the ctime, which is when the inode last changed. */
 	if (archive_entry_mtime_is_set(entry)
 	    || archive_entry_atime_is_set(entry)
-	    || archive_entry_ctime_is_set(entry)) {
+	    || archive_entry_birthtime_is_set(entry)) {
 		unsigned char *ut = e;
 		memcpy(e, "UT\000\000", 4);
 		e += 4;
 		*e++ = (archive_entry_mtime_is_set(entry) ? 1 : 0)
 			| (archive_entry_atime_is_set(entry) ? 2 : 0)
-			| (archive_entry_ctime_is_set(entry) ? 4 : 0);
+			| (archive_entry_birthtime_is_set(entry) ? 4 : 0);
 		if (archive_entry_mtime_is_set(entry)) {
 			archive_le32enc(e, (uint32_t)archive_entry_mtime(entry));
 			e += 4;
@@ -1273,8 +1275,9 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			archive_le32enc(e, (uint32_t)archive_entry_atime(entry));
 			e += 4;
 		}
-		if (archive_entry_ctime_is_set(entry)) {
-			archive_le32enc(e, (uint32_t)archive_entry_ctime(entry));
+		if (archive_entry_birthtime_is_set(entry)) {
+			archive_le32enc(e,
+			    (uint32_t)archive_entry_birthtime(entry));
 			e += 4;
 		}
 		archive_le16enc(ut + 2, (uint16_t)(e - ut - 4));
@@ -2079,8 +2082,8 @@ archive_write_zip_finish_entry(struct archive_write *a)
 	}
 
 	/* UT timestamp: Info-Zip specifies that _only_ the mtime should
-	 * be recorded here; ctime and atime are also included in the
-	 * local file descriptor. */
+	 * be recorded here; atime and the creation time are also included
+	 * in the local file descriptor. */
 	if (archive_entry_mtime_is_set(zip->entry)) {
 		unsigned char ut[9];
 		unsigned char *u = ut, *ud;
