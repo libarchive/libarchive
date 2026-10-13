@@ -96,7 +96,9 @@ struct zip_entry {
 	struct archive_string	rsrcname;
 	time_t			mtime;
 	time_t			atime;
-	time_t			ctime;
+	/* File creation time, from a "UT" extra field only. This is not the
+	 * POSIX ctime, but libarchive used to write the ctime in its place. */
+	time_t			ut_btime;
 	/* File creation time, from an NTFS extra field only */
 	time_t			btime;
 	/* Nanosecond precision, from an NTFS extra field only */
@@ -144,7 +146,7 @@ struct trad_enc_ctx {
 #define LA_FROM_CENTRAL_DIRECTORY (1 << 1)
 #define LA_MTIME_FROM_EXTRA (1 << 2)
 #define LA_ATIME_FROM_EXTRA (1 << 3)
-#define LA_CTIME_FROM_EXTRA (1 << 4)
+#define LA_UT_BTIME (1 << 4)
 #define LA_NTFS_MTIME (1 << 5)
 #define LA_NTFS_ATIME (1 << 6)
 #define LA_NTFS_BTIME (1 << 7)
@@ -954,9 +956,9 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			{
 				if (datasize < 4)
 					break;
-				zip_entry->ctime =
+				zip_entry->ut_btime =
 				    to_time_t(archive_le32dec(p + offset));
-				zip_entry->flags |= LA_CTIME_FROM_EXTRA;
+				zip_entry->flags |= LA_UT_BTIME;
 				offset += 4;
 				datasize -= 4;
 			}
@@ -1498,9 +1500,11 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	archive_entry_set_gid(entry, zip_entry->gid);
 	archive_entry_set_mtime(entry, zip_entry->mtime, zip_entry->mtime_ns);
 	/* Without an extra field to supply them, leave atime and ctime
-	 * unset, rather than reporting them as set to the Unix epoch. */
-	if (zip_entry->flags & LA_CTIME_FROM_EXTRA)
-		archive_entry_set_ctime(entry, zip_entry->ctime, 0);
+	 * unset, rather than reporting them as set to the Unix epoch.
+	 * The "UT" creation time is also reported as ctime, because
+	 * libarchive used to write the ctime there. */
+	if (zip_entry->flags & LA_UT_BTIME)
+		archive_entry_set_ctime(entry, zip_entry->ut_btime, 0);
 	if (zip_entry->flags & LA_ATIME_FROM_EXTRA)
 		archive_entry_set_atime(entry, zip_entry->atime,
 		    zip_entry->atime_ns);
@@ -1508,8 +1512,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	if (zip_entry->flags & LA_NTFS_BTIME)
 		archive_entry_set_birthtime(entry, zip_entry->btime,
 		    zip_entry->btime_ns);
-	else if (zip_entry->flags & LA_CTIME_FROM_EXTRA)
-		archive_entry_set_birthtime(entry, zip_entry->ctime, 0);
+	else if (zip_entry->flags & LA_UT_BTIME)
+		archive_entry_set_birthtime(entry, zip_entry->ut_btime, 0);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
