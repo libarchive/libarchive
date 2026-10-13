@@ -109,7 +109,6 @@ struct mtree {
 	const char		*archive_format_name;
 	struct mtree_entry	*entries;
 	struct mtree_entry	*this_entry;
-	struct archive_rb_tree	 entry_rbtree;
 	struct archive_string	 current_dir;
 	struct archive_string	 contents_name;
 

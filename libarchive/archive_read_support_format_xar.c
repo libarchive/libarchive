@@ -309,7 +309,6 @@ struct unknown_tag {
 
 struct xar {
 	uint64_t		 offset; /* Current position in the file. */
-	int64_t			 total;
 	uint64_t		 h_base;
 	int			 end_of_file;
 #define OUTBUFF_SIZE	(1024 * 64)
@@ -909,7 +908,6 @@ xar_read_data(struct archive_read *a,
 
 	*offset = xar->entry_total;
 	xar->entry_total += *size;
-	xar->total += *size;
 	xar->offset += used;
 	xar->entry_remaining -= used;
 	xar->entry_unconsumed = used;

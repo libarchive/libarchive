@@ -243,7 +243,6 @@ struct zip {
 	unsigned char 		*decrypted_ptr;
 	size_t 			decrypted_buffer_size;
 	size_t 			decrypted_bytes_remaining;
-	size_t 			decrypted_unconsumed_bytes;
 
 	/* Traditional PKWARE decryption. */
 	struct trad_enc_ctx	tctx;
