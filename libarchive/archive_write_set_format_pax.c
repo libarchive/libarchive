@@ -864,6 +864,7 @@ archive_write_pax_header(struct archive_write *a,
 		const char *oname;
 		char *name, *bname;
 		size_t name_length;
+		ssize_t written;
 		struct archive_entry *extra = archive_entry_new2(&a->archive);
 
 		oname = archive_entry_pathname(entry_original);
@@ -916,8 +917,9 @@ archive_write_pax_header(struct archive_write *a,
 			return (r);
 		if (r < ret)
 			ret = r;
-		r = (int)archive_write_pax_data(a, mac_metadata,
+		written = archive_write_pax_data(a, mac_metadata,
 		    mac_metadata_size);
+		r = written < 0 ? (int)written : ARCHIVE_OK;
 		if (r < ARCHIVE_WARN)
 			return (r);
 		if (r < ret)
