@@ -883,6 +883,14 @@ archive_write_pax_header(struct archive_write *a,
 			*bname = '\0';
 			bname = strrchr(name, '/');
 		}
+		if (*name == '\0') {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't set mac metadata for empty pathname");
+			archive_entry_free(extra);
+			free(name);
+			return (ARCHIVE_FAILED);
+		}
 		if (bname == NULL) {
 			memmove(name + 2, name, name_length + 1);
 			memmove(name, "._", 2);
