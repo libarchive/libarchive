@@ -6,6 +6,64 @@ permissions:
   contents: read
 
 jobs:
+  Alpine:
+    name: Alpine (${{ matrix.bs }}, ${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - { arch: x86_64, bs: autotools, image: alpine:3.24 }
+        - { arch: x86_64, bs: cmake, image: alpine:3.24 }
+        - { arch: i386, bs: autotools, image: i386/alpine:3.24 }
+        - { arch: i386, bs: cmake, image: i386/alpine:3.24 }
+    container:
+      image: ${{ matrix.image }}
+    steps:
+    - name: Install dependencies
+      run: |
+        apk add --no-cache \
+          autoconf automake build-base ca-certificates cmake git libtool \
+          lzop perl pkgconf tar xz \
+          acl-dev bzip2-dev libxml2-dev lz4-dev \
+          openssl-dev xz-dev zlib-dev zstd-dev
+    # Use plain git as in the Debian i386 job, since checkout's
+    # JavaScript runtime cannot run in the 32-bit container.
+    - name: Check out
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git init -q
+        git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+        git fetch -q --depth 1 origin "$GITHUB_SHA"
+        git checkout -q FETCH_HEAD
+    - name: Autogen
+      run: ./build/ci/build.sh -a autogen
+      env:
+        BS: ${{ matrix.bs }}
+    - name: Configure
+      run: ./build/ci/build.sh -a configure
+      env:
+        BS: ${{ matrix.bs }}
+    - name: Build
+      run: ./build/ci/build.sh -a build
+      env:
+        BS: ${{ matrix.bs }}
+        MAKE_ARGS: -j4
+    - name: Test
+      run: ./build/ci/build.sh -a test
+      env:
+        BS: ${{ matrix.bs }}
+        CTEST_OUTPUT_ON_FAILURE: ON
+    - name: Install
+      run: ./build/ci/build.sh -a install
+      env:
+        BS: ${{ matrix.bs }}
+    # Build the artifact without uploading it: upload-artifact also
+    # requires a JavaScript runtime unavailable in the i386 container.
+    - name: Artifact
+      run: ./build/ci/build.sh -a artifact
+      env:
+        BS: ${{ matrix.bs }}
   debian-i386:
     name: Debian (cmake, i386)
     runs-on: ubuntu-latest
