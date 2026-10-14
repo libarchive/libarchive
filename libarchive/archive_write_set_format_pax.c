@@ -871,7 +871,8 @@ archive_write_pax_header(struct archive_write *a,
 		name_length = strlen(oname);
 		name = malloc(name_length + 3);
 		if (name == NULL || extra == NULL) {
-			/* XXX error message */
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate pax data");
 			archive_entry_free(extra);
 			free(name);
 			return (ARCHIVE_FAILED);
