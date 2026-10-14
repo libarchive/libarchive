@@ -359,6 +359,7 @@ IF(ENABLE_TEST)
     test_write_format_mtree_null_deref.c
     test_write_format_pax.c
     test_write_format_pax_align.c
+    test_write_format_pax_mac_meta.c
     test_write_format_raw.c
     test_write_format_raw_b64.c
     test_write_format_shar_empty.c
