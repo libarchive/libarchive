@@ -618,6 +618,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip.c \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.c \
 	libarchive/test/test_read_format_zip_ambiguous_timestamps.c \
+	libarchive/test/test_read_format_zip_utf8.c \
 	libarchive/test/test_read_format_zip_comment_stored.c \
 	libarchive/test/test_read_format_zip_dos_mtime_precedence.c \
 	libarchive/test/test_read_format_zip_empty.c \
