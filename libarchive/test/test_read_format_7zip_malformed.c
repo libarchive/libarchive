@@ -118,6 +118,7 @@ test_malformed_header_toobig(void)
 	 * far larger than the file, which previously drove an unbounded
 	 * allocation in header_bytes()/__archive_read_ahead().  On seekable
 	 * input the reader now rejects a header that extends past EOF.
+	 * The start-header CRC is valid so CRC rejection cannot mask this guard.
 	 */
 	const char *refname = "test_read_format_7zip_malformed_header_toobig.7z";
 	struct archive *a;
@@ -130,6 +131,8 @@ test_malformed_header_toobig(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualString("7-Zip header extends beyond end of file",
+	    archive_error_string(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
