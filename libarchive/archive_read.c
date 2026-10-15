@@ -541,8 +541,6 @@ archive_read_open1(struct archive *_a)
 
 	a->archive.state = ARCHIVE_STATE_HEADER;
 
-	/* Ensure libarchive starts from the first node in a multivolume set */
-	client_switch_proxy(f, 0);
 	return (e);
 }
 
