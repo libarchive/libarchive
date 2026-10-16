@@ -601,8 +601,15 @@ archive_write_open2(struct archive *_a, void *client_data,
 
 	client_filter = __archive_write_allocate_filter(_a);
 
-	if (client_filter == NULL)
+	if (client_filter == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate memory");
+		/* The client filter that would run the client freer cannot be
+		 * created, so release the client data here to avoid leaking it. */
+		if (a->client_freer != NULL)
+			(*a->client_freer)(&a->archive, a->client_data);
+		a->client_data = NULL;
 		return (ARCHIVE_FATAL);
+	}
 
 	client_filter->open = archive_write_client_open;
 	client_filter->write = archive_write_client_write;
