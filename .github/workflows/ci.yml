@@ -201,6 +201,7 @@ jobs:
       env:
         BS: ${{ matrix.bs }}
         CRYPTO: ${{ matrix.crypto }}
+        DEBUG: 1
     - name: Build
       run: ./build/ci/build.sh -a build
       env:
