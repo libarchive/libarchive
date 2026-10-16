@@ -339,16 +339,33 @@ DEFINE_TEST(test_read_append_rpm_filter)
   archive_read_free(a);
 }
 
+/* "hi\n" uuencoded, used by test_read_append_uu_filter. */
+static const char uuencoded_hi[] = "begin 644 hi.txt\n#:&D*\n`\nend\n";
+
 DEFINE_TEST(test_read_append_uu_filter)
 {
+  struct archive_entry *ae;
   struct archive *a;
   int r;
 
   assert((a = archive_read_new()) != NULL);
-  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_RAW));
   r = archive_read_append_filter(a, ARCHIVE_FILTER_UU);
   assertEqualIntA(a, ARCHIVE_OK, r);
-  archive_read_free(a);
+  /* The appended filter never gets to bid, but it must report the code and
+   * name it was added with. */
+  assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+  assertEqualString("uu", archive_filter_name(a, 0));
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a,
+      (void *)uuencoded_hi, sizeof(uuencoded_hi) - 1));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualString("hi.txt", archive_entry_pathname(ae));
+  assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+  assertEqualString("uu", archive_filter_name(a, 0));
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_read_append_none_filter)

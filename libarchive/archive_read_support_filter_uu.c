@@ -102,6 +102,15 @@ archive_read_support_filter_uu(struct archive *_a)
 		return ARCHIVE_FATAL;
 	}
 
+	/*
+	 * Defaults for a filter that is appended without bidding.  The bidder
+	 * function overrides these with what it actually recognized.  Since
+	 * ARCHIVE_VERSION_NUMBER < 4000000 the base64 variant uses the same
+	 * code as uu, so append with ARCHIVE_FILTER_B64 yields ARCHIVE_FILTER_UU.
+	 */
+	data->code = ARCHIVE_FILTER_UU;
+	data->name = "uu";
+
 	if (__archive_read_register_bidder(a, data,
 			&uudecode_bidder_vtable) != ARCHIVE_OK) {
 		free(data);
