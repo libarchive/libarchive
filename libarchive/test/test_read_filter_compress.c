@@ -116,4 +116,6 @@ DEFINE_TEST(test_read_filter_compress_multi_volume)
 	/* Close archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	free(buff);
 }
