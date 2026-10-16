@@ -118,3 +118,54 @@ DEFINE_TEST(test_read_format_7zip_encryption_truncated)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_7zip_encryption_password_encoding)
+{
+	static const char unicode_pw[] = "\xe4\xb8\xad\xe6\x96\x87\xf0\x9f\x99\x82";
+	static const char *invalid[] = {
+	    "\xc0\x80", "\xed\xa0\x80", "\xf4\x90\x80\x80",
+	    "\xf0\x9f", "\x80", "\xe2\x28\xa1"
+	};
+	static const unsigned char unicode_key[32] =
+	    "\x11\x3a\x16\xcf\xda\x2f\x65\xd3\xcd\xdd\x0e\x43\xcc\x97\x28\xdd"
+	    "\x7d\xa7\x84\x81\x6e\x42\x8d\x94\xfd\xf1\xdb\x5a\xe5\x7f\xd1\x62";
+	static const unsigned char maximum_key[32] =
+	    "\xb1\xdb\x27\xeb\x6a\x0f\xf5\xab\x01\xeb\x39\x5d\xd2\xf6\x52\xb6"
+	    "\xb5\x05\x05\xe5\xc7\x54\x1a\x01\x3c\x24\xc4\x2e\x57\xfb\x03\x5a";
+	static const unsigned char surrogate_key[32] =
+	    "\x85\x69\x51\x85\x81\xbd\x30\x99\xa7\x76\x98\x37\xcf\x79\x0a\xed"
+	    "\xb9\xe8\x32\x26\x26\xbf\x80\x60\x14\xfd\x5a\x2a\x38\x03\x44\x08";
+	unsigned char actual[32];
+	char pw[260];
+	size_t i;
+
+	if (!can7zipEncryption()) {
+		skipping("7-Zip AES decryption is not supported on this platform");
+		return;
+	}
+	/* Independent SHA-256 vectors include the UTF-16LE password and
+	 * eight zero counter bytes, for a single derivation round. */
+	assertEqualInt(0, archive_7z_kdf_sha256(unicode_pw, NULL, 0, 0,
+	    actual, sizeof(actual)));
+	assertEqualMem(unicode_key, actual, sizeof(actual));
+	memset(pw, 'a', 256);
+	pw[256] = '\0';
+	assertEqualInt(0, archive_7z_kdf_sha256(pw, NULL, 0, 0,
+	    actual, sizeof(actual)));
+	assertEqualMem(maximum_key, actual, sizeof(actual));
+	pw[256] = 'b';
+	pw[257] = '\0';
+	assert(archive_7z_kdf_sha256(pw, NULL, 0, 0, actual,
+	    sizeof(actual)) != 0);
+	memcpy(pw + 254, "\xf0\x9f\x99\x82", 5);
+	assertEqualInt(0, archive_7z_kdf_sha256(pw, NULL, 0, 0,
+	    actual, sizeof(actual)));
+	assertEqualMem(surrogate_key, actual, sizeof(actual));
+	memset(pw, 'a', 255);
+	memcpy(pw + 255, "\xf0\x9f\x99\x82", 5);
+	assert(archive_7z_kdf_sha256(pw, NULL, 0, 0, actual,
+	    sizeof(actual)) != 0);
+	for (i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++)
+		assert(archive_7z_kdf_sha256(invalid[i], NULL, 0, 0, actual,
+		    sizeof(actual)) != 0);
+}

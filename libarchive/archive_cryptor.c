@@ -826,62 +826,65 @@ aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
 #endif /* ARCHIVE_CRYPTOR_STUB */
 
 #if defined(ARCHIVE_HAS_SHA256)
-static size_t
-utf8_to_utf16le(const char *utf8, uint8_t *utf16, size_t max_utf16_bytes)
+static int
+utf8_to_utf16le(const char *utf8, uint8_t *utf16, size_t max_utf16_bytes,
+    size_t *utf16_bytes)
 {
-	size_t i = 0, o = 0, k, clen;
+	size_t i = 0, o = 0, k, clen, needed;
 	unsigned char c;
-	uint32_t cp;
+	uint32_t cp, minimum;
 	uint16_t high, low;
 
-	if (utf8 == NULL || utf16 == NULL)
-		return 0;
-	while (utf8[i] != '\0' && o + 2 <= max_utf16_bytes) {
+	while (utf8[i] != '\0') {
 		c = (unsigned char)utf8[i];
-		cp = 0;
-		clen = 0;
-
 		if (c < 0x80) {
 			cp = c;
 			clen = 1;
-		} else if ((c & 0xE0) == 0xC0) {
-			cp = c & 0x1F;
+			minimum = 0;
+		} else if (c >= 0xc2 && c <= 0xdf) {
+			cp = c & 0x1f;
 			clen = 2;
-		} else if ((c & 0xF0) == 0xE0) {
-			cp = c & 0x0F;
+			minimum = 0x80;
+		} else if (c >= 0xe0 && c <= 0xef) {
+			cp = c & 0x0f;
 			clen = 3;
-		} else if ((c & 0xF8) == 0xF0) {
+			minimum = 0x800;
+		} else if (c >= 0xf0 && c <= 0xf4) {
 			cp = c & 0x07;
 			clen = 4;
-		} else {
-			cp = c;
-			clen = 1;
-		}
+			minimum = 0x10000;
+		} else
+			return (-1);
 
 		for (k = 1; k < clen; k++) {
-			if (utf8[i + k] == '\0' || (utf8[i + k] & 0xC0) != 0x80) {
-				clen = 1;
-				cp = c;
-				break;
-			}
-			cp = (cp << 6) | (utf8[i + k] & 0x3F);
+			c = (unsigned char)utf8[i + k];
+			if ((c & 0xc0) != 0x80)
+				return (-1);
+			cp = (cp << 6) | (c & 0x3f);
 		}
+		if (cp < minimum || cp > 0x10ffff ||
+		    (cp >= 0xd800 && cp <= 0xdfff))
+			return (-1);
+		needed = cp < 0x10000 ? 2 : 4;
+		if (needed > max_utf16_bytes - o)
+			return (-1);
 		i += clen;
 
-		if (cp < 0x10000) {
-			utf16[o++] = (uint8_t)(cp & 0xFF);
-			utf16[o++] = (uint8_t)((cp >> 8) & 0xFF);
-		} else if (cp <= 0x10FFFF && o + 4 <= max_utf16_bytes) {
+		if (needed == 2) {
+			utf16[o++] = (uint8_t)(cp & 0xff);
+			utf16[o++] = (uint8_t)(cp >> 8);
+		} else {
 			cp -= 0x10000;
-			high = (uint16_t)(0xD800 + (cp >> 10));
-			low = (uint16_t)(0xDC00 + (cp & 0x3FF));
-			utf16[o++] = (uint8_t)(high & 0xFF);
-			utf16[o++] = (uint8_t)((high >> 8) & 0xFF);
-			utf16[o++] = (uint8_t)(low & 0xFF);
-			utf16[o++] = (uint8_t)((low >> 8) & 0xFF);
+			high = (uint16_t)(0xd800 + (cp >> 10));
+			low = (uint16_t)(0xdc00 + (cp & 0x3ff));
+			utf16[o++] = (uint8_t)(high & 0xff);
+			utf16[o++] = (uint8_t)(high >> 8);
+			utf16[o++] = (uint8_t)(low & 0xff);
+			utf16[o++] = (uint8_t)(low >> 8);
 		}
 	}
-	return o;
+	*utf16_bytes = o;
+	return (0);
 }
 
 #endif
@@ -913,7 +916,11 @@ kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
 		block_len += salt_len;
 	}
 	if (pw != NULL) {
-		pw_bytes = utf8_to_utf16le(pw, kdf_buf + block_len, 512);
+		if (utf8_to_utf16le(pw, kdf_buf + block_len, 512,
+		    &pw_bytes) != 0) {
+			cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
+			return -1;
+		}
 		block_len += pw_bytes;
 	}
 
