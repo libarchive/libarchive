@@ -2792,6 +2792,14 @@ new_fixup(struct archive_write_disk *a, const char *pathname)
 	fe->fixup = 0;
 	fe->filetype = 0;
 	fe->name = strdup(pathname);
+	if (fe->name != NULL) {
+		int fixup_eno;
+		struct archive_string fixup_estr;
+		archive_string_init(&fixup_estr);
+		cleanup_pathname_fsobj(fe->name, &fixup_eno, &fixup_estr,
+		    a->flags);
+		archive_string_free(&fixup_estr);
+	}
 	return (fe);
 }
 
