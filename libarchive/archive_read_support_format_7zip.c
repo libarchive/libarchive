@@ -3950,6 +3950,12 @@ seek_pack(struct archive_read *a)
 	}
 	zip->pack_stream_inbytes_remaining =
 	    zip->si.pi.sizes[zip->pack_stream_index];
+	if (zip->is_encrypted &&
+	    zip->pack_stream_inbytes_remaining % AES_BLOCK_SIZE != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated 7-Zip encrypted stream");
+		return (ARCHIVE_FATAL);
+	}
 	pack_offset = zip->si.pi.positions[zip->pack_stream_index];
 	if (zip->stream_offset != pack_offset) {
 		int64_t target;
