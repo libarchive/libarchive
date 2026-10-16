@@ -92,3 +92,29 @@ DEFINE_TEST(test_read_format_7zip_encryption_properties)
 		}
 	}
 }
+
+/* The plaintext and its CRC are valid, but the 31-byte pack stream is
+ * missing part of its final AES block. Do not stop after its first byte.
+ */
+DEFINE_TEST(test_read_format_7zip_encryption_truncated)
+{
+	const char *ref = "test_read_format_7zip_encryption_truncated.7z";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[16];
+
+	if (!can7zipEncryption()) {
+		skipping("7-Zip AES decryption is not supported on this platform");
+		return;
+	}
+	extract_reference_file(ref);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, "12345678"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, ref, 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_entry_size(ae));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
