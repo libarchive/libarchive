@@ -83,7 +83,7 @@ DEFINE_TEST(test_archive_read_open_filenames_split_uaf)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
 	/* Verify that no further entry can be found. */
-	assertEqualIntA(a, ARCHIVE_RETRY, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
