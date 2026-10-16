@@ -365,9 +365,14 @@ const char *
 archive_mbedtls_version(void)
 {
 #if defined(ARCHIVE_CRYPTOR_USE_MBED) || defined(ARCHIVE_CRYPTO_MBED)
+#if MBEDTLS_VERSION_MAJOR >= 4
+	/* The version functions are in libmbedtls, which is not linked. */
+	return MBEDTLS_VERSION_STRING;
+#else
 	static char mbed_version[9];
 	mbedtls_version_get_string(mbed_version);
 	return mbed_version;
+#endif
 #else
 	return NULL;
 #endif
