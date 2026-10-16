@@ -903,7 +903,7 @@ kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
 	if (derived_key == NULL || derived_key_len == 0)
 		return -1;
 
-	if (numCyclesPower > 24)
+	if (numCyclesPower > 24 && numCyclesPower != 0x3f)
 		return -1;
 
 	if (salt != NULL && salt_len > 0) {
@@ -917,13 +917,17 @@ kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
 		block_len += pw_bytes;
 	}
 
-	if (archive_sha256_init(&sha) != ARCHIVE_OK)
-		return -1;
-
-	if (numCyclesPower == 0) {
-		if (block_len > 0)
-			archive_sha256_update(&sha, kdf_buf, block_len);
+	if (numCyclesPower == 0x3f) {
+		/* The special mode uses salt and password directly, zero padded. */
+		memset(full_digest, 0, sizeof(full_digest));
+		if (block_len > sizeof(full_digest))
+			block_len = sizeof(full_digest);
+		memcpy(full_digest, kdf_buf, block_len);
 	} else {
+		if (archive_sha256_init(&sha) != ARCHIVE_OK) {
+			cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
+			return -1;
+		}
 		round_offset = block_len;
 		block_len += 8;
 		numRounds = ((uint64_t)1) << numCyclesPower;
@@ -931,9 +935,8 @@ kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
 			archive_le64enc(kdf_buf + round_offset, round);
 			archive_sha256_update(&sha, kdf_buf, block_len);
 		}
+		archive_sha256_final(&sha, full_digest);
 	}
-
-	archive_sha256_final(&sha, full_digest);
 
 	if (derived_key_len > 32)
 		derived_key_len = 32;

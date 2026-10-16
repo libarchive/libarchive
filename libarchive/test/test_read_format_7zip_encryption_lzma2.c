@@ -41,6 +41,11 @@ DEFINE_TEST(test_read_format_7zip_encryption_lzma2)
 	char expected[20 * sizeof(line)];
 	int i;
 
+	if (!can7zipEncryption()) {
+		skipping("7-Zip AES decryption is not supported on this platform");
+		return;
+	}
+
 	for (i = 0; i < 20; i++)
 		memcpy(expected + i * (sizeof(line) - 1), line,
 		    sizeof(line) - 1);

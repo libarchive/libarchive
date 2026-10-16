@@ -4116,7 +4116,7 @@ parse_7z_crypto_properties(struct _7z_crypto_properties *props,
 
 	b0 = p[0];
 	props->num_cycles_power = b0 & 0x3F;
-	if (props->num_cycles_power > 24)
+	if (props->num_cycles_power > 24 && props->num_cycles_power != 0x3f)
 		return (-1);
 
 	salt_flag = (b0 >> 7) & 1;
@@ -4127,11 +4127,11 @@ parse_7z_crypto_properties(struct _7z_crypto_properties *props,
 			return (-1);
 		b1 = p[1];
 		offset = 2;
-		props->salt_size = salt_flag ? (uint8_t)(((b1 >> 4) & 0x0F) + 1) : 0;
-		props->iv_size = iv_flag ? (uint8_t)((b1 & 0x0F) + 1) : 0;
+		props->salt_size = (uint8_t)(salt_flag + (b1 >> 4));
+		props->iv_size = (uint8_t)(iv_flag + (b1 & 0x0F));
 	}
 
-	if (offset + props->salt_size + props->iv_size > size)
+	if (offset + props->salt_size + props->iv_size != size)
 		return (-1);
 
 	if (props->salt_size > 0) {
@@ -4255,7 +4255,8 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 				zip->has_encrypted_entries = 1;
 				if (a->entry) {
 					archive_entry_set_is_data_encrypted(a->entry, 1);
-					archive_entry_set_is_metadata_encrypted(a->entry, 1);
+					archive_entry_set_is_metadata_encrypted(a->entry,
+					    header || zip->header_is_encrypted);
 				}
 				crypto_coder = &(folder->coders[i]);
 				break;
