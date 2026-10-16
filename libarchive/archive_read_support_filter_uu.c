@@ -232,6 +232,17 @@ read_line_ahead(struct archive_read_filter *f, ssize_t parsed,
 			line = b + start;
 			*len = p - line;
 			*unconsumed = *len + nl;
+
+			/* Only ASCII lines are valid. */
+			while (p > line) {
+				unsigned char c = *--p;
+
+				if (c < 0x20 || c > 0x7F) {
+					*len = 0;
+					*unconsumed = 0;
+					return (NULL);
+				}
+			}
 		} else {
 			/* Keep offset for check of possibly missing \n in \r\n. */
 			if (step != 1)
