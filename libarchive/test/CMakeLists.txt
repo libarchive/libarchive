@@ -88,6 +88,7 @@ IF(ENABLE_TEST)
     test_gnutar_filename_encoding.c
     test_link_resolver.c
     test_open_failure.c
+    test_open_failure_cleanup.c
     test_open_fd.c
     test_open_file.c
     test_open_filename.c
