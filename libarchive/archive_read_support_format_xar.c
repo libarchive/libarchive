@@ -3294,7 +3294,6 @@ xml2_read_toc(struct archive_read *a)
 			xmlattr_cleanup(&list);
 			if (r != ARCHIVE_OK) {
 				xmlFreeTextReader(reader);
-				xmlCleanupParser();
 				return (r);
 			}
 			if (empty)
@@ -3308,7 +3307,6 @@ xml2_read_toc(struct archive_read *a)
 			r = xml_data(a, value, strlen(value));
 			if (r != ARCHIVE_OK) {
 				xmlFreeTextReader(reader);
-				xmlCleanupParser();
 				return (r);
 			}
 			break;
@@ -3320,7 +3318,6 @@ xml2_read_toc(struct archive_read *a)
 			break;
 	}
 	xmlFreeTextReader(reader);
-	xmlCleanupParser();
 
 	return ((r == 0)?ARCHIVE_OK:ARCHIVE_FATAL);
 }
