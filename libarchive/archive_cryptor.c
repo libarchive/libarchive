@@ -30,7 +30,26 @@
 #endif
 #include "archive.h"
 #include "archive_cryptor_private.h"
+#include "archive_digest_private.h"
+#include "archive_endian.h"
 
+#if defined(ARCHIVE_HAS_SHA256)
+/*
+ * Securely clear sensitive memory to prevent compiler dead-store elimination.
+ * Uses the same volatile function pointer pattern as archive_blake2_impl.h.
+ */
+static void
+cryptor_secure_clear(void *p, size_t len)
+{
+	static void *(__LA_LIBC_CC *const volatile memset_v)(void *, int, size_t) = &memset;
+	if (p != NULL && len > 0)
+		memset_v(p, 0, len);
+}
+#endif
+
+/*
+ * Crypto Backend 1: Apple CommonCrypto (macOS / iOS / Darwin)
+ */
 #ifdef ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto
 
 static int
@@ -44,6 +63,9 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return 0;
 }
 
+/*
+ * Crypto Backend 2: Windows Cryptography API: Next Generation (BCrypt)
+ */
 #elif defined(_WIN32) && !defined(__CYGWIN__) && defined(ARCHIVE_CRYPTO_WIN)
 #ifdef _MSC_VER
 #pragma comment(lib, "Bcrypt.lib")
@@ -72,6 +94,9 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return (BCRYPT_SUCCESS(status)) ? 0: -1;
 }
 
+/*
+ * Crypto Backend 3: mbed TLS (ARM / Embedded)
+ */
 #elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_PKCS5_H)
 
 static int
@@ -101,6 +126,9 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return (ret);
 }
 
+/*
+ * Crypto Backend 4: Nettle Cryptographic Library
+ */
 #elif defined(HAVE_LIBNETTLE) && defined(HAVE_NETTLE_PBKDF2_H)
 
 static int
@@ -112,6 +140,9 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return 0;
 }
 
+/*
+ * Crypto Backend 5: OpenSSL libcrypto
+ */
 #elif defined(HAVE_LIBCRYPTO) && defined(HAVE_PKCS5_PBKDF2_HMAC_SHA1)
 
 static int
@@ -124,6 +155,9 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return 0;
 }
 
+/*
+ * Crypto Backend 6: Stub Fallback (No Crypto Available)
+ */
 #else
 
 /* Stub */
@@ -181,6 +215,41 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 {
 	memset(ctx->key, 0, ctx->key_len);
 	memset(ctx->nonce, 0, sizeof(ctx->nonce));
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key,
+    size_t key_len, const uint8_t *iv, size_t iv_len)
+{
+	CCCryptorStatus r;
+	(void)iv_len;
+	r = CCCryptorCreateWithMode(kCCDecrypt, kCCModeCBC, kCCAlgorithmAES,
+	    ccNoPadding, iv, key, key_len, NULL, 0, 0, 0, &ctx->ctx);
+	return (r == kCCSuccess)? 0: -1;
+}
+
+static int
+decrypto_aes_cbc_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+    size_t in_len, uint8_t * const out, size_t *out_len)
+{
+	CCCryptorStatus r;
+	size_t moved = 0;
+
+	r = CCCryptorUpdate(ctx->ctx, in, in_len, out, *out_len, &moved);
+	if (r != kCCSuccess)
+		return -1;
+	*out_len = moved;
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_release(archive_crypto_ctx *ctx)
+{
+	if (ctx->ctx != NULL) {
+		CCCryptorRelease(ctx->ctx);
+		ctx->ctx = NULL;
+	}
 	return 0;
 }
 
@@ -285,6 +354,96 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 	return 0;
 }
 
+static int
+decrypto_aes_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key,
+    size_t key_len, const uint8_t *iv, size_t iv_len)
+{
+	BCRYPT_ALG_HANDLE hAlg;
+	BCRYPT_KEY_HANDLE hKey;
+	DWORD keyObj_len;
+	PBYTE keyObj;
+	ULONG result;
+	NTSTATUS status;
+
+	ctx->hAlg = NULL;
+	ctx->hKey = NULL;
+	ctx->keyObj = NULL;
+	if (iv != NULL && iv_len <= AES_BLOCK_SIZE) {
+		memcpy(ctx->nonce, iv, iv_len);
+		if (iv_len < AES_BLOCK_SIZE)
+			memset(ctx->nonce + iv_len, 0, AES_BLOCK_SIZE - iv_len);
+	} else {
+		memset(ctx->nonce, 0, sizeof(ctx->nonce));
+	}
+
+	status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM,
+		MS_PRIMITIVE_PROVIDER, 0);
+	if (!BCRYPT_SUCCESS(status))
+		return -1;
+	status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
+		(PUCHAR)BCRYPT_CHAIN_MODE_CBC, sizeof(BCRYPT_CHAIN_MODE_CBC), 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	status = BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&keyObj_len,
+		sizeof(keyObj_len), &result, 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	keyObj = (PBYTE)HeapAlloc(GetProcessHeap(), 0, keyObj_len);
+	if (keyObj == NULL) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return -1;
+	}
+	status = BCryptGenerateSymmetricKey(hAlg, &hKey,
+		keyObj, keyObj_len,
+		(PUCHAR)(uintptr_t)key, (ULONG)key_len, 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		HeapFree(GetProcessHeap(), 0, keyObj);
+		return -1;
+	}
+
+	ctx->hAlg = hAlg;
+	ctx->hKey = hKey;
+	ctx->keyObj = keyObj;
+	ctx->keyObj_len = keyObj_len;
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+    size_t in_len, uint8_t * const out, size_t *out_len)
+{
+	ULONG result = 0;
+	NTSTATUS status;
+
+	status = BCryptDecrypt(ctx->hKey, (PUCHAR)(uintptr_t)in, (ULONG)in_len,
+		NULL, ctx->nonce, AES_BLOCK_SIZE, (PUCHAR)out, (ULONG)*out_len,
+		&result, 0);
+	if (!BCRYPT_SUCCESS(status))
+		return -1;
+	*out_len = (size_t)result;
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_release(archive_crypto_ctx *ctx)
+{
+	if (ctx->hAlg != NULL) {
+		BCryptCloseAlgorithmProvider(ctx->hAlg, 0);
+		ctx->hAlg = NULL;
+		BCryptDestroyKey(ctx->hKey);
+		ctx->hKey = NULL;
+		HeapFree(GetProcessHeap(), 0, ctx->keyObj);
+		ctx->keyObj = NULL;
+	}
+	memset(ctx, 0, sizeof(*ctx));
+	return 0;
+}
+
 #elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_AES_H)
 
 static int
@@ -312,6 +471,41 @@ aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
 
 static int
 aes_ctr_release(archive_crypto_ctx *ctx)
+{
+	mbedtls_aes_free(&ctx->ctx);
+	memset(ctx, 0, sizeof(*ctx));
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key,
+    size_t key_len, const uint8_t *iv, size_t iv_len)
+{
+	mbedtls_aes_init(&ctx->ctx);
+	if (mbedtls_aes_setkey_dec(&ctx->ctx, key, (unsigned)(key_len * 8)) != 0)
+		return -1;
+	if (iv != NULL && iv_len <= AES_BLOCK_SIZE) {
+		memcpy(ctx->nonce, iv, iv_len);
+		if (iv_len < AES_BLOCK_SIZE)
+			memset(ctx->nonce + iv_len, 0, AES_BLOCK_SIZE - iv_len);
+	} else {
+		memset(ctx->nonce, 0, sizeof(ctx->nonce));
+	}
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+    size_t in_len, uint8_t * const out, size_t *out_len)
+{
+	if (mbedtls_aes_crypt_cbc(&ctx->ctx, MBEDTLS_AES_DECRYPT, in_len, ctx->nonce, in, out) != 0)
+		return -1;
+	*out_len = in_len;
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_release(archive_crypto_ctx *ctx)
 {
 	mbedtls_aes_free(&ctx->ctx);
 	memset(ctx, 0, sizeof(*ctx));
@@ -369,6 +563,60 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 	return 0;
 }
 
+/*
+ * Block decryption function with the signature that cbc_decrypt() expects.
+ * Only AES-256 is needed for CBC decryption (7-Zip's AES uses 256-bit keys).
+ */
+static void
+aes_cbc_decrypt_block(const void *ctx, size_t length, uint8_t *dst,
+    const uint8_t *src)
+{
+#if NETTLE_VERSION_MAJOR < 3
+	aes_decrypt(ctx, length, dst, src);
+#else
+	aes256_decrypt(ctx, length, dst, src);
+#endif
+}
+
+static int
+decrypto_aes_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key,
+    size_t key_len, const uint8_t *iv, size_t iv_len)
+{
+	if (key_len != AES256_KEY_SIZE)
+		return -1;
+	memset(ctx, 0, sizeof(*ctx));
+#if NETTLE_VERSION_MAJOR < 3
+	aes_set_decrypt_key(&ctx->ctx, key_len, key);
+#else
+	aes256_set_decrypt_key(&ctx->ctx.c256, key);
+#endif
+	ctx->key_len = (unsigned)key_len;
+	/* The nonce holds the chaining value: the IV at first, then the last
+	 * ciphertext block that was processed. */
+	if (iv != NULL && iv_len <= AES_BLOCK_SIZE)
+		memcpy(ctx->nonce, iv, iv_len);
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+    size_t in_len, uint8_t * const out, size_t *out_len)
+{
+	if (in_len % AES_BLOCK_SIZE != 0)
+		return -1;
+	cbc_decrypt(&ctx->ctx, aes_cbc_decrypt_block, AES_BLOCK_SIZE,
+	    ctx->nonce, in_len, out, in);
+	*out_len = in_len;
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_release(archive_crypto_ctx *ctx)
+{
+	memset(ctx, 0, sizeof(*ctx));
+	return 0;
+}
+
 #elif defined(HAVE_LIBCRYPTO)
 
 static int
@@ -416,6 +664,52 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 	return 0;
 }
 
+static int
+decrypto_aes_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key,
+    size_t key_len, const uint8_t *iv, size_t iv_len)
+{
+	const EVP_CIPHER *cipher;
+	(void)iv_len;
+	switch (key_len) {
+	case 16: cipher = EVP_aes_128_cbc(); break;
+	case 24: cipher = EVP_aes_192_cbc(); break;
+	case 32: cipher = EVP_aes_256_cbc(); break;
+	default: return -1;
+	}
+	ctx->ctx = EVP_CIPHER_CTX_new();
+	if (ctx->ctx == NULL)
+		return -1;
+	if (EVP_DecryptInit_ex(ctx->ctx, cipher, NULL, key, iv) == 0) {
+		EVP_CIPHER_CTX_free(ctx->ctx);
+		ctx->ctx = NULL;
+		return -1;
+	}
+	EVP_CIPHER_CTX_set_padding(ctx->ctx, 0);
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+    size_t in_len, uint8_t * const out, size_t *out_len)
+{
+	int outl = 0;
+	if (EVP_DecryptUpdate(ctx->ctx, out, &outl, in, (int)in_len) == 0)
+		return -1;
+	*out_len = (size_t)outl;
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_release(archive_crypto_ctx *ctx)
+{
+	if (ctx->ctx != NULL) {
+		EVP_CIPHER_CTX_free(ctx->ctx);
+		ctx->ctx = NULL;
+	}
+	memset(ctx, 0, sizeof(*ctx));
+	return 0;
+}
+
 #else
 
 #define ARCHIVE_CRYPTOR_STUB
@@ -440,6 +734,29 @@ static int
 aes_ctr_release(archive_crypto_ctx *ctx)
 {
 	(void)ctx; /* UNUSED */
+	return 0;
+}
+
+static int
+decrypto_aes_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key,
+    size_t key_len, const uint8_t *iv, size_t iv_len)
+{
+	(void)ctx; (void)key; (void)key_len; (void)iv; (void)iv_len;
+	return CRYPTOR_STUB_FUNCTION;
+}
+
+static int
+decrypto_aes_cbc_update(archive_crypto_ctx *ctx, const uint8_t * const in,
+    size_t in_len, uint8_t * const out, size_t *out_len)
+{
+	(void)ctx; (void)in; (void)in_len; (void)out; (void)out_len;
+	return CRYPTOR_STUB_FUNCTION;
+}
+
+static int
+decrypto_aes_cbc_release(archive_crypto_ctx *ctx)
+{
+	(void)ctx;
 	return 0;
 }
 
@@ -508,6 +825,138 @@ aes_ctr_update(archive_crypto_ctx *ctx, const uint8_t * const in,
 }
 #endif /* ARCHIVE_CRYPTOR_STUB */
 
+#if defined(ARCHIVE_HAS_SHA256)
+static int
+utf8_to_utf16le(const char *utf8, uint8_t *utf16, size_t max_utf16_bytes,
+    size_t *utf16_bytes)
+{
+	size_t i = 0, o = 0, k, clen, needed;
+	unsigned char c;
+	uint32_t cp, minimum;
+	uint16_t high, low;
+
+	while (utf8[i] != '\0') {
+		c = (unsigned char)utf8[i];
+		if (c < 0x80) {
+			cp = c;
+			clen = 1;
+			minimum = 0;
+		} else if (c >= 0xc2 && c <= 0xdf) {
+			cp = c & 0x1f;
+			clen = 2;
+			minimum = 0x80;
+		} else if (c >= 0xe0 && c <= 0xef) {
+			cp = c & 0x0f;
+			clen = 3;
+			minimum = 0x800;
+		} else if (c >= 0xf0 && c <= 0xf4) {
+			cp = c & 0x07;
+			clen = 4;
+			minimum = 0x10000;
+		} else
+			return (-1);
+
+		for (k = 1; k < clen; k++) {
+			c = (unsigned char)utf8[i + k];
+			if ((c & 0xc0) != 0x80)
+				return (-1);
+			cp = (cp << 6) | (c & 0x3f);
+		}
+		if (cp < minimum || cp > 0x10ffff ||
+		    (cp >= 0xd800 && cp <= 0xdfff))
+			return (-1);
+		needed = cp < 0x10000 ? 2 : 4;
+		if (needed > max_utf16_bytes - o)
+			return (-1);
+		i += clen;
+
+		if (needed == 2) {
+			utf16[o++] = (uint8_t)(cp & 0xff);
+			utf16[o++] = (uint8_t)(cp >> 8);
+		} else {
+			cp -= 0x10000;
+			high = (uint16_t)(0xd800 + (cp >> 10));
+			low = (uint16_t)(0xdc00 + (cp & 0x3ff));
+			utf16[o++] = (uint8_t)(high & 0xff);
+			utf16[o++] = (uint8_t)(high >> 8);
+			utf16[o++] = (uint8_t)(low & 0xff);
+			utf16[o++] = (uint8_t)(low >> 8);
+		}
+	}
+	*utf16_bytes = o;
+	return (0);
+}
+
+#endif
+
+static int
+kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
+    unsigned numCyclesPower, uint8_t *derived_key, size_t derived_key_len)
+{
+#if defined(ARCHIVE_HAS_SHA256)
+	archive_sha256_ctx sha;
+	uint8_t kdf_buf[512 + 16 + 8];
+	size_t pw_bytes = 0;
+	size_t block_len = 0;
+	size_t round_offset;
+	uint64_t numRounds;
+	uint64_t round;
+	uint8_t full_digest[32];
+
+	if (derived_key == NULL || derived_key_len == 0)
+		return -1;
+
+	if (numCyclesPower > 24 && numCyclesPower != 0x3f)
+		return -1;
+
+	if (salt != NULL && salt_len > 0) {
+		if (salt_len > 16)
+			salt_len = 16;
+		memcpy(kdf_buf, salt, salt_len);
+		block_len += salt_len;
+	}
+	if (pw != NULL) {
+		if (utf8_to_utf16le(pw, kdf_buf + block_len, 512,
+		    &pw_bytes) != 0) {
+			cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
+			return -1;
+		}
+		block_len += pw_bytes;
+	}
+
+	if (numCyclesPower == 0x3f) {
+		/* The special mode uses salt and password directly, zero padded. */
+		memset(full_digest, 0, sizeof(full_digest));
+		if (block_len > sizeof(full_digest))
+			block_len = sizeof(full_digest);
+		memcpy(full_digest, kdf_buf, block_len);
+	} else {
+		if (archive_sha256_init(&sha) != ARCHIVE_OK) {
+			cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
+			return -1;
+		}
+		round_offset = block_len;
+		block_len += 8;
+		numRounds = ((uint64_t)1) << numCyclesPower;
+		for (round = 0; round < numRounds; round++) {
+			archive_le64enc(kdf_buf + round_offset, round);
+			archive_sha256_update(&sha, kdf_buf, block_len);
+		}
+		archive_sha256_final(&sha, full_digest);
+	}
+
+	if (derived_key_len > 32)
+		derived_key_len = 32;
+	memcpy(derived_key, full_digest, derived_key_len);
+	cryptor_secure_clear(full_digest, sizeof(full_digest));
+	cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
+	return 0;
+#else
+	(void)pw; (void)salt; (void)salt_len; (void)numCyclesPower;
+	(void)derived_key; (void)derived_key_len;
+	return CRYPTOR_STUB_FUNCTION;
+#endif
+}
 
 const struct archive_cryptor __archive_cryptor =
 {
@@ -518,4 +967,8 @@ const struct archive_cryptor __archive_cryptor =
   &aes_ctr_init,
   &aes_ctr_update,
   &aes_ctr_release,
+  &decrypto_aes_cbc_init,
+  &decrypto_aes_cbc_update,
+  &decrypto_aes_cbc_release,
+  &kdf_7z_sha256,
 };
