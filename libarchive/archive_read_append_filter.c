@@ -123,6 +123,9 @@ archive_read_append_filter(struct archive *_a, int code)
     case ARCHIVE_FILTER_ZSTD:
       r1 = archive_read_support_filter_zstd(_a);
       break;
+    case ARCHIVE_FILTER_PBZX:
+      r1 = archive_read_support_filter_pbzx(_a);
+      break;
     case ARCHIVE_FILTER_LZIP:
       r1 = archive_read_support_filter_lzip(_a);
       break;

@@ -102,6 +102,7 @@ The library also detects and handles any of the following before evaluating the 
 
   * uuencoded files
   * files with RPM wrapper
+  * files with PBZX framing (Apple payloads)
   * gzip compression
   * bzip2 compression
   * compress/LZW compression
