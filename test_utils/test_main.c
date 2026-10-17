@@ -2633,6 +2633,11 @@ canRunCommand(const char *cmd, int *tested)
     }
 
 /*
+ * Can this platform run the brotli program?
+ */
+CAN_RUN_FUNC(Brotli, "brotli --help")
+
+/*
  * Can this platform run the bzip2 program?
  */
 CAN_RUN_FUNC(Bzip2, "bzip2 --help")
