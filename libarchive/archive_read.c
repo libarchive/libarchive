@@ -33,6 +33,9 @@
 
 #include "archive_platform.h"
 
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -53,6 +56,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_integer.h"
+#include "archive_platform_stat.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -482,8 +486,6 @@ archive_read_open1(struct archive *_a)
 	f->vtable = &none_reader_vtable;
 	f->name = "none";
 	f->code = ARCHIVE_FILTER_NONE;
-	f->can_skip = a->client.skipper != NULL;
-	f->can_seek = a->client.seeker != NULL;
 
 	/* Open data source. */
 	if (a->client.opener != NULL) {
@@ -496,6 +498,13 @@ archive_read_open1(struct archive *_a)
 			return (e);
 		}
 	}
+
+	/*
+	 * The opener may have found out that the data source can't skip or
+	 * seek, so check the callbacks only now.
+	 */
+	f->can_skip = a->client.skipper != NULL;
+	f->can_seek = a->client.seeker != NULL;
 
 	a->client.dataset[0].begin_position = 0;
 	if (!a->filter || !a->bypass_filter_bidding)
@@ -1697,6 +1706,21 @@ int64_t
 __archive_read_seek(struct archive_read *a, int64_t offset, int whence)
 {
 	return __archive_read_filter_seek(a->filter, offset, whence);
+}
+
+int
+la_use_seek(const la_seek_stat_t *st)
+{
+#ifdef S_ISFIFO
+	if (S_ISFIFO(st->st_mode))
+		return (0);
+#endif
+#ifdef S_ISSOCK
+	if (S_ISSOCK(st->st_mode))
+		return (0);
+#endif
+	(void)st; /* UNUSED */
+	return (1);
 }
 
 int64_t
