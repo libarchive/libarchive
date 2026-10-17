@@ -221,18 +221,27 @@ client_switch_proxy(struct archive_read_filter *f, unsigned int iindex)
 static ssize_t
 client_read_proxy(struct archive_read_filter *f, const void **buff)
 {
+	struct archive_read_client *client = &f->archive->client;
 	ssize_t bytes_read = 0;
 
 	for (;;) {
-		bytes_read = (f->archive->client.reader)(&f->archive->archive,
+		bytes_read = (client->reader)(&f->archive->archive,
 		    f->data, buff);
 		if (bytes_read == 0) {
-			unsigned int cursor = f->archive->client.cursor;
+			int64_t position = f->position + f->avail;
+			unsigned int cursor = client->cursor;
+
+			client->dataset[cursor].total_size = position -
+			    client->dataset[cursor].begin_position;
 
 			/* Continue with next client object if available. */
-			if (cursor != f->archive->client.nodes - 1 &&
-			    client_switch_proxy(f, cursor + 1) == ARCHIVE_OK)
-				continue;
+			if (cursor != client->nodes - 1) {
+				client->dataset[cursor + 1].begin_position =
+				    position;
+				if (client_switch_proxy(f, cursor + 1) ==
+				    ARCHIVE_OK)
+					continue;
+			}
 		}
 		break;
 	}
