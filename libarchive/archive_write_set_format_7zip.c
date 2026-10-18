@@ -479,7 +479,7 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 	if (strcmp(key, "compression-level") == 0) {
 		if (value == NULL || *value == '\0') {
 			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
-				"Invalid compression-level option value `%s'", value);
+				"Option 'compression-level' requires an argument");
 			return (ARCHIVE_FAILED);
 		}
 
