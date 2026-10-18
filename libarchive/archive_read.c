@@ -454,7 +454,7 @@ int
 archive_read_open1(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter *f, *tmp;
+	struct archive_read_filter *f;
 	int slot, e = ARCHIVE_OK;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
@@ -510,11 +510,41 @@ archive_read_open1(struct archive *_a)
 	}
 	else
 	{
+		size_t count;
+		struct archive_read_filter *f2;
+
 		/* Need to add "NONE" type filter at the end of the filter chain */
-		tmp = a->filter;
-		while (tmp->upstream)
-			tmp = tmp->upstream;
-		tmp->upstream = f;
+		count = 1;
+		for (f2 = a->filter; f2->upstream != NULL; f2 = f2->upstream)
+			count++;
+		f2->upstream = f;
+
+		while (count-- > 0) {
+			struct archive_read_filter_bidder *bidder;
+			size_t i;
+			int r;
+
+			f2 = a->filter;
+			for (i = 0; i < count; i++)
+				f2 = f2->upstream;
+			bidder = f2->bidder;
+
+			r = (bidder->vtable->bid)(bidder, f2->upstream);
+			if (r < 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Registered filter does not match");
+				close_filters(a);
+				a->archive.state = ARCHIVE_STATE_FATAL;
+				return (ARCHIVE_FATAL);
+			}
+			r = (bidder->vtable->init)(f2);
+			if (r != ARCHIVE_OK) {
+				close_filters(a);
+				a->archive.state = ARCHIVE_STATE_FATAL;
+				return (ARCHIVE_FATAL);
+			}
+		}
 	}
 
 	if (!a->format)
