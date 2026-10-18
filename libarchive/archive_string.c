@@ -710,7 +710,6 @@ static int
 archive_string_append_from_wcs_in_codepage(struct archive_string *as,
     const wchar_t *ws, size_t len, struct archive_string_conv *sc)
 {
-	BOOL defchar_used, *dp;
 	int ret = 0;
 	UINT to_cp;
 	size_t count, wslen = len;
@@ -732,12 +731,12 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			return (-1);
 		p = as->s + as->length;
 		count = 0;
-		defchar_used = 0;
 		while (count < wslen && *wp) {
 			if (*wp > 255) {
 				*p++ = '?';
 				wp++;
-				defchar_used = 1;
+				errno = EILSEQ;
+				ret = -1;
 			} else
 				*p++ = (char)*wp++;
 			count++;
@@ -750,7 +749,6 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			return (-1);
 		u16 = (uint16_t *)(as->s + as->length);
 		count = 0;
-		defchar_used = 0;
 		if (sc->flag & SCONV_TO_UTF16BE) {
 			while (count < len && *ws) {
 				archive_be16enc(u16+count, *ws);
@@ -772,6 +770,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			return (-1);
 		do {
 			int r;
+			BOOL defchar_used, *dp;
 
 			defchar_used = 0;
 			if (to_cp == CP_UTF8)
@@ -797,15 +796,17 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 					return (-1);
 				continue;
 			}
-			if (r == 0)
+			if (r == 0 || defchar_used) {
+				errno = EILSEQ;
 				ret = -1;
+			}
 			count = (size_t)r;
 			break;
 		} while (1);
 	}
 	as->length += count;
 	as->s[as->length] = '\0';
-	return (defchar_used?-1:ret);
+	return (ret);
 }
 
 #elif defined(HAVE_WCTOMB) || defined(HAVE_WCRTOMB)
