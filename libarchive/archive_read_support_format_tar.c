@@ -947,7 +947,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 				}
 				err = err_combine(err, err2);
 				/* Note: Other headers can appear again. */
-				seen_headers = seen_mac_metadata;
+				seen_headers |= seen_mac_metadata;
 				tar_reset_header_state(tar);
 				break;
 			}
