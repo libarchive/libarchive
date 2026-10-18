@@ -886,12 +886,16 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 
 	if (r == ARCHIVE_FATAL)
 		exit(1);
+	if (r == ARCHIVE_FAILED)
+		cpio->return_value = 1;
 
 	if (r >= ARCHIVE_WARN && archive_entry_size(entry) > 0 && fd >= 0) {
 		static char buff[16384];
 		ssize_t bytes_read;
 
-		bytes_read = read(fd, buff, sizeof(buff));
+		do {
+			bytes_read = read(fd, buff, sizeof(buff));
+		} while (bytes_read < 0 && errno == EINTR);
 		while (bytes_read > 0) {
 			ssize_t bytes_write;
 			bytes_write = archive_write_data(cpio->archive,
@@ -904,7 +908,13 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 				    "Truncated write; file may have "
 				    "grown while being archived");
 			}
-			bytes_read = read(fd, buff, sizeof(buff));
+			do {
+				bytes_read = read(fd, buff, sizeof(buff));
+			} while (bytes_read < 0 && errno == EINTR);
+		}
+		if (bytes_read < 0) {
+			lafe_warnc(errno, "%s: read error", srcpath);
+			cpio->return_value = 1;
 		}
 	}
 
