@@ -332,6 +332,7 @@ struct rar
   unsigned int dictionary_size;
   char entry_eof;
   unsigned long crc_calculated;
+  char crc_skipped;
   int found_first_header;
   char has_endarc_header;
   struct data_block_offsets *dbo;
@@ -1116,6 +1117,20 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
   if (rar->entry_eof || rar->offset_seek >= rar->unp_size) {
     *size = 0;
     *offset = rar->offset;
+    /* Stored data ends here, without reaching the CRC check in
+     * read_data_stored(). A split file is checked on its last part,
+     * whose header holds the CRC of the whole file. */
+    if (!rar->entry_eof && rar->compression_method == COMPRESS_METHOD_STORE &&
+        !(rar->file_flags & FHD_SPLIT_AFTER) && !rar->crc_skipped) {
+      rar->entry_eof = 1;
+      if (rar->file_crc != rar->crc_calculated) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "File CRC error");
+        return (ARCHIVE_FAILED);
+#endif
+      }
+    }
     return (ARCHIVE_EOF);
   }
 
@@ -1192,6 +1207,9 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
 
   if (rar->compression_method == COMPRESS_METHOD_STORE)
   {
+    /* The running CRC no longer covers the file in order. */
+    rar->crc_skipped = 1;
+
     /* Modify the offset for use with SEEK_SET */
     switch (whence)
     {
@@ -1816,6 +1834,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->br.avail_in = 0;
   rar->br.next_in = NULL;
   rar->crc_calculated = 0;
+  rar->crc_skipped = 0;
   rar->entry_eof = 0;
   rar->valid = 1;
   rar->is_ppmd_block = 0;
