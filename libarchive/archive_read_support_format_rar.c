@@ -329,6 +329,7 @@ struct rar
   unsigned char *unp_buffer;
   unsigned int dictionary_size;
   char entry_eof;
+  char seeked;
   unsigned long crc_calculated;
   int found_first_header;
   char has_endarc_header;
@@ -1114,6 +1115,19 @@ archive_read_format_rar_read_data(struct archive_read *a, const void **buff,
   if (rar->entry_eof || rar->offset_seek >= rar->unp_size) {
     *size = 0;
     *offset = rar->offset;
+    if (!rar->entry_eof && !rar->seeked &&
+        rar->compression_method == COMPRESS_METHOD_STORE &&
+        rar->bytes_remaining == 0 &&
+        !(rar->file_flags & (FHD_SPLIT_BEFORE | FHD_SPLIT_AFTER))) {
+      rar->entry_eof = 1;
+      if (rar->file_crc != rar->crc_calculated) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                          "File CRC error");
+        return (ARCHIVE_FAILED);
+#endif
+      }
+    }
     return (ARCHIVE_EOF);
   }
 
@@ -1306,6 +1320,7 @@ archive_read_format_rar_seek_data(struct archive_read *a, int64_t offset,
     ret = __archive_read_seek(a, client_offset, SEEK_SET);
     if (ret < (ARCHIVE_OK))
       return ret;
+    rar->seeked = 1;
     rar->bytes_remaining = rar->dbo[rar->cursor].end_offset - ret;
     i = rar->cursor;
     while (i > 0)
@@ -1815,6 +1830,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   rar->br.next_in = NULL;
   rar->crc_calculated = 0;
   rar->entry_eof = 0;
+  rar->seeked = 0;
   rar->valid = 1;
   rar->is_ppmd_block = 0;
   rar->start_new_table = 1;

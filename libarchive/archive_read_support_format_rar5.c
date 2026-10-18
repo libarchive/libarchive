@@ -4264,6 +4264,12 @@ static int do_unstore_file(struct archive_read* a,
 
 	to_read = rar5_min(rar5->file.bytes_remaining, 64 * 1024);
 	if(to_read == 0) {
+		int ret;
+
+		rar5->file.eof = 1;
+		ret = verify_global_checksums(a);
+		if(ret != ARCHIVE_OK)
+			return ret;
 		return ARCHIVE_EOF;
 	}
 
