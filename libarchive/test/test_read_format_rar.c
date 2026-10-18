@@ -128,6 +128,32 @@ DEFINE_TEST(test_read_format_rar_basic)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_rar_stored_bad_crc)
+{
+  const char reffile[] = "test_read_format_rar.rar";
+  struct archive_entry *ae;
+  struct archive *a;
+  char buff[64];
+  char *p;
+  size_t size;
+
+  extract_reference_file(reffile);
+  p = slurpfile(&size, "%s", reffile);
+  if (!assert(p != NULL))
+    return;
+  assertEqualMem(p + 70, "test text", 9);
+  p[70] = 'T';
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_memory(a, p, size));
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
+  assertEqualString("File CRC error", archive_error_string(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+  free(p);
+}
+
 DEFINE_TEST(test_read_format_rar_subblock)
 {
   char buff[64];
@@ -3847,6 +3873,53 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
   assertEqualIntA(a, 16, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_rar_multivolume_stored_bad_crc)
+{
+  /* The damaged file is stored across parts 5 to 7. */
+  const char *reffiles[] =
+  {
+    "test_rar_multivolume_uncompressed_files.part01.rar",
+    "test_rar_multivolume_uncompressed_files.part02.rar",
+    "test_rar_multivolume_uncompressed_files.part03.rar",
+    "test_rar_multivolume_uncompressed_files.part04.rar",
+    "test_rar_multivolume_uncompressed_files.part05.rar",
+    "test_rar_multivolume_uncompressed_files.part06.rar",
+    "test_rar_multivolume_uncompressed_files.part07.rar",
+    "test_rar_multivolume_uncompressed_files.part08.rar",
+    "test_rar_multivolume_uncompressed_files.part09.rar",
+    "test_rar_multivolume_uncompressed_files.part10.rar",
+    NULL
+  };
+  const char damaged[] = "testdir/LibarchiveAddingTest.html";
+  char buff[64];
+  char *p;
+  size_t size;
+  ssize_t r;
+  struct archive *a;
+  struct archive_entry *ae;
+
+  extract_reference_files(reffiles);
+  p = slurpfile(&size, "%s", reffiles[5]);
+  if (!assert(p != NULL))
+    return;
+  p[0x1000] ^= 0x01;
+  dumpfile(reffiles[5], p, size);
+  free(p);
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
+  while (archive_read_next_header(a, &ae) == ARCHIVE_OK &&
+      strcmp(archive_entry_pathname(ae), damaged) != 0)
+    ;
+  assertEqualString(damaged, archive_entry_pathname(ae));
+  while ((r = archive_read_data(a, buff, sizeof(buff))) > 0)
+    ;
+  assertEqualIntA(a, ARCHIVE_FAILED, r);
+  assertEqualString("File CRC error", archive_error_string(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
