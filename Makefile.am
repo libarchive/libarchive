@@ -735,6 +735,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_mtree_preset_digests.c \
 	libarchive/test/test_write_format_mtree_quoted_filename.c\
 	libarchive/test/test_write_format_mtree_null_deref.c \
+	libarchive/test/test_write_format_option_missing_value.c \
 	libarchive/test/test_write_format_pax.c \
 	libarchive/test/test_write_format_pax_align.c \
 	libarchive/test/test_write_format_pax_mac_meta.c \
