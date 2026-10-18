@@ -260,6 +260,9 @@ struct _7zip {
 	/* Structural information about the archive. */
 	struct _7z_stream_info	 si;
 
+	/* The "seekable-only" option: don't bid for an input that can't seek. */
+	int			 seekable_only;
+
 	int			 header_is_being_read;
 	int			 header_is_encoded;
 	int64_t			 header_bytes_remaining;
@@ -405,6 +408,8 @@ static size_t	align_size(size_t);
 static int	archive_read_format_7zip_has_encrypted_entries(struct archive_read *);
 static int	archive_read_support_format_7zip_capabilities(struct archive_read *);
 static int	archive_read_format_7zip_bid(struct archive_read *, int);
+static int	archive_read_format_7zip_options(struct archive_read *,
+		    const char *, const char *);
 static int	archive_read_format_7zip_cleanup(struct archive_read *);
 static int	archive_read_format_7zip_read_data(struct archive_read *,
 		    const void **, size_t *, int64_t *);
@@ -505,7 +510,7 @@ archive_read_support_format_7zip(struct archive *_a)
 	    zip,
 	    "7zip",
 	    archive_read_format_7zip_bid,
-	    NULL,
+	    archive_read_format_7zip_options,
 	    archive_read_format_7zip_read_header,
 	    archive_read_format_7zip_read_data,
 	    archive_read_format_7zip_read_data_skip,
@@ -609,9 +614,33 @@ fail:
 }
 
 static int
+archive_read_format_7zip_options(struct archive_read *a,
+    const char *key, const char *val)
+{
+	struct _7zip *zip = (struct _7zip *)a->format->data;
+
+	if (strcmp(key, "seekable-only") == 0) {
+		zip->seekable_only = (val != NULL && val[0] != 0);
+		return (ARCHIVE_OK);
+	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
+}
+
+static int
 archive_read_format_7zip_bid(struct archive_read *a, int best_bid)
 {
+	struct _7zip *zip = (struct _7zip *)a->format->data;
 	int64_t data_offset;
+
+	/* If the application asked for it, don't bid for an input
+	   that can't seek, so that another format, such as "raw", can
+	   take it over. */
+	if (zip->seekable_only && !a->filter->can_seek)
+		return (0);
 
 	/* If someone has already bid more than 48, then avoid
 	   trashing the look-ahead buffers with a seek. */
