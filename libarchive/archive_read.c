@@ -469,6 +469,9 @@ archive_read_open1(struct archive *_a)
 	if (a->client.reader == NULL) {
 		archive_set_error(&a->archive, EINVAL,
 		    "No reader function provided to archive_read_open");
+		/* No filter will ever exist to run the client closer, so clean up
+		 * the client data here like the allocation-failure path below does. */
+		(void)client_close_all(a);
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
