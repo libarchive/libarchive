@@ -154,6 +154,74 @@ DEFINE_TEST(test_read_format_rar5_stored)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_stored_bad_crc)
+{
+	const char reffile[] = "test_read_format_rar5_stored.rar";
+	struct archive_entry *ae;
+	struct archive *a;
+	char buff[64];
+	char *p;
+	size_t size;
+
+	extract_reference_file(reffile);
+	p = slurpfile(&size, "%s", reffile);
+	if (!assert(p != NULL))
+		return;
+	assertEqualMem(p + 72, "hello", 5);
+	p[74] = 'j';
+
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_memory(a, p, size));
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_read_data(a, buff, sizeof(buff)));
+	assertEqualString("Checksum error: CRC32", archive_error_string(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(p);
+}
+
+DEFINE_TEST(test_read_format_rar5_stored_blake2)
+{
+	/* "hello blake2 stored\n", stored with a BLAKE2sp hash
+	 * (rar a -m0 -htb). */
+	static unsigned char archive[] = {
+		0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x01, 0x00, 0x33, 0x92, 0xb5, 0xe5,
+		0x0a, 0x01, 0x05, 0x06, 0x00, 0x05, 0x01, 0x01, 0x80, 0x80, 0x00, 0x91,
+		0x93, 0x4e, 0x81, 0x42, 0x02, 0x03, 0x2e, 0x94, 0x00, 0x00, 0x94, 0x00,
+		0xa4, 0x83, 0x02, 0x80, 0x00, 0x01, 0x05, 0x66, 0x2e, 0x74, 0x78, 0x74,
+		0x22, 0x02, 0x00, 0xe0, 0x74, 0xbc, 0x1f, 0xb7, 0x85, 0xff, 0x53, 0xf5,
+		0x04, 0x81, 0xfd, 0x82, 0x04, 0xd6, 0x28, 0x17, 0x88, 0xad, 0x8a, 0x8b,
+		0x4a, 0x86, 0xca, 0x48, 0x11, 0x3a, 0x99, 0x5c, 0x11, 0x3f, 0x35, 0x0a,
+		0x03, 0x13, 0x30, 0x3f, 0xd5, 0x6a, 0x7e, 0xc0, 0xc7, 0x24, 0x68, 0x65,
+		0x6c, 0x6c, 0x6f, 0x20, 0x62, 0x6c, 0x61, 0x6b, 0x65, 0x32, 0x20, 0x73,
+		0x74, 0x6f, 0x72, 0x65, 0x64, 0x0a, 0x1d, 0x77, 0x56, 0x51, 0x03, 0x05,
+		0x04, 0x00
+	};
+	struct archive_entry *ae;
+	struct archive *a;
+	char buff[64];
+
+	/* Reading again after the end must not report an error. */
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, 20, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	archive[94] = 'H';
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_read_data(a, buff, sizeof(buff)));
+	assertEqualString("Checksum error: BLAKE2", archive_error_string(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_rar5_zip_in_rar)
 {
 	/* Regression test for issue #2249.  This archive begins with the
