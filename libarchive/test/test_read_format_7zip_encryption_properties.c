@@ -56,12 +56,12 @@ DEFINE_TEST(test_read_format_7zip_encryption_properties)
 	    "test_read_format_7zip_encryption_salt_size.7z",
 	    "test_read_format_7zip_encryption_iv_size.7z"
 	};
-	const size_t blocks[] = {1, 7, 16, 10240};
+	const size_t blocks[] = {1, 7, 15, 16, 17, 10240};
 	static const char expected[] = "7zip encryption edge case\n";
 	struct archive *a;
 	struct archive_entry *ae;
-	char buff[64];
-	size_t i, j;
+	char buff[64], *archive_data;
+	size_t i, j, archive_size;
 
 	if (!can7zipEncryption()) {
 		skipping("7-Zip AES decryption is not supported on this platform");
@@ -69,14 +69,20 @@ DEFINE_TEST(test_read_format_7zip_encryption_properties)
 	}
 	for (i = 0; i < sizeof(refs) / sizeof(refs[0]); i++) {
 		extract_reference_file(refs[i]);
+		archive_data = slurpfile(&archive_size, "%s", refs[i]);
+		assert(archive_data != NULL);
+		if (archive_data == NULL)
+			continue;
 		for (j = 0; j < sizeof(blocks) / sizeof(blocks[0]); j++) {
+			failure("%s, input chunk %lu", refs[i],
+			    (unsigned long)blocks[j]);
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_format_7zip(a));
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_add_passphrase(a, "12345678"));
 			assertEqualIntA(a, ARCHIVE_OK,
-			    archive_read_open_filename(a, refs[i], blocks[j]));
+			    read_open_memory_seek(a, archive_data, archive_size, blocks[j]));
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_next_header(a, &ae));
 			assertEqualString("edge.txt", archive_entry_pathname(ae));
@@ -91,6 +97,7 @@ DEFINE_TEST(test_read_format_7zip_encryption_properties)
 			assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		}
+		free(archive_data);
 	}
 }
 
@@ -250,4 +257,82 @@ DEFINE_TEST(test_read_format_7zip_encryption_kdf_failures)
 #else
 	skipping("SHA-256 is required for the KDF failure tests");
 #endif
+}
+
+/* NIST SP 800-38A, F.2.6 CBC-AES256.Decrypt.
+ * https://doi.org/10.6028/NIST.SP.800-38A
+ * Check backend CBC chaining independently of the 7-Zip parser and KDF. */
+DEFINE_TEST(test_read_format_7zip_encryption_aes_cbc)
+{
+	static const unsigned char key[32] = {
+	    0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
+	    0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+	    0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7,
+	    0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4
+	};
+	static const unsigned char iv[16] = {
+	    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+	};
+	static const unsigned char ciphertext[64] = {
+	    0xf5, 0x8c, 0x4c, 0x04, 0xd6, 0xe5, 0xf1, 0xba,
+	    0x77, 0x9e, 0xab, 0xfb, 0x5f, 0x7b, 0xfb, 0xd6,
+	    0x9c, 0xfc, 0x4e, 0x96, 0x7e, 0xdb, 0x80, 0x8d,
+	    0x67, 0x9f, 0x77, 0x7b, 0xc6, 0x70, 0x2c, 0x7d,
+	    0x39, 0xf2, 0x33, 0x69, 0xa9, 0xd9, 0xba, 0xcf,
+	    0xa5, 0x30, 0xe2, 0x63, 0x04, 0x23, 0x14, 0x61,
+	    0xb2, 0xeb, 0x05, 0xe2, 0xc3, 0x9b, 0xe9, 0xfc,
+	    0xda, 0x6c, 0x19, 0x07, 0x8c, 0x6a, 0x9d, 0x1b
+	};
+	static const unsigned char plaintext[64] = {
+	    0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+	    0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
+	    0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c,
+	    0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
+	    0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11,
+	    0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
+	    0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17,
+	    0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10
+	};
+	const size_t chunks[] = {16, 32, 64};
+	archive_crypto_ctx ctx;
+	unsigned char output[80], guard[16];
+	size_t i, pass, offset, out_len;
+	int r;
+
+	if (!can7zipEncryption()) {
+		skipping("7-Zip AES decryption is not supported on this platform");
+		return;
+	}
+	memset(guard, 0xa5, sizeof(guard));
+	for (i = 0; i < sizeof(chunks) / sizeof(chunks[0]); i++) {
+		/* Fresh contexts must restart from the supplied IV, even after
+		 * a preceding stream has advanced its chaining state. */
+		for (pass = 0; pass < 2; pass++) {
+			failure("AES-CBC chunk %lu, pass %lu",
+			    (unsigned long)chunks[i], (unsigned long)pass);
+			memset(&ctx, 0, sizeof(ctx));
+			memset(output, 0xa5, sizeof(output));
+			r = archive_decrypto_aes_cbc_init(&ctx, key, sizeof(key),
+			    iv, sizeof(iv));
+			assertEqualInt(0, r);
+			if (r != 0)
+				continue;
+			for (offset = 0; offset < sizeof(ciphertext);
+			    offset += chunks[i]) {
+				out_len = chunks[i];
+				r = archive_decrypto_aes_cbc_update(&ctx,
+				    ciphertext + offset, chunks[i], output + offset,
+				    &out_len);
+				assertEqualInt(0, r);
+				assertEqualInt(chunks[i], out_len);
+				if (r != 0 || out_len != chunks[i])
+					break;
+			}
+			assertEqualMem(plaintext, output, sizeof(plaintext));
+			assertEqualMem(guard, output + sizeof(plaintext),
+			    sizeof(guard));
+			assertEqualInt(0, archive_decrypto_aes_cbc_release(&ctx));
+		}
+	}
 }
