@@ -189,6 +189,8 @@ struct _7z_folder {
 		size_t		 outIndex;
 	} *bindPairs;
 	size_t			 numPackedStreams;
+	/* BCJ2 has four independently packed inputs. */
+	size_t			 packedStreams[4];
 	size_t			 numInStreams;
 	size_t			 numOutStreams;
 	int64_t			*unPackSize;
@@ -1920,7 +1922,7 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		/*
 		 * Decode a remaining decompressed main stream for BCJ2.
 		 */
-		if (zip->tmp_stream_bytes_remaining) {
+		if (zip->tmp_stream_bytes_remaining || zip->odd_bcj_size) {
 			ssize_t bytes;
 			size_t remaining = zip->tmp_stream_bytes_remaining;
 			bytes = Bcj2_Decode(zip, t_next_out, t_avail_out);
@@ -1933,17 +1935,25 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			zip->main_stream_bytes_remaining -=
 			    remaining - zip->tmp_stream_bytes_remaining;
 			t_avail_out -= bytes;
-			if (o_avail_in == 0 || t_avail_out == 0) {
+			if (o_avail_in == 0 || t_avail_out == 0 ||
+			    zip->main_stream_bytes_remaining == 0) {
 				*used = 0;
 				*outbytes = o_avail_out - t_avail_out;
-				if (o_avail_in == 0 &&
-				    zip->tmp_stream_bytes_remaining)
+				if (zip->main_stream_bytes_remaining == 0 &&
+				    zip->odd_bcj_size == 0)
 					ret = ARCHIVE_EOF;
 				return (ret);
 			}
 			t_next_out += bytes;
 			bcj2_next_out = t_next_out;
 			bcj2_avail_out = t_avail_out;
+		}
+		/* The compressor may have ended before the buffered BCJ2
+		 * output was drained. Do not feed AES padding to it again. */
+		if (zip->main_stream_bytes_remaining == 0) {
+			*used = 0;
+			*outbytes = o_avail_out - t_avail_out;
+			return (ARCHIVE_EOF);
 		}
 		t_next_out = zip->tmp_stream_buff;
 		t_avail_out = zip->tmp_stream_buff_size;
@@ -2244,6 +2254,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		      - zip->tmp_stream_bytes_remaining;
 		bcj2_avail_out -= bytes;
 		*outbytes = o_avail_out - bcj2_avail_out;
+		if (ret == ARCHIVE_EOF &&
+		    (zip->tmp_stream_bytes_remaining || zip->odd_bcj_size))
+			ret = ARCHIVE_OK;
 	}
 
 	/*
@@ -2524,8 +2537,8 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 	 */
 	if (parse_7zip_size(a, &(f->numCoders)) < 0)
 		return (-1);
-	if (f->numCoders > 4)
-		/* Too many coders. */
+	if (f->numCoders > 9)
+		/* BCJ2, four compressors, and four AES coders. */
 		return (-1);
 
 	f->coders = calloc(f->numCoders, sizeof(*f->coders));
@@ -2616,7 +2629,7 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 	}
 
 	f->numPackedStreams = numInStreamsTotal - f->numBindPairs;
-	/* packedStreams are not needed; parse/verify nonetheless */
+	/* Keep the input indices needed to route the four BCJ2 streams. */
 	if (f->numPackedStreams == 1) {
 		for (i = 0; i < numInStreamsTotal; i++) {
 			size_t j;
@@ -2629,11 +2642,14 @@ read_Folder(struct archive_read *a, struct _7z_folder *f)
 		}
 		if (i == numInStreamsTotal)
 			return (-1);
+		f->packedStreams[0] = i;
 	} else {
 		for (i = 0; i < f->numPackedStreams; i++) {
 			size_t packedStream;
 			if (parse_7zip_size(a, &packedStream) < 0)
 				return (-1);
+			if (i < 4)
+				f->packedStreams[i] = packedStream;
 		}
 	}
 	f->numInStreams = numInStreamsTotal;
@@ -4245,6 +4261,193 @@ setup_7z_encryption(struct archive_read *a, struct _7zip *zip,
 	return (ARCHIVE_OK);
 }
 
+/* BCJ2's three side streams are buffered before streaming its main input.
+ * Each input has its own coder chain and AES properties. Reinitialize the
+ * decryptor for each chain; no CBC state may carry over between inputs. */
+static int
+setup_encrypted_bcj2(struct archive_read *a, struct _7z_folder *folder)
+{
+	struct _7zip *zip = a->format->data;
+	static const struct _7z_coder copy = {_7Z_COPY, 1, 1, 0, NULL};
+	const struct _7z_coder *decoder[4] = {&copy, &copy, &copy, &copy};
+	const struct _7z_coder *crypto[4] = {NULL, NULL, NULL, NULL};
+	const struct _7z_coder *bcj2 = NULL;
+	size_t input_start[9], pack[4];
+	int64_t unpack[4];
+	unsigned char used[9] = {0}, packed[4] = {0};
+	size_t i, j, k, inputs = 0, bcj2_index = 0;
+	int r;
+
+	if (folder->numCoders > 9 || folder->numPackedStreams != 4 ||
+	    folder->numOutStreams != folder->numCoders ||
+	    folder->packIndex > zip->si.pi.numPackStreams ||
+	    folder->numPackedStreams > zip->si.pi.numPackStreams - folder->packIndex)
+		goto unsupported;
+	for (i = 0; i < folder->numCoders; i++) {
+		const struct _7z_coder *c = &folder->coders[i];
+
+		input_start[i] = inputs;
+		if (c->numOutStreams != 1 || folder->unPackSize[i] < 0)
+			goto unsupported;
+		if (c->codec == _7Z_X86_BCJ2) {
+			if (bcj2 != NULL || c->numInStreams != 4)
+				goto unsupported;
+			bcj2 = c;
+			bcj2_index = i;
+		} else if (c->numInStreams != 1)
+			goto unsupported;
+		inputs += c->numInStreams;
+	}
+	if (bcj2 == NULL || inputs != folder->numInStreams)
+		goto unsupported;
+	/* Every output belongs to a single-output coder, so an output index
+	 * is also its producer's coder index. Validate bindings before use. */
+	for (i = 0; i < folder->numBindPairs; i++) {
+		if (folder->bindPairs[i].inIndex >= inputs ||
+		    folder->bindPairs[i].outIndex >= folder->numCoders ||
+		    folder->bindPairs[i].outIndex == bcj2_index)
+			goto unsupported;
+		for (j = 0; j < i; j++) {
+			if (folder->bindPairs[i].inIndex == folder->bindPairs[j].inIndex ||
+			    folder->bindPairs[i].outIndex == folder->bindPairs[j].outIndex)
+				goto unsupported;
+		}
+	}
+	used[bcj2_index] = 1;
+	for (i = 0; i < 4; i++) {
+		size_t input = input_start[bcj2_index] + i;
+		int have_size = 0;
+
+		/* Trace backwards from this BCJ2 input to its packed source. */
+		for (;;) {
+			const struct _7z_coder *c;
+			size_t producer;
+
+			for (j = 0; j < folder->numBindPairs; j++) {
+				if (folder->bindPairs[j].inIndex == input)
+					break;
+			}
+			if (j == folder->numBindPairs)
+				break;
+			producer = folder->bindPairs[j].outIndex;
+			if (used[producer])
+				goto unsupported;
+			used[producer] = 1;
+			c = &folder->coders[producer];
+			if (!have_size) {
+				unpack[i] = folder->unPackSize[producer];
+				have_size = 1;
+			}
+			if (c->codec == _7Z_CRYPTO_AES_256_SHA_256) {
+				if (crypto[i] != NULL)
+					goto unsupported;
+				crypto[i] = c;
+			} else if (c->codec != _7Z_COPY) {
+				/* Decode AES first, then at most one compressor. */
+				if (crypto[i] != NULL || decoder[i] != &copy ||
+				    compressor_name(c->codec) == NULL)
+					goto unsupported;
+				decoder[i] = c;
+			}
+			input = input_start[producer];
+		}
+		for (j = 0; j < 4; j++) {
+			if (folder->packedStreams[j] == input)
+				break;
+		}
+		if (j == 4 || packed[j])
+			goto unsupported;
+		packed[j] = 1;
+		pack[i] = folder->packIndex + j;
+		if (!have_size)
+			unpack[i] = zip->si.pi.sizes[pack[i]];
+		if (unpack[i] < 0)
+			goto unsupported;
+	}
+	for (i = 0; i < folder->numCoders; i++) {
+		if (!used[i])
+			goto unsupported;
+	}
+
+	/* Decode side inputs 1, 2, 3, then prepare input 0 for streaming. */
+	for (k = 0; k < 4; k++) {
+		const void *buff;
+		size_t size, total = 0;
+
+		i = (k + 1) % 4;
+		zip->is_encrypted = 0;
+		zip->decrypted_bytes_pos = zip->decrypted_bytes_avail = 0;
+		if (crypto[i] != NULL) {
+			r = setup_7z_encryption(a, zip, crypto[i]);
+			if (r != ARCHIVE_OK)
+				return (r);
+		}
+		zip->pack_stream_remaining = 1;
+		zip->pack_stream_index = pack[i];
+		zip->pack_stream_inbytes_remaining = 0;
+		zip->pack_stream_bytes_unconsumed = 0;
+		zip->uncompressed_buffer_bytes_remaining = 0;
+		zip->uncompressed_buffer_pointer = NULL;
+		if (i == 0)
+			break;
+		if ((uint64_t)unpack[i] > SIZE_MAX) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "7-Zip sub-stream size exceeds platform maximum");
+			return (ARCHIVE_FATAL);
+		}
+		size = (size_t)unpack[i];
+		zip->sub_stream_buff[i - 1] = malloc(size ? size : 1);
+		if (zip->sub_stream_buff[i - 1] == NULL)
+			goto nomem;
+		zip->sub_stream_size[i - 1] = size;
+		zip->sub_stream_bytes_remaining[i - 1] = size;
+		zip->folder_outbytes_remaining = unpack[i];
+		r = init_decompression(a, zip, decoder[i], NULL);
+		if (r != ARCHIVE_OK)
+			return (r);
+		if ((r = seek_pack(a)) < 0)
+			return (r);
+		while (total < size) {
+			ssize_t bytes;
+
+			r = (int)extract_pack_stream(a, 0);
+			if (r < 0)
+				return (r);
+			bytes = get_uncompressed_data(a, &buff, size - total, 0);
+			if (bytes < 0)
+				return ((int)bytes);
+			if (bytes == 0 || (size_t)bytes > size - total) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Truncated 7-Zip BCJ2 sub-stream");
+				return (ARCHIVE_FATAL);
+			}
+			memcpy(zip->sub_stream_buff[i - 1] + total, buff, (size_t)bytes);
+			total += (size_t)bytes;
+			if (zip->pack_stream_bytes_unconsumed && (r = read_consume(a)) < 0)
+				return (r);
+		}
+	}
+	zip->main_stream_bytes_remaining = unpack[0];
+	zip->folder_outbytes_remaining = folder_uncompressed_size(folder);
+	if (zip->tmp_stream_buff == NULL) {
+		zip->tmp_stream_buff_size = 32 * 1024;
+		zip->tmp_stream_buff = malloc(zip->tmp_stream_buff_size);
+		if (zip->tmp_stream_buff == NULL)
+			goto nomem;
+	}
+	zip->tmp_stream_bytes_avail = zip->tmp_stream_bytes_remaining = 0;
+	zip->odd_bcj_size = 0;
+	zip->bcj2_outPos = 0;
+	return (init_decompression(a, zip, decoder[0], bcj2));
+nomem:
+	archive_set_error(&a->archive, ENOMEM, "No memory for 7-Zip decompression");
+	return (ARCHIVE_FATAL);
+unsupported:
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "Unsupported form of encrypted BCJ2 streams");
+	return (ARCHIVE_FATAL);
+}
+
 static int
 setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
     int header)
@@ -4328,6 +4531,10 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 	if (crypto_coder != NULL) {
 		if (header)
 			zip->header_is_encrypted = 1;
+		if (found_bcj2) {
+			r = setup_encrypted_bcj2(a, folder);
+			return (header && r != ARCHIVE_OK ? ARCHIVE_FATAL : r);
+		}
 		r = setup_7z_encryption(a, zip, crypto_coder);
 		if (r != ARCHIVE_OK)
 			return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
