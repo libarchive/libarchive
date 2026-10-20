@@ -152,13 +152,14 @@ DEFINE_TEST(test_read_format_7zip_encryption_ppmd)
 	    "test_read_format_7zip_encryption_ppmd.7z",
 	    "test_read_format_7zip_encryption_ppmd_header.7z"
 	};
-	const size_t input_blocks[] = {7, 65536};
+	const size_t input_blocks[] = {1, 7, 15, 16, 17, 65536};
 	const size_t output_blocks[] = {4093, 65536};
 	struct archive *a;
 	struct archive_entry *ae;
 	unsigned char *expected, *actual;
+	char *archive_data;
 	uint32_t state = 2;
-	size_t i, j, k, total, request;
+	size_t i, j, k, total, request, archive_size;
 	la_ssize_t n;
 
 	if (!can7zipEncryption()) {
@@ -182,15 +183,25 @@ DEFINE_TEST(test_read_format_7zip_encryption_ppmd)
 	}
 	for (i = 0; i < sizeof(refs) / sizeof(refs[0]); i++) {
 		extract_reference_file(refs[i]);
+		archive_data = slurpfile(&archive_size, "%s", refs[i]);
+		assert(archive_data != NULL);
+		if (archive_data == NULL)
+			continue;
 		for (j = 0; j < sizeof(input_blocks) / sizeof(input_blocks[0]); j++) {
 			for (k = 0; k < sizeof(output_blocks) / sizeof(output_blocks[0]); k++) {
+				failure("%s, input %lu, output %lu", refs[i],
+				    (unsigned long)input_blocks[j],
+				    (unsigned long)output_blocks[k]);
 				assert((a = archive_read_new()) != NULL);
+				if (a == NULL)
+					continue;
 				assertEqualIntA(a, ARCHIVE_OK,
 				    archive_read_support_format_7zip(a));
 				assertEqualIntA(a, ARCHIVE_OK,
 				    archive_read_add_passphrase(a, "12345678"));
 				assertEqualIntA(a, ARCHIVE_OK,
-				    archive_read_open_filename(a, refs[i], input_blocks[j]));
+				    read_open_memory_seek(a, archive_data, archive_size,
+				    input_blocks[j]));
 				assertEqualIntA(a, ARCHIVE_OK,
 				    archive_read_next_header(a, &ae));
 				assertEqualString("data.bin", archive_entry_pathname(ae));
@@ -213,6 +224,7 @@ DEFINE_TEST(test_read_format_7zip_encryption_ppmd)
 				assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 			}
 		}
+		free(archive_data);
 	}
 	free(expected);
 	free(actual);

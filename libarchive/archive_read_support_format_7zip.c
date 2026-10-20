@@ -4074,6 +4074,18 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 	ssize_t r;
 
 	if (zip->uncompressed_buffer_bytes_remaining == 0) {
+		/* A short read can leave encrypted padding in the packed stream
+		 * after the folder output has ended. Consume it before advancing
+		 * to another folder; it must not appear as an empty data block. */
+		if (zip->is_encrypted && zip->folder_outbytes_remaining == 0) {
+			zip->decrypted_bytes_pos = zip->decrypted_bytes_avail;
+			while (zip->pack_stream_inbytes_remaining > 0) {
+				r = read_decrypted_data(a);
+				if (r < ARCHIVE_OK)
+					return (r);
+				zip->decrypted_bytes_pos = zip->decrypted_bytes_avail;
+			}
+		}
 		if (zip->pack_stream_inbytes_remaining > 0) {
 			r = extract_pack_stream(a, 0);
 			if (r < 0)

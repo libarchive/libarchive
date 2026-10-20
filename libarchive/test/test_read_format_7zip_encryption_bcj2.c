@@ -32,14 +32,26 @@ verify_bcj2(const char *ref, const unsigned char *data, size_t data_size,
 	struct archive *a;
 	struct archive_entry *ae;
 	unsigned char buff[65536];
-	size_t i, total, size, request;
+	char *archive_data;
+	size_t i, total, size, request, archive_size;
 	la_ssize_t n;
 	int r;
 
+	failure("%s, input %lu, output %lu, skip %d", ref,
+	    (unsigned long)input_block, (unsigned long)output_block, skip);
+	archive_data = slurpfile(&archive_size, "%s", ref);
+	assert(archive_data != NULL);
+	if (archive_data == NULL)
+		return;
 	assert((a = archive_read_new()) != NULL);
+	if (a == NULL) {
+		free(archive_data);
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, "12345678"));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, ref, input_block));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    read_open_memory_seek(a, archive_data, archive_size, input_block));
 	for (i = 0; i < 2; i++) {
 		const unsigned char *expected = i == 0 ? data : tail;
 
@@ -66,6 +78,9 @@ verify_bcj2(const char *ref, const unsigned char *data, size_t data_size,
 			if (request > size - total)
 				request = size - total;
 			n = archive_read_data(a, buff, request);
+			failure("%s, entry %lu, input %lu, output %lu, skip %d",
+			    ref, (unsigned long)i, (unsigned long)input_block,
+			    (unsigned long)output_block, skip);
 			assertEqualIntA(a, request, n);
 			if (n <= 0 || (size_t)n > request)
 				break;
@@ -77,6 +92,7 @@ verify_bcj2(const char *ref, const unsigned char *data, size_t data_size,
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(archive_data);
 }
 
 /* References generated and verified with 7-Zip, password "12345678".
@@ -94,7 +110,8 @@ DEFINE_TEST(test_read_format_7zip_encryption_bcj2)
 	    "test_read_format_7zip_encryption_bcj2_empty_streams.7z"
 	};
 	const int headers[] = {0, 1, 1, 0, 1};
-	const size_t inputs[] = {7, 65536}, outputs[] = {4093, 65536};
+	const size_t inputs[] = {1, 7, 15, 16, 17, 65536};
+	const size_t outputs[] = {4093, 65536};
 	static const char prefix[] = "BCJ2 ordinary archive test\n";
 	static const char tail_line[] = "BCJ2 solid stream tail\n";
 	static const char empty_line[] = "BCJ2 empty branch streams\n";
