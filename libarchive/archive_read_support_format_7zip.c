@@ -1367,6 +1367,66 @@ decode_codec_id(const unsigned char *codecId, size_t id_size, int64_t *id)
 	return (0);
 }
 
+/* Refill the decrypted input without discarding bytes still in use. */
+static int
+read_decrypted_data(struct archive_read *a)
+{
+	struct _7zip *zip = a->format->data;
+	const void *in;
+	ssize_t available;
+	size_t to_read, in_size, out_size;
+
+	if (zip->decrypted_bytes_pos < zip->decrypted_bytes_avail)
+		return (ARCHIVE_OK);
+	if (zip->pack_stream_inbytes_remaining <= 0)
+		return (ARCHIVE_EOF);
+
+	to_read = UBUFF_SIZE;
+	if ((uint64_t)zip->pack_stream_inbytes_remaining < (uint64_t)to_read)
+		to_read = (size_t)zip->pack_stream_inbytes_remaining;
+	in = __archive_read_ahead(a, AES_BLOCK_SIZE, &available);
+	if (in == NULL || available < AES_BLOCK_SIZE) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated 7-Zip encrypted stream");
+		return (ARCHIVE_FATAL);
+	}
+	in_size = (size_t)available;
+	if (in_size > to_read)
+		in_size = to_read;
+	in_size -= in_size % AES_BLOCK_SIZE;
+	if (in_size == 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated 7-Zip encrypted stream");
+		return (ARCHIVE_FATAL);
+	}
+	if (zip->decrypted_buffer == NULL) {
+		zip->decrypted_buffer = malloc(UBUFF_SIZE);
+		if (zip->decrypted_buffer == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for 7-Zip decryption");
+			return (ARCHIVE_FATAL);
+		}
+		zip->decrypted_buffer_size = UBUFF_SIZE;
+	}
+	out_size = zip->decrypted_buffer_size;
+	if (archive_decrypto_aes_cbc_update(&zip->crypto_ctx, in, in_size,
+	    zip->decrypted_buffer, &out_size) != 0 || out_size != in_size) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "7-Zip AES decryption failed");
+		return (ARCHIVE_FATAL);
+	}
+	if (__archive_read_consume(a, in_size) < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Failed to consume encrypted 7-Zip data");
+		return (ARCHIVE_FATAL);
+	}
+	zip->pack_stream_inbytes_remaining -= in_size;
+	zip->stream_offset += in_size;
+	zip->decrypted_bytes_pos = 0;
+	zip->decrypted_bytes_avail = out_size;
+	return (ARCHIVE_OK);
+}
+
 static Byte
 ppmd_read(void *p)
 {
@@ -1374,6 +1434,22 @@ ppmd_read(void *p)
 	struct _7zip *zip = a->format->data;
 	Byte b;
 
+	if (zip->ppstream.avail_in == 0 && zip->is_encrypted) {
+		int r = read_decrypted_data(a);
+
+		if (r != ARCHIVE_OK) {
+			if (r == ARCHIVE_EOF)
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Truncated 7z file data");
+			zip->ppstream.overconsumed = 1;
+			return (0);
+		}
+		zip->ppstream.next_in = zip->decrypted_buffer +
+		    zip->decrypted_bytes_pos;
+		zip->ppstream.avail_in = zip->decrypted_bytes_avail -
+		    zip->decrypted_bytes_pos;
+	}
 	if (zip->ppstream.avail_in == 0) {
 		/*
 		 * Ppmd7_DecodeSymbol might require reading multiple bytes
@@ -1402,6 +1478,8 @@ ppmd_read(void *p)
 	} else {
 		b = *zip->ppstream.next_in++;
 		zip->ppstream.avail_in--;
+		if (zip->is_encrypted)
+			zip->decrypted_bytes_pos++;
 	}
 	zip->ppstream.stream_in++;
 	return (b);
@@ -3785,66 +3863,16 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		const void *buff_in;
 		unsigned char *buff_out;
 		int end_of_data;
-		size_t to_read, aligned_in, dec_out, min_ahead;
 
 		if (zip->is_encrypted) {
-			if (zip->decrypted_bytes_pos >= zip->decrypted_bytes_avail) {
-				if (zip->pack_stream_inbytes_remaining <= 0) {
-					bytes_in = 0;
-					buff_in = zip->decrypted_buffer;
-				} else {
-					to_read = UBUFF_SIZE;
-					if ((uint64_t)zip->pack_stream_inbytes_remaining < (uint64_t)to_read)
-						to_read = (size_t)zip->pack_stream_inbytes_remaining;
-					min_ahead = (to_read >= 16) ? 16 : 1;
-					buff_in = __archive_read_ahead(a, min_ahead, &bytes_avail);
-					if (buff_in == NULL || bytes_avail < (ssize_t)min_ahead) {
-						archive_set_error(&a->archive,
-						    ARCHIVE_ERRNO_FILE_FORMAT,
-						    "Truncated 7-Zip file body");
-						return (ARCHIVE_FATAL);
-					}
-					if ((size_t)bytes_avail > to_read)
-						bytes_avail = (ssize_t)to_read;
-					aligned_in = ((size_t)bytes_avail / 16) * 16;
-					if (aligned_in == 0 && bytes_avail > 0 &&
-					    zip->pack_stream_inbytes_remaining <= (int64_t)bytes_avail)
-						aligned_in = (size_t)bytes_avail;
-					if (aligned_in == 0) {
-						archive_set_error(&a->archive,
-						    ARCHIVE_ERRNO_FILE_FORMAT,
-						    "Truncated 7-Zip encrypted stream");
-						return (ARCHIVE_FATAL);
-					}
-					if (zip->decrypted_buffer == NULL ||
-					    zip->decrypted_buffer_size < aligned_in) {
-						free(zip->decrypted_buffer);
-						zip->decrypted_buffer_size = align_size(
-						    aligned_in > UBUFF_SIZE ? aligned_in : UBUFF_SIZE);
-						zip->decrypted_buffer = malloc(zip->decrypted_buffer_size);
-						if (zip->decrypted_buffer == NULL) {
-							archive_set_error(&a->archive, ENOMEM,
-							    "No memory for 7-Zip decryption");
-							return (ARCHIVE_FATAL);
-						}
-					}
-					dec_out = zip->decrypted_buffer_size;
-					if (archive_decrypto_aes_cbc_update(&zip->crypto_ctx,
-					    buff_in, aligned_in, zip->decrypted_buffer, &dec_out) != 0) {
-						archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-						    "7-Zip AES decryption failed");
-						return (ARCHIVE_FATAL);
-					}
-					if (__archive_read_consume(a, aligned_in) < 0) {
-						archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-						    "Failed to consume encrypted 7-Zip data");
-						return (ARCHIVE_FATAL);
-					}
-					zip->pack_stream_inbytes_remaining -= aligned_in;
-					zip->stream_offset += aligned_in;
-					zip->decrypted_bytes_pos = 0;
-					zip->decrypted_bytes_avail = dec_out;
-				}
+			r = read_decrypted_data(a);
+			if (r < ARCHIVE_OK)
+				return (r);
+			if (zip->decrypted_buffer == NULL) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Truncated 7-Zip encrypted stream");
+				return (ARCHIVE_FATAL);
 			}
 			buff_in = zip->decrypted_buffer + zip->decrypted_bytes_pos;
 			bytes_in = zip->decrypted_bytes_avail - zip->decrypted_bytes_pos;
@@ -3888,7 +3916,10 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		}
 
 		if (zip->is_encrypted) {
-			zip->decrypted_bytes_pos += bytes_in;
+			/* PPMd's byte callback also handles refills, and accounts
+			 * for each decrypted byte as it is read. */
+			if (zip->codec != _7Z_PPMD)
+				zip->decrypted_bytes_pos += bytes_in;
 			zip->pack_stream_bytes_unconsumed = 0;
 		} else {
 			zip->pack_stream_inbytes_remaining -= bytes_in;
