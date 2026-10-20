@@ -4501,9 +4501,8 @@ setup_decode_folder_once(struct archive_read *a, struct _7z_folder *folder,
 	}
 
 	/*
-	 * Check coder types before modifying any stream-reader state, so that
-	 * an early return leaves zip unchanged (avoids partially-initialized
-	 * state that callers would have to reason about).
+	 * Check coder types before initializing the decoder and packed-stream
+	 * state for this folder.
 	 */
 	for (i = 0; i < folder->numCoders; i++) {
 		switch(folder->coders[i].codec) {
@@ -4523,12 +4522,6 @@ setup_decode_folder_once(struct archive_read *a, struct _7z_folder *folder,
 				return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 			}
 			case _7Z_CRYPTO_AES_256_SHA_256: {
-				zip->has_encrypted_entries = 1;
-				if (a->entry) {
-					archive_entry_set_is_data_encrypted(a->entry, 1);
-					archive_entry_set_is_metadata_encrypted(a->entry,
-					    header || zip->header_is_encrypted);
-				}
 				crypto_coder = &(folder->coders[i]);
 				break;
 			}
