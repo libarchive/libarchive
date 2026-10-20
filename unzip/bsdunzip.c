@@ -487,6 +487,13 @@ handle_existing_file(char **path)
 		    *path);
 		if (fgets(buf, sizeof(buf), stdin) == NULL)
 			goto stdin_err;
+		/* Discard the rest of an overlong answer such as "yes". */
+		if (strchr(buf, '\n') == NULL) {
+			int c;
+
+			while ((c = getchar()) != '\n' && c != EOF)
+				continue;
+		}
 		switch (*buf) {
 		case 'A':
 			o_opt = 1;
