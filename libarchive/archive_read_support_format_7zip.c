@@ -3983,6 +3983,10 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		if (zip->is_encrypted && zip->folder_outbytes_remaining == 0)
 			break;
 		if (end_of_data || (bytes_in == 0 && bytes_out == 0)) {
+			/* A wrong key can produce a valid but premature end marker.
+			 * Reject this trial without suppressing later candidates. */
+			if (zip->checking_passphrase)
+				zip->passphrase_failed = 1;
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC, "Damaged 7-Zip archive");
 			return (ARCHIVE_FATAL);

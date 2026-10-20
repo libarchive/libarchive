@@ -46,7 +46,7 @@ password_callback(struct archive *a, void *data)
 }
 
 static void
-verify_passwords(const char *ref, int mode)
+verify_passwords(const char *ref, int mode, const char *wrong_password)
 {
 	struct archive *a, *control;
 	struct archive_entry *ae, *ce;
@@ -68,7 +68,7 @@ verify_passwords(const char *ref, int mode)
 	    archive_read_add_passphrase(control, "12345678"));
 	if (mode != 2 && mode != 3 && mode != 7 && mode != 8 && mode < 9)
 		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_add_passphrase(a, "wrong password"));
+		    archive_read_add_passphrase(a, wrong_password));
 	if (mode == 9 || mode == 10) {
 		memset(unsupported, 'a', sizeof(unsupported) - 1);
 		unsupported[sizeof(unsupported) - 1] = '\0';
@@ -246,7 +246,26 @@ DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 		extract_reference_file(refs[i]);
 		for (mode = 0; mode < 12; mode++) {
 			failure("%s, password mode %d", refs[i], mode);
-			verify_passwords(refs[i], mode);
+			verify_passwords(refs[i], mode, "wrong password");
 		}
 	}
+}
+
+/* AES (one SHA-256 round, no salt or IV) followed by Deflate. The content
+ * is 200 repetitions of "ordinary Deflate password retry\n". Independently
+ * verified with 7-Zip. "candidate-4" decrypts to an early Deflate end marker:
+ * that must reject this candidate, not prevent trying the correct password. */
+DEFINE_TEST(test_read_format_7zip_encryption_passphrase_deflate)
+{
+	const char *ref = "test_read_format_7zip_encryption_passphrase_deflate.7z";
+
+	if (!can7zipEncryption() || archive_zlib_version() == NULL) {
+		skipping("7-Zip AES and Deflate decryption are required");
+		return;
+	}
+	extract_reference_file(ref);
+	verify_passwords(ref, 8, "candidate-4"); /* Correct first. */
+	verify_passwords(ref, 0, "candidate-4"); /* Next registered password. */
+	verify_passwords(ref, 1, "candidate-4"); /* Correct callback password. */
+	verify_passwords(ref, 6, "candidate-4"); /* All passwords incorrect. */
 }

@@ -954,6 +954,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_encryption_partially.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_passphrase_copy.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_passphrase_copy_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_deflate.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_passphrase_folders.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_passphrase_zstd.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_ppmd.7z.uu \
