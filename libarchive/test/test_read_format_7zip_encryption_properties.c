@@ -27,6 +27,14 @@
 #define __LIBARCHIVE_BUILD 1
 #include "archive_cryptor_private.h"
 #include "archive_digest_private.h"
+#include "archive_private.h"
+#include "archive_endian.h"
+
+struct truncated_read_state {
+	const unsigned char *data;
+	size_t size, position, stop_at;
+	int header_seen, reading_pack, eof_calls;
+};
 
 int
 can7zipEncryption(void)
@@ -123,12 +131,197 @@ DEFINE_TEST(test_read_format_7zip_encryption_truncated)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_entry_size(ae));
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualString("Truncated 7-Zip encrypted stream", archive_error_string(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/* The AES-only reference has 32 packed bytes at file offset 32. Read the
+ * complete header first, then stop the callback within that packed stream.
+ * Unlike an unaligned declared size, this reaches read-ahead's short EOF. */
+static la_ssize_t
+read_truncated_pack(struct archive *a, void *data, const void **buff)
+{
+	struct truncated_read_state *state = data;
+	size_t size = state->size - state->position;
+
+	(void)a;
+	if (state->reading_pack && state->position < 64) {
+		if (state->position >= state->stop_at) {
+			state->eof_calls++;
+			*buff = NULL;
+			return (0);
+		}
+		if (size > state->stop_at - state->position)
+			size = state->stop_at - state->position;
+	}
+	if (size > 7)
+		size = 7;
+	*buff = state->data + state->position;
+	state->position += size;
+	return ((la_ssize_t)size);
+}
+
+static la_int64_t
+seek_truncated_pack(struct archive *a, void *data, la_int64_t offset,
+    int whence)
+{
+	struct truncated_read_state *state = data;
+	la_int64_t base;
+
+	(void)a;
+	if (whence == SEEK_SET)
+		base = 0;
+	else if (whence == SEEK_CUR)
+		base = (la_int64_t)state->position;
+	else if (whence == SEEK_END)
+		base = (la_int64_t)state->size;
+	else
+		return (-1);
+	if (offset < -base || offset > (la_int64_t)state->size - base)
+		return (-1);
+	state->position = (size_t)(base + offset);
+	if (state->position >= 64)
+		state->header_seen = 1;
+	else if (state->header_seen)
+		state->reading_pack = 1;
+	return ((la_int64_t)state->position);
+}
+
+DEFINE_TEST(test_read_format_7zip_encryption_truncated_read)
+{
+	const char *ref = "test_read_format_7zip_encryption_default_properties.7z";
+	static const char expected[] = "7zip encryption edge case\n";
+	struct truncated_read_state state;
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[32], *data;
+	size_t size, cut;
+
+	if (!can7zipEncryption()) {
+		skipping("7-Zip AES decryption is not supported on this platform");
+		return;
+	}
+	extract_reference_file(ref);
+	data = slurpfile(&size, "%s", ref);
+	assert(data != NULL);
+	if (data == NULL)
+		return;
+	for (cut = 0; cut <= 32; cut++) {
+		memset(&state, 0, sizeof(state));
+		state.data = (const unsigned char *)data;
+		state.size = size;
+		state.stop_at = 32 + cut;
+		assert((a = archive_read_new()) != NULL);
+		if (a == NULL)
+			break;
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, "12345678"));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_set_seek_callback(a, seek_truncated_pack));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open2(a, &state, NULL, read_truncated_pack, NULL, NULL));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		failure("Callback EOF after %lu of 32 AES bytes", (unsigned long)cut);
+		if (cut < 32) {
+			assertEqualIntA(a, ARCHIVE_FATAL,
+			    archive_read_data(a, buff, sizeof(buff)));
+			assert(state.reading_pack);
+			assert(state.eof_calls > 0);
+			assertEqualInt(32 + cut, state.position);
+			assertEqualString("Truncated 7-Zip encrypted stream",
+			    archive_error_string(a));
+		} else {
+			assertEqualIntA(a, sizeof(expected) - 1,
+			    archive_read_data(a, buff, sizeof(buff)));
+			assertEqualMem(expected, buff, sizeof(expected) - 1);
+			assertEqualInt(0, state.eof_calls);
+		}
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+	free(data);
+}
+
+/* Keep the archive and header checksums valid so these cases reach the
+ * AES property parser, rather than failing at the container CRC check. */
+DEFINE_TEST(test_read_format_7zip_encryption_invalid_properties)
+{
+	const char *ref = "test_read_format_7zip_encryption_cycles0.7z";
+	static const char expected[] = "7zip encryption edge case\n";
+	static const unsigned char coder[] = {0x24, 6, 0xf1, 7, 1, 1, 0};
+	const struct {
+		const char *name;
+		unsigned char properties[2];
+		size_t size;
+	} cases[] = {
+	    {"valid control", {0}, 1},
+	    {"unsupported cycle power", {25}, 1},
+	    {"missing IV size", {0x40}, 1},
+	    {"missing salt size", {0x80}, 1},
+	    {"missing salt and IV sizes", {0xc0}, 1},
+	    {"unexpected extra byte", {0, 0}, 2},
+	    {"missing salt and IV data", {0xc0, 0xff}, 2}
+	};
+	struct archive *a;
+	struct archive_entry *ae;
+	unsigned char archive_data[122];
+	char buff[32], *original;
+	size_t size, i, bytes;
+
+	if (!can7zipEncryption()) {
+		skipping("7-Zip AES decryption is not supported on this platform");
+		return;
+	}
+	extract_reference_file(ref);
+	original = slurpfile(&size, "%s", ref);
+	assert(original != NULL);
+	if (original == NULL)
+		return;
+	assertEqualInt(121, size);
+	if (size != 121) {
+		free(original);
+		return;
+	}
+	/* The one-byte property set follows this AES coder descriptor. */
+	assertEqualMem(coder, original + 77, sizeof(coder));
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		memcpy(archive_data, original, 83);
+		archive_data[82] = (unsigned char)cases[i].size;
+		memcpy(archive_data + 83, cases[i].properties, cases[i].size);
+		memcpy(archive_data + 83 + cases[i].size, original + 84, size - 84);
+		bytes = size - 1 + cases[i].size;
+		archive_le64enc(archive_data + 20, bytes - 64);
+		archive_le32enc(archive_data + 28,
+		    __archive_crc32(0, archive_data + 64, (unsigned)(bytes - 64)));
+		archive_le32enc(archive_data + 8,
+		    __archive_crc32(0, archive_data + 12, 20));
+		assert((a = archive_read_new()) != NULL);
+		if (a == NULL)
+			break;
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, "12345678"));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    read_open_memory_seek(a, archive_data, bytes, 7));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		failure("AES properties: %s", cases[i].name);
+		if (i == 0) {
+			assertEqualIntA(a, sizeof(expected) - 1,
+			    archive_read_data(a, buff, sizeof(buff)));
+			assertEqualMem(expected, buff, sizeof(expected) - 1);
+		} else {
+			assertEqualIntA(a, ARCHIVE_FAILED,
+			    archive_read_data(a, buff, sizeof(buff)));
+			assertEqualString("Malformed 7-Zip encryption properties",
+			    archive_error_string(a));
+		}
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+	free(original);
+}
+
 DEFINE_TEST(test_read_format_7zip_encryption_password_encoding)
 {
+#if defined(ARCHIVE_HAS_SHA256)
 	static const char unicode_pw[] = "\xe4\xb8\xad\xe6\x96\x87\xf0\x9f\x99\x82";
 	static const char *invalid[] = {
 	    "\xc0\x80", "\xed\xa0\x80", "\xf4\x90\x80\x80",
@@ -156,10 +349,6 @@ DEFINE_TEST(test_read_format_7zip_encryption_password_encoding)
 	char pw[260];
 	size_t i;
 
-	if (!can7zipEncryption()) {
-		skipping("7-Zip AES decryption is not supported on this platform");
-		return;
-	}
 	/* Independent SHA-256 vectors include the UTF-16LE password and
 	 * eight zero counter bytes, for a single derivation round. */
 	assertEqualInt(0, archive_7z_kdf_sha256(unicode_pw, NULL, 0, 0,
@@ -185,6 +374,9 @@ DEFINE_TEST(test_read_format_7zip_encryption_password_encoding)
 	for (i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++)
 		assert(archive_7z_kdf_sha256(invalid[i], NULL, 0, 0, actual,
 		    sizeof(actual)) != 0);
+#else
+	skipping("SHA-256 is required for password encoding tests");
+#endif
 }
 
 #if defined(ARCHIVE_HAS_SHA256)
@@ -264,6 +456,9 @@ DEFINE_TEST(test_read_format_7zip_encryption_kdf_failures)
  * Check backend CBC chaining independently of the 7-Zip parser and KDF. */
 DEFINE_TEST(test_read_format_7zip_encryption_aes_cbc)
 {
+#if defined(ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto) || \
+    defined(ARCHIVE_CRYPTOR_USE_CNG) || defined(ARCHIVE_CRYPTOR_USE_MBED) || \
+    defined(ARCHIVE_CRYPTOR_USE_NETTLE) || defined(ARCHIVE_CRYPTOR_USE_OPENSSL)
 	static const unsigned char key[32] = {
 	    0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
 	    0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
@@ -300,10 +495,6 @@ DEFINE_TEST(test_read_format_7zip_encryption_aes_cbc)
 	size_t i, pass, offset, out_len;
 	int r;
 
-	if (!can7zipEncryption()) {
-		skipping("7-Zip AES decryption is not supported on this platform");
-		return;
-	}
 	memset(guard, 0xa5, sizeof(guard));
 	for (i = 0; i < sizeof(chunks) / sizeof(chunks[0]); i++) {
 		/* Fresh contexts must restart from the supplied IV, even after
@@ -335,4 +526,7 @@ DEFINE_TEST(test_read_format_7zip_encryption_aes_cbc)
 			assertEqualInt(0, archive_decrypto_aes_cbc_release(&ctx));
 		}
 	}
+#else
+	skipping("AES-CBC decryption is not supported on this platform");
+#endif
 }
