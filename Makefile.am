@@ -496,6 +496,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_7zip.c \
 	libarchive/test/test_read_format_7zip_encryption_bcj2.c \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
+	libarchive/test/test_read_format_7zip_encryption_decoder_failures.c \
 	libarchive/test/test_read_format_7zip_encryption_header.c \
 	libarchive/test/test_read_format_7zip_encryption_lzma2.c \
 	libarchive/test/test_read_format_7zip_encryption_partially.c \
@@ -941,6 +942,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_empty_file.7z.uu \
 	libarchive/test/test_read_format_7zip_archive_properties.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bzip2.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_bcj2.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_bcj2_empty_streams.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_bcj2_four.7z.uu \

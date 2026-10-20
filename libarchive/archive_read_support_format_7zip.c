@@ -48,6 +48,7 @@
 #endif
 #ifdef HAVE_ZSTD_H
 #include <zstd.h>
+#include <zstd_errors.h>
 #endif
 
 #include "archive.h"
@@ -1779,6 +1780,11 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			zip->zstdstream_valid = 0;
 		}
 		zip->zstd_dstream = ZSTD_createDStream();
+		if (zip->zstd_dstream == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for Zstd decompression");
+			return (ARCHIVE_FATAL);
+		}
 		zip->zstdstream_valid = 1;
 		break;
 #else
@@ -2009,6 +2015,14 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			break;
 		case LZMA_OK: /* Decompressor made some progress. */
 			break;
+		case LZMA_MEM_ERROR:
+		case LZMA_MEMLIMIT_ERROR:
+			set_error(a, r);
+			return (ARCHIVE_FATAL);
+		case LZMA_PROG_ERROR:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Internal error in Lzma decompression");
+			return (ARCHIVE_FATAL);
 		default:
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
@@ -2040,13 +2054,23 @@ decompress(struct archive_read *a, struct _7zip *zip,
 				archive_set_error(&(a->archive),
 				    ARCHIVE_ERRNO_MISC,
 				    "Failed to clean up decompressor");
-				return (ARCHIVE_FAILED);
+				return (ARCHIVE_FATAL);
 			}
 			zip->bzstream_valid = 0;
 			ret = ARCHIVE_EOF;
 			break;
 		case BZ_OK: /* Decompressor made some progress. */
 			break;
+		case BZ_MEM_ERROR:
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for bzip2 decompression");
+			return (ARCHIVE_FATAL);
+		case BZ_PARAM_ERROR:
+		case BZ_SEQUENCE_ERROR:
+		case BZ_CONFIG_ERROR:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Internal error in bzip2 decompression (%d)", r);
+			return (ARCHIVE_FATAL);
 		default:
 			archive_set_error(&(a->archive),
 			    ARCHIVE_ERRNO_MISC,
@@ -2074,6 +2098,14 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			break;
 		case Z_OK: /* Decompressor made some progress.*/
 			break;
+		case Z_MEM_ERROR:
+			archive_set_error(&a->archive, ENOMEM,
+			    "No memory for deflate decompression");
+			return (ARCHIVE_FATAL);
+		case Z_STREAM_ERROR:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Internal error in deflate decompression");
+			return (ARCHIVE_FATAL);
 		default:
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "File decompression failed (%d)", r);
@@ -2094,9 +2126,19 @@ decompress(struct archive_read *a, struct _7zip *zip,
 		size_t const zret = ZSTD_decompressStream(zip->zstd_dstream,
 		    &output, &input);
 		if (ZSTD_isError(zret)) {
+			ZSTD_ErrorCode error = ZSTD_getErrorCode(zret);
+
+			if (error == ZSTD_error_memory_allocation) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory for Zstd decompression");
+				return (ARCHIVE_FATAL);
+			}
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Zstd decompression failed: %s",
 			    ZSTD_getErrorName(zret));
+			if (error == ZSTD_error_stage_wrong ||
+			    error == ZSTD_error_init_missing)
+				return (ARCHIVE_FATAL);
 			return ARCHIVE_FAILED;
 		}
 		t_avail_in -= input.pos;
@@ -3966,7 +4008,7 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 			end_of_data = 1;
 			break;
 		default:
-			if (zip->checking_passphrase &&
+			if (zip->checking_passphrase && r != ARCHIVE_FATAL &&
 			    archive_errno(&a->archive) != ENOMEM)
 				zip->passphrase_failed = 1;
 			return (ARCHIVE_FATAL);
