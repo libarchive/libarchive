@@ -42,14 +42,15 @@ can7zipEncryption(void)
 }
 
 /* Minimal AES-only archives, verified with 7-Zip. Password: "12345678".
- * Cover a single SHA-256 round, the direct-key mode, and salt/IV lengths
- * whose high flag is zero while the corresponding size nibble is nonzero.
+ * Cover omitted properties, a single SHA-256 round, direct-key mode, and
+ * salt/IV lengths with a zero high flag and a nonzero size nibble.
  * Plaintext: "7zip encryption edge case\n". Salt: "salt".
  * IV bytes: 0..15 for salt_size, 0..11 for iv_size; otherwise no salt/IV.
  */
 DEFINE_TEST(test_read_format_7zip_encryption_properties)
 {
 	const char *refs[] = {
+	    "test_read_format_7zip_encryption_default_properties.7z",
 	    "test_read_format_7zip_encryption_cycles0.7z",
 	    "test_read_format_7zip_encryption_cycles63.7z",
 	    "test_read_format_7zip_encryption_salt_size.7z",

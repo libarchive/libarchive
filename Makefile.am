@@ -948,6 +948,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_encryption_bcj2_mixed.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_cycles0.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_cycles63.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_default_properties.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_header.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_header_only.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_iv_size.7z.uu \

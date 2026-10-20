@@ -4187,9 +4187,14 @@ parse_7z_crypto_properties(struct _7z_crypto_properties *props,
 	int salt_flag, iv_flag;
 	size_t offset = 1;
 
-	if (props == NULL || p == NULL || size < 1)
+	if (props == NULL)
 		return (-1);
 	memset(props, 0, sizeof(*props));
+	/* Omitted properties select one SHA-256 round and no salt or IV. */
+	if (size == 0)
+		return (0);
+	if (p == NULL)
+		return (-1);
 
 	b0 = p[0];
 	props->num_cycles_power = b0 & 0x3F;
