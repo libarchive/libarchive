@@ -28,6 +28,7 @@ struct password_state {
 	int calls;
 	int wrong_first;
 	int exhausted;
+	int invalid_first;
 };
 
 static const char *
@@ -40,7 +41,7 @@ password_callback(struct archive *a, void *data)
 	if (state->exhausted || state->calls > state->wrong_first + 1)
 		return (NULL);
 	if (state->calls <= state->wrong_first)
-		return ("another wrong password");
+		return (state->invalid_first ? "\xff" : "another wrong password");
 	return ("12345678");
 }
 
@@ -49,8 +50,10 @@ verify_passwords(const char *ref, int mode)
 {
 	struct archive *a, *control;
 	struct archive_entry *ae, *ce;
-	struct password_state state = {0, mode == 2, mode == 5};
+	struct password_state state = {0, mode == 2 || mode == 11,
+	    mode == 5, mode == 11};
 	unsigned char buff[4093], expected[4093];
+	char unsupported[258];
 	la_ssize_t n, count;
 	int r, success = mode != 5 && mode != 6;
 
@@ -63,19 +66,26 @@ verify_passwords(const char *ref, int mode)
 	    archive_read_support_format_7zip(control));
 	assertEqualIntA(control, ARCHIVE_OK,
 	    archive_read_add_passphrase(control, "12345678"));
-	if (mode != 2 && mode != 3 && mode != 7 && mode != 8)
+	if (mode != 2 && mode != 3 && mode != 7 && mode != 8 && mode < 9)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_add_passphrase(a, "wrong password"));
+	if (mode == 9 || mode == 10) {
+		memset(unsupported, 'a', sizeof(unsupported) - 1);
+		unsupported[sizeof(unsupported) - 1] = '\0';
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a,
+		    mode == 9 ? unsupported : "\xff"));
+	}
 	if (mode == 4 || mode == 6)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_add_passphrase(a, "another wrong password"));
-	if (mode == 0 || mode == 3 || mode == 4 || mode == 8)
+	if (mode == 0 || mode == 3 || mode == 4 || mode == 8 ||
+	    mode == 9 || mode == 10)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_add_passphrase(a, "12345678"));
 	if (mode == 8)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_add_passphrase(a, "unused wrong password"));
-	if (mode == 1 || mode == 2 || mode == 3 || mode == 5 || mode == 7)
+	if (mode == 1 || mode == 2 || mode == 3 || mode == 5 || mode == 7 || mode == 11)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_set_passphrase_callback(a, &state,
 		    password_callback));
@@ -113,8 +123,8 @@ verify_passwords(const char *ref, int mode)
 		assertEqualInt(-1, archive_errno(a));
 		assertEqualString("Incorrect passphrase", archive_error_string(a));
 	}
-	assertEqualInt(mode == 2 ? 2 :
-	    (mode == 1 || mode == 5 || mode == 7), state.calls);
+	assertEqualInt(mode == 2 || mode == 11 ? 2 :
+	    (mode == 1 || mode == 5 || mode == 7 || mode == 11), state.calls);
  done:
 	if (a != NULL)
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -234,7 +244,7 @@ DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 			continue;
 		}
 		extract_reference_file(refs[i]);
-		for (mode = 0; mode < 9; mode++) {
+		for (mode = 0; mode < 12; mode++) {
 			failure("%s, password mode %d", refs[i], mode);
 			verify_passwords(refs[i], mode);
 		}
