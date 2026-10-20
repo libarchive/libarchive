@@ -24,6 +24,60 @@
  */
 #include "test.h"
 
+enum password_candidate {
+	PASSWORD_NONE,
+	PASSWORD_WRONG,
+	PASSWORD_OTHER_WRONG,
+	PASSWORD_CORRECT,
+	PASSWORD_TOO_LONG,
+	PASSWORD_INVALID_UTF8,
+	PASSWORD_UNUSED
+};
+
+enum password_callback_mode {
+	CALLBACK_NONE,
+	CALLBACK_CORRECT,
+	CALLBACK_WRONG_THEN_CORRECT,
+	CALLBACK_EXHAUSTED,
+	CALLBACK_INVALID_THEN_CORRECT
+};
+
+struct password_test {
+	const char *name;
+	enum password_candidate candidates[3];
+	enum password_callback_mode callback;
+	int succeeds;
+	int callback_calls;
+};
+
+static const struct password_test password_tests[] = {
+	{"next registered password", {PASSWORD_WRONG, PASSWORD_CORRECT},
+	    CALLBACK_NONE, 1, 0},
+	{"registered password then callback", {PASSWORD_WRONG},
+	    CALLBACK_CORRECT, 1, 1},
+	{"callback retries", {PASSWORD_NONE},
+	    CALLBACK_WRONG_THEN_CORRECT, 1, 2},
+	{"registered password avoids callback", {PASSWORD_CORRECT},
+	    CALLBACK_CORRECT, 1, 0},
+	{"third registered password",
+	    {PASSWORD_WRONG, PASSWORD_OTHER_WRONG, PASSWORD_CORRECT},
+	    CALLBACK_NONE, 1, 0},
+	{"callback exhausted", {PASSWORD_WRONG},
+	    CALLBACK_EXHAUSTED, 0, 1},
+	{"registered passwords exhausted", {PASSWORD_WRONG, PASSWORD_OTHER_WRONG},
+	    CALLBACK_NONE, 0, 0},
+	{"callback only", {PASSWORD_NONE},
+	    CALLBACK_CORRECT, 1, 1},
+	{"correct password before unused candidate", {PASSWORD_CORRECT, PASSWORD_UNUSED},
+	    CALLBACK_NONE, 1, 0},
+	{"oversized registered password", {PASSWORD_TOO_LONG, PASSWORD_CORRECT},
+	    CALLBACK_NONE, 1, 0},
+	{"invalid UTF-8 registered password", {PASSWORD_INVALID_UTF8, PASSWORD_CORRECT},
+	    CALLBACK_NONE, 1, 0},
+	{"invalid UTF-8 callback password", {PASSWORD_NONE},
+	    CALLBACK_INVALID_THEN_CORRECT, 1, 2}
+};
+
 struct password_state {
 	int calls;
 	int wrong_first;
@@ -46,17 +100,27 @@ password_callback(struct archive *a, void *data)
 }
 
 static void
-verify_passwords(const char *ref, int mode, const char *wrong_password)
+verify_passwords(const char *ref, const struct password_test *test,
+    const char *wrong_password)
 {
 	struct archive *a, *control;
 	struct archive_entry *ae, *ce;
-	struct password_state state = {0, mode == 2 || mode == 11,
-	    mode == 5, mode == 11};
+	struct password_state state = {0,
+	    test->callback == CALLBACK_WRONG_THEN_CORRECT ||
+	    test->callback == CALLBACK_INVALID_THEN_CORRECT,
+	    test->callback == CALLBACK_EXHAUSTED,
+	    test->callback == CALLBACK_INVALID_THEN_CORRECT};
 	unsigned char buff[4093], expected[4093];
 	char unsupported[258];
+	const char *passwords[] = {NULL, wrong_password, "another wrong password",
+	    "12345678", unsupported, "\xff", "unused wrong password"};
+	size_t i;
 	la_ssize_t n, count;
-	int r, success = mode != 5 && mode != 6;
+	int r;
 
+	failure("%s, %s", ref, test->name);
+	memset(unsupported, 'a', sizeof(unsupported) - 1);
+	unsupported[sizeof(unsupported) - 1] = '\0';
 	assert((a = archive_read_new()) != NULL);
 	assert((control = archive_read_new()) != NULL);
 	if (a == NULL || control == NULL)
@@ -66,26 +130,13 @@ verify_passwords(const char *ref, int mode, const char *wrong_password)
 	    archive_read_support_format_7zip(control));
 	assertEqualIntA(control, ARCHIVE_OK,
 	    archive_read_add_passphrase(control, "12345678"));
-	if (mode != 2 && mode != 3 && mode != 7 && mode != 8 && mode < 9)
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_add_passphrase(a, wrong_password));
-	if (mode == 9 || mode == 10) {
-		memset(unsupported, 'a', sizeof(unsupported) - 1);
-		unsupported[sizeof(unsupported) - 1] = '\0';
+	for (i = 0; i < sizeof(test->candidates) / sizeof(test->candidates[0]); i++) {
+		if (test->candidates[i] == PASSWORD_NONE)
+			break;
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a,
-		    mode == 9 ? unsupported : "\xff"));
+		    passwords[test->candidates[i]]));
 	}
-	if (mode == 4 || mode == 6)
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_add_passphrase(a, "another wrong password"));
-	if (mode == 0 || mode == 3 || mode == 4 || mode == 8 ||
-	    mode == 9 || mode == 10)
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_add_passphrase(a, "12345678"));
-	if (mode == 8)
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_add_passphrase(a, "unused wrong password"));
-	if (mode == 1 || mode == 2 || mode == 3 || mode == 5 || mode == 7 || mode == 11)
+	if (test->callback != CALLBACK_NONE)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_set_passphrase_callback(a, &state,
 		    password_callback));
@@ -93,7 +144,7 @@ verify_passwords(const char *ref, int mode, const char *wrong_password)
 	assertEqualIntA(control, ARCHIVE_OK,
 	    archive_read_open_filename(control, ref, 65536));
 	while ((r = archive_read_next_header(a, &ae)) == ARCHIVE_OK) {
-		if (!success) {
+		if (!test->succeeds) {
 			r = (int)archive_read_data(a, buff, sizeof(buff));
 			assert(r < 0);
 			break;
@@ -114,7 +165,7 @@ verify_passwords(const char *ref, int mode, const char *wrong_password)
 		assertEqualIntA(control, 0, n);
 		assertEqualIntA(a, 0, archive_read_data(a, buff, 1));
 	}
-	if (success) {
+	if (test->succeeds) {
 		assertEqualIntA(a, ARCHIVE_EOF, r);
 		assertEqualIntA(control, ARCHIVE_EOF,
 		    archive_read_next_header(control, &ce));
@@ -123,8 +174,7 @@ verify_passwords(const char *ref, int mode, const char *wrong_password)
 		assertEqualInt(-1, archive_errno(a));
 		assertEqualString("Incorrect passphrase", archive_error_string(a));
 	}
-	assertEqualInt(mode == 2 || mode == 11 ? 2 :
-	    (mode == 1 || mode == 5 || mode == 7 || mode == 11), state.calls);
+	assertEqualInt(test->callback_calls, state.calls);
  done:
 	if (a != NULL)
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -222,8 +272,7 @@ DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 	    "test_read_format_7zip_encryption_passphrase_copy_header.7z",
 	    "test_read_format_7zip_encryption_passphrase_zstd.7z"
 	};
-	size_t i;
-	int mode;
+	size_t i, j;
 
 	if (!can7zipEncryption() || archive_liblzma_version() == NULL) {
 		skipping("7-Zip AES and LZMA decryption are required");
@@ -244,10 +293,8 @@ DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 			continue;
 		}
 		extract_reference_file(refs[i]);
-		for (mode = 0; mode < 12; mode++) {
-			failure("%s, password mode %d", refs[i], mode);
-			verify_passwords(refs[i], mode, "wrong password");
-		}
+		for (j = 0; j < sizeof(password_tests) / sizeof(password_tests[0]); j++)
+			verify_passwords(refs[i], &password_tests[j], "wrong password");
 	}
 }
 
@@ -258,14 +305,13 @@ DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 DEFINE_TEST(test_read_format_7zip_encryption_passphrase_deflate)
 {
 	const char *ref = "test_read_format_7zip_encryption_passphrase_deflate.7z";
+	size_t i;
 
 	if (!can7zipEncryption() || archive_zlib_version() == NULL) {
 		skipping("7-Zip AES and Deflate decryption are required");
 		return;
 	}
 	extract_reference_file(ref);
-	verify_passwords(ref, 8, "candidate-4"); /* Correct first. */
-	verify_passwords(ref, 0, "candidate-4"); /* Next registered password. */
-	verify_passwords(ref, 1, "candidate-4"); /* Correct callback password. */
-	verify_passwords(ref, 6, "candidate-4"); /* All passwords incorrect. */
+	for (i = 0; i < sizeof(password_tests) / sizeof(password_tests[0]); i++)
+		verify_passwords(ref, &password_tests[i], "candidate-4");
 }
