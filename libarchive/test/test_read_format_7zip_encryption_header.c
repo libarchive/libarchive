@@ -114,3 +114,43 @@ DEFINE_TEST(test_read_format_7zip_encryption_header)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+
+/* Created with 7-Zip: add plain.txt using Copy without a password, then
+ * add empty.txt with -p12345678 -mhe=on. Both files retain plaintext data;
+ * only the header is encrypted. The empty file sorts before plain.txt. */
+DEFINE_TEST(test_read_format_7zip_encryption_header_only)
+{
+	const char *ref = "test_read_format_7zip_encryption_header_only.7z";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[32];
+
+	if (!can7zipEncryption() || archive_liblzma_version() == NULL) {
+		skipping("7-Zip AES and LZMA decryption are required");
+		return;
+	}
+	extract_reference_file(ref);
+	assert((a = archive_read_new()) != NULL);
+	if (a == NULL)
+		return;
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_add_passphrase(a, "12345678"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, ref, 7));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("empty.txt", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(0, archive_entry_is_data_encrypted(ae));
+	assertEqualInt(1, archive_entry_is_metadata_encrypted(ae));
+	assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("plain.txt", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_is_data_encrypted(ae));
+	assertEqualInt(1, archive_entry_is_metadata_encrypted(ae));
+	assertEqualIntA(a, 19, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem("plain file content\n", buff, 19);
+	assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

@@ -991,6 +991,11 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 	}
 
+	/* Decoding the archive header may have set this entry's flags for
+	 * the header's AES coder. Determine file-data encryption separately
+	 * now that the header has been successfully decoded. */
+	archive_entry_set_is_data_encrypted(entry, 0);
+
 	/* Figure out if the entry is encrypted by looking at the folder
 	   that is associated to the current 7zip entry. If the folder
 	   has a coder with a _7Z_CRYPTO codec then the folder is encrypted.
