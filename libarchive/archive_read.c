@@ -182,6 +182,7 @@ client_switch_proxy(struct archive_read_filter *f, unsigned int iindex)
 	struct archive_read *a;
 	int r1 = ARCHIVE_OK, r2 = ARCHIVE_OK;
 	void *data2;
+	unsigned int old_cursor;
 
 	a = f->archive;
 
@@ -189,6 +190,7 @@ client_switch_proxy(struct archive_read_filter *f, unsigned int iindex)
 	if (a->client.cursor == iindex)
 		return (ARCHIVE_OK);
 
+	old_cursor = a->client.cursor;
 	a->client.cursor = iindex;
 	data2 = a->client.dataset[a->client.cursor].data;
 	if (a->client.switcher != NULL)
@@ -200,9 +202,12 @@ client_switch_proxy(struct archive_read_filter *f, unsigned int iindex)
 	else
 	{
 		/* Attempt to call close and open instead */
-		if (a->client.closer != NULL)
+		if (a->client.closer != NULL &&
+		    !a->client.dataset[old_cursor].closed) {
+			a->client.dataset[old_cursor].closed = 1;
 			r1 = (a->client.closer)
 				((struct archive *)a, f->data);
+		}
 		f->data = data2;
 		if (a->client.opener != NULL)
 			r2 = (a->client.opener)
@@ -270,6 +275,10 @@ client_close_proxy(struct archive_read_filter *f)
 		return (r);
 	for (i = 0; i < a->client.nodes; i++)
 	{
+		/* A source may already have been closed during a switch. */
+		if (a->client.dataset[i].closed)
+			continue;
+		a->client.dataset[i].closed = 1;
 		r2 = (a->client.closer)
 			((struct archive *)a, a->client.dataset[i].data);
 		if (r > r2)
@@ -380,6 +389,7 @@ archive_read_set_callback_data2(struct archive *_a, void *client_data,
 	a->client.dataset[iindex].data = client_data;
 	a->client.dataset[iindex].begin_position = -1;
 	a->client.dataset[iindex].total_size = -1;
+	a->client.dataset[iindex].closed = 0;
 	return ARCHIVE_OK;
 }
 
@@ -424,10 +434,12 @@ archive_read_add_callback_data(struct archive *_a, void *client_data,
 		a->client.dataset[i].data = a->client.dataset[i-1].data;
 		a->client.dataset[i].begin_position = -1;
 		a->client.dataset[i].total_size = -1;
+		a->client.dataset[i].closed = a->client.dataset[i-1].closed;
 	}
 	a->client.dataset[iindex].data = client_data;
 	a->client.dataset[iindex].begin_position = -1;
 	a->client.dataset[iindex].total_size = -1;
+	a->client.dataset[iindex].closed = 0;
 	return ARCHIVE_OK;
 }
 
