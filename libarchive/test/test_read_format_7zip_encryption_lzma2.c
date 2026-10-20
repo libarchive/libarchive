@@ -37,12 +37,14 @@ DEFINE_TEST(test_read_format_7zip_encryption_lzma2)
 	    "The quick brown fox jumps over the lazy dog.\n";
 	struct archive_entry *ae;
 	struct archive *a;
-	char buff[1024];
+	char buff[1024], *archive_data;
+	const size_t blocks[] = {1, 7, 15, 16, 17, 65536};
+	size_t archive_size, block;
 	char expected[20 * sizeof(line)];
 	int i;
 
-	if (!can7zipEncryption()) {
-		skipping("7-Zip AES decryption is not supported on this platform");
+	if (!can7zipEncryption() || archive_liblzma_version() == NULL) {
+		skipping("7-Zip AES and LZMA decryption are required");
 		return;
 	}
 
@@ -51,30 +53,38 @@ DEFINE_TEST(test_read_format_7zip_encryption_lzma2)
 		    sizeof(line) - 1);
 
 	extract_reference_file(refname);
-	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_add_passphrase(a, "12345678"));
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_filename(a, refname, 10240));
+	archive_data = slurpfile(&archive_size, "%s", refname);
+	assert(archive_data != NULL);
+	if (archive_data == NULL)
+		return;
+	for (block = 0; block < sizeof(blocks) / sizeof(blocks[0]); block++) {
+		failure("LZMA2 input chunk %lu", (unsigned long)blocks[block]);
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_add_passphrase(a, "12345678"));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    read_open_memory_seek(a, archive_data, archive_size, blocks[block]));
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("d/fox.txt", archive_entry_pathname(ae));
-	assertEqualInt(900, archive_entry_size(ae));
-	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
-	assertEqualInt(900, archive_read_data(a, buff, sizeof(buff)));
-	assertEqualMem(buff, expected, 900);
-	assertEqualInt(0, archive_read_data(a, buff, sizeof(buff)));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString("d/fox.txt", archive_entry_pathname(ae));
+		assertEqualInt(900, archive_entry_size(ae));
+		assertEqualInt(1, archive_entry_is_data_encrypted(ae));
+		assertEqualInt(900, archive_read_data(a, buff, sizeof(buff)));
+		assertEqualMem(buff, expected, 900);
+		assertEqualInt(0, archive_read_data(a, buff, sizeof(buff)));
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualString("d/hello.txt", archive_entry_pathname(ae));
-	assertEqualInt(6, archive_entry_size(ae));
-	assertEqualInt(6, archive_read_data(a, buff, sizeof(buff)));
-	assertEqualMem(buff, "hello\n", 6);
-	assertEqualInt(0, archive_read_data(a, buff, sizeof(buff)));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString("d/hello.txt", archive_entry_pathname(ae));
+		assertEqualInt(6, archive_entry_size(ae));
+		assertEqualInt(6, archive_read_data(a, buff, sizeof(buff)));
+		assertEqualMem(buff, "hello\n", 6);
+		assertEqualInt(0, archive_read_data(a, buff, sizeof(buff)));
 
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+	free(archive_data);
 }

@@ -68,8 +68,8 @@ DEFINE_TEST(test_read_format_7zip_encryption_header)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
-	if (!can7zipEncryption()) {
-		skipping("7-Zip AES decryption is not supported on this platform");
+	if (!can7zipEncryption() || archive_liblzma_version() == NULL) {
+		skipping("7-Zip AES and LZMA decryption are required");
 		return;
 	}
 

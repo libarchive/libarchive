@@ -33,7 +33,12 @@ DEFINE_TEST(test_read_format_7zip_encryption_partially)
 	struct archive_entry *ae;
 	struct archive *a;
 	char buff[128];
+	int r;
 
+	if (archive_liblzma_version() == NULL) {
+		skipping("This reference requires LZMA support");
+		return;
+	}
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -44,7 +49,9 @@ DEFINE_TEST(test_read_format_7zip_encryption_partially)
 	assertEqualIntA(a, ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW, archive_read_has_encrypted_entries(a));
 
 	/* Verify regular unencrypted file1. */
-	if (archive_read_next_header(a, &ae) == ARCHIVE_OK) {
+	r = archive_read_next_header(a, &ae);
+	assertEqualIntA(a, ARCHIVE_OK, r);
+	if (r == ARCHIVE_OK) {
 		assertEqualInt((AE_IFREG | 0664), archive_entry_mode(ae));
 		assertEqualString("bar_unencrypted.txt", archive_entry_pathname(ae));
 		assertEqualInt(1379079541, archive_entry_mtime(ae));

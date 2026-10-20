@@ -111,13 +111,18 @@ verify_passwords(const char *ref, const struct password_test *test,
 	    test->callback == CALLBACK_EXHAUSTED,
 	    test->callback == CALLBACK_INVALID_THEN_CORRECT};
 	unsigned char buff[4093], expected[4093];
-	char unsupported[258];
+	char unsupported[258], *archive_data;
+	size_t archive_size;
 	const char *passwords[] = {NULL, wrong_password, "another wrong password",
 	    "12345678", unsupported, "\xff", "unused wrong password"};
 	size_t i;
 	la_ssize_t n, count;
 	int r;
 
+	archive_data = slurpfile(&archive_size, "%s", ref);
+	assert(archive_data != NULL);
+	if (archive_data == NULL)
+		return;
 	failure("%s, %s", ref, test->name);
 	memset(unsupported, 'a', sizeof(unsupported) - 1);
 	unsupported[sizeof(unsupported) - 1] = '\0';
@@ -140,7 +145,8 @@ verify_passwords(const char *ref, const struct password_test *test,
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_set_passphrase_callback(a, &state,
 		    password_callback));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, ref, 7));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    read_open_memory_seek(a, archive_data, archive_size, 7));
 	assertEqualIntA(control, ARCHIVE_OK,
 	    archive_read_open_filename(control, ref, 65536));
 	while ((r = archive_read_next_header(a, &ae)) == ARCHIVE_OK) {
@@ -157,6 +163,7 @@ verify_passwords(const char *ref, const struct password_test *test,
 		while ((n = archive_read_data(control, expected,
 		    sizeof(expected))) > 0) {
 			count = archive_read_data(a, buff, (size_t)n);
+			failure("%s, %s", ref, test->name);
 			assertEqualIntA(a, n, count);
 			if (count != n)
 				break;
@@ -165,6 +172,7 @@ verify_passwords(const char *ref, const struct password_test *test,
 		assertEqualIntA(control, 0, n);
 		assertEqualIntA(a, 0, archive_read_data(a, buff, 1));
 	}
+	failure("%s, %s", ref, test->name);
 	if (test->succeeds) {
 		assertEqualIntA(a, ARCHIVE_EOF, r);
 		assertEqualIntA(control, ARCHIVE_EOF,
@@ -174,12 +182,14 @@ verify_passwords(const char *ref, const struct password_test *test,
 		assertEqualInt(-1, archive_errno(a));
 		assertEqualString("Incorrect passphrase", archive_error_string(a));
 	}
+	failure("%s, %s", ref, test->name);
 	assertEqualInt(test->callback_calls, state.calls);
  done:
 	if (a != NULL)
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	if (control != NULL)
 		assertEqualInt(ARCHIVE_OK, archive_read_free(control));
+	free(archive_data);
 }
 
 struct folder_passwords {
@@ -210,13 +220,19 @@ verify_folder_passwords(int callback, int reverse)
 	struct folder_passwords state = {0, {0}};
 	struct archive *a;
 	struct archive_entry *ae;
-	char buff[256], expected[256];
-	size_t i, j, size;
+	char buff[256], expected[256], *archive_data;
+	size_t i, j, size, archive_size;
 	int r;
 
-	assert((a = archive_read_new()) != NULL);
-	if (a == NULL)
+	archive_data = slurpfile(&archive_size, "%s", ref);
+	assert(archive_data != NULL);
+	if (archive_data == NULL)
 		return;
+	assert((a = archive_read_new()) != NULL);
+	if (a == NULL) {
+		free(archive_data);
+		return;
+	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
 	if (callback) {
 		assertEqualIntA(a, ARCHIVE_OK,
@@ -228,7 +244,8 @@ verify_folder_passwords(int callback, int reverse)
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a,
 		    reverse ? "12345678" : "other-password"));
 	}
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, ref, 7));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    read_open_memory_seek(a, archive_data, archive_size, 7));
 	for (i = 0; i < 2; i++) {
 		r = archive_read_next_header(a, &ae);
 		assertEqualIntA(a, ARCHIVE_OK, r);
@@ -246,6 +263,7 @@ verify_folder_passwords(int callback, int reverse)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(callback ? 2 : 0, state.calls);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(archive_data);
 }
 
 /* Copy references: 7zz a -m0=Copy -p12345678 -mhe=off/on, with
@@ -258,43 +276,56 @@ verify_folder_passwords(int callback, int reverse)
  * "Zstandard password candidate regression\n". */
 DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 {
-	const char *refs[] = {
-	    "test_read_format_7zip_encryption.7z",
-	    "test_read_format_7zip_encryption_header.7z",
-	    "test_read_format_7zip_encryption_lzma2.7z",
-	    "test_read_format_7zip_encryption_ppmd.7z",
-	    "test_read_format_7zip_encryption_ppmd_header.7z",
-	    "test_read_format_7zip_encryption_bcj2.7z",
-	    "test_read_format_7zip_encryption_bcj2_header.7z",
-	    "test_read_format_7zip_encryption_bcj2_four.7z",
-	    "test_read_format_7zip_encryption_bcj2_mixed.7z",
-	    "test_read_format_7zip_encryption_passphrase_copy.7z",
-	    "test_read_format_7zip_encryption_passphrase_copy_header.7z",
-	    "test_read_format_7zip_encryption_passphrase_zstd.7z"
+	const struct {
+		const char *name;
+		int needs_lzma, needs_bzip2, needs_zstd;
+	} refs[] = {
+	    {"test_read_format_7zip_encryption.7z", 1, 0, 0},
+	    {"test_read_format_7zip_encryption_header.7z", 1, 0, 0},
+	    {"test_read_format_7zip_encryption_lzma2.7z", 1, 0, 0},
+	    {"test_read_format_7zip_encryption_ppmd.7z", 0, 0, 0},
+	    {"test_read_format_7zip_encryption_ppmd_header.7z", 0, 0, 0},
+	    {"test_read_format_7zip_encryption_bcj2.7z", 1, 0, 0},
+	    {"test_read_format_7zip_encryption_bcj2_header.7z", 1, 0, 0},
+	    {"test_read_format_7zip_encryption_bcj2_four.7z", 1, 0, 0},
+	    {"test_read_format_7zip_encryption_bcj2_mixed.7z", 1, 1, 0},
+	    {"test_read_format_7zip_encryption_passphrase_copy.7z", 0, 0, 0},
+	    {"test_read_format_7zip_encryption_passphrase_copy_header.7z", 0, 0, 0},
+	    {"test_read_format_7zip_encryption_passphrase_zstd.7z", 0, 0, 1},
 	};
 	size_t i, j;
 
-	if (!can7zipEncryption() || archive_liblzma_version() == NULL) {
-		skipping("7-Zip AES and LZMA decryption are required");
+	if (!can7zipEncryption()) {
+		skipping("7-Zip AES decryption is required");
 		return;
 	}
-	extract_reference_file("test_read_format_7zip_encryption_passphrase_folders.7z");
-	verify_folder_passwords(0, 0);
-	verify_folder_passwords(0, 1);
-	verify_folder_passwords(1, 0);
+	/* This reference's encoded header uses LZMA, even though its file
+	 * data uses Copy. Other references below do not require LZMA. */
+	if (archive_liblzma_version() != NULL) {
+		extract_reference_file("test_read_format_7zip_encryption_passphrase_folders.7z");
+		verify_folder_passwords(0, 0);
+		verify_folder_passwords(0, 1);
+		verify_folder_passwords(1, 0);
+	} else {
+		skipping("Multiple-password reference requires LZMA headers");
+	}
 	for (i = 0; i < sizeof(refs) / sizeof(refs[0]); i++) {
-		if (i == 8 && (archive_bzlib_version() == NULL ||
+		if (refs[i].needs_lzma && archive_liblzma_version() == NULL) {
+			skipping("%s requires LZMA", refs[i].name);
+			continue;
+		}
+		if (refs[i].needs_bzip2 && (archive_bzlib_version() == NULL ||
 		    archive_zlib_version() == NULL)) {
 			skipping("Mixed BCJ2 inputs require BZip2 and Deflate");
 			continue;
 		}
-		if (i == 11 && archive_libzstd_version() == NULL) {
+		if (refs[i].needs_zstd && archive_libzstd_version() == NULL) {
 			skipping("Zstandard input requires libzstd");
 			continue;
 		}
-		extract_reference_file(refs[i]);
+		extract_reference_file(refs[i].name);
 		for (j = 0; j < sizeof(password_tests) / sizeof(password_tests[0]); j++)
-			verify_passwords(refs[i], &password_tests[j], "wrong password");
+			verify_passwords(refs[i].name, &password_tests[j], "wrong password");
 	}
 }
 
