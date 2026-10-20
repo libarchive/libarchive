@@ -191,7 +191,11 @@ verify_folder_passwords(int callback, int reverse)
 /* Copy references: 7zz a -m0=Copy -p12345678 -mhe=off/on, with
  * copy.txt containing 4096 repetitions of "7zip password candidate test\n".
  * The folder reference was updated with first.txt/password 12345678,
- * then second.txt/password other-password, using -m0=Copy -mhe=off. */
+ * then second.txt/password other-password, using -m0=Copy -mhe=off.
+ * The Zstandard reference wraps zstd-compressed data in the same AES
+ * coder, uses the writer's five-byte Zstandard properties, and includes
+ * the decoded CRC. Its content is 4096 repetitions of
+ * "Zstandard password candidate regression\n". */
 DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 {
 	const char *refs[] = {
@@ -202,8 +206,11 @@ DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 	    "test_read_format_7zip_encryption_ppmd_header.7z",
 	    "test_read_format_7zip_encryption_bcj2.7z",
 	    "test_read_format_7zip_encryption_bcj2_header.7z",
+	    "test_read_format_7zip_encryption_bcj2_four.7z",
+	    "test_read_format_7zip_encryption_bcj2_mixed.7z",
 	    "test_read_format_7zip_encryption_passphrase_copy.7z",
-	    "test_read_format_7zip_encryption_passphrase_copy_header.7z"
+	    "test_read_format_7zip_encryption_passphrase_copy_header.7z",
+	    "test_read_format_7zip_encryption_passphrase_zstd.7z"
 	};
 	size_t i;
 	int mode;
@@ -217,6 +224,15 @@ DEFINE_TEST(test_read_format_7zip_encryption_passphrase)
 	verify_folder_passwords(0, 1);
 	verify_folder_passwords(1, 0);
 	for (i = 0; i < sizeof(refs) / sizeof(refs[0]); i++) {
+		if (i == 8 && (archive_bzlib_version() == NULL ||
+		    archive_zlib_version() == NULL)) {
+			skipping("Mixed BCJ2 inputs require BZip2 and Deflate");
+			continue;
+		}
+		if (i == 11 && archive_libzstd_version() == NULL) {
+			skipping("Zstandard input requires libzstd");
+			continue;
+		}
 		extract_reference_file(refs[i]);
 		for (mode = 0; mode < 9; mode++) {
 			failure("%s, password mode %d", refs[i], mode);
