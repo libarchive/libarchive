@@ -150,6 +150,15 @@ DEFINE_TEST(test_read_format_rar_stored_bad_crc)
   assertA(0 == archive_read_next_header(a, &ae));
   assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
   assertEqualString("File CRC error", archive_error_string(a));
+
+  /* The entries after the damaged one still read. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testlink", archive_entry_pathname(ae));
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("testdir/test.txt", archive_entry_pathname(ae));
+  assertEqualIntA(a, 20, archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, "test text document\r\n", 20);
+  assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
   free(p);
 }
@@ -3898,6 +3907,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_stored_bad_crc)
   char *p;
   size_t size;
   ssize_t r;
+  int64_t total;
   struct archive *a;
   struct archive_entry *ae;
 
@@ -3920,6 +3930,15 @@ DEFINE_TEST(test_read_format_rar_multivolume_stored_bad_crc)
     ;
   assertEqualIntA(a, ARCHIVE_FAILED, r);
   assertEqualString("File CRC error", archive_error_string(a));
+
+  /* The file after the damaged one still reads, to its end. */
+  assertA(0 == archive_read_next_header(a, &ae));
+  assert(strcmp(archive_entry_pathname(ae), damaged) != 0);
+  total = 0;
+  while ((r = archive_read_data(a, buff, sizeof(buff))) > 0)
+    total += r;
+  assertEqualIntA(a, 0, r);
+  assertEqualInt(archive_entry_size(ae), total);
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
