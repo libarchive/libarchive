@@ -499,6 +499,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_7zip_encryption_header.c \
 	libarchive/test/test_read_format_7zip_encryption_lzma2.c \
 	libarchive/test/test_read_format_7zip_encryption_partially.c \
+	libarchive/test/test_read_format_7zip_encryption_passphrase.c \
 	libarchive/test/test_read_format_7zip_encryption_ppmd.c \
 	libarchive/test/test_read_format_7zip_encryption_properties.c \
 	libarchive/test/test_read_format_7zip_entries_oom.c \
@@ -951,6 +952,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_encryption_iv_size.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_partially.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_copy.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_copy_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_folders.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_ppmd_header.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_salt_size.7z.uu \

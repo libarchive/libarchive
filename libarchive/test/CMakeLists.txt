@@ -122,6 +122,7 @@ IF(ENABLE_TEST)
     test_read_format_7zip_encryption_header.c
     test_read_format_7zip_encryption_lzma2.c
     test_read_format_7zip_encryption_partially.c
+    test_read_format_7zip_encryption_passphrase.c
     test_read_format_7zip_encryption_ppmd.c
     test_read_format_7zip_encryption_properties.c
     test_read_format_7zip_entries_oom.c
