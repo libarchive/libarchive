@@ -23,6 +23,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_f.c
     test_j.c
     test_L.c
+    test_list.c
     test_n.c
     test_o.c
     test_q.c
