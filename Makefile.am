@@ -788,7 +788,15 @@ libarchive_test_CPPFLAGS= \
 	-I$(top_builddir)/libarchive/test \
 	-DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
 
-libarchive_test_LDADD= $(LTLIBICONV)
+# The test-only reader uses wrapper declarations and call remapping from a
+# forced header. The normal libarchive objects have no fault injection.
+check_LTLIBRARIES= libarchive_7zip_test.la
+libarchive_7zip_test_la_SOURCES= libarchive/archive_read_support_format_7zip.c
+libarchive_7zip_test_la_CPPFLAGS= $(libarchive_test_CPPFLAGS) \
+	-DLIBARCHIVE_7ZIP_TEST_READER \
+	-include $(top_srcdir)/libarchive/test/test_read_format_7zip_encryption_decoder_failures.h
+noinst_HEADERS+= libarchive/test/test_read_format_7zip_encryption_decoder_failures.h
+libarchive_test_LDADD= libarchive_7zip_test.la $(LTLIBICONV)
 
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES

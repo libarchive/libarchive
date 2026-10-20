@@ -24,68 +24,10 @@
  */
 #include "test.h"
 
-#define __LIBARCHIVE_BUILD 1
-#include "archive_cryptor_private.h"
-#ifdef HAVE_LZMA_H
-#include <lzma.h>
-#endif
-#ifdef HAVE_BZLIB_H
-#include <bzlib.h>
-#endif
-#ifdef HAVE_ZLIB_H
-#include <zlib.h>
-#endif
-#ifdef HAVE_ZSTD_H
-#include <zstd.h>
-#include <zstd_errors.h>
-#endif
-
-/* Compile an isolated reader with decoder-call wrappers. The real library
- * and its public entry point remain unchanged. This exercises the complete
- * password-selection path without exhausting memory or adding production
- * fault-injection options. Only this translation unit sees the wrappers. */
-static int test_7zip_support(struct archive *);
-#ifdef HAVE_LZMA_H
-static lzma_ret test_lzma_code(lzma_stream *, lzma_action);
-#define lzma_code test_lzma_code
-#endif
-#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
-static int test_bz_decompress(bz_stream *);
-static int test_bz_end(bz_stream *);
-#define BZ2_bzDecompress test_bz_decompress
-#define BZ2_bzDecompressEnd test_bz_end
-#endif
-#ifdef HAVE_ZLIB_H
-static int test_inflate(z_streamp, int);
-#define inflate test_inflate
-#endif
-#if HAVE_ZSTD_H && HAVE_LIBZSTD
-static size_t test_zstd_decompress(ZSTD_DStream *, ZSTD_outBuffer *, ZSTD_inBuffer *);
-static ZSTD_DStream *test_zstd_create(void);
-#define ZSTD_decompressStream test_zstd_decompress
-#define ZSTD_createDStream test_zstd_create
-#endif
-static int test_cbc_init(archive_crypto_ctx *, const uint8_t *, size_t,
-    const uint8_t *, size_t);
-static int test_cbc_update(archive_crypto_ctx *, const uint8_t *, size_t,
-    uint8_t *, size_t *);
-static int test_kdf(const char *, const uint8_t *, size_t, unsigned,
-    uint8_t *, size_t);
-#undef archive_decrypto_aes_cbc_init
-#undef archive_decrypto_aes_cbc_update
-#undef archive_7z_kdf_sha256
-#define archive_decrypto_aes_cbc_init test_cbc_init
-#define archive_decrypto_aes_cbc_update test_cbc_update
-#define archive_7z_kdf_sha256 test_kdf
-#define archive_read_support_format_7zip test_7zip_support
-#include "../archive_read_support_format_7zip.c"
-#undef archive_read_support_format_7zip
-#undef lzma_code
-#undef BZ2_bzDecompress
-#undef BZ2_bzDecompressEnd
-#undef inflate
-#undef ZSTD_decompressStream
-#undef ZSTD_createDStream
+/* The build compiles a separate reader object with the test header forced
+ * in and LIBARCHIVE_7ZIP_TEST_READER defined. Only that object redirects
+ * decoder calls; the production library and this file call real backends. */
+#include "test_read_format_7zip_encryption_decoder_failures.h"
 
 enum decoder_fault {
 	FAULT_NONE, FAULT_MEMORY, FAULT_DATA, FAULT_INTERNAL,
@@ -95,7 +37,7 @@ enum decoder_fault {
 static enum decoder_fault fault;
 static int injections;
 
-static int
+int
 test_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len,
     const uint8_t *iv, size_t iv_len)
 {
@@ -106,7 +48,7 @@ test_cbc_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len,
 	return (__archive_cryptor.decrypto_aes_cbc_init(ctx, key, key_len, iv, iv_len));
 }
 
-static int
+int
 test_cbc_update(archive_crypto_ctx *ctx, const uint8_t *in, size_t in_len,
     uint8_t *out, size_t *out_len)
 {
@@ -117,7 +59,7 @@ test_cbc_update(archive_crypto_ctx *ctx, const uint8_t *in, size_t in_len,
 	return (__archive_cryptor.decrypto_aes_cbc_update(ctx, in, in_len, out, out_len));
 }
 
-static int
+int
 test_kdf(const char *pw, const uint8_t *salt, size_t salt_len,
     unsigned cycles, uint8_t *key, size_t key_len)
 {
@@ -129,7 +71,7 @@ test_kdf(const char *pw, const uint8_t *salt, size_t salt_len,
 }
 
 #ifdef HAVE_LZMA_H
-static lzma_ret
+lzma_ret
 test_lzma_code(lzma_stream *stream, lzma_action action)
 {
 	if (fault >= FAULT_MEMORY && fault <= FAULT_MEMLIMIT) {
@@ -145,7 +87,7 @@ test_lzma_code(lzma_stream *stream, lzma_action action)
 }
 #endif
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
-static int
+int
 test_bz_decompress(bz_stream *stream)
 {
 	if (fault >= FAULT_MEMORY && fault <= FAULT_MEMLIMIT) {
@@ -159,7 +101,7 @@ test_bz_decompress(bz_stream *stream)
 	return (BZ2_bzDecompress(stream));
 }
 
-static int
+int
 test_bz_end(bz_stream *stream)
 {
 	if (fault == FAULT_CLEANUP && injections == 0) {
@@ -170,7 +112,7 @@ test_bz_end(bz_stream *stream)
 }
 #endif
 #ifdef HAVE_ZLIB_H
-static int
+int
 test_inflate(z_streamp stream, int flush)
 {
 	if (fault >= FAULT_MEMORY && fault <= FAULT_MEMLIMIT) {
@@ -185,7 +127,7 @@ test_inflate(z_streamp stream, int flush)
 }
 #endif
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
-static size_t
+size_t
 test_zstd_decompress(ZSTD_DStream *stream, ZSTD_outBuffer *out, ZSTD_inBuffer *in)
 {
 	if (fault >= FAULT_MEMORY && fault <= FAULT_MEMLIMIT) {
@@ -199,7 +141,7 @@ test_zstd_decompress(ZSTD_DStream *stream, ZSTD_outBuffer *out, ZSTD_inBuffer *i
 	return (ZSTD_decompressStream(stream, out, in));
 }
 
-static ZSTD_DStream *
+ZSTD_DStream *
 test_zstd_create(void)
 {
 	if (fault == FAULT_CREATE) {
