@@ -178,3 +178,75 @@ DEFINE_TEST(test_read_format_7zip_encryption_password_encoding)
 		assert(archive_7z_kdf_sha256(invalid[i], NULL, 0, 0, actual,
 		    sizeof(actual)) != 0);
 }
+
+#if defined(ARCHIVE_HAS_SHA256)
+static int kdf_failure_stage, kdf_updates, kdf_finals;
+
+static int
+kdf_test_init(archive_sha256_ctx *ctx)
+{
+	(void)ctx;
+	return (kdf_failure_stage == 1 ? ARCHIVE_FATAL : ARCHIVE_OK);
+}
+
+static int
+kdf_test_update(archive_sha256_ctx *ctx, const void *data, size_t size)
+{
+	(void)ctx;
+	(void)data;
+	(void)size;
+	kdf_updates++;
+	return (kdf_failure_stage == 2 || kdf_failure_stage == 6 ||
+	    (kdf_failure_stage == 4 && kdf_updates == 4) ?
+	    ARCHIVE_FATAL : ARCHIVE_OK);
+}
+
+static int
+kdf_test_final(archive_sha256_ctx *ctx, void *md)
+{
+	(void)ctx;
+	kdf_finals++;
+	if (kdf_failure_stage == 3 || kdf_failure_stage == 6)
+		return (ARCHIVE_FATAL);
+	if (kdf_failure_stage == 5) {
+		memset(md, 0x24, 16);
+		return (ARCHIVE_FATAL);
+	}
+	memset(md, 0x42, 32);
+	return (ARCHIVE_OK);
+}
+#endif
+
+DEFINE_TEST(test_read_format_7zip_encryption_kdf_failures)
+{
+#if defined(ARCHIVE_HAS_SHA256)
+	static const char *names[] = {
+	    "success", "init", "first update", "final",
+	    "last update", "partial final", "update and final"
+	};
+	static const int updates[] = {4, 0, 1, 4, 4, 4, 1};
+	struct archive_digest digest = __archive_digest;
+	unsigned char key[32], expected[32];
+	int stage, r;
+
+	digest.sha256init = kdf_test_init;
+	digest.sha256update = kdf_test_update;
+	digest.sha256final = kdf_test_final;
+	for (stage = 0; stage < 7; stage++) {
+		failure("SHA-256 failure: %s", names[stage]);
+		kdf_failure_stage = stage;
+		kdf_updates = kdf_finals = 0;
+		memset(key, 0xa5, sizeof(key));
+		memset(expected, stage == 0 ? 0x42 : 0xa5, sizeof(expected));
+		/* Four rounds: an update failure must stop immediately. */
+		r = __archive_7z_kdf_sha256(&digest, "password", NULL, 0, 2,
+		    key, sizeof(key));
+		assertEqualInt(stage == 0 ? 0 : -1, r);
+		assertEqualMem(expected, key, sizeof(key));
+		assertEqualInt(updates[stage], kdf_updates);
+		assertEqualInt(stage == 1 ? 0 : 1, kdf_finals);
+	}
+#else
+	skipping("SHA-256 is required for the KDF failure tests");
+#endif
+}

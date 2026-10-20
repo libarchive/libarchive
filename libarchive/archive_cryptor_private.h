@@ -208,6 +208,12 @@ struct archive_cryptor
     size_t derived_key_len);
 };
 
+/* The digest argument also permits testing backend failures without
+ * replacing the process-wide digest implementation. */
+struct archive_digest;
+int __archive_7z_kdf_sha256(const struct archive_digest *, const char *,
+    const uint8_t *, size_t, unsigned, uint8_t *, size_t);
+
 extern const struct archive_cryptor __archive_cryptor;
 
 #endif

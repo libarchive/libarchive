@@ -889,9 +889,10 @@ utf8_to_utf16le(const char *utf8, uint8_t *utf16, size_t max_utf16_bytes,
 
 #endif
 
-static int
-kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
-    unsigned numCyclesPower, uint8_t *derived_key, size_t derived_key_len)
+int
+__archive_7z_kdf_sha256(const struct archive_digest *digest, const char *pw,
+    const uint8_t *salt, size_t salt_len, unsigned numCyclesPower,
+    uint8_t *derived_key, size_t derived_key_len)
 {
 #if defined(ARCHIVE_HAS_SHA256)
 	archive_sha256_ctx sha;
@@ -902,6 +903,7 @@ kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
 	uint64_t numRounds;
 	uint64_t round;
 	uint8_t full_digest[32];
+	int ret = -1;
 
 	if (derived_key == NULL || derived_key_len == 0)
 		return -1;
@@ -918,8 +920,8 @@ kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
 	if (pw != NULL) {
 		if (utf8_to_utf16le(pw, kdf_buf + block_len, 512,
 		    &pw_bytes) != 0) {
-			cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
-			return ARCHIVE_FAILED;
+			ret = ARCHIVE_FAILED;
+			goto cleanup;
 		}
 		block_len += pw_bytes;
 	}
@@ -931,31 +933,46 @@ kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
 			block_len = sizeof(full_digest);
 		memcpy(full_digest, kdf_buf, block_len);
 	} else {
-		if (archive_sha256_init(&sha) != ARCHIVE_OK) {
-			cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
-			return -1;
-		}
+		if (digest->sha256init(&sha) != ARCHIVE_OK)
+			goto cleanup;
 		round_offset = block_len;
 		block_len += 8;
 		numRounds = ((uint64_t)1) << numCyclesPower;
 		for (round = 0; round < numRounds; round++) {
 			archive_le64enc(kdf_buf + round_offset, round);
-			archive_sha256_update(&sha, kdf_buf, block_len);
+			if (digest->sha256update(&sha, kdf_buf, block_len) !=
+			    ARCHIVE_OK) {
+				/* Finalization also releases the initialized context.
+				 * Its digest is discarded after an update failure. */
+				(void)digest->sha256final(&sha, full_digest);
+				goto cleanup;
+			}
 		}
-		archive_sha256_final(&sha, full_digest);
+		if (digest->sha256final(&sha, full_digest) != ARCHIVE_OK)
+			goto cleanup;
 	}
 
 	if (derived_key_len > 32)
 		derived_key_len = 32;
 	memcpy(derived_key, full_digest, derived_key_len);
+	ret = 0;
+cleanup:
 	cryptor_secure_clear(full_digest, sizeof(full_digest));
 	cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
-	return 0;
+	return (ret);
 #else
-	(void)pw; (void)salt; (void)salt_len; (void)numCyclesPower;
+	(void)digest; (void)pw; (void)salt; (void)salt_len; (void)numCyclesPower;
 	(void)derived_key; (void)derived_key_len;
 	return CRYPTOR_STUB_FUNCTION;
 #endif
+}
+
+static int
+kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
+    unsigned numCyclesPower, uint8_t *derived_key, size_t derived_key_len)
+{
+	return (__archive_7z_kdf_sha256(&__archive_digest, pw, salt, salt_len,
+	    numCyclesPower, derived_key, derived_key_len));
 }
 
 const struct archive_cryptor __archive_cryptor =
