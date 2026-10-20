@@ -177,6 +177,9 @@ DEFINE_TEST(test_read_format_rar5_stored_bad_crc)
 	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_read_data(a, buff, sizeof(buff)));
 	assertEqualString("Checksum error: CRC32", archive_error_string(a));
+
+	/* The reader carries on to the end of the archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(p);
 }
@@ -219,6 +222,9 @@ DEFINE_TEST(test_read_format_rar5_stored_blake2)
 	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_read_data(a, buff, sizeof(buff)));
 	assertEqualString("Checksum error: BLAKE2", archive_error_string(a));
+
+	/* The reader carries on to the end of the archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
