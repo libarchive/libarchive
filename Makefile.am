@@ -494,12 +494,13 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_uudecode_newlines.c \
 	libarchive/test/test_read_filter_uudecode_raw.c \
 	libarchive/test/test_read_format_7zip.c \
+	libarchive/test/test_read_format_7zip_encryption_bcj2.c \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
-	libarchive/test/test_read_format_7zip_encryption_partially.c \
 	libarchive/test/test_read_format_7zip_encryption_header.c \
 	libarchive/test/test_read_format_7zip_encryption_lzma2.c \
-	libarchive/test/test_read_format_7zip_encryption_properties.c \
+	libarchive/test/test_read_format_7zip_encryption_partially.c \
 	libarchive/test/test_read_format_7zip_encryption_ppmd.c \
+	libarchive/test/test_read_format_7zip_encryption_properties.c \
 	libarchive/test/test_read_format_7zip_entries_oom.c \
 	libarchive/test/test_read_format_7zip_folders_oom.c \
 	libarchive/test/test_read_format_7zip_issue2765.c \
@@ -939,16 +940,21 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_empty_file.7z.uu \
 	libarchive/test/test_read_format_7zip_archive_properties.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption.7z.uu \
-	libarchive/test/test_read_format_7zip_encryption_header.7z.uu \
-	libarchive/test/test_read_format_7zip_encryption_lzma2.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2_empty_streams.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2_four.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2_mixed.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_cycles0.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_cycles63.7z.uu \
-	libarchive/test/test_read_format_7zip_encryption_salt_size.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_header.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_iv_size.7z.uu \
-	libarchive/test/test_read_format_7zip_encryption_truncated.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_partially.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_ppmd_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_salt_size.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_truncated.7z.uu \
 	libarchive/test/test_read_format_7zip_entries_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_folders_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_extract_second.7z.uu \

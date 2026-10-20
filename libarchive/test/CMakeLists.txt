@@ -117,12 +117,13 @@ IF(ENABLE_TEST)
     test_read_filter_uudecode_raw.c
     test_read_filter_zstd_raw.c
     test_read_format_7zip.c
+    test_read_format_7zip_encryption_bcj2.c
     test_read_format_7zip_encryption_data.c
     test_read_format_7zip_encryption_header.c
     test_read_format_7zip_encryption_lzma2.c
-    test_read_format_7zip_encryption_properties.c
     test_read_format_7zip_encryption_partially.c
     test_read_format_7zip_encryption_ppmd.c
+    test_read_format_7zip_encryption_properties.c
     test_read_format_7zip_entries_oom.c
     test_read_format_7zip_folders_oom.c
     test_read_format_7zip_issue2765.c
