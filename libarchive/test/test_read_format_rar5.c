@@ -1754,30 +1754,47 @@ DEFINE_TEST(test_read_format_rar5_stored_crc)
 	const char reffile[] = "test_read_format_rar5_stored.rar";
 	const char payload[] = "hello libarchive test suite!\n";
 	const size_t data_offset = 72;
+	const size_t entry_offset = 23;
+	const size_t end_block_size = 8;
 	struct archive *a;
 	struct archive_entry *ae;
 	const void *block;
-	char *data;
-	size_t archive_size, block_size;
+	char *data, *two_entries;
+	size_t archive_size, block_size, entry_end, entry_size, two_entries_size;
 	la_int64_t offset;
 
 	extract_reference_file(reffile);
 	data = slurpfile(&archive_size, "%s", reffile);
 	if (!assert(data != NULL))
 		return;
-	if (!assert(archive_size >= data_offset + sizeof(payload) - 1)) {
+	if (!assert(archive_size >= data_offset + sizeof(payload) - 1 +
+	    end_block_size)) {
 		free(data);
 		return;
 	}
 	assertEqualMem(data + data_offset, payload, sizeof(payload) - 1);
 
-	/* Corrupt file data while leaving headers and the stored CRC intact. */
-	data[data_offset] ^= 1;
+	/* Duplicate the stored file entry so a good entry follows the damaged one. */
+	entry_end = archive_size - end_block_size;
+	entry_size = entry_end - entry_offset;
+	two_entries_size = archive_size + entry_size;
+	two_entries = malloc(two_entries_size);
+	if (!assert(two_entries != NULL)) {
+		free(data);
+		return;
+	}
+	memcpy(two_entries, data, entry_end);
+	memcpy(two_entries + entry_end, data + entry_offset, entry_size);
+	memcpy(two_entries + entry_end + entry_size, data + entry_end,
+	    end_block_size);
+	/* Corrupt only the first copy, leaving both stored CRCs intact. */
+	two_entries[data_offset] ^= 1;
+	free(data);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, data, archive_size));
+	    archive_read_open_memory(a, two_entries, two_entries_size));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_data_block(a, &block, &block_size, &offset));
@@ -1786,7 +1803,18 @@ DEFINE_TEST(test_read_format_rar5_stored_crc)
 	    archive_read_data_block(a, &block, &block_size, &offset));
 	assertEqualString("Checksum error: CRC32", archive_error_string(a));
 
+	/* The reader should recover and read the following intact entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("helloworld.txt", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &block, &block_size, &offset));
+	assertEqualInt(sizeof(payload) - 1, block_size);
+	assertEqualMem(block, payload, sizeof(payload) - 1);
+	assertEqualIntA(a, ARCHIVE_EOF,
+	    archive_read_data_block(a, &block, &block_size, &offset));
+	assertEqualInt(sizeof(payload) - 1, offset);
+
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-	free(data);
+	free(two_entries);
 }

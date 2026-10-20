@@ -4068,7 +4068,7 @@ DEFINE_TEST(test_read_format_rar_stored_crc)
 	struct archive *a;
 	struct archive_entry *ae;
 	const void *block;
-	char *data;
+	char *data, buf[sizeof(payload)];
 	size_t archive_size, block_size;
 	la_int64_t offset;
 
@@ -4096,6 +4096,15 @@ DEFINE_TEST(test_read_format_rar_stored_crc)
 	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_read_data_block(a, &block, &block_size, &offset));
 	assertEqualString("File CRC error", archive_error_string(a));
+
+	/* The reader should be able to continue with the next entries. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("testlink", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("testdir/test.txt", archive_entry_pathname(ae));
+	assertEqualInt(sizeof(payload) - 1,
+	    archive_read_data(a, buf, sizeof(buf)));
+	assertEqualMem(buf, payload, sizeof(payload) - 1);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

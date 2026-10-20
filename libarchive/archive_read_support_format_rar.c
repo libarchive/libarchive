@@ -2030,6 +2030,7 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
     *buff = NULL;
     *size = 0;
     *offset = rar->offset;
+    rar->entry_eof = 1;
     if (rar->file_crc != rar->crc_calculated) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
       archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -2037,7 +2038,6 @@ read_data_stored(struct archive_read *a, const void **buff, size_t *size,
       return (ARCHIVE_FAILED);
 #endif
     }
-    rar->entry_eof = 1;
     return (ARCHIVE_EOF);
   }
 

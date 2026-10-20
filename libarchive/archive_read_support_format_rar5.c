@@ -112,6 +112,7 @@ struct file_header {
 	uint8_t solid : 1;           /* Is this a solid stream? */
 	uint8_t service : 1;         /* Is this file a service data? */
 	uint8_t eof : 1;             /* Did we finish unpacking the file? */
+	uint8_t checksums_checked : 1;
 	uint8_t dir : 1;             /* Is this file entry a directory? */
 
 	/* Optional time fields. */
@@ -4264,12 +4265,12 @@ static int do_unstore_file(struct archive_read* a,
 
 	to_read = rar5_min(rar5->file.bytes_remaining, 64 * 1024);
 	if(to_read == 0) {
-		int ret;
-
-		rar5->file.eof = 1;
-		ret = verify_global_checksums(a);
-		if(ret != ARCHIVE_OK)
-			return ret;
+		if(!rar5->file.checksums_checked) {
+			rar5->file.checksums_checked = 1;
+			int ret = verify_global_checksums(a);
+			if(ret != ARCHIVE_OK)
+				return ret;
+		}
 		return ARCHIVE_EOF;
 	}
 
