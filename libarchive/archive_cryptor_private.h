@@ -201,7 +201,8 @@ struct archive_cryptor
     size_t in_len, uint8_t *out, size_t *out_len);
   int (*decrypto_aes_cbc_release)(archive_crypto_ctx *);
 
-  /* 7z SHA-256 KDF */
+  /* 7z SHA-256 KDF: ARCHIVE_FAILED for an unrepresentable passphrase,
+   * -1 for other failures, and 0 on success. */
   int (*kdf_7z_sha256)(const char *pw, const uint8_t *salt,
     size_t salt_len, unsigned numCyclesPower, uint8_t *derived_key,
     size_t derived_key_len);

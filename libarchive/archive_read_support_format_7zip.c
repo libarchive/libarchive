@@ -4220,6 +4220,7 @@ setup_7z_encryption(struct archive_read *a, struct _7zip *zip,
 {
 	struct _7z_crypto_properties props;
 	const char *passphrase;
+	int r;
 
 	if (parse_7z_crypto_properties(&props, crypto_coder->properties,
 	    crypto_coder->propertiesSize) != 0) {
@@ -4242,8 +4243,10 @@ setup_7z_encryption(struct archive_read *a, struct _7zip *zip,
 	     memcmp(props.salt, zip->cached_salt, props.salt_size) == 0)) {
 		memcpy(zip->aes_key, zip->cached_aes_key, sizeof(zip->aes_key));
 	} else {
-		if (archive_7z_kdf_sha256(passphrase, props.salt, props.salt_size,
-		    props.num_cycles_power, zip->aes_key, sizeof(zip->aes_key)) != 0) {
+		if ((r = archive_7z_kdf_sha256(passphrase, props.salt, props.salt_size,
+		    props.num_cycles_power, zip->aes_key, sizeof(zip->aes_key))) != 0) {
+			if (r == ARCHIVE_FAILED && zip->checking_passphrase)
+				zip->passphrase_failed = 1;
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Failed to derive 7-Zip AES key");
 			return (ARCHIVE_FAILED);

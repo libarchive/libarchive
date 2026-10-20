@@ -919,7 +919,7 @@ kdf_7z_sha256(const char *pw, const uint8_t *salt, size_t salt_len,
 		if (utf8_to_utf16le(pw, kdf_buf + block_len, 512,
 		    &pw_bytes) != 0) {
 			cryptor_secure_clear(kdf_buf, sizeof(kdf_buf));
-			return -1;
+			return ARCHIVE_FAILED;
 		}
 		block_len += pw_bytes;
 	}
