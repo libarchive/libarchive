@@ -417,6 +417,9 @@ struct _7zip {
 	size_t			 decrypted_buffer_size;
 	size_t			 decrypted_bytes_avail;
 	size_t			 decrypted_bytes_pos;
+	char			*passphrase;
+	int			 checking_passphrase;
+	int			 passphrase_failed;
 	int			 cached_key_valid;
 	uint8_t			 cached_salt[16];
 	uint8_t			 cached_salt_size;
@@ -1263,6 +1266,10 @@ archive_read_format_7zip_cleanup(struct archive_read *a)
 	if (zip->crypto_ctx_valid) {
 		archive_decrypto_aes_cbc_release(&zip->crypto_ctx);
 		zip->crypto_ctx_valid = 0;
+	}
+	if (zip->passphrase != NULL) {
+		archive_7zip_secure_clear(zip->passphrase, strlen(zip->passphrase));
+		free(zip->passphrase);
 	}
 	archive_7zip_secure_clear(zip->aes_key, sizeof(zip->aes_key));
 	archive_7zip_secure_clear(zip->aes_iv, sizeof(zip->aes_iv));
@@ -3928,6 +3935,9 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 			end_of_data = 1;
 			break;
 		default:
+			if (zip->checking_passphrase &&
+			    archive_errno(&a->archive) != ENOMEM)
+				zip->passphrase_failed = 1;
 			return (ARCHIVE_FATAL);
 		}
 
@@ -4213,8 +4223,7 @@ setup_7z_encryption(struct archive_read *a, struct _7zip *zip,
 		return (ARCHIVE_FAILED);
 	}
 
-	__archive_read_reset_passphrase(a);
-	passphrase = __archive_read_next_passphrase(a);
+	passphrase = zip->passphrase;
 	if (passphrase == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Passphrase required for this 7-Zip encrypted archive");
@@ -4449,7 +4458,7 @@ unsupported:
 }
 
 static int
-setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
+setup_decode_folder_once(struct archive_read *a, struct _7z_folder *folder,
     int header)
 {
 	struct _7zip *zip = a->format->data;
@@ -4774,6 +4783,164 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 	if (r != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 	return (ARCHIVE_OK);
+}
+
+/* 7-Zip has no password verifier. When more candidates can be supplied,
+ * check decoded CRCs before exposing any plaintext, then rewind the folder.
+ * Keep the usual one-password path streaming without a verification pass. */
+static int
+check_folder_passphrase(struct archive_read *a, struct _7z_folder *folder)
+{
+	struct _7zip *zip = a->format->data;
+	struct _7z_substream_info *ss = &zip->si.ss;
+	const void *buff;
+	const unsigned char *p;
+	int64_t remaining = folder_uncompressed_size(folder), left = 0;
+	unsigned long crc = 0, stream_crc = 0;
+	size_t first = 0, end, stream, i, size, part;
+	ssize_t bytes;
+	int r;
+
+	for (i = 0; i < zip->si.ci.numFolders; i++) {
+		if (&zip->si.ci.folders[i] == folder)
+			break;
+		first += zip->si.ci.folders[i].numUnpackStreams;
+	}
+	end = first + folder->numUnpackStreams;
+	if (end > ss->unpack_streams)
+		return (ARCHIVE_FATAL);
+	stream = first;
+	if (stream < end)
+		left = ss->unpackSizes[stream];
+	if ((r = seek_pack(a)) < ARCHIVE_OK)
+		return (r);
+	while (remaining > 0) {
+		if (zip->uncompressed_buffer_bytes_remaining == 0 &&
+		    (r = (int)extract_pack_stream(a, 0)) < ARCHIVE_OK)
+			return (r);
+		size = UBUFF_SIZE;
+		if ((uint64_t)remaining < size)
+			size = (size_t)remaining;
+		bytes = get_uncompressed_data(a, &buff, size, 0);
+		if (bytes <= 0)
+			return (ARCHIVE_FATAL);
+		remaining -= bytes;
+		crc = __archive_crc32(crc, buff, (unsigned)bytes);
+		p = buff;
+		size = (size_t)bytes;
+		while (stream < end) {
+			part = size;
+			if ((uint64_t)left < part)
+				part = (size_t)left;
+			stream_crc = __archive_crc32(stream_crc, p,
+			    (unsigned)part);
+			left -= part;
+			p += part;
+			size -= part;
+			if (left != 0)
+				break;
+			if (ss->digestsDefined[stream] &&
+			    stream_crc != ss->digests[stream])
+				goto incorrect;
+			stream++;
+			stream_crc = 0;
+			if (stream < end)
+				left = ss->unpackSizes[stream];
+		}
+		if (zip->pack_stream_bytes_unconsumed &&
+		    (r = read_consume(a)) < ARCHIVE_OK)
+			return (r);
+	}
+	if (folder->digest_defined && crc != folder->digest)
+		goto incorrect;
+	return (ARCHIVE_OK);
+incorrect:
+	zip->passphrase_failed = 1;
+	return (ARCHIVE_RETRY);
+}
+
+static int
+setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
+    int header)
+{
+	struct _7zip *zip = a->format->data;
+	const char *passphrase;
+	char *copy;
+	size_t i;
+	int r, retry, encrypted = 0, check;
+
+	for (i = 0; i < folder->numCoders; i++) {
+		if (folder->coders[i].codec == _7Z_CRYPTO_AES_256_SHA_256)
+			encrypted = 1;
+	}
+	if (!encrypted)
+		return (setup_decode_folder_once(a, folder, header));
+
+	zip->has_encrypted_entries = 1;
+	if (header)
+		zip->header_is_encrypted = 1;
+	if (a->entry != NULL) {
+		archive_entry_set_is_data_encrypted(a->entry, 1);
+		archive_entry_set_is_metadata_encrypted(a->entry,
+		    header || zip->header_is_encrypted);
+	}
+	check = a->passphrases.callback != NULL ||
+	    (a->passphrases.first != NULL &&
+	    a->passphrases.first->next != NULL);
+	__archive_read_reset_passphrase(a);
+	for (retry = 0; retry < 10000; retry++) {
+		passphrase = __archive_read_next_passphrase(a);
+		if (passphrase == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    retry == 0 ? "Passphrase required for this 7-Zip encrypted archive" :
+			    "Incorrect passphrase");
+			return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
+		}
+		/* The callback's storage may change on its next invocation.
+		 * Own a stable copy shared by all four AES chains in BCJ2. */
+		if (zip->passphrase == NULL ||
+		    strcmp(zip->passphrase, passphrase) != 0) {
+			copy = strdup(passphrase);
+			if (copy == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "No memory for 7-Zip passphrase");
+				return (ARCHIVE_FATAL);
+			}
+			if (zip->passphrase != NULL) {
+				archive_7zip_secure_clear(zip->passphrase,
+				    strlen(zip->passphrase));
+				free(zip->passphrase);
+			}
+			zip->passphrase = copy;
+			zip->cached_key_valid = 0;
+		}
+		zip->checking_passphrase = check;
+		zip->passphrase_failed = 0;
+		r = setup_decode_folder_once(a, folder, header);
+		if (r == ARCHIVE_OK && check)
+			r = check_folder_passphrase(a, folder);
+		zip->checking_passphrase = 0;
+		if (!check)
+			return (r);
+		if (r != ARCHIVE_OK && !zip->passphrase_failed)
+			return (header ? ARCHIVE_FATAL : r);
+
+		/* Discard trial output and codec state before either another
+		 * password or the normal streaming decode. seek_pack() restores
+		 * the packed input position, including independently stored BCJ2
+		 * streams. No entry offsets/CRCs have been changed by the trial. */
+		free_decompression(a, zip);
+		zip->pack_stream_bytes_unconsumed = 0;
+		zip->pack_stream_inbytes_remaining = 0;
+		zip->uncompressed_buffer_bytes_remaining = 0;
+		zip->uncompressed_buffer_pointer = NULL;
+		archive_clear_error(&a->archive);
+		if (r == ARCHIVE_OK)
+			return (setup_decode_folder_once(a, folder, header));
+	}
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "Too many incorrect passphrases");
+	return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
 }
 
 static int
