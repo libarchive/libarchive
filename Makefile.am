@@ -1855,6 +1855,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_glob.c \
 	unzip/test/test_not_exist.c \
 	unzip/test/test_singlefile.c \
+	unzip/test/test_stdin.c \
 	unzip/test/test_C.c \
 	unzip/test/test_p.c \
 	unzip/test/test_d.c \

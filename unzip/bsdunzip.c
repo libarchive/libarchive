@@ -1066,7 +1066,12 @@ unzip(const char *fn)
 			&passphrase_callback);
 
 	buf = NULL;
-	fd = open(fn, O_RDONLY | O_BINARY | O_CLOEXEC);
+	if (fn == NULL) {
+		/* Read from standard input. */
+		fd = STDIN_FILENO;
+		fn = "-";
+	} else
+		fd = open(fn, O_RDONLY | O_BINARY | O_CLOEXEC);
 	if (fd == -1) {
 		size_t s;
 
@@ -1158,7 +1163,8 @@ unzip(const char *fn)
 		}
 	}
 
-	close(fd);
+	if (fd != STDIN_FILENO)
+		close(fd);
 	free(buf);
 }
 
