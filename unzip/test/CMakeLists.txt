@@ -19,6 +19,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_symlink_dotdot.c
     test_C.c
     test_p.c
+    test_prompt.c
     test_d.c
     test_f.c
     test_j.c
