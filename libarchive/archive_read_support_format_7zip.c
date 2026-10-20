@@ -2286,8 +2286,10 @@ free_decompression(struct archive_read *a, struct _7zip *zip)
 	(void)a;/* UNUSED */
 #endif
 #ifdef HAVE_LZMA_H
-	if (zip->lzstream_valid)
+	if (zip->lzstream_valid) {
 		lzma_end(&(zip->lzstream));
+		zip->lzstream_valid = 0;
+	}
 #endif
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	if (zip->bzstream_valid) {
@@ -2312,8 +2314,11 @@ free_decompression(struct archive_read *a, struct _7zip *zip)
 	}
 #endif
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
-	if (zip->zstdstream_valid)
+	if (zip->zstdstream_valid) {
 		ZSTD_freeDStream(zip->zstd_dstream);
+		zip->zstd_dstream = NULL;
+		zip->zstdstream_valid = 0;
+	}
 #endif
 	if (zip->ppmd7_valid) {
 		__archive_ppmd7_functions.Ppmd7_Free(
@@ -4891,6 +4896,8 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 	for (retry = 0; retry < 10000; retry++) {
 		passphrase = __archive_read_next_passphrase(a);
 		if (passphrase == NULL) {
+			if (archive_errno(&a->archive) == ENOMEM)
+				return (ARCHIVE_FATAL);
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    retry == 0 ? "Passphrase required for this 7-Zip encrypted archive" :
 			    "Incorrect passphrase");
@@ -4929,7 +4936,8 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		 * password or the normal streaming decode. seek_pack() restores
 		 * the packed input position, including independently stored BCJ2
 		 * streams. No entry offsets/CRCs have been changed by the trial. */
-		free_decompression(a, zip);
+		if (free_decompression(a, zip) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
 		zip->pack_stream_bytes_unconsumed = 0;
 		zip->pack_stream_inbytes_remaining = 0;
 		zip->uncompressed_buffer_bytes_remaining = 0;
