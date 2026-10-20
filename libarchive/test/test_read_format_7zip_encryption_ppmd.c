@@ -24,6 +24,124 @@
  */
 #include "test.h"
 
+#include <errno.h>
+
+struct read_error_state {
+	const unsigned char *data;
+	size_t size, position, header_start, fail_at;
+	int header_seen, reading_pack, failures, password_calls;
+};
+
+static la_ssize_t
+read_with_error(struct archive *a, void *data, const void **buff)
+{
+	struct read_error_state *state = data;
+	size_t size = state->size - state->position;
+
+	if (state->reading_pack && state->failures == 0 &&
+	    state->position >= state->fail_at &&
+	    state->position < state->header_start) {
+		state->failures++;
+		*buff = NULL;
+		archive_set_error(a, EIO, "Injected 7-Zip read failure");
+		return (-1);
+	}
+	if (size > 16)
+		size = 16;
+	*buff = state->data + state->position;
+	state->position += size;
+	return ((la_ssize_t)size);
+}
+
+static la_int64_t
+seek_with_error(struct archive *a, void *data, la_int64_t offset, int whence)
+{
+	struct read_error_state *state = data;
+	la_int64_t base;
+
+	(void)a;
+	if (whence == SEEK_SET)
+		base = 0;
+	else if (whence == SEEK_CUR)
+		base = (la_int64_t)state->position;
+	else if (whence == SEEK_END)
+		base = (la_int64_t)state->size;
+	else
+		return (-1);
+	if (offset < -base || offset > (la_int64_t)state->size - base)
+		return (-1);
+	state->position = (size_t)(base + offset);
+	if (state->position >= state->header_start)
+		state->header_seen = 1;
+	else if (state->header_seen)
+		state->reading_pack = 1;
+	return ((la_int64_t)state->position);
+}
+
+static const char *
+read_error_password(struct archive *a, void *data)
+{
+	struct read_error_state *state = data;
+
+	(void)a;
+	state->password_calls++;
+	return (NULL);
+}
+
+static void
+verify_read_error(const char *ref, size_t fail_at)
+{
+	struct read_error_state state = {0};
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[4093], *data;
+	uint64_t header_offset = 0;
+	size_t i;
+
+	failure("%s, read failure at %lu", ref, (unsigned long)fail_at);
+	data = slurpfile(&state.size, "%s", ref);
+	assert(data != NULL);
+	if (data == NULL)
+		return;
+	assert(state.size >= 32);
+	if (state.size < 32) {
+		free(data);
+		return;
+	}
+	state.data = (const unsigned char *)data;
+	for (i = 0; i < 8; i++)
+		header_offset |= (uint64_t)state.data[12 + i] << (8 * i);
+	assert(header_offset <= state.size - 32);
+	if (header_offset > state.size - 32) {
+		free(data);
+		return;
+	}
+	state.header_start = 32 + (size_t)header_offset;
+	state.fail_at = fail_at;
+	a = archive_read_new();
+	assert(a != NULL);
+	if (a == NULL) {
+		free(data);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_add_passphrase(a, "12345678"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_passphrase_callback(a, &state, read_error_password));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_seek_callback(a, seek_with_error));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open2(a, &state, NULL, read_with_error, NULL, NULL));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(EIO, archive_errno(a));
+	assertEqualString("Injected 7-Zip read failure", archive_error_string(a));
+	assertEqualInt(1, state.failures);
+	assertEqualInt(0, state.password_calls);
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(data);
+}
+
 /* The ordinary reference data is 70000 low bytes of xorshift32, seed 2.
  * 7-Zip PPMd with password "12345678"; the second archive also encrypts
  * its header. Both archives were independently verified with 7-Zip.
@@ -98,4 +216,19 @@ DEFINE_TEST(test_read_format_7zip_encryption_ppmd)
 	}
 	free(expected);
 	free(actual);
+}
+
+/* Reading errors must not consume another password or lose their diagnostic. */
+DEFINE_TEST(test_read_format_7zip_encryption_ppmd_read_error)
+{
+	const char *ref = "test_read_format_7zip_encryption_ppmd.7z";
+
+	if (!can7zipEncryption()) {
+		skipping("7-Zip AES decryption is not supported on this platform");
+		return;
+	}
+	extract_reference_file(ref);
+	verify_read_error(ref, 48);
+	verify_read_error(ref, 65504);
+	verify_read_error(ref, 65568);
 }

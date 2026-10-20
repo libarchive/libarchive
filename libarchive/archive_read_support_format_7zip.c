@@ -360,6 +360,7 @@ struct _7zip {
 		unsigned char		*next_out;
 		size_t			 avail_out;
 		int			 overconsumed;
+		int			 read_error;
 	} ppstream;
 	int			 ppmd7_valid;
 
@@ -1400,8 +1401,9 @@ read_decrypted_data(struct archive_read *a)
 		to_read = (size_t)zip->pack_stream_inbytes_remaining;
 	in = __archive_read_ahead(a, AES_BLOCK_SIZE, &available);
 	if (in == NULL || available < AES_BLOCK_SIZE) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Truncated 7-Zip encrypted stream");
+		if (available >= 0)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated 7-Zip encrypted stream");
 		return (ARCHIVE_FATAL);
 	}
 	in_size = (size_t)available;
@@ -1430,8 +1432,6 @@ read_decrypted_data(struct archive_read *a)
 		return (ARCHIVE_FATAL);
 	}
 	if (__archive_read_consume(a, in_size) < 0) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Failed to consume encrypted 7-Zip data");
 		return (ARCHIVE_FATAL);
 	}
 	zip->pack_stream_inbytes_remaining -= in_size;
@@ -1447,11 +1447,16 @@ ppmd_read(void *p)
 	struct archive_read *a = ((IByteIn*)p)->a;
 	struct _7zip *zip = a->format->data;
 	Byte b;
+	ssize_t available;
 
+	if (zip->ppstream.read_error < ARCHIVE_OK)
+		return (0);
 	if (zip->ppstream.avail_in == 0 && zip->is_encrypted) {
 		int r = read_decrypted_data(a);
 
 		if (r != ARCHIVE_OK) {
+			if (r < ARCHIVE_OK)
+				zip->ppstream.read_error = r;
 			if (r == ARCHIVE_EOF)
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1480,11 +1485,14 @@ ppmd_read(void *p)
 			return (0);
 		}
 		const uint8_t *data = __archive_read_ahead(a,
-		    zip->ppstream.stream_in + 1, NULL);
+		    zip->ppstream.stream_in + 1, &available);
 		if (data == NULL) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated 7z file data");
+			if (available < 0)
+				zip->ppstream.read_error = ARCHIVE_FATAL;
+			else
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Truncated 7z file data");
 			zip->ppstream.overconsumed = 1;
 			return (0);
 		}
@@ -1839,6 +1847,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		zip->ppmd7_valid = 1;
 		zip->ppmd7_stat = 0;
 		zip->ppstream.overconsumed = 0;
+		zip->ppstream.read_error = ARCHIVE_OK;
 		break;
 	}
 	case _7Z_X86:
@@ -2117,6 +2126,10 @@ decompress(struct archive_read *a, struct _7zip *zip,
 			zip->range_dec.Stream = &zip->bytein;
 			r = __archive_ppmd7_functions.Ppmd7z_RangeDec_Init(
 				&(zip->range_dec));
+			if (zip->ppstream.read_error < ARCHIVE_OK) {
+				zip->ppmd7_stat = -1;
+				return (zip->ppstream.read_error);
+			}
 			if (r == 0) {
 				zip->ppmd7_stat = -1;
 				archive_set_error(&a->archive,
@@ -2152,6 +2165,10 @@ decompress(struct archive_read *a, struct _7zip *zip,
 
 			sym = __archive_ppmd7_functions.Ppmd7_DecodeSymbol(
 				&(zip->ppmd7_context), &(zip->range_dec.p));
+			if (zip->ppstream.read_error < ARCHIVE_OK) {
+				zip->ppmd7_stat = -1;
+				return (zip->ppstream.read_error);
+			}
 			if (sym < 0) {
 				zip->ppmd7_stat = -1;
 				archive_set_error(&a->archive,
@@ -3937,6 +3954,10 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 		/* Drive decompression. */
 		r = decompress(a, zip, buff_out, &bytes_out,
 			buff_in, &bytes_in);
+		/* A byte-reader failure is independent of the password. Preserve
+		 * it instead of classifying it as a failed trial decode. */
+		if (zip->codec == _7Z_PPMD && zip->ppstream.read_error < ARCHIVE_OK)
+			return (zip->ppstream.read_error);
 		switch (r) {
 		case ARCHIVE_OK:
 			end_of_data = 0;
