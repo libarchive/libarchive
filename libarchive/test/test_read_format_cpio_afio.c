@@ -126,6 +126,49 @@ DEFINE_TEST(test_read_format_cpio_afio_broken)
 	archive_read_free(a);
 }
 
+/*
+ * Cut the archive above at every length and check that a failure always
+ * comes with an error message.
+ */
+DEFINE_TEST(test_read_format_cpio_afio_truncated)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	char tmp[64];
+	size_t n;
+	int r, failed;
+
+	/* Below 7 bytes no format recognizes the archive. */
+	for (n = 7; n < sizeof(archive); n++) {
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_format_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a,
+		    archive, n));
+		failed = 0;
+		while (!failed) {
+			r = archive_read_next_header(a, &ae);
+			if (r == ARCHIVE_EOF)
+				break;
+			if (r < ARCHIVE_WARN) {
+				failed = 1;
+				break;
+			}
+			while ((r = (int)archive_read_data(a, tmp,
+			    sizeof(tmp))) > 0)
+				;
+			if (r < ARCHIVE_WARN)
+				failed = 1;
+		}
+		if (failed) {
+			failure("%d of %d bytes", (int)n, (int)sizeof(archive));
+			assert(archive_error_string(a) != NULL);
+		}
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+}
+
 DEFINE_TEST(test_read_format_cpio_afio_header)
 {
   const char *reffiles[] =

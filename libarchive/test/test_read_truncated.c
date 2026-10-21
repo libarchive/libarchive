@@ -131,3 +131,108 @@ DEFINE_TEST(test_read_truncated)
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 }
+
+/*
+ * Cut a cpio archive at every length and check that a failure always comes
+ * with an error message, whether the entries are read or skipped.
+ */
+static void
+test_cpio_truncated(int (*set_format)(struct archive *), size_t header_size)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char tmp[64];
+	size_t used, n;
+	int r, skip, failed;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, (*set_format)(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file1");
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	archive_entry_set_size(ae, 11);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 11, archive_write_data(a, "hello world", 11));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname(ae, "link1");
+	archive_entry_set_mode(ae, S_IFLNK | 0777);
+	archive_entry_copy_symlink(ae, "file1");
+	archive_entry_set_size(ae, 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_clear(ae);
+	archive_entry_copy_pathname(ae, "a_longer_file_name_here");
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	archive_entry_set_size(ae, 10);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 10, archive_write_data(a, "0123456789", 10));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	for (skip = 0; skip < 2; skip++) {
+		/* Below 6 bytes no format recognizes the archive. */
+		for (n = 6; n < used; n++) {
+			assert((a = archive_read_new()) != NULL);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_format_all(a));
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_filter_all(a));
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_open_memory(a, buff, n));
+
+			failed = 0;
+			while (!failed) {
+				r = archive_read_next_header(a, &ae);
+				if (r == ARCHIVE_EOF)
+					break;
+				if (r < ARCHIVE_WARN) {
+					failed = 1;
+					break;
+				}
+				if (skip) {
+					r = archive_read_data_skip(a);
+				} else {
+					while ((r = (int)archive_read_data(a,
+					    tmp, sizeof(tmp))) > 0)
+						;
+				}
+				if (r < ARCHIVE_WARN)
+					failed = 1;
+			}
+			if (failed) {
+				failure("%d of %d bytes, skip=%d", (int)n,
+				    (int)used, skip);
+				assert(archive_error_string(a) != NULL);
+				failure("%d of %d bytes, skip=%d", (int)n,
+				    (int)used, skip);
+				assert(archive_errno(a) != 0);
+			}
+			/* Cut in the middle of the first header. */
+			if (n == header_size / 2)
+				assertEqualString(
+				    "End of file trying to read next cpio header",
+				    archive_error_string(a));
+			/* Cut in the name "file1". */
+			if (n == header_size + 2)
+				assertEqualString("Truncated cpio file name",
+				    archive_error_string(a));
+			/* Cut in the data "hello world" while reading it. */
+			if (!skip && n == header_size + 6 + 5)
+				assertEqualString("Truncated cpio file data",
+				    archive_error_string(a));
+			assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		}
+	}
+}
+
+DEFINE_TEST(test_read_truncated_cpio)
+{
+	test_cpio_truncated(archive_write_set_format_cpio_odc, 76);
+	test_cpio_truncated(archive_write_set_format_cpio_newc, 110);
+	test_cpio_truncated(archive_write_set_format_cpio_bin, 26);
+}
