@@ -625,7 +625,7 @@ if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
         have_libexpat="yes"
       ], [
         AC_CHECK_LIB(expat,XML_ParserCreate)
-        if test "x$ac_cv_lib_expat_XML_ParserCreate" != "xyes"; then
+        if test "x$ac_cv_lib_expat_XML_ParserCreate" = "xyes"; then
           have_libexpat="yes"
         fi
       ])
