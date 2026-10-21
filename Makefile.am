@@ -1394,6 +1394,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_0.c \
 	tar/test/test_basic.c \
 	tar/test/test_copy.c \
+	tar/test/test_copy_data_warning.c \
 	tar/test/test_crlf_mtree.c \
 	tar/test/test_empty_mtree.c \
 	tar/test/test_extract_tar_Z.c \
@@ -1488,6 +1489,7 @@ endif
 
 bsdtar_test_EXTRA_DIST= \
 	tar/test/list.h \
+	tar/test/test_copy_data_warning.lzh.uu \
 	tar/test/test_extract.tar.Z.uu \
 	tar/test/test_extract.tar.bz2.uu \
 	tar/test/test_extract.tar.grz.uu \
