@@ -359,6 +359,7 @@ IF(ENABLE_TEST)
     test_write_format_mtree_preset_digests.c
     test_write_format_mtree_quoted_filename.c
     test_write_format_mtree_null_deref.c
+    test_write_format_option_missing_value.c
     test_write_format_pax.c
     test_write_format_pax_align.c
     test_write_format_pax_mac_meta.c
