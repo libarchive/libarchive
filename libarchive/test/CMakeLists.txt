@@ -338,6 +338,7 @@ IF(ENABLE_TEST)
     test_write_format_gnutar_huge.c
     test_write_format_iso9660.c
     test_write_format_iso9660_boot.c
+    test_write_format_iso9660_boot_load_size.c
     test_write_format_iso9660_empty.c
     test_write_format_iso9660_filename.c
     test_write_format_iso9660_joliet_id.c
