@@ -294,6 +294,9 @@ typedef int	archive_free_callback(struct archive *, void *_client_data);
 /* Switches from one client data object to the next/prev client data object.
  * This is useful for reading from different data blocks such as a set of files
  * that make up one large file.
+ * A switch callback is required when more than one client data object is used
+ * together with an open or close callback; archive_read_open1() fails without
+ * one.
  */
 typedef int archive_switch_callback(struct archive *, void *_client_data1,
 			    void *_client_data2);
