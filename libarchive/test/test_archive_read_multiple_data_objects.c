@@ -356,9 +356,82 @@ test_customized_multiple_data_objects(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+struct callback_source {
+  const unsigned char *data;
+  size_t size;
+  size_t offset;
+};
+
+static unsigned int callback_close_count;
+
+static la_ssize_t
+callback_source_read(struct archive *a, void *data, const void **buffer)
+{
+  struct callback_source *source = (struct callback_source *)data;
+  size_t remaining = source->size - source->offset;
+
+  (void)a;
+  if (remaining == 0) {
+    *buffer = NULL;
+    return (0);
+  }
+  *buffer = source->data + source->offset;
+  source->offset = source->size;
+  return ((la_ssize_t)remaining);
+}
+
+static int
+callback_source_close(struct archive *a, void *data)
+{
+  (void)a;
+  callback_close_count++;
+  free(data);
+  return (ARCHIVE_OK);
+}
+
+static void
+test_callback_data_closed_once(void)
+{
+  static const unsigned char first_data[] = "first";
+  static const unsigned char second_data[] = "second";
+  struct callback_source *first, *second;
+  struct archive_entry *entry;
+  struct archive *a;
+  char buffer[8];
+  int result;
+
+  callback_close_count = 0;
+  assert((a = archive_read_new()) != NULL);
+  assert((first = calloc(1, sizeof(*first))) != NULL);
+  assert((second = calloc(1, sizeof(*second))) != NULL);
+  first->data = first_data;
+  first->size = sizeof(first_data) - 1;
+  second->data = second_data;
+  second->size = sizeof(second_data) - 1;
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_append_callback_data(a, first));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_append_callback_data(a, second));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_read_callback(a, callback_source_read));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_close_callback(a, callback_source_close));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_open1(a));
+
+  while ((result = archive_read_next_header(a, &entry)) == ARCHIVE_OK)
+    while (archive_read_data(a, buffer, sizeof(buffer)) > 0)
+      ;
+  assertEqualIntA(a, ARCHIVE_EOF, result);
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+  assertEqualInt(2, callback_close_count);
+}
+
 DEFINE_TEST(test_archive_read_multiple_data_objects)
 {
   test_splitted_file();
   test_large_splitted_file();
   test_customized_multiple_data_objects();
+  test_callback_data_closed_once();
 }
