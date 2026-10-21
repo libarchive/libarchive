@@ -251,15 +251,17 @@ jobs:
         path: libarchive-dist.tar
 
   Windows:
-    runs-on: windows-2022
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        be: [cygwin-gcc, msvc]
         include:
-          - { be: mingw, msystem: mingw64 }
-          - { be: mingw, msystem: ucrt64 }
-          - { be: mingw, msystem: clang64 }
+          - { be: cygwin-gcc, arch: x64, runner: windows-2022 }
+          - { be: msvc, arch: x64, runner: windows-2022, generator: 'Visual Studio 17 2022' }
+          - { be: msvc, arch: arm64, runner: windows-11-vs2026-arm, generator: 'Visual Studio 18 2026' }
+          - { be: mingw, msystem: mingw64, arch: x64, runner: windows-2022 }
+          - { be: mingw, msystem: ucrt64, arch: x64, runner: windows-2022 }
+          - { be: mingw, msystem: clang64, arch: x64, runner: windows-2022 }
     env:
       MSYSTEM: ${{ matrix.msystem }}
     steps:
@@ -298,30 +300,36 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+        ARCH: ${{ matrix.arch }}
+        CMAKE_GENERATOR: ${{ matrix.generator }}
     - name: Build
       run: ./build/ci/github_actions/ci.cmd build
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+        ARCH: ${{ matrix.arch }}
     - name: Test
       run: ./build/ci/github_actions/ci.cmd test
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+        ARCH: ${{ matrix.arch }}
         CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/github_actions/ci.cmd install
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+        ARCH: ${{ matrix.arch }}
     - name: Artifact
       run: ./build/ci/github_actions/ci.cmd artifact
       shell: cmd
       env:
         BE: ${{ matrix.be }}
+        ARCH: ${{ matrix.arch }}
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         # for msvc and cygwin, libarchive-windows-backend-arch
         # for mingw, libarchive-windows-mingw-msystem-arch
-        name: libarchive-windows-${{ matrix.be }}${{ matrix.be=='mingw' && format('-{0}', matrix.msystem) || '' }}-${{ github.sha }}
+        name: libarchive-windows-${{ matrix.be }}${{ matrix.be=='mingw' && format('-{0}', matrix.msystem) || '' }}-${{ matrix.arch }}-${{ github.sha }}
         path: ${{ matrix.be=='cygwin-gcc' && 'libarchive.tar.xz' || 'libarchive.zip' }}
