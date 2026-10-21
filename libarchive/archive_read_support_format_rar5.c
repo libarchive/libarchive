@@ -4500,6 +4500,16 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 		return ARCHIVE_EOF;
 	}
 
+	/* Empty files have no compressed block to unpack. In a solid archive,
+	 * doing so would parse the next file header as a compressed block. */
+	if(rar5->file.unpacked_size == 0 && rar5->file.bytes_remaining == 0 &&
+	    rar5->generic.split_after == 0) {
+		if (offset)
+			*offset = rar5->cstate.last_write_ptr;
+		rar5->file.eof = 1;
+		return verify_global_checksums(a);
+	}
+
 	ret = do_unpack(a, rar5, buff, size, offset);
 	if(ret != ARCHIVE_OK) {
 		return ret;
