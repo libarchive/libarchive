@@ -205,7 +205,7 @@ struct zip {
 #ifdef HAVE_BZLIB_H
 		bz_stream bzip2;
 #endif
-#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2
 		struct {
 			/* Libzstd's init function gives a pointer to a memory area
 			 * it manages rather than asking for memory to initialise. */
@@ -384,7 +384,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			    "xz compression not supported");
 #endif
 		} else if (strcmp(val, "zstd") == 0) {
-#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2
 			zip->requested_compression = COMPRESSION_ZSTD;
 			ret = ARCHIVE_OK;
 #else
@@ -411,7 +411,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->requested_compression = COMPRESSION_STORE;
 			return ARCHIVE_OK;
 		} else {
-#if defined(HAVE_ZLIB_H) || defined(HAVE_LZMA_H) || defined(HAVE_BZLIB_H) || (defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream)
+#if defined(HAVE_ZLIB_H) || defined(HAVE_LZMA_H) || defined(HAVE_BZLIB_H) || (defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2)
 			// Not forcing an already specified compression algorithm
 			if (zip->requested_compression == COMPRESSION_UNSPECIFIED) {
 #ifdef HAVE_ZLIB_H
@@ -610,7 +610,7 @@ archive_write_zip_set_compression_zstd(struct archive *_a)
 		" with zip format");
 		ret = ARCHIVE_FATAL;
 	} else {
-#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2
 		struct zip *zip = a->format_data;
 		zip->requested_compression = COMPRESSION_ZSTD;
 		ret = ARCHIVE_OK;
@@ -1382,15 +1382,23 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		}
 		break;
 #endif
-#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2
 	case COMPRESSION_ZSTD:
 		{/* Libzstd, contrary to many compression libraries, doesn't use
 		 * zlib's 0 to 9 scale and its negative scale is way bigger than
 		 * its positive one. So setting 1 as the lowest allowed compression
 		 * level and rescaling to 2 to 9 to libzstd's positive scale. */
-		int zstd_compression_level = zip->compression_level == 1
-			? ZSTD_minCLevel() // ZSTD_minCLevel is negative !
-			: (zip->compression_level - 1) * ZSTD_maxCLevel() / 8;
+		int zstd_compression_level;
+		if (zip->compression_level == 1) {
+#if HAVE_ZSTD_minCLevel
+			zstd_compression_level = ZSTD_minCLevel(); // negative: fastest level
+#else
+			zstd_compression_level = 1;
+#endif
+		} else {
+			zstd_compression_level =
+			    (zip->compression_level - 1) * ZSTD_maxCLevel() / 8;
+		}
 		zip->stream.zstd.context = ZSTD_createCStream();
 		size_t zret = ZSTD_initCStream(zip->stream.zstd.context, zstd_compression_level);
 		if (ZSTD_isError(zret)) {
@@ -1619,7 +1627,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		} while (zip->stream.deflate.avail_in != 0);
 		break;
 #endif
-#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2
 	case COMPRESSION_ZSTD:
 		zip->stream.zstd.in.src = buff;
 		zip->stream.zstd.in.size = s;
@@ -1849,7 +1857,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 {
 	struct zip *zip = a->format_data;
 	int ret;
-#if defined(HAVE_BZLIB_H) || (defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream) || HAVE_LZMA_H
+#if defined(HAVE_BZLIB_H) || (defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2) || HAVE_LZMA_H
 	char finishing;
 #endif
 
@@ -1941,7 +1949,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		BZ2_bzCompressEnd(&zip->stream.bzip2);
 		break;
 #endif
-#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2
 	case COMPRESSION_ZSTD:
 		finishing = 1;
 		do {
