@@ -596,7 +596,7 @@ fi
 if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   if test "x$with_xmllite" != "xno"; then
     AC_CHECK_HEADERS([xmllite.h])
-    if test "x$ac_cv_header_xmllite_h" == "xyes"; then
+    if test "x$ac_cv_header_xmllite_h" = "xyes"; then
       AC_MSG_CHECKING([for xmllite])
       saved_LIBS=$LIBS
       LIBS="$LIBS -lxmllite -luuid -lole32"
@@ -625,7 +625,7 @@ if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
         have_libexpat="yes"
       ], [
         AC_CHECK_LIB(expat,XML_ParserCreate)
-        if test "x$ac_cv_lib_expat_XML_ParserCreate" != "xyes"; then
+        if test "x$ac_cv_lib_expat_XML_ParserCreate" = "xyes"; then
           have_libexpat="yes"
         fi
       ])
