@@ -1009,14 +1009,14 @@ move_reading_point(struct archive_read *a, uint64_t offset)
 				return (ARCHIVE_FATAL);
 			}
 
-			int64_t pos = __archive_read_seek(a, offset, SEEK_SET);
-			if (pos == ARCHIVE_FAILED) {
+			int64_t r = __archive_read_seek(a, offset, SEEK_SET);
+			if (r < ARCHIVE_OK) {
 				archive_set_error(&(a->archive),
 				    ARCHIVE_ERRNO_MISC,
 				    "Cannot seek");
-				return (ARCHIVE_FAILED);
+				return ((int)r);
 			}
-			xar->offset = pos;
+			xar->offset = r;
 		}
 	}
 	return (ARCHIVE_OK);
