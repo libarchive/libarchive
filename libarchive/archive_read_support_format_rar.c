@@ -89,6 +89,8 @@
 #define FHD_EXTTIME      0x1000
 #define FHD_EXTFLAGS     0x2000
 
+#define RAR_MAX_SYMLINK_SIZE (1024 * 1024)
+
 /* File dictionary sizes */
 #define DICTIONARY_SIZE_64   0x00
 #define DICTIONARY_SIZE_128  0x20
@@ -328,7 +330,6 @@ struct rar
   unsigned int unp_buffer_size;
   unsigned char *unp_buffer;
   unsigned int dictionary_size;
-  char start_new_block;
   char entry_eof;
   unsigned long crc_calculated;
   int found_first_header;
@@ -1970,7 +1971,7 @@ read_symlink_stored(struct archive_read *a, struct archive_entry *entry,
   const char *p;
   int ret = (ARCHIVE_OK);
 
-  if ((uintmax_t)rar->packed_size > SIZE_MAX)
+  if (rar->packed_size > RAR_MAX_SYMLINK_SIZE)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                       "Unable to read link");
@@ -2997,7 +2998,6 @@ expand(struct archive_read *a, int64_t *end)
 
       if(newfile)
       {
-        rar->start_new_block = 1;
         if (!rar_br_read_ahead(a, br, 1))
           goto truncated_data;
         rar->start_new_table = rar_br_bits(br, 1);

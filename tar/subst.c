@@ -210,22 +210,7 @@ realloc_strncat(char **str, const char *append, size_t len)
 static void
 realloc_strcat(char **str, const char *append)
 {
-	char *new_str;
-	size_t old_len;
-
-	if (*str == NULL)
-		old_len = 0;
-	else
-		old_len = strlen(*str);
-
-	new_str = malloc(old_len + strlen(append) + 1);
-	if (new_str == NULL)
-		lafe_errc(1, errno, "Out of memory");
-	if (*str != NULL)
-		memcpy(new_str, *str, old_len);
-	strcpy(new_str + old_len, append);
-	free(*str);
-	*str = new_str;
+	realloc_strncat(str, append, strlen(append));
 }
 
 int

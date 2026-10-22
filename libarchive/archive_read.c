@@ -454,7 +454,7 @@ int
 archive_read_open1(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter *f, *tmp;
+	struct archive_read_filter *f;
 	int slot, e = ARCHIVE_OK;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
@@ -510,11 +510,41 @@ archive_read_open1(struct archive *_a)
 	}
 	else
 	{
+		size_t count;
+		struct archive_read_filter *f2;
+
 		/* Need to add "NONE" type filter at the end of the filter chain */
-		tmp = a->filter;
-		while (tmp->upstream)
-			tmp = tmp->upstream;
-		tmp->upstream = f;
+		count = 1;
+		for (f2 = a->filter; f2->upstream != NULL; f2 = f2->upstream)
+			count++;
+		f2->upstream = f;
+
+		while (count-- > 0) {
+			struct archive_read_filter_bidder *bidder;
+			size_t i;
+			int r;
+
+			f2 = a->filter;
+			for (i = 0; i < count; i++)
+				f2 = f2->upstream;
+			bidder = f2->bidder;
+
+			r = (bidder->vtable->bid)(bidder, f2->upstream);
+			if (r < 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Registered filter does not match");
+				close_filters(a);
+				a->archive.state = ARCHIVE_STATE_FATAL;
+				return (ARCHIVE_FATAL);
+			}
+			r = (bidder->vtable->init)(f2);
+			if (r != ARCHIVE_OK) {
+				close_filters(a);
+				a->archive.state = ARCHIVE_STATE_FATAL;
+				return (ARCHIVE_FATAL);
+			}
+		}
 	}
 
 	if (!a->format)
@@ -541,8 +571,6 @@ archive_read_open1(struct archive *_a)
 
 	a->archive.state = ARCHIVE_STATE_HEADER;
 
-	/* Ensure libarchive starts from the first node in a multivolume set */
-	client_switch_proxy(f, 0);
 	return (e);
 }
 
@@ -703,7 +731,6 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 
 	__archive_reset_read_data(&a->archive);
 
-	a->data_start_node = a->client.cursor;
 	/* EOF always wins; otherwise return the worst error. */
 	return (r2 < r1 || r2 == ARCHIVE_EOF) ? r2 : r1;
 }
@@ -1657,13 +1684,13 @@ advance_file_pointer(struct archive_read_filter *f, int64_t request)
 		 */
 		int64_t bytes_skipped;
 		int64_t before = f->position;
-		int64_t after = client_seek_proxy(f, request, SEEK_CUR);
+		int64_t after = __archive_read_filter_seek(f,
+		    request, SEEK_CUR);
 		if (after != before + request) {
 			f->fatal = 1;
 			return (ARCHIVE_FATAL);
 		}
 		bytes_skipped = after - before;
-		f->position += bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 		request -= bytes_skipped;
 		if (request == 0)
@@ -1708,7 +1735,8 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 {
 	struct archive_read_client *client;
 	int64_t r;
-	unsigned int cursor;
+	unsigned int cursor, old_cursor;
+	int sought = 0;
 
 	if (f->closed || f->fatal)
 		return (ARCHIVE_FATAL);
@@ -1716,6 +1744,8 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		return (ARCHIVE_FAILED);
 
 	client = &(f->archive->client);
+	old_cursor = client->cursor;
+
 	switch (whence) {
 	case SEEK_CUR:
 		/* Adjust the offset and use SEEK_SET instead */
@@ -1728,7 +1758,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 			if (client->dataset[cursor].begin_position < 0 ||
 			    client->dataset[cursor].total_size < 0 ||
 			    client->dataset[cursor].begin_position +
-			      client->dataset[cursor].total_size - 1 > offset ||
+			      client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
 				break;
 			r = client->dataset[cursor].begin_position +
@@ -1741,9 +1771,10 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 				goto clear_buffer;
 			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
 				goto clear_buffer;
+			sought = 1;
 			client->dataset[cursor].total_size = r;
 			if (client->dataset[cursor].begin_position +
-			    client->dataset[cursor].total_size - 1 > offset ||
+			    client->dataset[cursor].total_size > offset ||
 			    cursor + 1 >= client->nodes)
 				break;
 			r = client->dataset[cursor].begin_position +
@@ -1758,6 +1789,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		}
 		if ((r = client_seek_proxy(f, offset, SEEK_SET)) < 0)
 			goto clear_buffer;
+		sought = 1;
 		break;
 
 	case SEEK_END:
@@ -1777,6 +1809,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 				goto clear_buffer;
 			if ((r = client_seek_proxy(f, 0, SEEK_END)) < 0)
 				goto clear_buffer;
+			sought = 1;
 			client->dataset[cursor].total_size = r;
 			r = client->dataset[cursor].begin_position +
 				client->dataset[cursor].total_size;
@@ -1801,6 +1834,7 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		r = client_seek_proxy(f, offset, SEEK_SET);
 		if (r < ARCHIVE_OK)
 			goto clear_buffer;
+		sought = 1;
 		break;
 
 	default:
@@ -1809,6 +1843,11 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 	r += client->dataset[cursor].begin_position;
 
 clear_buffer:
+	if (r == ARCHIVE_FAILED && !sought && old_cursor == client->cursor) {
+		/* Seek failed without moving position: keep buffer */
+		return (r);
+	}
+
 	/*
 	 * Ouch.  Clearing the buffer like this hurts, especially
 	 * at bid time.  A lot of our efficiency at bid time comes

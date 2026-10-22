@@ -179,6 +179,7 @@ IF(ENABLE_TEST)
     test_read_format_isozisofs_compress.c
     test_read_format_iso_rockridge_ce_overflow.c
     test_read_format_iso_rockridge_cl_re_cycle.c
+    test_read_format_iso_rockridge_sl_leak.c
     test_read_format_iso_rockridge_zf_overflow.c
     test_read_format_iso_zisofs_overflow.c
     test_read_format_lha.c
@@ -263,6 +264,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_padded.c
     test_read_format_zip_sfx.c
     test_read_format_zip_size_exceeds_declared.c
+    test_read_format_zip_streamable_skip.c
     test_read_format_zip_symlink_unsupported_compression.c
     test_read_format_zip_traditional_encryption_data.c
     test_read_format_zip_uncompressed_size_off_by_4gib.c
@@ -337,6 +339,7 @@ IF(ENABLE_TEST)
     test_write_format_gnutar_huge.c
     test_write_format_iso9660.c
     test_write_format_iso9660_boot.c
+    test_write_format_iso9660_boot_load_size.c
     test_write_format_iso9660_empty.c
     test_write_format_iso9660_filename.c
     test_write_format_iso9660_joliet_id.c
@@ -357,8 +360,10 @@ IF(ENABLE_TEST)
     test_write_format_mtree_preset_digests.c
     test_write_format_mtree_quoted_filename.c
     test_write_format_mtree_null_deref.c
+    test_write_format_option_missing_value.c
     test_write_format_pax.c
     test_write_format_pax_align.c
+    test_write_format_pax_mac_meta.c
     test_write_format_raw.c
     test_write_format_raw_b64.c
     test_write_format_shar_empty.c

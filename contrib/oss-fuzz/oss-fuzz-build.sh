@@ -67,17 +67,20 @@ echo "Building seed corpora..."
 cp "$FUZZ_DIR/corpus.zip" "$OUT/libarchive_fuzzer_seed_corpus.zip"
 
 # Function to create corpus from test files
+# Usage: create_corpus <fuzzer name> <pattern> [<pattern>...]
 create_corpus() {
     local name=$1
-    local pattern=$2
+    shift
     local dir="/tmp/${name}_corpus"
 
     mkdir -p "$dir"
-    for f in $TEST_DIR/$pattern; do
-        if [ -f "$f" ]; then
-            base=$(basename "$f" .uu)
-            uudecode -o "$dir/$base" "$f" 2>/dev/null || true
-        fi
+    for pattern in "$@"; do
+        for f in $TEST_DIR/$pattern; do
+            if [ -f "$f" ]; then
+                base=$(basename "$f" .uu)
+                uudecode -o "$dir/$base" "$f" 2>/dev/null || true
+            fi
+        done
     done
 
     if [ "$(ls -A $dir 2>/dev/null)" ]; then
@@ -88,16 +91,16 @@ create_corpus() {
 }
 
 # Create format-specific corpora
-create_corpus "libarchive_tar_fuzzer" "test_compat_*tar*.uu"
+create_corpus "libarchive_tar_fuzzer" "test_compat_*tar*.uu" "*.tar.uu" "*.tar.*.uu"
 create_corpus "libarchive_zip_fuzzer" "test_*zip*.uu"
 create_corpus "libarchive_7zip_fuzzer" "test_read_format_7zip*.uu"
-create_corpus "libarchive_rar_fuzzer" "test_read_format_rar_*.uu"
+create_corpus "libarchive_rar_fuzzer" "test_read_format_rar[!5]*.uu"
 create_corpus "libarchive_rar5_fuzzer" "test_read_format_rar5*.uu"
 create_corpus "libarchive_xar_fuzzer" "test_read_format_xar*.uu"
 create_corpus "libarchive_cab_fuzzer" "test_read_format_cab*.uu"
 create_corpus "libarchive_lha_fuzzer" "test_read_format_lha*.uu"
 create_corpus "libarchive_iso9660_fuzzer" "test_read_format_iso*.uu"
-create_corpus "libarchive_cpio_fuzzer" "test_compat_cpio*.uu"
+create_corpus "libarchive_cpio_fuzzer" "*cpio*.uu"
 create_corpus "libarchive_warc_fuzzer" "test_read_format_warc*.uu"
 create_corpus "libarchive_mtree_fuzzer" "test_read_format_mtree*.uu"
 create_corpus "libarchive_ar_fuzzer" "test_read_format_ar*.uu"

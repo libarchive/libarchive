@@ -6,6 +6,64 @@ permissions:
   contents: read
 
 jobs:
+  Alpine:
+    name: Alpine (${{ matrix.bs }}, ${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - { arch: x86_64, bs: autotools, image: alpine:3.24 }
+        - { arch: x86_64, bs: cmake, image: alpine:3.24 }
+        - { arch: i386, bs: autotools, image: i386/alpine:3.24 }
+        - { arch: i386, bs: cmake, image: i386/alpine:3.24 }
+    container:
+      image: ${{ matrix.image }}
+    steps:
+    - name: Install dependencies
+      run: |
+        apk add --no-cache \
+          autoconf automake build-base ca-certificates cmake git libtool \
+          lzop perl pkgconf tar xz \
+          acl-dev bzip2-dev libxml2-dev lz4-dev \
+          openssl-dev xz-dev zlib-dev zstd-dev
+    # Use plain git as in the Debian i386 job, since checkout's
+    # JavaScript runtime cannot run in the 32-bit container.
+    - name: Check out
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git init -q
+        git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+        git fetch -q --depth 1 origin "$GITHUB_SHA"
+        git checkout -q FETCH_HEAD
+    - name: Autogen
+      run: ./build/ci/build.sh -a autogen
+      env:
+        BS: ${{ matrix.bs }}
+    - name: Configure
+      run: ./build/ci/build.sh -a configure
+      env:
+        BS: ${{ matrix.bs }}
+    - name: Build
+      run: ./build/ci/build.sh -a build
+      env:
+        BS: ${{ matrix.bs }}
+        MAKE_ARGS: -j4
+    - name: Test
+      run: ./build/ci/build.sh -a test
+      env:
+        BS: ${{ matrix.bs }}
+        CTEST_OUTPUT_ON_FAILURE: ON
+    - name: Install
+      run: ./build/ci/build.sh -a install
+      env:
+        BS: ${{ matrix.bs }}
+    # Build the artifact without uploading it: upload-artifact also
+    # requires a JavaScript runtime unavailable in the i386 container.
+    - name: Artifact
+      run: ./build/ci/build.sh -a artifact
+      env:
+        BS: ${{ matrix.bs }}
   debian-i386:
     name: Debian (cmake, i386)
     runs-on: ubuntu-latest
@@ -61,12 +119,12 @@ jobs:
       matrix:
         bs: [autotools, cmake]
     steps:
-    - name: Build and test on a FreeBSD 15 firecracker VM
+    - name: Build and test on a FreeBSD 15.1 firecracker VM
       uses: acj/freebsd-firecracker-action@ba4f70408ef1d979acdd7bd36fc4b27e06fe5abe # v0.12.0
       with:
         run-in-vm: |
           chflags -R noschg / && \
-          fetch -o - https://download.freebsd.org/releases/amd64/15.0-RELEASE/base.txz | bsdtar -x -C / -f - && \
+          fetch -o - https://download.freebsd.org/releases/amd64/15.1-RELEASE/base.txz | bsdtar -x -C / -f - && \
           pkg bootstrap -y && \
           cd firecracker-freebsd && \
           env BS=${{ matrix.bs }} ./build/ci/github_actions/freebsd.sh prepare && \
@@ -117,7 +175,7 @@ jobs:
       run: ./build/ci/build.sh -a artifact
       env:
         BS: ${{ matrix.bs }}
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: libarchive-macos-${{ matrix.bs }}-${{ github.sha }}
         path: libarchive.tar.xz
@@ -143,6 +201,7 @@ jobs:
       env:
         BS: ${{ matrix.bs }}
         CRYPTO: ${{ matrix.crypto }}
+        DEBUG: 1
     - name: Build
       run: ./build/ci/build.sh -a build
       env:
@@ -163,7 +222,7 @@ jobs:
       run: ./build/ci/build.sh -a artifact
       env:
         BS: ${{ matrix.bs }}
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: libarchive-ubuntu-${{ matrix.bs }}-${{ matrix.crypto }}-${{ github.sha }}
         path: libarchive.tar.xz
@@ -186,7 +245,7 @@ jobs:
         SKIP_OPEN_FD_ERR_TEST: 1
     - name: Dist-Artifact
       run: ./build/ci/build.sh -a dist-artifact
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: libarchive-${{ github.sha }}
         path: libarchive-dist.tar
@@ -260,7 +319,7 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         # for msvc and cygwin, libarchive-windows-backend-arch
         # for mingw, libarchive-windows-mingw-msystem-arch

@@ -556,6 +556,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_isozisofs_compress.c \
 	libarchive/test/test_read_format_iso_rockridge_ce_overflow.c \
 	libarchive/test/test_read_format_iso_rockridge_cl_re_cycle.c \
+	libarchive/test/test_read_format_iso_rockridge_sl_leak.c \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.c \
 	libarchive/test/test_read_format_iso_zisofs_overflow.c \
 	libarchive/test/test_read_format_lha.c \
@@ -640,6 +641,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_size_exceeds_declared.c \
+	libarchive/test/test_read_format_zip_streamable_skip.c \
 	libarchive/test/test_read_format_zip_symlink_unsupported_compression.c \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.c \
 	libarchive/test/test_read_format_zip_uncompressed_size_off_by_4gib.c \
@@ -714,6 +716,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_gnutar_huge.c \
 	libarchive/test/test_write_format_iso9660.c \
 	libarchive/test/test_write_format_iso9660_boot.c \
+	libarchive/test/test_write_format_iso9660_boot_load_size.c \
 	libarchive/test/test_write_format_iso9660_bugs.c \
 	libarchive/test/test_write_format_iso9660_empty.c \
 	libarchive/test/test_write_format_iso9660_filename.c \
@@ -734,8 +737,10 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_mtree_preset_digests.c \
 	libarchive/test/test_write_format_mtree_quoted_filename.c\
 	libarchive/test/test_write_format_mtree_null_deref.c \
+	libarchive/test/test_write_format_option_missing_value.c \
 	libarchive/test/test_write_format_pax.c \
 	libarchive/test/test_write_format_pax_align.c \
+	libarchive/test/test_write_format_pax_mac_meta.c \
 	libarchive/test/test_write_format_raw.c \
 	libarchive/test/test_write_format_raw_b64.c \
 	libarchive/test/test_write_format_shar_empty.c \
@@ -885,6 +890,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_data_into_fd_size_exceeds_declared_stored.zip.uu \
 	libarchive/test/test_read_files_compressed.part01.uu \
 	libarchive/test/test_read_files_compressed.part02.uu \
+	libarchive/test/test_read_filter_compress_multi_volume.part01.uu \
+	libarchive/test/test_read_filter_compress_multi_volume.part02.uu \
+	libarchive/test/test_read_filter_compress_multi_volume.part03.uu \
 	libarchive/test/test_read_filter_grzip.tar.grz.uu \
 	libarchive/test/test_read_filter_gzip_recursive.gz.uu \
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu \
@@ -911,6 +919,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_bcj_lzma1.7z.uu \
 	libarchive/test/test_read_format_7zip_bcj_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_bzip2.7z.uu \
+	libarchive/test/test_read_format_7zip_chained_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_copy.7z.uu \
 	libarchive/test/test_read_format_7zip_copy_2.7z.uu \
 	libarchive/test/test_read_format_7zip_deflate.7z.uu \
@@ -1024,6 +1033,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_joliet.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet_by_nero.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet_long.iso.Z.uu \
+	libarchive/test/test_read_format_iso_joliet_overlong.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet_rockridge.iso.Z.uu \
 	libarchive/test/test_read_format_iso_joliet_utf16be_overflow.iso.uu \
 	libarchive/test/test_read_format_iso_multi_extent.iso.Z.uu \
@@ -1035,6 +1045,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_rockridge_cl_re_cycle.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_new.iso.Z.uu \
 	libarchive/test/test_read_format_iso_rockridge_rr_moved.iso.Z.uu \
+	libarchive/test/test_read_format_iso_rockridge_sl_leak.iso.uu \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.iso.uu \
 	libarchive/test/test_read_format_iso_xorriso.iso.Z.uu \
 	libarchive/test/test_read_format_iso_zisofs.iso.Z.uu \
@@ -1388,6 +1399,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_0.c \
 	tar/test/test_basic.c \
 	tar/test/test_copy.c \
+	tar/test/test_copy_data_warning.c \
 	tar/test/test_crlf_mtree.c \
 	tar/test/test_empty_mtree.c \
 	tar/test/test_extract_tar_Z.c \
@@ -1482,6 +1494,7 @@ endif
 
 bsdtar_test_EXTRA_DIST= \
 	tar/test/list.h \
+	tar/test/test_copy_data_warning.lzh.uu \
 	tar/test/test_extract.tar.Z.uu \
 	tar/test/test_extract.tar.bz2.uu \
 	tar/test/test_extract.tar.grz.uu \

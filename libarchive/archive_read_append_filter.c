@@ -53,7 +53,6 @@ archive_read_append_filter_last_bidder(struct archive *_a)
   struct archive_read *a = (struct archive_read *)_a;
   struct archive_read_filter_bidder *b;
   struct archive_read_filter *f;
-  int r;
 
   f = calloc(1, sizeof(*f));
   if (f == NULL)
@@ -66,13 +65,8 @@ archive_read_append_filter_last_bidder(struct archive *_a)
   f->archive = a;
   f->upstream = a->filter;
   a->filter = f;
-  r = (b->vtable->init)(a->filter);
-  if (r != ARCHIVE_OK) {
-    __archive_read_free_filters(a);
-    return (ARCHIVE_FATAL);
-  }
   a->bypass_filter_bidding = 1;
-  return (r);
+  return (ARCHIVE_OK);
 }
 
 int
@@ -110,6 +104,7 @@ archive_read_append_filter(struct archive *_a, int code)
     case ARCHIVE_FILTER_XZ:
       r1 = archive_read_support_filter_xz(_a);
       break;
+    case ARCHIVE_FILTER_B64:
     case ARCHIVE_FILTER_UU:
       r1 = archive_read_support_filter_uu(_a);
       break;

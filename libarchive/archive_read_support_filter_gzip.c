@@ -416,8 +416,12 @@ consume_trailer(struct archive_read_filter *f)
 
 	/* GZip trailer is a fixed 8 byte structure. */
 	p = __archive_read_filter_ahead(f->upstream, 8, NULL);
-	if (p == NULL)
+	if (p == NULL) {
+		archive_set_error(&f->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "Truncated gzip input");
 		return (ARCHIVE_FATAL);
+	}
 
 	/* XXX TODO: Verify the length and CRC. */
 
