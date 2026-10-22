@@ -1001,7 +1001,15 @@ move_reading_point(struct archive_read *a, uint64_t offset)
 				return ((int)step);
 			xar->offset += step;
 		} else {
-			int64_t pos = __archive_read_seek(a, xar->h_base + offset, SEEK_SET);
+			if (archive_ckd_add_u64(&offset, offset, xar->h_base) ||
+			    (int64_t)offset < 0) {
+				archive_set_error(&(a->archive),
+					ARCHIVE_ERRNO_FILE_FORMAT,
+					"Too many bytes to skip");
+				return (ARCHIVE_FATAL);
+			}
+
+			int64_t pos = __archive_read_seek(a, offset, SEEK_SET);
 			if (pos == ARCHIVE_FAILED) {
 				archive_set_error(&(a->archive),
 				    ARCHIVE_ERRNO_MISC,
