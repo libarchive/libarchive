@@ -1902,12 +1902,12 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 	if (iso9660->seenJoliet) {
 		/* Joliet names are max 64 chars (128 bytes) according to spec,
-		 * but genisoimage/mkisofs allows recording longer Joliet
-		 * names which are 103 UCS2 characters(206 bytes) by their
-		 * option '-joliet-long'.
+		 * but authoring tools record longer ones: genisoimage/mkisofs
+		 * up to 103 UCS2 characters (206 bytes) with '-joliet-long',
+		 * Windows tools up to what the directory record holds. The
+		 * record already bounds name_len (checked above), so the
+		 * whole name is kept.
 		 */
-		if (name_len > 206)
-			name_len = 206;
 		name_len &= ~1;
 
 		/* trim trailing first version and dot from filename.
