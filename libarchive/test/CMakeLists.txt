@@ -147,6 +147,7 @@ IF(ENABLE_TEST)
     test_read_format_cpio_bin_lzma.c
     test_read_format_cpio_bin_xz.c
     test_read_format_cpio_filename.c
+    test_read_format_cpio_newc_resync.c
     test_read_format_cpio_odc.c
     test_read_format_cpio_svr4_bzip2_rpm.c
     test_read_format_cpio_svr4_gzip.c

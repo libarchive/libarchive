@@ -524,6 +524,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_cpio_bin_lzma.c \
 	libarchive/test/test_read_format_cpio_bin_xz.c \
 	libarchive/test/test_read_format_cpio_filename.c \
+	libarchive/test/test_read_format_cpio_newc_resync.c \
 	libarchive/test/test_read_format_cpio_odc.c \
 	libarchive/test/test_read_format_cpio_svr4_bzip2_rpm.c \
 	libarchive/test/test_read_format_cpio_svr4_gzip.c \
