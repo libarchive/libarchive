@@ -51,6 +51,10 @@
  *     entry, before any single entry has been returned to the caller:
  *     the prescan must not abort the whole archive just because one
  *     entry's Central Directory extra field is malformed.
+ *
+ * A third archive (malformed_extra_then_valid, below) checks a related
+ * but distinct guarantee: a malformed field must not prevent the extra
+ * fields that come *after* it in the same entry from being parsed either.
  */
 
 /* Malformed only in the Local Header. */
@@ -218,6 +222,116 @@ DEFINE_TEST(test_read_format_zip_malformed_extra_warn_central)
 	assertEqualMem(buff, "hi\n", 3);
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * A malformed extra field must not prevent the fields that come after it
+ * (in the same entry's extra data) from being parsed. Here the Local
+ * Header's extra data has a malformed 0x5455 "UT" field (claims to be an
+ * extended-time field but has zero bytes of data, so there's no flags
+ * byte to even say which timestamps it carries) immediately followed by
+ * a well-formed 0x000A "NTFS" field. Before this fix, hitting the
+ * malformed UT field made process_extra() return immediately, so the
+ * NTFS field right after it was never even looked at.
+ */
+static const unsigned char archive_malformed_extra_then_valid[] = {
+/* --- local file header --- */
+	0x50, 0x4b, 0x03, 0x04, /* local file header signature */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x28, 0x00,             /* extra field length = 40 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+/* extra field 0x5455 "UT": malformed (zero bytes of data) */
+	0x55, 0x54,             /* extra field ID = 0x5455 */
+	0x00, 0x00,             /* extra field size = 0: malformed */
+/* extra field 0x000a "NTFS": well-formed, must still be parsed */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x20, 0x00,             /* extra field size = 32 */
+	0x00, 0x00, 0x00, 0x00, /* reserved */
+	0x01, 0x00,             /* NTFS attribute tag 1 */
+	0x18, 0x00,             /* NTFS attribute 1 size */
+	0x40, 0x42, 0x7c, 0xc6, 0x47, 0x17, 0xda, 0x01, /* Mtime -> 1700000000.100000000 */
+	0x80, 0x4e, 0x26, 0x02, 0x48, 0x17, 0xda, 0x01, /* Atime -> 1700000100.200000000 */
+	0xc0, 0x5a, 0xd0, 0x3d, 0x48, 0x17, 0xda, 0x01, /* Ctime -> 1700000200.300000000 (-> birthtime) */
+/* --- file data --- */
+	0x68, 0x69, 0x0a,       /* "hi\n" */
+/* --- central directory header --- */
+	0x50, 0x4b, 0x01, 0x02, /* central directory header signature */
+	0x14, 0x00,             /* version made by: 2.0, MS-DOS */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x28, 0x00,             /* extra field length = 40 */
+	0x00, 0x00,             /* file comment length */
+	0x00, 0x00,             /* disk number start */
+	0x00, 0x00,             /* internal file attributes */
+	0x00, 0x00, 0xa4, 0x81, /* external file attributes: -rw-r--r-- */
+	0x00, 0x00, 0x00, 0x00, /* relative offset of local header = 0 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+/* extra field 0x5455 "UT": malformed (zero bytes of data) */
+	0x55, 0x54,             /* extra field ID = 0x5455 */
+	0x00, 0x00,             /* extra field size = 0: malformed */
+/* extra field 0x000a "NTFS": well-formed, must still be parsed */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x20, 0x00,             /* extra field size = 32 */
+	0x00, 0x00, 0x00, 0x00, /* reserved */
+	0x01, 0x00,             /* NTFS attribute tag 1 */
+	0x18, 0x00,             /* NTFS attribute 1 size */
+	0x40, 0x42, 0x7c, 0xc6, 0x47, 0x17, 0xda, 0x01, /* Mtime -> 1700000000.100000000 */
+	0x80, 0x4e, 0x26, 0x02, 0x48, 0x17, 0xda, 0x01, /* Atime -> 1700000100.200000000 */
+	0xc0, 0x5a, 0xd0, 0x3d, 0x48, 0x17, 0xda, 0x01, /* Ctime -> 1700000200.300000000 (-> birthtime) */
+/* --- end of central directory record --- */
+	0x50, 0x4b, 0x05, 0x06, /* end of central directory signature */
+	0x00, 0x00,             /* number of this disk */
+	0x00, 0x00,             /* disk with start of central directory */
+	0x01, 0x00,             /* central directory entries on this disk */
+	0x01, 0x00,             /* total central directory entries */
+	0x5e, 0x00, 0x00, 0x00, /* size of central directory = 94 */
+	0x51, 0x00, 0x00, 0x00, /* offset of central directory = 81 */
+	0x00, 0x00,             /* .ZIP file comment length */
+};
+
+DEFINE_TEST(test_read_format_zip_malformed_extra_warn_then_valid)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive_malformed_extra_then_valid,
+		sizeof(archive_malformed_extra_then_valid)));
+
+	/* The malformed UT field still produces a warning ... */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString("test.txt", archive_entry_pathname(ae));
+
+	/* ... but the well-formed NTFS field right after it was still
+	 * parsed: its precise timestamps made it through. */
+	assertEqualInt(1700000000LL, archive_entry_mtime(ae));
+	assertEqualInt(100000000L, archive_entry_mtime_nsec(ae));
+	assertEqualInt(1700000100LL, archive_entry_atime(ae));
+	assertEqualInt(200000000L, archive_entry_atime_nsec(ae));
+	assert(archive_entry_birthtime_is_set(ae));
+	assertEqualInt(1700000200LL, archive_entry_birthtime(ae));
+	assertEqualInt(300000000L, archive_entry_birthtime_nsec(ae));
+
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
