@@ -263,6 +263,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_ntfs_precedence.c
     test_read_format_zip_ntfs_timestamp.c
     test_read_format_zip_padded.c
+    test_read_format_zip_pkware_unix_special.c
     test_read_format_zip_sfx.c
     test_read_format_zip_size_exceeds_declared.c
     test_read_format_zip_streamable_skip.c
