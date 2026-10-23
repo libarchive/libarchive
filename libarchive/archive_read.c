@@ -209,9 +209,11 @@ client_switch_proxy(struct archive_read_filter *f, unsigned int iindex)
 				((struct archive *)a, f->data);
 		}
 		f->data = data2;
-		if (a->client.opener != NULL)
+		if (a->client.opener != NULL) {
+			a->client.dataset[iindex].closed = 0;
 			r2 = (a->client.opener)
 				((struct archive *)a, f->data);
+		}
 	}
 	f->client_total = f->client_avail = 0;
 	return (r1 < r2) ? r1 : r2;
