@@ -42,4 +42,13 @@ typedef struct stat la_seek_stat_t;
 #define la_seek_stat(fd, st)	stat((fd), (st))
 #endif
 
+/*
+ * Tells if seeking (and skipping, which relies on it) should be used with a
+ * file. A pipe or a socket can never seek. The other types of files may or may
+ * not be able to seek, so this only rules out the files that are known not to
+ * seek: if it returns zero, the file can't seek, but if it returns a non-zero
+ * value, it may still not be able to.
+ */
+int	la_use_seek(const la_seek_stat_t *st);
+
 #endif	/* !ARCHIVE_PLATFORM_STAT_H_INCLUDED */

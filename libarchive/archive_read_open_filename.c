@@ -64,6 +64,7 @@
 #include "archive.h"
 #include "archive_platform_stat.h"
 #include "archive_private.h"
+#include "archive_read_private.h"
 #include "archive_string.h"
 
 #ifndef O_BINARY
@@ -413,6 +414,14 @@ file_open(struct archive *a, void *client_data)
 	if (is_disk_like) {
 		mine->use_lseek = 1;
 		mine->size = st.st_size;
+	}
+
+	/* A pipe or a socket can't skip or seek. Tell libarchive, so that the
+	 * formats that need to seek don't try and fail. */
+	if (!la_use_seek(&st)) {
+		((struct archive_read *)a)->client.skipper = NULL;
+		((struct archive_read *)a)->client.seeker = NULL;
+		mine->use_lseek = 0;
 	}
 
 	return (ARCHIVE_OK);
