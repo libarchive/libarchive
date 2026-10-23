@@ -27,6 +27,7 @@
 .Os
 .Sh NAME
 .Nm archive_read_support_filter_all ,
+.Nm archive_read_support_filter_brotli ,
 .Nm archive_read_support_filter_bzip2 ,
 .Nm archive_read_support_filter_compress ,
 .Nm archive_read_support_filter_gzip ,
@@ -47,6 +48,8 @@ Streaming Archive Library (libarchive, -larchive)
 .In archive.h
 .Ft int
 .Fn archive_read_support_filter_all "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_brotli "struct archive *"
 .Ft int
 .Fn archive_read_support_filter_by_code "struct archive *" "int"
 .Ft int
@@ -90,6 +93,22 @@ Streaming Archive Library (libarchive, -larchive)
 .\"
 .Sh DESCRIPTION
 .Bl -tag -compact -width indent
+.It Fn archive_read_support_filter_brotli
+Enables decompression support for Brotli, through the Brotli decoder library
+(libbrotlidec).
+A Brotli stream starts with no signature, so it cannot be detected
+automatically.
+This function does not enable auto-detection, and
+.Fn archive_read_support_filter_all
+does not call it.
+The filter is only used if it is requested explicitly, with
+.Fn archive_read_append_filter
+and the
+.Cm ARCHIVE_FILTER_BROTLI
+code.
+Like the other filters, this function falls back on an external program,
+.Dq brotli -d -c ,
+if the library was not available at build time.
 .It Xo
 .Fn archive_read_support_filter_bzip2 ,
 .Fn archive_read_support_filter_compress ,
