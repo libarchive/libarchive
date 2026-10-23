@@ -347,6 +347,7 @@ IF(ENABLE_TEST)
     test_write_format_iso9660_rockridge_overflow.c
     test_write_format_iso9660_rr_moved_notdir.c
     test_write_format_iso9660_zisofs.c
+    test_write_format_iso9660_zisofs_incompressible.c
     test_write_format_iso9660_zisofs_overflow.c
     test_write_format_iso9660_bugs.c
     test_write_format_mtree.c
