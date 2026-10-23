@@ -128,12 +128,21 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 	p = rule->result;
 	q = start_subst;
 	while (q < end_pattern) {
-		if (*q == '\\' && delim != '\\')
-			q++;
-		if (q == end_pattern)
-			lafe_errc(1, 0, "Invalid replacement string \"%s\": "
-			    "missing closing delimiter '%c' after replacement",
-			    rule_text, delim);
+		/*
+		 * Only drop the backslash of an escaped delimiter.
+		 * Any other escape (\~, \1, \\) is kept intact for
+		 * apply_substitution to interpret.
+		 */
+		if (*q == '\\' && delim != '\\') {
+			if (q + 1 == end_pattern)
+				lafe_errc(1, 0, "Invalid replacement string "
+				    "\"%s\": missing closing delimiter '%c' "
+				    "after replacement", rule_text, delim);
+			if (q[1] == delim)
+				q++;
+			else
+				*p++ = *q++;
+		}
 		*p++ = *q++;
 	}
 	*p = '\0';
