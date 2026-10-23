@@ -60,6 +60,9 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 
 	/* Read the header for "a.txt" */
 	assertEqualIntA(a, expected_read_header_result, archive_read_next_header(a, &ae));
+	if (filenamesEncrypted) {
+		assertEqualInt(ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED, archive_errno(a));
+	}
 	if (!filenamesEncrypted) {
 		assertEqualInt((AE_IFREG | 0644), archive_entry_mode(ae));
 		assertEqualString("a.txt", archive_entry_pathname(ae));
@@ -70,7 +73,9 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 		 * are encrypted */
 		assertEqualInt(solid, archive_read_has_encrypted_entries(a));
 		assertEqualIntA(a, expected_read_data_result, archive_read_data(a, buff, sizeof(buff)));
-		if (!solid) {
+		if (solid) {
+			assertEqualInt(ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED, archive_errno(a));
+		} else {
 			assertEqualMem("This is from a.txt", buff, expected_file_size);
 		}
 	}
@@ -97,6 +102,7 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualInt(1, archive_read_has_encrypted_entries(a));
 	assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED, archive_errno(a));
 
 	/* Read the header for "c.txt" */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -108,7 +114,9 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 	/* After setting to true above, this should forever be true */
 	assertEqualInt(1, archive_read_has_encrypted_entries(a));
 	assertEqualIntA(a, expected_read_data_result, archive_read_data(a, buff, sizeof(buff)));
-	if (!solid) {
+	if (solid) {
+		assertEqualInt(ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED, archive_errno(a));
+	} else {
 		assertEqualMem("This is from c.txt", buff, expected_file_size);
 	}
 
@@ -121,6 +129,7 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualInt(1, archive_read_has_encrypted_entries(a));
 	assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED, archive_errno(a));
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
