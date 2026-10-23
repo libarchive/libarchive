@@ -117,9 +117,15 @@ IF(ENABLE_TEST)
     test_read_filter_uudecode_raw.c
     test_read_filter_zstd_raw.c
     test_read_format_7zip.c
+    test_read_format_7zip_encryption_bcj2.c
     test_read_format_7zip_encryption_data.c
+    test_read_format_7zip_encryption_decoder_failures.c
     test_read_format_7zip_encryption_header.c
+    test_read_format_7zip_encryption_lzma2.c
     test_read_format_7zip_encryption_partially.c
+    test_read_format_7zip_encryption_passphrase.c
+    test_read_format_7zip_encryption_ppmd.c
+    test_read_format_7zip_encryption_properties.c
     test_read_format_7zip_entries_oom.c
     test_read_format_7zip_folders_oom.c
     test_read_format_7zip_issue2765.c
@@ -407,8 +413,18 @@ IF(ENABLE_TEST)
   #
   # Register target
   #
+  # Compile the fault-injected reader separately; never include a .c file.
+  ADD_LIBRARY(archive_7zip_test STATIC ../archive_read_support_format_7zip.c)
+  SET_PROPERTY(TARGET archive_7zip_test PROPERTY COMPILE_DEFINITIONS
+    LIBARCHIVE_STATIC LIBARCHIVE_7ZIP_TEST_READER)
+  SET(_7zip_test_header "${CMAKE_CURRENT_SOURCE_DIR}/test_read_format_7zip_encryption_decoder_failures.h")
+  IF(MSVC)
+    TARGET_COMPILE_OPTIONS(archive_7zip_test PRIVATE "/FI${_7zip_test_header}")
+  ELSE()
+    TARGET_COMPILE_OPTIONS(archive_7zip_test PRIVATE -include "${_7zip_test_header}")
+  ENDIF()
   ADD_EXECUTABLE(libarchive_test ${libarchive_test_SOURCES})
-  TARGET_LINK_LIBRARIES(libarchive_test archive_static ${ADDITIONAL_LIBS})
+  TARGET_LINK_LIBRARIES(libarchive_test archive_7zip_test archive_static ${ADDITIONAL_LIBS})
   SET_PROPERTY(TARGET libarchive_test PROPERTY COMPILE_DEFINITIONS
     LIBARCHIVE_STATIC LIST_H)
 

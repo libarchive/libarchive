@@ -494,9 +494,15 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_uudecode_newlines.c \
 	libarchive/test/test_read_filter_uudecode_raw.c \
 	libarchive/test/test_read_format_7zip.c \
+	libarchive/test/test_read_format_7zip_encryption_bcj2.c \
 	libarchive/test/test_read_format_7zip_encryption_data.c \
-	libarchive/test/test_read_format_7zip_encryption_partially.c \
+	libarchive/test/test_read_format_7zip_encryption_decoder_failures.c \
 	libarchive/test/test_read_format_7zip_encryption_header.c \
+	libarchive/test/test_read_format_7zip_encryption_lzma2.c \
+	libarchive/test/test_read_format_7zip_encryption_partially.c \
+	libarchive/test/test_read_format_7zip_encryption_passphrase.c \
+	libarchive/test/test_read_format_7zip_encryption_ppmd.c \
+	libarchive/test/test_read_format_7zip_encryption_properties.c \
 	libarchive/test/test_read_format_7zip_entries_oom.c \
 	libarchive/test/test_read_format_7zip_folders_oom.c \
 	libarchive/test/test_read_format_7zip_issue2765.c \
@@ -786,7 +792,15 @@ libarchive_test_CPPFLAGS= \
 	-I$(top_builddir)/libarchive/test \
 	-DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
 
-libarchive_test_LDADD= $(LTLIBICONV)
+# The test-only reader uses wrapper declarations and call remapping from a
+# forced header. The normal libarchive objects have no fault injection.
+check_LTLIBRARIES= libarchive_7zip_test.la
+libarchive_7zip_test_la_SOURCES= libarchive/archive_read_support_format_7zip.c
+libarchive_7zip_test_la_CPPFLAGS= $(libarchive_test_CPPFLAGS) \
+	-DLIBARCHIVE_7ZIP_TEST_READER \
+	-include $(top_srcdir)/libarchive/test/test_read_format_7zip_encryption_decoder_failures.h
+noinst_HEADERS+= libarchive/test/test_read_format_7zip_encryption_decoder_failures.h
+libarchive_test_LDADD= libarchive_7zip_test.la $(LTLIBICONV)
 
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
@@ -940,8 +954,29 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_empty_file.7z.uu \
 	libarchive/test/test_read_format_7zip_archive_properties.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bzip2.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2_empty_streams.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2_four.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_bcj2_mixed.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_cycles0.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_cycles63.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_default_properties.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_header_only.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_iv_size.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_lzma2.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_partially.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_copy.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_copy_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_deflate.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_folders.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_passphrase_zstd.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_ppmd.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_ppmd_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_salt_size.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_truncated.7z.uu \
 	libarchive/test/test_read_format_7zip_entries_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_folders_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_extract_second.7z.uu \
