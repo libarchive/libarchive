@@ -41,6 +41,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_O_upper.c
     test_option_P_upper.c
     test_option_T_upper.c
+    test_option_trust_extension.c
     test_option_U_upper.c
     test_option_X_upper.c
     test_option_a.c

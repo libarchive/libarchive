@@ -780,6 +780,9 @@ main(int argc, char **argv)
 		case OPTION_TOTALS: /* GNU tar */
 			bsdtar->flags |= OPTFLAG_TOTALS;
 			break;
+		case OPTION_TRUST_EXTENSION:
+			bsdtar->flags |= OPTFLAG_TRUST_EXTENSION;
+			break;
 		case 'U': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_UNLINK;
 			bsdtar->flags |= OPTFLAG_UNLINK_FIRST;
@@ -941,6 +944,8 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+	if (bsdtar->flags & OPTFLAG_TRUST_EXTENSION)
+		only_mode(bsdtar, "--trust-extension", "xt");
 	if (bsdtar->flags & OPTFLAG_STDOUT)
 		only_mode(bsdtar, "-O", "xt");
 	if (bsdtar->flags & OPTFLAG_UNLINK_FIRST)
@@ -957,6 +962,9 @@ main(int argc, char **argv)
 	/* Check other parameters only permitted in certain modes. */
 	if (compress_program != NULL) {
 		only_mode(bsdtar, "--use-compress-program", "cxt");
+		if (bsdtar->flags & OPTFLAG_TRUST_EXTENSION)
+			lafe_errc(1, 0, "--trust-extension cannot be used "
+			    "with --use-compress-program");
 		cset_add_filter_program(bsdtar->cset, compress_program);
 		/* Ignore specified compressions. */
 		compression = '\0';
@@ -1105,6 +1113,8 @@ static const char *long_help_msg =
 	"  @<archive>  Add entries from <archive> to output\n"
 	"List: %p -t [options] [<patterns>]\n"
 	"  <patterns>  If specified, list only entries that match\n"
+	"  --trust-extension  Use the filename extension, not the contents, to\n"
+	"                     tell the format and the compression\n"
 	"Extract: %p -x [options] [<patterns>]\n"
 	"  <patterns>  If specified, extract only entries that match\n"
 	"  -k    Keep (don't overwrite) existing files\n"

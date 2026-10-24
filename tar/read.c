@@ -164,9 +164,29 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			    archive_error_string(bsdtar->matching));
 
 	a = archive_read_new();
-	if (cset_read_support_filter_program(bsdtar->cset, a) == 0)
-		archive_read_support_filter_all(a);
-	archive_read_support_format_all(a);
+	if (bsdtar->flags & OPTFLAG_TRUST_EXTENSION) {
+		/*
+		 * The name says how to read the archive, and nothing else
+		 * does: there is no detection from the contents to fall back
+		 * on, so an unknown name is an error.
+		 */
+		la_ssize_t n;
+
+		if (bsdtar->filename == NULL)
+			lafe_errc(1, 0, "--trust-extension needs the name "
+			    "of the archive, not standard input");
+		n = archive_read_set_format_from_filename(a, bsdtar->filename,
+		    -1);
+		if (n == ARCHIVE_FAILED)
+			lafe_errc(1, 0, "Cannot determine the archive format "
+			    "from the extension of '%s'", bsdtar->filename);
+		if (n < 0)
+			lafe_errc(1, 0, "%s", archive_error_string(a));
+	} else {
+		if (cset_read_support_filter_program(bsdtar->cset, a) == 0)
+			archive_read_support_filter_all(a);
+		archive_read_support_format_all(a);
+	}
 
 	reader_options = getenv(ENV_READER_OPTIONS);
 	if (reader_options != NULL) {
