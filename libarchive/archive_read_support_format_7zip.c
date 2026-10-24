@@ -68,6 +68,9 @@
 #define SFX_MAX_OFFSET	(SFX_MAX_ADDR - SFX_MIN_ADDR)
 #define SFX_MAX_SEEK	0x800000
 
+/* Maximum PPMd model size (576 MiB). */
+#define MAX_DECODER_SIZE	(576 * 1024 * 1024)
+
 /*
  * PE format
  */
@@ -1672,6 +1675,15 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Malformed PPMd parameter");
 			return (ARCHIVE_FAILED);
+		}
+		/*
+		 * PPMd cannot grow this pool incrementally;
+		 * Ppmd7_Alloc() mallocs the full msize.
+		 */
+		if (msize > MAX_DECODER_SIZE) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "PPMd dictionary exceeds decoder memory limit");
+			return (ARCHIVE_FATAL);
 		}
 		__archive_ppmd7_functions.Ppmd7_Construct(&zip->ppmd7_context);
 		r = __archive_ppmd7_functions.Ppmd7_Alloc(
