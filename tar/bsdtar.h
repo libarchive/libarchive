@@ -34,6 +34,7 @@ struct creation_set;
 struct bsdtar {
 	/* Options */
 	const char	 *filename; /* -f filename */
+	const char	 *stdin_name; /* --stdin-name */
 	char		 *pending_chdir; /* -C dir */
 	const char	 *names_from_file; /* -T file */
 	int		  bytes_per_block; /* -b block_size */
@@ -171,6 +172,7 @@ enum {
 	OPTION_READ_SPARSE,
 	OPTION_SAFE_WRITES,
 	OPTION_SAME_OWNER,
+	OPTION_STDIN_NAME,
 	OPTION_STRIP_COMPONENTS,
 	OPTION_TOTALS,
 	OPTION_TRUST_EXTENSION,

@@ -936,6 +936,18 @@ This is the reverse of
 and the default behavior if
 .Nm
 is run as root.
+.It Fl Fl stdin-name Ar name
+(t and x modes only)
+Give the name to assume for the archive when it is read from standard input,
+for use with
+.Fl Fl trust-extension .
+Only its extensions matter, and the file does not need to exist.
+For example,
+.Dl curl ... | bsdtar --trust-extension --stdin-name backup.tgz -xf -
+It is an error to use this option without
+.Fl Fl trust-extension ,
+or when the archive is read from a file.
+A pipe cannot seek, so a ZIP or 7-Zip archive cannot be read this way.
 .It Fl Fl strip-components Ar count
 Remove the specified number of leading path elements.
 Pathnames with fewer elements will be silently skipped.

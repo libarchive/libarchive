@@ -136,6 +136,7 @@ static const struct bsdtar_option {
 	{ "safe-writes",	  0, OPTION_SAFE_WRITES },
 	{ "same-owner",	          0, OPTION_SAME_OWNER },
 	{ "same-permissions",     0, 'p' },
+	{ "stdin-name",		  1, OPTION_STDIN_NAME },
 	{ "strip-components",	  1, OPTION_STRIP_COMPONENTS },
 	{ "to-stdout",            0, 'O' },
 	{ "totals",		  0, OPTION_TOTALS },
