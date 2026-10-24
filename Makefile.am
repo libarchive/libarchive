@@ -1875,6 +1875,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_d.c \
 	unzip/test/test_j.c \
 	unzip/test/test_L.c \
+	unzip/test/test_list.c \
 	unzip/test/test_n.c \
 	unzip/test/test_o.c \
 	unzip/test/test_q.c \
