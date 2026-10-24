@@ -288,9 +288,17 @@ archive_wstring_free(struct archive_wstring *as)
 struct archive_wstring *
 archive_wstring_ensure(struct archive_wstring *as, size_t s)
 {
+	size_t ws;
+
+	if (archive_ckd_mul_size(&ws, s, sizeof(wchar_t))) {
+		/* On failure, wipe the string and return NULL. */
+		archive_wstring_free(as);
+		errno = ENOMEM;/* Make sure errno has ENOMEM. */
+		return (NULL);
+	}
+
 	return (struct archive_wstring *)
-		archive_string_ensure((struct archive_string *)as,
-					s * sizeof(wchar_t));
+		archive_string_ensure((struct archive_string *)as, ws);
 }
 
 /* Returns NULL on any allocation failure. */
