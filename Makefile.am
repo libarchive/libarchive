@@ -183,6 +183,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_open_filename.c \
 	libarchive/archive_read_open_memory.c \
 	libarchive/archive_read_set_format.c \
+	libarchive/archive_read_set_format_from_filename.c \
 	libarchive/archive_read_set_options.c \
 	libarchive/archive_read_support_filter_all.c \
 	libarchive/archive_read_support_filter_by_code.c \
@@ -664,6 +665,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_pax_truncated.c \
 	libarchive/test/test_read_position.c \
 	libarchive/test/test_read_set_format.c \
+	libarchive/test/test_read_set_format_from_filename.c \
 	libarchive/test/test_read_too_many_filters.c \
 	libarchive/test/test_read_truncated.c \
 	libarchive/test/test_read_truncated_filter.c \

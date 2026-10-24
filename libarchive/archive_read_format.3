@@ -42,7 +42,8 @@
 .Nm archive_read_support_format_tar ,
 .Nm archive_read_support_format_warc ,
 .Nm archive_read_support_format_xar ,
-.Nm archive_read_support_format_zip
+.Nm archive_read_support_format_zip ,
+.Nm archive_read_set_format_from_filename
 .Nd functions for reading streaming archives
 .\"
 .Sh LIBRARY
@@ -83,6 +84,8 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_read_support_format_xar "struct archive *"
 .Ft int
 .Fn archive_read_support_format_zip "struct archive *"
+.Ft ssize_t
+.Fn archive_read_set_format_from_filename "struct archive *" "const char *filename" "ssize_t filename_length"
 .\"
 .Sh DESCRIPTION
 .Bl -tag -compact -width indent
@@ -154,6 +157,110 @@ all other entry fields are unset.
 This is not enabled by
 .Fn archive_read_support_format_all
 in order to avoid erroneous handling of damaged archives.
+.It Fn archive_read_set_format_from_filename
+Enables the filters and the format reader that the filename extensions of the
+archive call for, and returns the length of the filename without those
+extensions.
+Call it once, on a new archive handle, before opening the archive.
+A second call enables each filter again, so that the data is decoded twice.
+A call after the archive was opened returns
+.Cm ARCHIVE_FATAL .
+.Pp
+If
+.Ar filename_length
+is negative, the length of
+.Ar filename
+is taken with
+.Xr strlen 3 .
+Otherwise
+.Ar filename
+need not be terminated, and a name with a NUL byte within that length is not
+recognized.
+If
+.Ar filename
+is
+.Dv NULL
+or empty, as when the archive is read from standard input, the name has no
+extension and the function returns
+.Cm ARCHIVE_FAILED .
+.Pp
+Extensions are compared without regard to case, and only the last component of
+the path is considered.
+A name that starts with a dot, such as
+.Pa .gz ,
+has no extension.
+.Pp
+Extensions of a compression are enabled as filters, one for each extension, as
+if by
+.Xr archive_read_filter 3 .
+They are decoded by libarchive itself, including the uuencoded
+.Pa .uu
+and
+.Pa .uue .
+What is left of the name tells the format:
+.Bl -bullet -compact
+.It
+.Pa report.tar.gz
+and
+.Pa report.tgz
+enable the gzip filter and the tar format, and return 6, the length of
+.Pa report .
+So do
+.Pa report.tar.uu
+and
+.Pa report.tgz.uu .
+.Pa report.cpgz ,
+a gzip-compressed cpio archive, is read the same way with the cpio format.
+.It
+.Pa report.rpm
+and
+.Pa report.spm
+enable the RPM filter, which skips the headers of the package, the filters of
+its compressed payload, and the cpio format.
+The compression of the payload is found by its contents.
+They are not recognized after another extension: unlike the others, those
+filters bid for their data, which libarchive does not do once a filter has been
+appended.
+So
+.Pa report.rpm.gz
+is read as a compressed file.
+.It
+.Pa report.zip
+enables the seeking zip reader.
+The streaming zip reader is not used, because it only sees the local headers
+and so loses the Unix modes and the symbolic links.
+.It
+.Pa report.txt.gz
+enables the gzip filter and the
+.Dq raw
+format, and returns 10, the length of
+.Pa report.txt .
+The only entry is named
+.Pa report.txt ,
+with the
+.Cm pathname
+option of the format (see
+.Xr archive_read_set_options 3 ) ,
+unless the data stores a name of its own, as gzip can.
+Only the last component of the filename is used.
+.It
+.Pa report.7z.gz
+and
+.Pa report.zip.gz
+are read as compressed files too, like
+.Pa report.txt.gz .
+The 7-Zip and zip readers need to seek, which a decompression filter cannot do.
+.El
+.Pp
+If the extension is missing or not recognized, nothing is enabled and the
+function returns
+.Cm ARCHIVE_FAILED .
+The application can then enable the formats that it supports with
+.Fn archive_read_support_format_all
+or the other functions above.
+.Pp
+This function only enables readers and filters; it does not select one of them.
+Format detection still runs among the formats that were enabled.
 .El
 .\" .Sh EXAMPLE
 .Sh RETURN VALUES
@@ -161,6 +268,11 @@ These functions return
 .Cm ARCHIVE_OK
 on success, or
 .Cm ARCHIVE_FATAL .
+.Fn archive_read_set_format_from_filename
+returns instead the length of the filename without the extensions that it took
+into account, or a negative error code, such as
+.Cm ARCHIVE_FAILED
+for an extension that is not recognized.
 .\"
 .Sh ERRORS
 Detailed error codes and textual descriptions are available from the

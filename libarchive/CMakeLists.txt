@@ -81,6 +81,7 @@ SET(libarchive_SOURCES
   archive_read_open_memory.c
   archive_read_private.h
   archive_read_set_format.c
+  archive_read_set_format_from_filename.c
   archive_read_set_options.c
   archive_read_support_filter_all.c
   archive_read_support_filter_by_code.c
