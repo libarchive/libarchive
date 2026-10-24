@@ -465,6 +465,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_gnutar_filename_encoding.c \
 	libarchive/test/test_link_resolver.c \
 	libarchive/test/test_open_failure.c \
+	libarchive/test/test_open_failure_cleanup.c \
 	libarchive/test/test_open_fd.c \
 	libarchive/test/test_open_file.c \
 	libarchive/test/test_open_filename.c \
