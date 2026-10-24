@@ -13,6 +13,26 @@ IF "%BE%"=="mingw" (
   SET MINGWPATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;D:\msys64\%MSYSTEM%\bin;C:\Program Files\cmake\bin
 )
 
+REM Target architecture for the MSVC build. Defaults to x64 when unset.
+IF "%ARCH%"=="" SET "ARCH=x64"
+IF /I "%ARCH%"=="x64" GOTO :ARCH_X64
+IF /I "%ARCH%"=="arm64" GOTO :ARCH_ARM64
+ECHO Environment variable ARCH must be x64 or arm64
+EXIT /b 1
+
+:ARCH_X64
+SET "CMAKE_PLATFORM=x64"
+SET "VCPKG_TRIPLET=x64-windows-static"
+SET "INSTALL_ROOT=C:\Program Files (x86)"
+GOTO :ARCH_DONE
+
+:ARCH_ARM64
+SET "CMAKE_PLATFORM=ARM64"
+SET "VCPKG_TRIPLET=arm64-windows-static"
+SET "INSTALL_ROOT=C:\Program Files"
+GOTO :ARCH_DONE
+
+:ARCH_DONE
 IF "%1%"=="configure" (
   IF "%BE%"=="mingw" (
     SET PATH=%MINGWPATH%
@@ -22,7 +42,7 @@ IF "%1%"=="configure" (
   ) ELSE IF "%BE%"=="msvc" (
     MKDIR build_ci\cmake
     CD build_ci\cmake
-    cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" --toolchain "%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake" -D VCPKG_TARGET_TRIPLET=x64-windows-static -D VCPKG_MANIFEST_DIR=%GITHUB_WORKSPACE%\build\ci\github_actions ..\.. || EXIT /b 1
+    cmake -G "%CMAKE_GENERATOR%" -A %CMAKE_PLATFORM% -D CMAKE_BUILD_TYPE="Release" -D CMAKE_INSTALL_PREFIX="%INSTALL_ROOT%\libarchive" --toolchain "%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake" -D VCPKG_TARGET_TRIPLET=%VCPKG_TRIPLET% -D VCPKG_MANIFEST_DIR=%GITHUB_WORKSPACE%\build\ci\github_actions ..\.. || EXIT /b 1
   ) ELSE IF "%BE%"=="cygwin-gcc" (
     SET BS=cmake
     SET CYGWIN_NOWINPATH=1
@@ -75,7 +95,7 @@ IF "%1%"=="configure" (
     REM Exit early here; the build.sh install step for Cygwin prints the version.
     EXIT /b 0
   )
-  "C:\Program Files (x86)\libarchive\bin\bsdtar.exe" --version
+  "%INSTALL_ROOT%\libarchive\bin\bsdtar.exe" --version
 ) ELSE IF "%1"=="artifact" (
   IF "%BE%"=="cygwin-gcc" (
     SET BS=cmake
@@ -84,7 +104,7 @@ IF "%1%"=="configure" (
     EXIT /b 0
   )
 
-  C:\windows\system32\tar.exe -c -C "C:\Program Files (x86)" --format=zip -f libarchive.zip libarchive
+  C:\windows\system32\tar.exe -c -C "%INSTALL_ROOT%" --format=zip -f libarchive.zip libarchive
 ) ELSE (
   ECHO "Usage: %0% deplibs|configure|build|test|install|artifact"
   @EXIT /b 0
