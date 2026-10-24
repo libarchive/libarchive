@@ -1437,6 +1437,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_O_upper.c \
 	tar/test/test_option_P_upper.c \
 	tar/test/test_option_T_upper.c \
+	tar/test/test_option_stdin_name.c \
 	tar/test/test_option_trust_extension.c \
 	tar/test/test_option_U_upper.c \
 	tar/test/test_option_X_upper.c \

@@ -758,6 +758,9 @@ main(int argc, char **argv)
 		case OPTION_SAME_OWNER: /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 			break;
+		case OPTION_STDIN_NAME:
+			bsdtar->stdin_name = bsdtar->argument;
+			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
 			tptr = NULL;
 			l = strtol(bsdtar->argument, &tptr, 10);
@@ -946,6 +949,8 @@ main(int argc, char **argv)
 	}
 	if (bsdtar->flags & OPTFLAG_TRUST_EXTENSION)
 		only_mode(bsdtar, "--trust-extension", "xt");
+	if (bsdtar->stdin_name != NULL)
+		only_mode(bsdtar, "--stdin-name", "xt");
 	if (bsdtar->flags & OPTFLAG_STDOUT)
 		only_mode(bsdtar, "-O", "xt");
 	if (bsdtar->flags & OPTFLAG_UNLINK_FIRST)
@@ -1015,6 +1020,15 @@ main(int argc, char **argv)
 	/* Filename "-" implies stdio. */
 	if (strcmp(bsdtar->filename, "-") == 0)
 		bsdtar->filename = NULL;
+
+	if (bsdtar->stdin_name != NULL) {
+		if (!(bsdtar->flags & OPTFLAG_TRUST_EXTENSION))
+			lafe_errc(1, 0, "--stdin-name requires "
+			    "--trust-extension");
+		if (bsdtar->filename != NULL)
+			lafe_errc(1, 0, "--stdin-name only applies when "
+			    "reading standard input");
+	}
 
 	switch(bsdtar->mode) {
 	case 'c':
@@ -1115,6 +1129,8 @@ static const char *long_help_msg =
 	"  <patterns>  If specified, list only entries that match\n"
 	"  --trust-extension  Use the filename extension, not the contents, to\n"
 	"                     tell the format and the compression\n"
+	"  --stdin-name <name>  Name to assume for standard input, for\n"
+	"                       --trust-extension\n"
 	"Extract: %p -x [options] [<patterns>]\n"
 	"  <patterns>  If specified, extract only entries that match\n"
 	"  -k    Keep (don't overwrite) existing files\n"

@@ -170,16 +170,18 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 		 * does: there is no detection from the contents to fall back
 		 * on, so an unknown name is an error.
 		 */
+		const char *name = bsdtar->filename != NULL ?
+		    bsdtar->filename : bsdtar->stdin_name;
 		la_ssize_t n;
 
-		if (bsdtar->filename == NULL)
+		if (name == NULL)
 			lafe_errc(1, 0, "--trust-extension needs the name "
-			    "of the archive, not standard input");
-		n = archive_read_set_format_from_filename(a, bsdtar->filename,
-		    -1);
+			    "of the archive: give one for standard input "
+			    "with --stdin-name");
+		n = archive_read_set_format_from_filename(a, name, -1);
 		if (n == ARCHIVE_FAILED)
 			lafe_errc(1, 0, "Cannot determine the archive format "
-			    "from the extension of '%s'", bsdtar->filename);
+			    "from the extension of '%s'", name);
 		if (n < 0)
 			lafe_errc(1, 0, "%s", archive_error_string(a));
 	} else {
