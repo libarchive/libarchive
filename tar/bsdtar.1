@@ -969,6 +969,32 @@ as well.
 .It Fl Fl totals
 (c, r, u modes only)
 After archiving all files, print a summary to stderr.
+.It Fl Fl trust-extension
+(t and x modes only)
+Use the filename extensions of the archive, which is given with
+.Fl f ,
+to choose the compression filters and the format, instead of detecting
+them from the contents.
+A compressed file that isn't named as an archive, such as
+.Pa data.7z.gz ,
+is read as an archive that holds a single file, which is named like the
+archive without its extensions
+.Pq Pa data.7z
+unless the compressed data stores another name.
+Detection cannot read a ZIP or 7-Zip archive that was compressed afterwards:
+it fails for 7-Zip, and for ZIP it reads incomplete information, without
+the Unix modes and the symbolic links.
+.Pp
+The extensions are trusted:
+if they are not recognized, or if the format that they name cannot read the
+archive,
+.Nm
+fails and does not try to detect the format from the contents.
+The compression that they name is not verified:
+data that is not compressed that way can read as an empty archive.
+It also fails if the archive is read from standard input, which has no name.
+This option cannot be used with
+.Fl Fl use-compress-program .
 .It Fl U , Fl Fl unlink , Fl Fl unlink-first
 (x mode only)
 Unlink files before creating them.
