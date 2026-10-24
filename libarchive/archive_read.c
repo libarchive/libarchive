@@ -530,7 +530,7 @@ archive_read_open1(struct archive *_a)
 			bidder = f2->bidder;
 
 			r = (bidder->vtable->bid)(bidder, f2->upstream);
-			if (r < 0) {
+			if (r <= 0) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Registered filter does not match");
