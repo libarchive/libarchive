@@ -31,6 +31,9 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -42,10 +45,13 @@ struct raw {
 	int64_t offset; /* Current position in the file. */
 	int64_t unconsumed;
 	int     end_of_file;
+	char   *pathname; /* Name of the entry, instead of "data". */
 };
 
 static int	archive_read_format_raw_bid(struct archive_read *, int);
 static int	archive_read_format_raw_cleanup(struct archive_read *);
+static int	archive_read_format_raw_options(struct archive_read *,
+		    const char *, const char *);
 static int	archive_read_format_raw_read_data(struct archive_read *,
 		    const void **, size_t *, int64_t *);
 static int	archive_read_format_raw_read_data_skip(struct archive_read *);
@@ -72,7 +78,7 @@ archive_read_support_format_raw(struct archive *_a)
 	    raw,
 	    "raw",
 	    archive_read_format_raw_bid,
-	    NULL,
+	    archive_read_format_raw_options,
 	    archive_read_format_raw_read_header,
 	    archive_read_format_raw_read_data,
 	    archive_read_format_raw_read_data_skip,
@@ -115,12 +121,16 @@ archive_read_format_raw_read_header(struct archive_read *a,
 
 	a->archive.archive_format = ARCHIVE_FORMAT_RAW;
 	a->archive.archive_format_name = "raw";
-	archive_entry_set_pathname(entry, "data");
+	archive_entry_set_pathname(entry,
+	    raw->pathname != NULL ? raw->pathname : "data");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_perm(entry, 0644);
 	/* I'm deliberately leaving most fields unset here. */
 
-	/* Let the filter fill out any fields it might have. */
+	/*
+	 * Let the filter fill out any fields it might have. A name that it
+	 * stored in the data wins over the one that was set.
+	 */
 	return __archive_read_header(a, entry);
 }
 
@@ -195,7 +205,37 @@ archive_read_format_raw_cleanup(struct archive_read *a)
 {
 	struct raw *raw = a->format->data;
 
+	free(raw->pathname);
 	free(raw);
 	a->format->data = NULL;
 	return (ARCHIVE_OK);
+}
+
+static int
+archive_read_format_raw_options(struct archive_read *a,
+    const char *key, const char *val)
+{
+	struct raw *raw = (struct raw *)a->format->data;
+
+	if (strcmp(key, "pathname") == 0) {
+		char *pathname = NULL;
+
+		/* An empty value goes back to the default name. */
+		if (val != NULL && val[0] != '\0') {
+			pathname = strdup(val);
+			if (pathname == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate raw pathname");
+				return (ARCHIVE_FATAL);
+			}
+		}
+		free(raw->pathname);
+		raw->pathname = pathname;
+		return (ARCHIVE_OK);
+	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
