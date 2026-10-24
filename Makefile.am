@@ -502,6 +502,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_7zip_issue2765.c \
 	libarchive/test/test_read_format_7zip_malformed.c \
 	libarchive/test/test_read_format_7zip_packinfo_digests.c \
+	libarchive/test/test_read_format_7zip_ppmd_oom.c \
 	libarchive/test/test_read_format_ar.c \
 	libarchive/test/test_read_format_cab.c \
 	libarchive/test/test_read_format_cab_filename.c \
@@ -972,6 +973,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_ppmd.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd_arm64.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd_bcj.7z.uu \
+	libarchive/test/test_read_format_7zip_ppmd_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_ppmd_small_block.7z.uu \
 	libarchive/test/test_read_format_7zip_sfx_boundary_elf.elf.uu \
 	libarchive/test/test_read_format_7zip_sfx_boundary_pe.exe.uu \
