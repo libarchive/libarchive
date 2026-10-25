@@ -272,6 +272,42 @@ DEFINE_TEST(test_open_filename_stdin_zip)
 #endif
 }
 
+DEFINE_TEST(test_open_filename_stdin_empty_tar)
+{
+#if HAVE_PIPE && (!defined(_WIN32) || defined(__CYGWIN__))
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[1024];
+	int fd[2], saved_stdin;
+
+	/* An empty tar archive is just two zero blocks. */
+	memset(buff, 0, sizeof(buff));
+
+	saved_stdin = dup(0);
+	if (saved_stdin < 0) {
+		skipping("stdin is unavailable");
+		return;
+	}
+	assertEqualInt(0, pipe(fd));
+	assertEqualInt((ssize_t)sizeof(buff), write(fd[1], buff, sizeof(buff)));
+	assertEqualInt(0, close(fd[1]));
+	assertEqualInt(0, dup2(fd[0], 0));
+	assertEqualInt(0, close(fd[0]));
+
+	/* Bidders that try to seek must not break reading from a pipe. */
+	a = archive_read_new();
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, NULL, 10240));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &entry));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(0, dup2(saved_stdin, 0));
+	assertEqualInt(0, close(saved_stdin));
+#else
+	skipping("pipe and dup2 are unavailable on this platform");
+#endif
+}
+
 DEFINE_TEST(test_open_filename_proc_einval)
 {
 #if defined(__linux__)
