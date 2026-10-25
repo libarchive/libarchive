@@ -289,3 +289,49 @@ DEFINE_TEST(test_write_format_gnutar_switch)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_gnutar(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
+
+/*
+ * An entry rejected by archive_write_header() must not leave its
+ * ././@LongLink header behind, or the next entry gets its name.
+ */
+DEFINE_TEST(test_write_format_gnutar_rejected_long_name)
+{
+	char buff[16384];
+	struct archive_entry *ae;
+	struct archive *a;
+	size_t used;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_gnutar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	/* The minor device number does not fit in the header. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, longfilename);
+	archive_entry_set_mode(ae, AE_IFCHR | 0644);
+	archive_entry_set_rdevmajor(ae, 1);
+	archive_entry_set_rdevminor(ae, 1 << 21);
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file");
+	archive_entry_set_mode(ae, AE_IFREG | 0644);
+	archive_entry_set_size(ae, 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("file", archive_entry_pathname(ae));
+	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
