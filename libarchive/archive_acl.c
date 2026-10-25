@@ -1309,21 +1309,21 @@ static int
 ismode_w(const wchar_t *start, const wchar_t *end, int *permset)
 {
 	const wchar_t *p;
+	int mode = 0;
 
 	if (start >= end)
 		return (0);
 	p = start;
-	*permset = 0;
 	while (p < end) {
 		switch (*p++) {
 		case L'r': case L'R':
-			*permset |= ARCHIVE_ENTRY_ACL_READ;
+			mode |= ARCHIVE_ENTRY_ACL_READ;
 			break;
 		case L'w': case L'W':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE;
 			break;
 		case L'x': case L'X':
-			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			mode |= ARCHIVE_ENTRY_ACL_EXECUTE;
 			break;
 		case L'-':
 			break;
@@ -1331,6 +1331,7 @@ ismode_w(const wchar_t *start, const wchar_t *end, int *permset)
 			return (0);
 		}
 	}
+	*permset = mode;
 	return (1);
 }
 
@@ -1343,50 +1344,51 @@ static int
 is_nfs4_perms_w(const wchar_t *start, const wchar_t *end, int *permset)
 {
 	const wchar_t *p = start;
+	int mode = 0;
 
 	while (p < end) {
 		switch (*p++) {
 		case L'r':
-			*permset |= ARCHIVE_ENTRY_ACL_READ_DATA;
+			mode |= ARCHIVE_ENTRY_ACL_READ_DATA;
 			break;
 		case L'w':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_DATA;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_DATA;
 			break;
 		case L'x':
-			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			mode |= ARCHIVE_ENTRY_ACL_EXECUTE;
 			break;
 		case L'p':
-			*permset |= ARCHIVE_ENTRY_ACL_APPEND_DATA;
+			mode |= ARCHIVE_ENTRY_ACL_APPEND_DATA;
 			break;
 		case L'D':
-			*permset |= ARCHIVE_ENTRY_ACL_DELETE_CHILD;
+			mode |= ARCHIVE_ENTRY_ACL_DELETE_CHILD;
 			break;
 		case L'd':
-			*permset |= ARCHIVE_ENTRY_ACL_DELETE;
+			mode |= ARCHIVE_ENTRY_ACL_DELETE;
 			break;
 		case L'a':
-			*permset |= ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES;
+			mode |= ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES;
 			break;
 		case L'A':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES;
 			break;
 		case L'R':
-			*permset |= ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS;
+			mode |= ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS;
 			break;
 		case L'W':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS;
 			break;
 		case L'c':
-			*permset |= ARCHIVE_ENTRY_ACL_READ_ACL;
+			mode |= ARCHIVE_ENTRY_ACL_READ_ACL;
 			break;
 		case L'C':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_ACL;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_ACL;
 			break;
 		case L'o':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_OWNER;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_OWNER;
 			break;
 		case L's':
-			*permset |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
+			mode |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
 			break;
 		case L'-':
 			break;
@@ -1394,6 +1396,7 @@ is_nfs4_perms_w(const wchar_t *start, const wchar_t *end, int *permset)
 			return(0);
 		}
 	}
+	*permset |= mode;
 	return (1);
 }
 
@@ -1406,30 +1409,31 @@ static int
 is_nfs4_flags_w(const wchar_t *start, const wchar_t *end, int *permset)
 {
 	const wchar_t *p = start;
+	int mode = 0;
 
 	while (p < end) {
 		switch(*p++) {
 		case L'f':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT;
 			break;
 		case L'd':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT;
 			break;
 		case L'i':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY;
 			break;
 		case L'n':
-			*permset |=
+			mode |=
 			    ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT;
 			break;
 		case L'S':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS;
 			break;
 		case L'F':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS;
 			break;
 		case L'I':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_INHERITED;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_INHERITED;
 			break;
 		case L'-':
 			break;
@@ -1437,6 +1441,7 @@ is_nfs4_flags_w(const wchar_t *start, const wchar_t *end, int *permset)
 			return (0);
 		}
 	}
+	*permset |= mode;
 	return (1);
 }
 
@@ -1838,21 +1843,21 @@ static int
 ismode(const char *start, const char *end, int *permset)
 {
 	const char *p;
+	int mode = 0;
 
 	if (start >= end)
 		return (0);
 	p = start;
-	*permset = 0;
 	while (p < end) {
 		switch (*p++) {
 		case 'r': case 'R':
-			*permset |= ARCHIVE_ENTRY_ACL_READ;
+			mode |= ARCHIVE_ENTRY_ACL_READ;
 			break;
 		case 'w': case 'W':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE;
 			break;
 		case 'x': case 'X':
-			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			mode |= ARCHIVE_ENTRY_ACL_EXECUTE;
 			break;
 		case '-':
 			break;
@@ -1860,6 +1865,7 @@ ismode(const char *start, const char *end, int *permset)
 			return (0);
 		}
 	}
+	*permset = mode;
 	return (1);
 }
 
@@ -1872,50 +1878,51 @@ static int
 is_nfs4_perms(const char *start, const char *end, int *permset)
 {
 	const char *p = start;
+	int mode = 0;
 
 	while (p < end) {
 		switch (*p++) {
 		case 'r':
-			*permset |= ARCHIVE_ENTRY_ACL_READ_DATA;
+			mode |= ARCHIVE_ENTRY_ACL_READ_DATA;
 			break;
 		case 'w':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_DATA;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_DATA;
 			break;
 		case 'x':
-			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			mode |= ARCHIVE_ENTRY_ACL_EXECUTE;
 			break;
 		case 'p':
-			*permset |= ARCHIVE_ENTRY_ACL_APPEND_DATA;
+			mode |= ARCHIVE_ENTRY_ACL_APPEND_DATA;
 			break;
 		case 'D':
-			*permset |= ARCHIVE_ENTRY_ACL_DELETE_CHILD;
+			mode |= ARCHIVE_ENTRY_ACL_DELETE_CHILD;
 			break;
 		case 'd':
-			*permset |= ARCHIVE_ENTRY_ACL_DELETE;
+			mode |= ARCHIVE_ENTRY_ACL_DELETE;
 			break;
 		case 'a':
-			*permset |= ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES;
+			mode |= ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES;
 			break;
 		case 'A':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES;
 			break;
 		case 'R':
-			*permset |= ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS;
+			mode |= ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS;
 			break;
 		case 'W':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS;
 			break;
 		case 'c':
-			*permset |= ARCHIVE_ENTRY_ACL_READ_ACL;
+			mode |= ARCHIVE_ENTRY_ACL_READ_ACL;
 			break;
 		case 'C':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_ACL;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_ACL;
 			break;
 		case 'o':
-			*permset |= ARCHIVE_ENTRY_ACL_WRITE_OWNER;
+			mode |= ARCHIVE_ENTRY_ACL_WRITE_OWNER;
 			break;
 		case 's':
-			*permset |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
+			mode |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
 			break;
 		case '-':
 			break;
@@ -1923,6 +1930,7 @@ is_nfs4_perms(const char *start, const char *end, int *permset)
 			return(0);
 		}
 	}
+	*permset |= mode;
 	return (1);
 }
 
@@ -1935,30 +1943,31 @@ static int
 is_nfs4_flags(const char *start, const char *end, int *permset)
 {
 	const char *p = start;
+	int mode = 0;
 
 	while (p < end) {
 		switch(*p++) {
 		case 'f':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT;
 			break;
 		case 'd':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT;
 			break;
 		case 'i':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY;
 			break;
 		case 'n':
-			*permset |=
+			mode |=
 			    ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT;
 			break;
 		case 'S':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS;
 			break;
 		case 'F':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS;
 			break;
 		case 'I':
-			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_INHERITED;
+			mode |= ARCHIVE_ENTRY_ACL_ENTRY_INHERITED;
 			break;
 		case '-':
 			break;
@@ -1966,6 +1975,7 @@ is_nfs4_flags(const char *start, const char *end, int *permset)
 			return (0);
 		}
 	}
+	*permset |= mode;
 	return (1);
 }
 
