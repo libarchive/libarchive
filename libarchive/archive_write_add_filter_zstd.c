@@ -59,7 +59,7 @@ struct zstd {
 	int		 compression_level;
 	int		 threads;
 	int		 long_distance;
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream2
 	enum {
 		running,
 		finishing,
@@ -88,10 +88,6 @@ struct zstd {
 
 #define LONG_STD 27
 
-#define MINVER_NEGCLEVEL 10304
-#define MINVER_MINCLEVEL 10306
-#define MINVER_LONG 10302
-
 static int archive_compressor_zstd_options(struct archive_write_filter *,
 		    const char *, const char *);
 static int archive_compressor_zstd_open(struct archive_write_filter *);
@@ -100,7 +96,7 @@ static int archive_compressor_zstd_write(struct archive_write_filter *,
 static int archive_compressor_zstd_flush(struct archive_write_filter *);
 static int archive_compressor_zstd_close(struct archive_write_filter *);
 static int archive_compressor_zstd_free(struct archive_write_filter *);
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream2
 static int drive_compressor(struct archive_write_filter *,
 		    struct zstd *, int, const void *, size_t);
 #endif
@@ -126,7 +122,7 @@ archive_write_add_filter_zstd(struct archive *a)
 	zstd->compression_level = CLEVEL_DEFAULT;
 	zstd->threads = 0;
 	zstd->long_distance = 0;
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream2
 	zstd->frame_per_file = 0;
 	zstd->min_frame_in = 0;
 	zstd->max_frame_in = SIZE_MAX;
@@ -193,7 +189,7 @@ string_to_number(const char *string, intmax_t *numberp)
 	return (ARCHIVE_OK);
 }
 
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream2
 static int
 string_to_size(const char *string, size_t *numberp)
 {
@@ -250,17 +246,9 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		/* If we don't have the library, hard-code the max level */
 		int minimum = CLEVEL_MIN;
 		int maximum = CLEVEL_MAX;
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream2
 		maximum = ZSTD_maxCLevel();
-#if ZSTD_VERSION_NUMBER >= MINVER_MINCLEVEL
-		if (ZSTD_versionNumber() >= MINVER_MINCLEVEL) {
-			minimum = ZSTD_minCLevel();
-		}
-		else
-#endif
-		if (ZSTD_versionNumber() < MINVER_NEGCLEVEL) {
-			minimum = CLEVEL_STD_MIN;
-		}
+		minimum = ZSTD_minCLevel();
 #endif
 		if (level < minimum || level > maximum) {
 			archive_set_error(f->archive, ARCHIVE_ERRNO_MISC,
@@ -296,7 +284,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		}
 		zstd->threads = (int)threads;
 		return (ARCHIVE_OK);
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream2
 	} else if (strcmp(key, "frame-per-file") == 0) {
 		zstd->frame_per_file = 1;
 		return (ARCHIVE_OK);
@@ -341,7 +329,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 			    "long invalid");
 			return (ARCHIVE_FAILED);
 		}
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream && ZSTD_VERSION_NUMBER >= MINVER_LONG
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream2
 		ZSTD_bounds bounds = ZSTD_cParam_getBounds(ZSTD_c_windowLog);
 		if (ZSTD_isError(bounds.error)) {
 			int max_distance = ((int)(sizeof(size_t) == 4 ? 30 : 31));
@@ -372,7 +360,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 	return (ARCHIVE_WARN);
 }
 
-#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream2
 /*
  * Setup callback.
  */
@@ -413,9 +401,7 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 
 	ZSTD_CCtx_setParameter(zstd->cstream, ZSTD_c_checksumFlag, 1);
 
-#if ZSTD_VERSION_NUMBER >= MINVER_LONG
 	ZSTD_CCtx_setParameter(zstd->cstream, ZSTD_c_windowLog, zstd->long_distance);
-#endif
 
 	return (ARCHIVE_OK);
 }
@@ -535,7 +521,7 @@ free_data(struct zstd *zstd)
 	}
 }
 
-#else /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream */
+#else /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream2 */
 
 static int
 archive_compressor_zstd_open(struct archive_write_filter *f)
@@ -605,4 +591,4 @@ free_data(struct zstd *zstd)
 	}
 }
 
-#endif /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream */
+#endif /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream2 */
