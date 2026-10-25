@@ -1872,6 +1872,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_singlefile.c \
 	unzip/test/test_C.c \
 	unzip/test/test_p.c \
+	unzip/test/test_prompt.c \
 	unzip/test/test_d.c \
 	unzip/test/test_j.c \
 	unzip/test/test_L.c \
@@ -1916,6 +1917,7 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/test_encrypted.zip.uu \
 	unzip/test/test_f_new.zip.uu \
 	unzip/test/test_f_old.zip.uu \
+	unzip/test/test_prompt.zip.uu \
 	unzip/test/test_singlefile.zip.uu \
 	unzip/test/test_symlink_1.zip.uu \
 	unzip/test/test_symlink_2.zip.uu \
