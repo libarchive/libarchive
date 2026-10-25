@@ -168,7 +168,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 	if (pathname == NULL || *pathname == '\0') {
 		archive_set_error(&a->archive, EINVAL,
 		    "Invalid filename");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 	/*
@@ -223,7 +223,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		/* Reject filenames with trailing "/" */
 		archive_set_error(&a->archive, EINVAL,
 		    "Invalid filename");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	} else
 		filename++;
 	filename_length = strlen(filename);
@@ -249,7 +249,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 			if (ar->has_strtab <= 0) {
 				archive_set_error(&a->archive, EINVAL,
 				    "Can't find string table");
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 
 			archive_string_init(&se);
@@ -260,7 +260,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 			if (ss == NULL) {
 				archive_set_error(&a->archive, EINVAL,
 				    "Invalid string table");
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 
 			/*
@@ -274,7 +274,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 			    AR_name_size - 1)) {
 				archive_set_error(&a->archive, ERANGE,
 				    "string table offset too large");
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 		}
 	} else if (a->archive.archive_format == ARCHIVE_FORMAT_AR_BSD) {
@@ -298,7 +298,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 			    AR_name_size - 3)) {
 				archive_set_error(&a->archive, ERANGE,
 				    "File name too long");
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 			append_fn = 1;
 			size += filename_length;
@@ -309,22 +309,22 @@ stat:
 	if (format_decimal(archive_entry_mtime(entry), buff + AR_date_offset, AR_date_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "File modification time too large");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 	if (format_decimal(archive_entry_uid(entry), buff + AR_uid_offset, AR_uid_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Numeric user ID too large");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 	if (format_decimal(archive_entry_gid(entry), buff + AR_gid_offset, AR_gid_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Numeric group ID too large");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 	if (format_octal(archive_entry_mode(entry), buff + AR_mode_offset, AR_mode_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Numeric mode too large");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 	/*
 	 * Sanity Check: A non-pseudo archive member should always be
@@ -333,14 +333,14 @@ stat:
 	if (filename != NULL && archive_entry_filetype(entry) != AE_IFREG) {
 		archive_set_error(&a->archive, EINVAL,
 		    "Regular file required for non-pseudo member");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 size:
 	if (format_decimal(size, buff + AR_size_offset, AR_size_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "File size out of range");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 	ret = __archive_write_output(a, buff, 60);

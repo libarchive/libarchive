@@ -184,3 +184,72 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * A member that the writer rejects is skipped: it must not repeat the
+ * padding byte of the previous member, which would misalign the rest of
+ * the archive.
+ */
+static void
+write_with_rejected_member(int (*set_format)(struct archive *))
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	size_t used;
+
+	memset(buff, 0, sizeof(buff));
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, set_format(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	/* A member with an odd size is followed by a padding byte. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "odd.o");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 3);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 3, archive_write_data(a, "abc", 3));
+	archive_entry_free(ae);
+
+	/* Directories cannot be archive members. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dir");
+	archive_entry_set_filetype(ae, AE_IFDIR);
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "even.o");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 4);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 4, archive_write_data(a, "wxyz", 4));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Global header, member header, 3 bytes of data, 1 padding byte. */
+	assertEqualMem(buff + 8 + 60 + 4, "even.o", 6);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("odd.o", archive_entry_pathname(ae));
+	assertEqualIntA(a, 3, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "abc", 3);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("even.o", archive_entry_pathname(ae));
+	assertEqualIntA(a, 4, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "wxyz", 4);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_write_format_ar_rejected_member)
+{
+	write_with_rejected_member(archive_write_set_format_ar_svr4);
+	write_with_rejected_member(archive_write_set_format_ar_bsd);
+}
