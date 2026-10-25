@@ -92,6 +92,7 @@ IF(ENABLE_TEST)
     test_open_file.c
     test_open_filename.c
     test_pax_filename_encoding.c
+    test_pax_negative_fraction.c
     test_pax_xattr_header.c
     test_read_data_block_offset_at_eof.c
     test_read_data_into_fd_no_offset_reported.c

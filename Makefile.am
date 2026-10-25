@@ -469,6 +469,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_open_file.c \
 	libarchive/test/test_open_filename.c \
 	libarchive/test/test_pax_filename_encoding.c \
+	libarchive/test/test_pax_negative_fraction.c \
 	libarchive/test/test_pax_xattr_header.c \
 	libarchive/test/test_read_data_block_offset_at_eof.c \
 	libarchive/test/test_read_data_into_fd_no_offset_reported.c \
@@ -865,6 +866,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_fuzz.lzh.uu \
 	libarchive/test/test_fuzz_1.iso.Z.uu \
 	libarchive/test/test_pax_filename_encoding.tar.uu \
+	libarchive/test/test_pax_negative_fraction.tar.uu \
 	libarchive/test/test_pax_xattr_header_all.tar.uu \
 	libarchive/test/test_pax_xattr_header_libarchive.tar.uu \
 	libarchive/test/test_pax_xattr_header_schily.tar.uu \
