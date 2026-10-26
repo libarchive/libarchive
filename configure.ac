@@ -48,8 +48,6 @@ dnl Libarchive minor is bumped on any interface addition === libtool age
 ARCHIVE_LIBTOOL_VERSION=$ARCHIVE_INTERFACE:$ARCHIVE_REVISION:$ARCHIVE_MINOR
 
 dnl Stick the version numbers into config.h
-AC_DEFINE([__LIBARCHIVE_CONFIG_H_INCLUDED], [1],
-	[Internal macro for sanity checks])
 AC_DEFINE([LIBARCHIVE_VERSION_STRING],"LIBARCHIVE_VERSION_S()",
 	[Version number of libarchive])
 AC_DEFINE_UNQUOTED([LIBARCHIVE_VERSION_NUMBER],"LIBARCHIVE_VERSION_N()",
