@@ -247,6 +247,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_dos_mtime_precedence.c
     test_read_format_zip_empty.c
     test_read_format_zip_encryption_data.c
+    test_zip_encrypted_symlink.c
     test_read_format_zip_encryption_header.c
     test_read_format_zip_encryption_partially.c
     test_read_format_zip_extra_padding.c

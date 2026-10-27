@@ -624,6 +624,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_dos_mtime_precedence.c \
 	libarchive/test/test_read_format_zip_empty.c \
 	libarchive/test/test_read_format_zip_encryption_data.c \
+	libarchive/test/test_zip_encrypted_symlink.c \
 	libarchive/test/test_read_format_zip_encryption_partially.c \
 	libarchive/test/test_read_format_zip_encryption_header.c \
 	libarchive/test/test_read_format_zip_extra_padding.c \
@@ -1216,6 +1217,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_comment_stored_1.zip.uu \
 	libarchive/test/test_read_format_zip_comment_stored_2.zip.uu \
 	libarchive/test/test_read_format_zip_encryption_data.zip.uu \
+	libarchive/test/test_read_format_zip_encrypted_symlink_aes.zip.uu \
+	libarchive/test/test_read_format_zip_encrypted_symlink_zipcrypto.zip.uu \
 	libarchive/test/test_read_format_zip_encryption_header.zip.uu \
 	libarchive/test/test_read_format_zip_encryption_partially.zip.uu \
 	libarchive/test/test_read_format_zip_extra_padding.zip.uu \
