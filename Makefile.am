@@ -600,6 +600,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_tar_empty_filename.c \
 	libarchive/test/test_read_format_tar_empty_with_gnulabel.c \
 	libarchive/test/test_read_format_tar_filename.c \
+	libarchive/test/test_read_format_tar_gnu_sparse_map.c \
 	libarchive/test/test_read_format_tar_invalid_pax_size.c \
 	libarchive/test/test_read_format_tar_mac_metadata.c \
 	libarchive/test/test_read_format_tar_pax_g_large.c \
@@ -1180,6 +1181,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_tar_empty_with_gnulabel.tar.uu \
 	libarchive/test/test_read_format_tar_empty_pax.tar.Z.uu \
 	libarchive/test/test_read_format_tar_filename_koi8r.tar.Z.uu \
+	libarchive/test/test_read_format_tar_gnu_sparse_map_invalid.tar.uu \
+	libarchive/test/test_read_format_tar_gnu_sparse_map_overflow.tar.uu \
 	libarchive/test/test_read_format_tar_invalid_pax_size.tar.uu \
 	libarchive/test/test_read_format_tar_mac_metadata_1.tar.uu \
 	libarchive/test/test_read_format_tar_pax_g_large.tar.uu \
