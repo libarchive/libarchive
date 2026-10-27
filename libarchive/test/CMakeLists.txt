@@ -23,9 +23,9 @@ IF(ENABLE_TEST)
     test_acl_text.c
     test_ar_mode.c
     test_archive_api_feature.c
+    test_archive_ckd.c
     test_archive_clear_error.c
     test_archive_cmdline.c
-    test_archive_ckd.c
     test_archive_digest.c
     test_archive_match_owner.c
     test_archive_match_path.c
