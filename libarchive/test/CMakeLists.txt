@@ -103,6 +103,7 @@ IF(ENABLE_TEST)
     test_read_extract.c
     test_read_file_nonexistent.c
     test_read_files_compressed.c
+    test_read_filter_brotli.c
     test_read_filter_compress.c
     test_read_filter_grzip.c
     test_read_filter_gzip_recursive.c
