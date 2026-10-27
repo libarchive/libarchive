@@ -849,9 +849,15 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_hmac_sha1_cleanup(&zip->hctx);
 	zip->tctx_valid = zip->cctx_valid = zip->hctx_valid = 0;
 
-	if (type == AE_IFREG
+	/*
+	 * A symlink's target is the entry's data, so it is encrypted too,
+	 * as 7-Zip and Info-ZIP do.
+	 */
+	if ((type == AE_IFREG
 		    &&(!archive_entry_size_is_set(entry)
-			|| archive_entry_size(entry) > 0)) {
+			|| archive_entry_size(entry) > 0))
+	    || (type == AE_IFLNK && archive_entry_symlink(entry) != NULL
+		&& archive_entry_symlink(entry)[0] != '\0')) {
 		switch (zip->encryption_type) {
 		case ENCRYPTION_TRADITIONAL:
 		case ENCRYPTION_WINZIP_AES128:
@@ -973,6 +979,20 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		    (const unsigned char *)slink, slink_size);
 		zip->entry_compression = COMPRESSION_STORE;
 		MIN_VERSION_NEEDED(20);
+		/* Add the encryption header and, for AES, the
+		 * authentication code. */
+		if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
+			if (zip->entry_encryption == ENCRYPTION_TRADITIONAL)
+				zip->entry_compressed_size += TRAD_HEADER_SIZE;
+			else if (zip->entry_encryption ==
+			    ENCRYPTION_WINZIP_AES128)
+				zip->entry_compressed_size +=
+				    WINZIP_AES128_HEADER_SIZE + AUTH_CODE_SIZE;
+			else if (zip->entry_encryption ==
+			    ENCRYPTION_WINZIP_AES256)
+				zip->entry_compressed_size +=
+				    WINZIP_AES256_HEADER_SIZE + AUTH_CODE_SIZE;
+		}
 	} else if (type != AE_IFREG) {
 		zip->entry_compression = COMPRESSION_STORE;
 		zip->entry_uncompressed_limit = 0;
@@ -1158,7 +1178,15 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	archive_le32enc(local_header + 10,
 		__archive_unix_to_dos(archive_entry_mtime(zip->entry)));
 	if ((zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END) == 0) {
-		archive_le32enc(local_header + 14, zip->entry_crc32);
+		/* An AES-encrypted symlink is AE-2, as its extra field
+		 * below says (an entry under 20 bytes), and AE-2 stores no
+		 * CRC: a CRC of a short plaintext would give it away. */
+		if (type == AE_IFLNK
+		    && (zip->entry_encryption == ENCRYPTION_WINZIP_AES128
+			|| zip->entry_encryption == ENCRYPTION_WINZIP_AES256))
+			archive_le32enc(local_header + 14, 0);
+		else
+			archive_le32enc(local_header + 14, zip->entry_crc32);
 		archive_le32enc(local_header + 18, (uint32_t)zip->entry_compressed_size);
 		archive_le32enc(local_header + 22, (uint32_t)zip->entry_uncompressed_size);
 	}
@@ -1348,7 +1376,51 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	zip->written_bytes += e - local_extra;
 
 	/* For symlinks, write the body now. */
-	if (slink != NULL) {
+	if (slink != NULL && (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED)) {
+		/* Encrypt it as stored file data is;
+		 * finish_entry writes AES's authentication code. */
+		const uint8_t *rb = (const uint8_t *)slink;
+		const uint8_t * const re = rb + slink_size;
+
+		if (zip->entry_encryption == ENCRYPTION_TRADITIONAL) {
+			ret = init_traditional_pkware_encryption(a);
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			zip->tctx_valid = 1;
+		} else {
+			ret = init_winzip_aes_encryption(a);
+			if (ret != ARCHIVE_OK)
+				return (ret);
+			zip->cctx_valid = zip->hctx_valid = 1;
+		}
+		while (rb < re) {
+			size_t l;
+
+			if (zip->tctx_valid) {
+				l = trad_enc_encrypt_update(&zip->tctx,
+				    rb, re - rb, zip->buf, zip->len_buf);
+			} else {
+				l = zip->len_buf;
+				ret = archive_encrypto_aes_ctr_update(
+				    &zip->cctx, rb, re - rb, zip->buf, &l);
+				if (ret < 0) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Failed to encrypt symlink");
+					return (ARCHIVE_FATAL);
+				}
+				archive_hmac_sha1_update(&zip->hctx,
+				    zip->buf, l);
+			}
+			ret = __archive_write_output(a, zip->buf, l);
+			if (ret != ARCHIVE_OK)
+				return (ARCHIVE_FATAL);
+			zip->entry_compressed_written += l;
+			zip->written_bytes += l;
+			rb += l;
+		}
+		zip->entry_uncompressed_written += slink_size;
+	} else if (slink != NULL) {
 		ret = __archive_write_output(a, slink, slink_size);
 		if (ret != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
