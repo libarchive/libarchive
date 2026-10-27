@@ -428,6 +428,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_archive_string_conversion_overread.c \
 	libarchive/test/test_archive_write_add_filter.c \
 	libarchive/test/test_archive_write_add_filter_by_name.c \
+	libarchive/test/test_archive_write_close_callback.c \
 	libarchive/test/test_archive_write_set_format_by_name.c \
 	libarchive/test/test_archive_write_set_format_filter_by_ext.c \
 	libarchive/test/test_archive_write_set_options.c \
