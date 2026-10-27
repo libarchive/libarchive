@@ -1624,6 +1624,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_option_lzma.c \
 	cpio/test/test_option_lzop.c \
 	cpio/test/test_option_m.c \
+	cpio/test/test_option_o_rejected_entry.c \
 	cpio/test/test_option_passphrase.c \
 	cpio/test/test_option_t.c \
 	cpio/test/test_option_u.c \
