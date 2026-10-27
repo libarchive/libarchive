@@ -1057,7 +1057,7 @@ unzip(const char *fn)
 	struct archive *a;
 	struct archive_entry *e;
 	char *buf;
-	int fd, ret;
+	int fd, ret, use_stdin;
 	uintmax_t total_size, file_count, error_count;
 
 	if ((a = archive_read_new()) == NULL)
@@ -1074,8 +1074,17 @@ unzip(const char *fn)
 		archive_read_set_passphrase_callback(a, NULL,
 			&passphrase_callback);
 
+	use_stdin = strcmp(fn, "-") == 0;
+
 	buf = NULL;
-	fd = open(fn, O_RDONLY | O_BINARY | O_CLOEXEC);
+	if (use_stdin) {
+		fd = STDIN_FILENO;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		if (_setmode(STDIN_FILENO, _O_BINARY) == -1)
+			errorx("unable to set binary input mode");
+#endif
+	} else
+		fd = open(fn, O_RDONLY | O_BINARY | O_CLOEXEC);
 	if (fd == -1) {
 		size_t s;
 
@@ -1167,7 +1176,8 @@ unzip(const char *fn)
 		}
 	}
 
-	close(fd);
+	if (!use_stdin)
+		close(fd);
 	free(buf);
 }
 
@@ -1347,9 +1357,6 @@ main(int argc, char *argv[])
 	if (argc <= nopts)
 		usage();
 	zipfile = argv[nopts++];
-
-	if (strcmp(zipfile, "-") == 0)
-		zipfile = NULL; /* STDIN */
 
 	unzip_exclude_mode = 0;
 
