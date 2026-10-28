@@ -111,6 +111,7 @@ IF(ENABLE_TEST)
     test_read_filter_lz4_raw.c
     test_read_filter_lzop.c
     test_read_filter_lzop_multiple_parts.c
+    test_read_filter_pbzx.c
     test_read_filter_program.c
     test_read_filter_program_signature.c
     test_read_filter_uudecode.c
