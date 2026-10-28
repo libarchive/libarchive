@@ -159,6 +159,7 @@ struct la_zstream {
 
 struct ppmd_stream {
 	int			 stat;
+	int			 nomem;
 	CPpmd7			 ppmd7_context;
 	CPpmd7z_RangeEnc	 range_enc;
 	IByteOut		 byteout;
@@ -2251,10 +2252,29 @@ ppmd_write(void *p, Byte b)
 		return;
 	}
 	strm = (struct ppmd_stream *)lastrm->real_stream;
-	if (strm->buff_ptr < strm->buff_end) {
-		*strm->buff_ptr++ = b;
-		strm->buff_bytes++;
+	if (strm->buff_ptr >= strm->buff_end) {
+		/*
+		 * The range encoder can release a long run of pending
+		 * bytes at once, so grow the buffer instead of dropping
+		 * the bytes that do not fit.
+		 */
+		size_t used = strm->buff_ptr - strm->buff;
+		size_t size = (strm->buff_end - strm->buff) * 2;
+		uint8_t *nbuff;
+
+		if (strm->nomem)
+			return;
+		nbuff = realloc(strm->buff, size);
+		if (nbuff == NULL) {
+			strm->nomem = 1;
+			return;
+		}
+		strm->buff = nbuff;
+		strm->buff_ptr = nbuff + used;
+		strm->buff_end = nbuff + size;
 	}
+	*strm->buff_ptr++ = b;
+	strm->buff_bytes++;
 }
 
 static int
@@ -2326,8 +2346,6 @@ compression_code_ppmd(struct archive *a,
 {
 	struct ppmd_stream *strm;
 
-	(void)a; /* UNUSED */
-
 	strm = (struct ppmd_stream *)lastrm->real_stream;
 
 	/* Copy encoded data if there are remaining bytes from previous call. */
@@ -2356,6 +2374,13 @@ compression_code_ppmd(struct archive *a,
 		__archive_ppmd7_functions.Ppmd7z_RangeEnc_FlushData(
 			&(strm->range_enc));
 		strm->stat = 1;
+	}
+	if (strm->nomem) {
+		archive_set_error(a, ENOMEM,
+		    "Can't allocate memory for PPMd");
+		return (ARCHIVE_FATAL);
+	}
+	if (strm->stat == 1) {
 		/* Return EOF if there are no remaining bytes. */
 		if (strm->buff_bytes == 0)
 			return (ARCHIVE_EOF);
