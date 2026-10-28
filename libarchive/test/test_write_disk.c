@@ -249,6 +249,33 @@ static void create_fail(struct archive_entry *ae, int experr,
 	assertEqualInt(-1, stat(archive_entry_pathname(ae), &st));
 	assertEqualInt(ENOENT, errno);
 }
+
+/*
+ * Whether the filesystem/user actually enforces directory permissions.
+ * When the test runs as root or with CAP_DAC_OVERRIDE (e.g. inside an
+ * unprivileged user namespace that still grants the capability), a mode
+ * 0111 directory does not block creating entries inside it, so the
+ * create_fail() checks that expect EACCES cannot pass.  Probe it directly
+ * rather than assuming, since a non-root uid can still hold the capability.
+ */
+static int
+dir_perms_enforced(void)
+{
+	int enforced;
+
+	assertMakeDir("permprobe", 0111);
+	/* If we can create a child despite mode 0111, perms aren't enforced. */
+	errno = 0;
+	if (mkdir("permprobe/child", 0755) == 0) {
+		enforced = 0;
+		(void)rmdir("permprobe/child");
+	} else {
+		enforced = (errno == EACCES);
+	}
+	assertEqualInt(0, chmod("permprobe", 0755));
+	assertEqualInt(0, rmdir("permprobe"));
+	return (enforced);
+}
 #endif /* _WIN32 && !__CYGWIN__ */
 
 DEFINE_TEST(test_write_disk)
@@ -365,12 +392,19 @@ DEFINE_TEST(test_write_disk)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "a/b/../b/file");
 	archive_entry_set_mode(ae, S_IFREG | 0644);
-	/* First attempt should fail with EACCES */
-	assertEqualInt(0, mkdir("a", 0111));
-	create_fail(ae, EACCES,
-	    "Test failing to create parent directory with /../");
-	/* Now let it succeed */
-	assertEqualInt(0, chmod("a", 0755));
+	if (dir_perms_enforced()) {
+		/* First attempt should fail with EACCES */
+		assertEqualInt(0, mkdir("a", 0111));
+		create_fail(ae, EACCES,
+		    "Test failing to create parent directory with /../");
+		/* Now let it succeed */
+		assertEqualInt(0, chmod("a", 0755));
+	} else {
+		skipping("Directory permissions are not enforced (running as "
+		    "root or with CAP_DAC_OVERRIDE); can't test the EACCES "
+		    "parent-directory failure");
+		assertEqualInt(0, mkdir("a", 0755));
+	}
 	create(ae, "Test creating parent directory with /../");
 	archive_entry_free(ae);
 #endif /* _WIN32 && !__CYGWIN__ */
