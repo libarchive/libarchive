@@ -235,7 +235,7 @@ archive_filter_b64encode_write(struct archive_write_filter *f, const void *buff,
 {
 	struct b64encode *b64encode = f->data;
 	const unsigned char *p = buff;
-	int ret = ARCHIVE_OK;
+	int r, ret = ARCHIVE_OK;
 
 	if (length == 0)
 		return (ret);
@@ -260,12 +260,16 @@ archive_filter_b64encode_write(struct archive_write_filter *f, const void *buff,
 		b64encode->hold_len = length;
 	}
 	while (archive_strlen(&b64encode->encoded_buff) >= b64encode->bs) {
-		ret = __archive_write_filter(f->next_filter,
+		r = __archive_write_filter(f->next_filter,
 		    b64encode->encoded_buff.s, b64encode->bs);
 		memmove(b64encode->encoded_buff.s,
 		    b64encode->encoded_buff.s + b64encode->bs,
 		    b64encode->encoded_buff.length - b64encode->bs);
 		b64encode->encoded_buff.length -= b64encode->bs;
+		if (r < ret)
+			ret = r;
+		if (ret < ARCHIVE_WARN)
+			break;
 	}
 
 	return (ret);
