@@ -284,6 +284,90 @@ DEFINE_TEST(test_read_format_rar5_multiple_files_solid)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_empty_file_in_solid_archive)
+{
+	const char first[] = "Hello, archive!\n";
+	const char notes[] = "# Notes\n\nSome notes about nothing.\n";
+	const char unicode[] =
+	    "Gr\303\274\303\237e, \320\274\320\270\321\200, "
+	    "\344\270\226\347\225\214\n";
+	const char png_signature[] = "\211PNG\r\n\032\n";
+	char expected[640];
+	char buff[1024];
+	int i;
+
+	PROLOGUE("test_read_format_rar5_empty_solid.rar");
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("hello.txt", archive_entry_pathname(ae));
+	assertEqualInt(sizeof(expected), archive_entry_size(ae));
+	for (i = 0; i < 40; i++)
+		memcpy(expected + i * (sizeof(first) - 1), first, sizeof(first) - 1);
+	assertEqualInt(sizeof(expected), archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(expected, buff, sizeof(expected));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("docs/notes.md", archive_entry_pathname(ae));
+	assertEqualInt(sizeof(notes) - 1, archive_entry_size(ae));
+	assertEqualInt(sizeof(notes) - 1, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(notes, buff, sizeof(notes) - 1);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("docs/empty.txt", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(0, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(0, archive_read_data(a, buff, sizeof(buff)));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("pics/dot.png", archive_entry_pathname(ae));
+	assertEqualInt(70, archive_entry_size(ae));
+	assertEqualInt(70, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(png_signature, buff, sizeof(png_signature) - 1);
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("\303\234n\303\257code \303\261ame.txt",
+	    archive_entry_pathname_utf8(ae));
+	assertEqualInt(sizeof(unicode) - 1, archive_entry_size(ae));
+	assertEqualInt(sizeof(unicode) - 1,
+	    archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(unicode, buff, sizeof(unicode) - 1);
+
+	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_empty_file_in_solid_archive_data_block)
+{
+	const void *block;
+	size_t size;
+	int64_t offset;
+	char buff[128];
+
+	PROLOGUE("test_read_format_rar5_empty_solid.rar");
+
+	/* Advancing through these entries also unpacks them to prepare the
+	 * solid dictionary used by the empty file. */
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("docs/empty.txt", archive_entry_pathname(ae));
+
+	offset = -1;
+	assertEqualInt(ARCHIVE_OK,
+	    archive_read_data_block(a, &block, &size, &offset));
+	assertEqualInt(0, size);
+	assertEqualInt(0, offset);
+	assertEqualInt(ARCHIVE_EOF,
+	    archive_read_data_block(a, &block, &size, &offset));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("pics/dot.png", archive_entry_pathname(ae));
+	assertEqualInt(70, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem("\211PNG\r\n\032\n", buff, 8);
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_multiarchive_first_volume_only)
 {
 	/* Regression test: opening only the first volume of a multivolume
