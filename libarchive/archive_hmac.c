@@ -136,6 +136,60 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 	}
 }
 
+#elif defined(ARCHIVE_HMAC_USE_MBED_PSA)
+
+static int
+__hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
+{
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+
+	ctx->key = PSA_KEY_ID_NULL;
+	ctx->op = psa_mac_operation_init();
+	if (psa_crypto_init() != PSA_SUCCESS)
+		return (-1);
+
+	psa_set_key_type(&attr, PSA_KEY_TYPE_HMAC);
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_SIGN_MESSAGE);
+	psa_set_key_algorithm(&attr, PSA_ALG_HMAC(PSA_ALG_SHA_1));
+	if (psa_import_key(&attr, key, key_len, &ctx->key) != PSA_SUCCESS)
+		return (-1);
+
+	if (psa_mac_sign_setup(&ctx->op, ctx->key,
+	    PSA_ALG_HMAC(PSA_ALG_SHA_1)) != PSA_SUCCESS) {
+		psa_destroy_key(ctx->key);
+		ctx->key = PSA_KEY_ID_NULL;
+		return (-1);
+	}
+	return 0;
+}
+
+static void
+__hmac_sha1_update(archive_hmac_sha1_ctx *ctx, const uint8_t *data,
+    size_t data_len)
+{
+	psa_mac_update(&ctx->op, data, data_len);
+}
+
+static void
+__hmac_sha1_final(archive_hmac_sha1_ctx *ctx, uint8_t *out, size_t *out_len)
+{
+	size_t len;
+
+	if (psa_mac_sign_finish(&ctx->op, out, *out_len, &len) == PSA_SUCCESS)
+		*out_len = len;
+	else
+		*out_len = 0;
+}
+
+static void
+__hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
+{
+	/* The key must stay valid while the MAC operation is active. */
+	psa_mac_abort(&ctx->op);
+	psa_destroy_key(ctx->key);
+	memset(ctx, 0, sizeof(*ctx));
+}
+
 #elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_MD_H)
 
 static int
