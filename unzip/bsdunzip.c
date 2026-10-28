@@ -1145,7 +1145,7 @@ unzip(const char *fn)
 		++file_count;
 	}
 
-	if (zipinfo_mode) {
+	if (!zipinfo_mode) {
 		if (v_opt == 1) {
 			printf(" --------                   %s-------\n", y_str);
 			printf(" %8ju                   %s%ju file%s\n",
