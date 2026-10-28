@@ -4351,6 +4351,15 @@ calculate_directory_descriptors(struct iso9660 *iso9660, struct vdd *vdd,
 	return (block);
 }
 
+static void
+rewind_cur_content(struct isofile *file)
+{
+	if (file->hardlink_target != NULL)
+		file = file->hardlink_target;
+	if (file->cur_content == NULL)
+		file->cur_content = &(file->content);
+}
+
 static int
 _write_directory_descriptors(struct archive_write *a, struct vdd *vdd,
     struct isoent *isoent, int depth)
@@ -4360,6 +4369,18 @@ _write_directory_descriptors(struct archive_write *a, struct vdd *vdd,
 	unsigned char *p, *wb;
 	int i, r;
 	int dr_l;
+
+	/*
+	 * A Rockridge relocated directory shares its file with the "CL"
+	 * placeholder left in its original parent, and listing that
+	 * placeholder there walks the shared cur_content to NULL.
+	 * Rewind the files the "." and ".." records below read from.
+	 */
+	rewind_cur_content(isoent->file);
+	if (isoent->rr_parent != NULL)
+		rewind_cur_content(isoent->rr_parent->file);
+	else
+		rewind_cur_content(isoent->parent->file);
 
 	p = wb = wb_buffptr(a);
 #define WD_REMAINING	(LOGICAL_BLOCK_SIZE - (p - wb))
