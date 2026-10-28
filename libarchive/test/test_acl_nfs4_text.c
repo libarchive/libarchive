@@ -422,5 +422,31 @@ DEFINE_TEST(test_acl_nfs4_text_invalid)
 	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
 	archive_entry_acl_clear(ae);
 
+	/* Invalid suffixes must not retain a partially parsed NFS4 entry. */
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_acl_from_text(ae, "owner@:rwz::allow",
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	assertEqualInt(0,
+	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	archive_entry_acl_clear(ae);
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_acl_from_text(ae, "owner@:rw:fdz:allow",
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	assertEqualInt(0,
+	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	archive_entry_acl_clear(ae);
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_acl_from_text_w(ae, L"owner@:rwz::allow",
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	assertEqualInt(0,
+	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	archive_entry_acl_clear(ae);
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_acl_from_text_w(ae, L"owner@:rw:fdz:allow",
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	assertEqualInt(0,
+	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	archive_entry_acl_clear(ae);
+
 	archive_entry_free(ae);
 }
