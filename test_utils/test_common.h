@@ -416,6 +416,8 @@ mode_t umasked(mode_t expected_mode);
 
 /* Path to working directory for current test */
 extern const char *testworkdir;
+/* Path to directory containing the test program */
+extern const char *testprogdir;
 
 #ifndef PROGRAM
 /*
