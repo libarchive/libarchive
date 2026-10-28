@@ -127,6 +127,7 @@ struct archive_read_data_node {
 	int64_t begin_position;
 	int64_t total_size;
 	void *data;
+	char closed;
 };
 struct archive_read_client {
 	archive_open_callback	*opener;
