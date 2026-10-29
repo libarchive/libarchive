@@ -593,6 +593,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar5_truncated_htime.c \
 	libarchive/test/test_read_format_rar5_varint_near_eof.c \
 	libarchive/test/test_read_format_raw.c \
+	libarchive/test/test_read_format_raw_pathname.c \
 	libarchive/test/test_read_format_tar.c \
 	libarchive/test/test_read_format_tar_acl_oob_read.c \
 	libarchive/test/test_read_format_tar_V_negative_size.c \

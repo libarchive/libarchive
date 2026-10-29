@@ -216,6 +216,7 @@ IF(ENABLE_TEST)
     test_read_format_rar5_truncated_htime.c
     test_read_format_rar5_varint_near_eof.c
     test_read_format_raw.c
+    test_read_format_raw_pathname.c
     test_read_format_tar.c
     test_read_format_tar_acl_oob_read.c
     test_read_format_tar_V_negative_size.c
