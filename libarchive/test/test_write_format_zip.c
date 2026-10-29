@@ -923,3 +923,117 @@ DEFINE_TEST(test_write_format_zip_winzip_aes256_encryption)
 
 	free(buff);
 }
+
+/*
+ * The third time of the "UT" extra field is the creation time, not the
+ * ctime. Write an empty file with some of the four times set and check the
+ * "UT" field of its Local Header.
+ */
+#define UT_MTIME	1700000000
+#define UT_ATIME	1700000100
+#define UT_CTIME	1700000200
+#define UT_BTIME	1700000300
+
+static unsigned
+ut_le16(const unsigned char *p)
+{
+	return (p[0] | (p[1] << 8));
+}
+
+static unsigned long
+ut_le32(const unsigned char *p)
+{
+	return (ut_le16(p) | ((unsigned long)ut_le16(p + 2) << 16));
+}
+
+/* `which` has a bit for each time to set:
+ * 1 mtime, 2 atime, 4 ctime, 8 birthtime. */
+static void
+verify_ut(int which)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	unsigned char buff[1024];
+	size_t used;
+	const unsigned char *p, *end;
+	unsigned expected_flags;
+	int found = 0;
+
+	failure("which=%d", which);
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file");
+	archive_entry_set_mode(ae, AE_IFREG | 0644);
+	archive_entry_set_size(ae, 0);
+	if (which & 1)
+		archive_entry_set_mtime(ae, UT_MTIME, 0);
+	if (which & 2)
+		archive_entry_set_atime(ae, UT_ATIME, 0);
+	if (which & 4)
+		archive_entry_set_ctime(ae, UT_CTIME, 0);
+	if (which & 8)
+		archive_entry_set_birthtime(ae, UT_BTIME, 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* The extra field comes after the 30 bytes of the Local Header
+	 * and the name. */
+	assert(used > 30);
+	assertEqualMem(buff, "PK\003\004", 4);
+	p = buff + 30 + ut_le16(buff + 26);
+	end = p + ut_le16(buff + 28);
+	assert(end <= buff + used);
+
+	expected_flags = (which & 1) | (which & 2) | ((which & 8) ? 4 : 0);
+	while (p + 4 <= end) {
+		unsigned id = ut_le16(p);
+		unsigned size = ut_le16(p + 2);
+
+		assert(p + 4 + size <= end);
+		if (id == 0x5455) {
+			const unsigned char *t = p + 5;
+
+			found = 1;
+			failure("which=%d", which);
+			assertEqualInt(expected_flags, p[4]);
+			if (which & 1) {
+				assertEqualInt(UT_MTIME, ut_le32(t));
+				t += 4;
+			}
+			if (which & 2) {
+				assertEqualInt(UT_ATIME, ut_le32(t));
+				t += 4;
+			}
+			/* The creation time, not the ctime. */
+			if (which & 8) {
+				assertEqualInt(UT_BTIME, ut_le32(t));
+				t += 4;
+			}
+			failure("which=%d", which);
+			assertEqualInt(t - p - 4, size);
+		}
+		p += 4 + size;
+	}
+	failure("which=%d", which);
+	assertEqualInt(expected_flags != 0, found);
+}
+
+DEFINE_TEST(test_write_format_zip_ut_birthtime)
+{
+	/* All four times: the ctime is not written. */
+	verify_ut(1 | 2 | 4 | 8);
+	/* The ctime alone is not written, so there is no "UT" field. */
+	verify_ut(1 | 2 | 4);
+	verify_ut(4);
+	/* The birthtime is written, with or without the other times. */
+	verify_ut(1 | 2 | 8);
+	verify_ut(1 | 8);
+	verify_ut(8);
+}
