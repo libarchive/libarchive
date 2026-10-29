@@ -57,6 +57,7 @@ struct gzip {
 	unsigned char	*out_block;
 	size_t		 out_block_size;
 	unsigned long	 crc;
+	uint32_t	 isize; /* Uncompressed size, mod 2^32. */
 	uint32_t	 mtime;
 	char		*name;
 	char		 eof; /* True = found end of compressed data. */
@@ -345,6 +346,7 @@ consume_header(struct archive_read_filter *f)
 
 	/* Initialize CRC accumulator. */
 	gzip->crc = __archive_crc32(0L, NULL, 0);
+	gzip->isize = 0;
 
 	/* Initialize compression library. */
 	gzip->stream.next_in = (unsigned char *)(uintptr_t)
@@ -423,7 +425,19 @@ consume_trailer(struct archive_read_filter *f)
 		return (ARCHIVE_FATAL);
 	}
 
-	/* XXX TODO: Verify the length and CRC. */
+	/* Check the CRC32 and length of the member's uncompressed data. */
+	if (gzip->crc != archive_le32dec(p)) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
+		archive_set_error(&f->archive->archive, ARCHIVE_ERRNO_MISC,
+		    "Gzip: CRC32 error");
+		return (ARCHIVE_FATAL);
+#endif
+	}
+	if (gzip->isize != archive_le32dec(p + 4)) {
+		archive_set_error(&f->archive->archive, ARCHIVE_ERRNO_MISC,
+		    "Gzip: Uncompressed size error");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* We've verified the trailer, so consume it now. */
 	__archive_read_filter_consume(f->upstream, 8);
@@ -435,8 +449,9 @@ static ssize_t
 gzip_filter_read(struct archive_read_filter *f, const void **p)
 {
 	struct gzip *gzip = f->data;
-	size_t decompressed;
+	size_t decompressed, produced;
 	ssize_t avail_in, max_in;
+	unsigned char *out;
 	int ret;
 
 	/* Empty our output buffer. */
@@ -477,7 +492,14 @@ gzip_filter_read(struct archive_read_filter *f, const void **p)
 		gzip->stream.avail_in = (uInt)avail_in;
 
 		/* Decompress and consume some of that data. */
+		out = gzip->stream.next_out;
 		ret = inflate(&(gzip->stream), 0);
+		if (ret == Z_OK || ret == Z_STREAM_END) {
+			/* Checked against the trailer. */
+			produced = gzip->stream.next_out - out;
+			gzip->crc = __archive_crc32(gzip->crc, out, produced);
+			gzip->isize += (uint32_t)produced;
+		}
 		switch (ret) {
 		case Z_OK: /* Decompressor made some progress. */
 			__archive_read_filter_consume(f->upstream,

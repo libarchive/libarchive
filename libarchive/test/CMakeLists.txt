@@ -107,6 +107,7 @@ IF(ENABLE_TEST)
     test_read_filter_compress.c
     test_read_filter_grzip.c
     test_read_filter_gzip_recursive.c
+    test_read_filter_gzip_trailer.c
     test_read_filter_lrzip.c
     test_read_filter_lz4_raw.c
     test_read_filter_lzop.c

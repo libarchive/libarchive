@@ -484,6 +484,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_compress.c \
 	libarchive/test/test_read_filter_grzip.c \
 	libarchive/test/test_read_filter_gzip_recursive.c \
+	libarchive/test/test_read_filter_gzip_trailer.c \
 	libarchive/test/test_read_filter_lrzip.c \
 	libarchive/test/test_read_filter_lz4_raw.c \
 	libarchive/test/test_read_filter_lzop.c \
