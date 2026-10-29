@@ -390,7 +390,7 @@ static int	archive_read_format_iso9660_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	build_pathname(struct archive_string *, struct file_info *, int);
 static int	build_pathname_utf16be(unsigned char *, size_t, size_t *,
-		    struct file_info *);
+		    struct file_info *, int);
 #if DEBUG
 static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 #endif
@@ -1282,7 +1282,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 
 		iso9660->utf16be_path_len = 0;
 		r = build_pathname_utf16be(iso9660->utf16be_path,
-		    UTF16_NAME_MAX, &(iso9660->utf16be_path_len), file);
+		    UTF16_NAME_MAX, &(iso9660->utf16be_path_len), file, 0);
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -3475,11 +3475,21 @@ build_pathname(struct archive_string *as, struct file_info *file, int depth)
 
 static int
 build_pathname_utf16be(unsigned char *p, size_t max, size_t *len,
-    struct file_info *file)
+    struct file_info *file, int depth)
 {
+	/*
+	 * Plain ISO9660 only allows 8 dir levels; if we get
+	 * to 1000, then something is very, very wrong.  A malformed
+	 * image can also form a cycle in the parent chain via Rock
+	 * Ridge "CL"/"RE" relocation, which without this limit would
+	 * recurse until the stack is exhausted.  Mirrors the cap in
+	 * build_pathname().
+	 */
+	if (depth > 1000)
+		return (ARCHIVE_FATAL);
 	if (file->parent != NULL && file->parent->utf16be_bytes > 0) {
-		if (build_pathname_utf16be(p, max, len, file->parent) !=
-		    ARCHIVE_OK)
+		if (build_pathname_utf16be(p, max, len, file->parent,
+		    depth + 1) != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);
 		if (*len + 2 > max)
 			return (ARCHIVE_FATAL);/* Path is too long! */
