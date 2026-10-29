@@ -1677,6 +1677,16 @@ zisofs_read_data(struct archive_read *a,
 		}
 		uncompressed_size =
 		    zisofs->uncompressed_buffer_size - zisofs->stream.avail_out;
+		if (uncompressed_size == 0 && zisofs->stream.next_in == p) {
+			/*
+			 * The block ended before its declared size and
+			 * inflate() keeps returning Z_STREAM_END.
+			 */
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "zisofs decompressor made no progress");
+			return (ARCHIVE_FATAL);
+		}
 		avail -= zisofs->stream.next_in - p;
 		zisofs->block_avail -= (uint32_t)(zisofs->stream.next_in - p);
 	}

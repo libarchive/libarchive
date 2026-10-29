@@ -560,6 +560,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_iso_rockridge_cl_re_cycle.c \
 	libarchive/test/test_read_format_iso_rockridge_sl_leak.c \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.c \
+	libarchive/test/test_read_format_iso_zisofs_noprogress.c \
 	libarchive/test/test_read_format_iso_zisofs_overflow.c \
 	libarchive/test/test_read_format_lha.c \
 	libarchive/test/test_read_format_lha_amiga_script.c \
