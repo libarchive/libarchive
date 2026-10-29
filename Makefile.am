@@ -678,6 +678,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_disk_failures.c \
 	libarchive/test/test_write_disk_fixup.c \
 	libarchive/test/test_write_disk_hardlink.c \
+	libarchive/test/test_write_disk_hardlink_to_symlink.c \
 	libarchive/test/test_write_disk_hfs_compression.c \
 	libarchive/test/test_write_disk_lookup.c \
 	libarchive/test/test_write_disk_mac_metadata.c \
@@ -1293,6 +1294,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_splitted_rar_seek_support_ac.uu \
 	libarchive/test/test_write_disk_appledouble.cpio.gz.uu \
 	libarchive/test/test_write_disk_appledouble_zip.zip.uu \
+	libarchive/test/test_write_disk_hardlink_to_symlink.tar.uu \
 	libarchive/test/test_write_disk_hfs_compression.tgz.uu \
 	libarchive/test/test_write_disk_mac_metadata.tar.gz.uu \
 	libarchive/test/test_write_disk_no_hfs_compression.tgz.uu \
