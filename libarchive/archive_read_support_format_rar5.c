@@ -113,6 +113,7 @@ struct file_header {
 	uint8_t service : 1;         /* Is this file a service data? */
 	uint8_t eof : 1;             /* Did we finish unpacking the file? */
 	uint8_t dir : 1;             /* Is this file entry a directory? */
+	uint8_t unstore_checked : 1; /* Were stored data's checksums verified? */
 
 	/* Optional time fields. */
 	int64_t e_mtime;
@@ -4264,6 +4265,15 @@ static int do_unstore_file(struct archive_read* a,
 
 	to_read = rar5_min(rar5->file.bytes_remaining, 64 * 1024);
 	if(to_read == 0) {
+		/* Only once: BLAKE2sp can't be finalized twice. */
+		if(!rar5->file.unstore_checked) {
+			int ret;
+
+			rar5->file.unstore_checked = 1;
+			ret = verify_global_checksums(a);
+			if(ret != ARCHIVE_OK)
+				return ret;
+		}
 		return ARCHIVE_EOF;
 	}
 
