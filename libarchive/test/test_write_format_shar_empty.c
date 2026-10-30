@@ -88,3 +88,31 @@ DEFINE_TEST(test_write_format_shar_invalid_pathname)
 		}
 	}
 }
+
+/*
+ * File flags text comes from the archive being converted and must be
+ * quoted like any other value.
+ */
+DEFINE_TEST(test_write_format_shar_dump_fflags_quoting)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char buff[4096];
+	size_t used;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_shar_dump(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff) - 1, &used));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "f");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 0);
+	archive_entry_copy_fflags_text(ae, "nodump;id");
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+	buff[used] = '\0';
+	assert(strstr(buff, "chflags nodump\\;id f\n") != NULL);
+}
