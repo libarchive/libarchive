@@ -2345,7 +2345,6 @@ create_filesystem_object(struct archive_write_disk *a)
 			 */
 			return (EPERM);
 		}
-		free(linkname_copy);
 		archive_string_free(&error_string);
 		/*
 		 * Unlinking and linking here is really not atomic,
@@ -2355,11 +2354,12 @@ create_filesystem_object(struct archive_write_disk *a)
 		if (a->flags & ARCHIVE_EXTRACT_SAFE_WRITES)
 			unlink(a->name);
 #ifdef HAVE_LINKAT
-		r = linkat(AT_FDCWD, linkname, AT_FDCWD, a->name,
+		r = linkat(AT_FDCWD, linkname_copy, AT_FDCWD, a->name,
 		    0) ? errno : 0;
 #else
-		r = link(linkname, a->name) ? errno : 0;
+		r = link(linkname_copy, a->name) ? errno : 0;
 #endif
+		free(linkname_copy);
 		/*
 		 * New cpio and pax formats allow hardlink entries
 		 * to carry data, so we may have to open the file
@@ -2844,6 +2844,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	char *tail;
 	char *head;
 	int last;
+	int uncreated_depth = 0;
 	char c = '\0';
 	int r;
 	struct stat st;
@@ -2905,165 +2906,57 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 		/* temporarily truncate the string here */
 		c = tail[0];
 		tail[0] = '\0';
-		/* Check that we haven't hit a symlink. */
-#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
-		r = fstatat(chdir_fd, head, &st, AT_SYMLINK_NOFOLLOW);
-#elif defined(HAVE_LSTAT)
-		r = lstat(head, &st);
-#else
-		r = la_stat(head, &st);
-#endif
-		if (r != 0) {
-			tail[0] = c;
-			/* We've hit a dir that doesn't exist; stop now. */
-			if (errno == ENOENT) {
-				break;
+		if (uncreated_depth > 0) {
+			if (head[0] == '.' && head[1] == '\0') {
+				/* '.' inside uncreated directory */
+			} else if (head[0] == '.' && head[1] == '.' &&
+			    head[2] == '\0') {
+				--uncreated_depth;
 			} else {
-				/*
-				 * Treat any other error as fatal - best to be
-				 * paranoid here.
-				 * Note: This effectively disables deep
-				 * directory support when security checks are
-				 * enabled. Otherwise, very long pathnames that
-				 * trigger an error here could evade the
-				 * sandbox.
-				 * TODO: We could do better, but it would
-				 * probably require merging the symlink checks
-				 * with the deep-directory editing.
-				 */
-				fsobj_error(a_eno, a_estr, errno,
-				    "Could not stat ", path);
-				res = ARCHIVE_FAILED;
-				break;
+				++uncreated_depth;
 			}
-		} else if (S_ISDIR(st.st_mode)) {
-			if (!last) {
+			head = tail + 1;
+		} else {
+			/* Check that we haven't hit a symlink. */
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
-				fd = la_opendirat(chdir_fd, head);
-				if (fd < 0)
-					r = -1;
-				else {
-					r = 0;
-					close(chdir_fd);
-					chdir_fd = fd;
-				}
+			r = fstatat(chdir_fd, head, &st, AT_SYMLINK_NOFOLLOW);
+#elif defined(HAVE_LSTAT)
+			r = lstat(head, &st);
 #else
-				r = chdir(head);
+			r = la_stat(head, &st);
 #endif
-				if (r != 0) {
-					tail[0] = c;
-					fsobj_error(a_eno, a_estr, errno,
-					    "Could not chdir ", path);
-					res = (ARCHIVE_FATAL);
-					break;
-				}
-				/* Our view is now from inside this dir: */
-				head = tail + 1;
-			}
-		} else if (S_ISLNK(st.st_mode)) {
-			if (last && checking_linkname) {
-#ifdef HAVE_LINKAT
-				/*
-				 * Hardlinks to symlinks are safe to write
-				 * if linkat() is supported as it does not
-				 * follow symlinks.
-				 */
-				res = ARCHIVE_OK;
-#else
-				/*
-				 * We return ARCHIVE_FAILED here as we are
-				 * not able to safely write hardlinks
-				 * to symlinks.
-				 */
+			if (r != 0) {
 				tail[0] = c;
-				fsobj_error(a_eno, a_estr, errno,
-				    "Cannot write hardlink to symlink ",
-				    path);
-				res = ARCHIVE_FAILED;
-#endif
-				break;
-			} else
-			if (last) {
 				/*
-				 * Last element is symlink; remove it
-				 * so we can overwrite it with the
-				 * item being extracted.
+				 * We've hit a dir that doesn't exist; track
+				 * uncreated depth in case later '..' segments
+				 * climb back into an existing directory.
 				 */
-#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
-				r = unlinkat(chdir_fd, head, 0);
-#else
-				r = unlink(head);
-#endif
-				if (r != 0) {
-					tail[0] = c;
+				if (errno == ENOENT) {
+					if (last)
+						break;
+					uncreated_depth = 1;
+					head = tail + 1;
+				} else {
+					/*
+					 * Treat any other error as fatal - best to be
+					 * paranoid here.
+					 * Note: This effectively disables deep
+					 * directory support when security checks are
+					 * enabled. Otherwise, very long pathnames that
+					 * trigger an error here could evade the
+					 * sandbox.
+					 * TODO: We could do better, but it would
+					 * probably require merging the symlink checks
+					 * with the deep-directory editing.
+					 */
 					fsobj_error(a_eno, a_estr, errno,
-					    "Could not remove symlink ",
-					    path);
+					    "Could not stat ", path);
 					res = ARCHIVE_FAILED;
 					break;
 				}
-				/*
-				 * Even if we did remove it, a warning
-				 * is in order.  The warning is silly,
-				 * though, if we're just replacing one
-				 * symlink with another symlink.
-				 */
-				tail[0] = c;
-				/*
-				 * FIXME:  not sure how important this is to
-				 * restore
-				 */
-				/*
-				if (!S_ISLNK(path)) {
-					fsobj_error(a_eno, a_estr, -1,
-					    "Removing symlink ", path);
-				}
-				*/
-				/* Symlink gone.  No more problem! */
-				res = ARCHIVE_OK;
-				break;
-			} else if (flags & ARCHIVE_EXTRACT_UNLINK) {
-				/* User asked us to remove problems. */
-#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
-				r = unlinkat(chdir_fd, head, 0);
-#else
-				r = unlink(head);
-#endif
-				if (r != 0) {
-					tail[0] = c;
-					fsobj_error(a_eno, a_estr, EIO,
-					    "Cannot remove intervening "
-					    "symlink ", path);
-					res = ARCHIVE_FAILED;
-					break;
-				}
-				tail[0] = c;
-			} else if ((flags &
-			    ARCHIVE_EXTRACT_SECURE_SYMLINKS) == 0) {
-				/*
-				 * We are not the last element and we want to
-				 * follow symlinks if they are a directory.
-				 *
-				 * This is needed to extract hardlinks over
-				 * symlinks.
-				 */
-#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
-				r = fstatat(chdir_fd, head, &st, 0);
-#else
-				r = la_stat(head, &st);
-#endif
-				if (r != 0) {
-					tail[0] = c;
-					if (errno == ENOENT) {
-						break;
-					} else {
-						fsobj_error(a_eno, a_estr,
-						    errno,
-						    "Could not stat ", path);
-						res = (ARCHIVE_FAILED);
-						break;
-					}
-				} else if (S_ISDIR(st.st_mode)) {
+			} else if (S_ISDIR(st.st_mode)) {
+				if (!last) {
 #if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
 					fd = la_opendirat(chdir_fd, head);
 					if (fd < 0)
@@ -3078,31 +2971,162 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 #endif
 					if (r != 0) {
 						tail[0] = c;
-						fsobj_error(a_eno, a_estr,
-						    errno,
+						fsobj_error(a_eno, a_estr, errno,
 						    "Could not chdir ", path);
 						res = (ARCHIVE_FATAL);
 						break;
 					}
-					/*
-					 * Our view is now from inside
-					 * this dir:
-					 */
+					/* Our view is now from inside this dir: */
 					head = tail + 1;
+				}
+			} else if (S_ISLNK(st.st_mode)) {
+				if (last && checking_linkname) {
+#ifdef HAVE_LINKAT
+					/*
+					 * Hardlinks to symlinks are safe to write
+					 * if linkat() is supported as it does not
+					 * follow symlinks.
+					 */
+					res = ARCHIVE_OK;
+#else
+					/*
+					 * We return ARCHIVE_FAILED here as we are
+					 * not able to safely write hardlinks
+					 * to symlinks.
+					 */
+					tail[0] = c;
+					fsobj_error(a_eno, a_estr, errno,
+					    "Cannot write hardlink to symlink ",
+					    path);
+					res = ARCHIVE_FAILED;
+#endif
+					break;
+				} else
+				if (last) {
+					/*
+					 * Last element is symlink; remove it
+					 * so we can overwrite it with the
+					 * item being extracted.
+					 */
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+					r = unlinkat(chdir_fd, head, 0);
+#else
+					r = unlink(head);
+#endif
+					if (r != 0) {
+						tail[0] = c;
+						fsobj_error(a_eno, a_estr, errno,
+						    "Could not remove symlink ",
+						    path);
+						res = ARCHIVE_FAILED;
+						break;
+					}
+					/*
+					 * Even if we did remove it, a warning
+					 * is in order.  The warning is silly,
+					 * though, if we're just replacing one
+					 * symlink with another symlink.
+					 */
+					tail[0] = c;
+					/*
+					 * FIXME:  not sure how important this is to
+					 * restore
+					 */
+					/*
+					if (!S_ISLNK(path)) {
+						fsobj_error(a_eno, a_estr, -1,
+						    "Removing symlink ", path);
+					}
+					*/
+					/* Symlink gone.  No more problem! */
+					res = ARCHIVE_OK;
+					break;
+				} else if (flags & ARCHIVE_EXTRACT_UNLINK) {
+					/* User asked us to remove problems. */
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+					r = unlinkat(chdir_fd, head, 0);
+#else
+					r = unlink(head);
+#endif
+					if (r != 0) {
+						tail[0] = c;
+						fsobj_error(a_eno, a_estr, EIO,
+						    "Cannot remove intervening "
+						    "symlink ", path);
+						res = ARCHIVE_FAILED;
+						break;
+					}
+					tail[0] = c;
+					if (last)
+						break;
+					uncreated_depth = 1;
+					head = tail + 1;
+				} else if ((flags &
+				    ARCHIVE_EXTRACT_SECURE_SYMLINKS) == 0) {
+					/*
+					 * We are not the last element and we want to
+					 * follow symlinks if they are a directory.
+					 *
+					 * This is needed to extract hardlinks over
+					 * symlinks.
+					 */
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+					r = fstatat(chdir_fd, head, &st, 0);
+#else
+					r = la_stat(head, &st);
+#endif
+					if (r != 0) {
+						tail[0] = c;
+						if (errno == ENOENT) {
+							break;
+						} else {
+							fsobj_error(a_eno, a_estr,
+							    errno,
+							    "Could not stat ", path);
+							res = (ARCHIVE_FAILED);
+							break;
+						}
+					} else if (S_ISDIR(st.st_mode)) {
+#if defined(HAVE_OPENAT) && defined(HAVE_FSTATAT) && defined(HAVE_UNLINKAT)
+						fd = la_opendirat(chdir_fd, head);
+						if (fd < 0)
+							r = -1;
+						else {
+							r = 0;
+							close(chdir_fd);
+							chdir_fd = fd;
+						}
+#else
+						r = chdir(head);
+#endif
+						if (r != 0) {
+							tail[0] = c;
+							fsobj_error(a_eno, a_estr,
+							    errno,
+							    "Could not chdir ", path);
+							res = (ARCHIVE_FATAL);
+							break;
+						}
+						/*
+						 * Our view is now from inside
+						 * this dir:
+						 */
+						head = tail + 1;
+					} else {
+						tail[0] = c;
+						fsobj_error(a_eno, a_estr, ELOOP,
+						    "Cannot extract through "
+						    "symlink ", path);
+						res = ARCHIVE_FAILED;
+						break;
+					}
 				} else {
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, ELOOP,
-					    "Cannot extract through "
-					    "symlink ", path);
+					    "Cannot extract through symlink ", path);
 					res = ARCHIVE_FAILED;
 					break;
 				}
-			} else {
-				tail[0] = c;
-				fsobj_error(a_eno, a_estr, ELOOP,
-				    "Cannot extract through symlink ", path);
-				res = ARCHIVE_FAILED;
-				break;
 			}
 		}
 		/* be sure to always maintain this */
@@ -3454,6 +3478,7 @@ create_dir(struct archive_write_disk *a, char *path)
 			le = new_fixup(a, path);
 			if (le == NULL)
 				return (ARCHIVE_FATAL);
+			le->filetype = AE_IFDIR;
 			le->fixup |= TODO_MODE_BASE;
 			le->mode = mode_final;
 		}
