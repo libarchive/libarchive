@@ -146,6 +146,17 @@ memerr:
 static int
 archive_compressor_gzip_free(struct archive_write_filter *f)
 {
+#ifdef HAVE_ZLIB_H
+	struct gzip *gzip = f->data;
+
+	/* A filter left in the FATAL state is skipped by
+	 * __archive_write_filters_close(), so archive_compressor_gzip_close() -
+	 * the only caller of deflateEnd() - never ran. The compression buffer is
+	 * allocated before the stream is initialized and released again if that
+	 * initialization fails, so a non-NULL buffer means the stream is live. */
+	if (gzip != NULL && gzip->compressed != NULL)
+		deflateEnd(&(gzip->stream));
+#endif
 	free_data(f->data);
 	f->data = NULL;
 	return (ARCHIVE_OK);
@@ -307,6 +318,12 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		    "compression library: invalid library version");
 		break;
 	}
+
+	/* The compressor was not initialized, so release the buffer: a non-NULL
+	 * buffer is what tells archive_compressor_gzip_free() that there is a
+	 * deflate stream still to end. */
+	free(gzip->compressed);
+	gzip->compressed = NULL;
 
 	return (ARCHIVE_FATAL);
 }
