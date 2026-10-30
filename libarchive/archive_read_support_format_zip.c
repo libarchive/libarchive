@@ -1608,7 +1608,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		}
 		zip_entry->uncompressed_size = zip_entry->compressed_size = 0;
 
-		if (__archive_read_consume(a, linkname_length) < 0) {
+		if (zip->entry->compression == 0 &&
+		    __archive_read_consume(a, linkname_length) < 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Read error skipping symlink target name");
 			return ARCHIVE_FATAL;
