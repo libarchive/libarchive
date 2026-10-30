@@ -1229,3 +1229,61 @@ DEFINE_TEST(test_read_format_xar_invalid_seek_offset)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * The compressed TOC may arrive in pieces too small for the
+ * decompressor to produce any output.  That must not end the TOC
+ * early.  Write an archive whose TOC is larger than what bidding
+ * buffers, then read it one byte at a time.
+ */
+DEFINE_TEST(test_read_format_xar_toc_small_reads)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char name[64];
+	char *buff;
+	size_t buffsize = 1024 * 1024, used;
+	int i, r;
+
+	assert((buff = malloc(buffsize)) != NULL);
+	assert((a = archive_write_new()) != NULL);
+	r = archive_write_set_format_xar(a);
+	if (r != ARCHIVE_OK) {
+		skipping("xar writing not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
+	for (i = 0; i < 200; i++) {
+		assert((ae = archive_entry_new()) != NULL);
+		snprintf(name, sizeof(name), "file%03d", i);
+		archive_entry_copy_pathname(ae, name);
+		archive_entry_set_filetype(ae, AE_IFREG);
+		archive_entry_set_perm(ae, 0644);
+		archive_entry_set_size(ae, 0);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		archive_entry_free(ae);
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		free(buff);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, buff, used, 1));
+	for (i = 0; i < 200; i++) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	}
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(buff);
+}
