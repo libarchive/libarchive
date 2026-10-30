@@ -70,9 +70,13 @@ static void
 lafe_vwarnc(int code, const char *fmt, va_list ap)
 {
 	fprintf(stderr, "%s: ", lafe_progname);
-	vfprintf(stderr, fmt, ap);
+	if (fmt != NULL) {
+		vfprintf(stderr, fmt, ap);
+		if (code != 0)
+			fprintf(stderr, ": ");
+	}
 	if (code != 0)
-		fprintf(stderr, ": %s", strerror(code));
+		fprintf(stderr, "%s", strerror(code));
 	fprintf(stderr, "\n");
 }
 
