@@ -400,6 +400,7 @@ IF(ENABLE_TEST)
     test_write_format_zip_stream.c
     test_write_format_zip_windows_path.c
     test_write_format_zip_zip64.c
+    test_write_open_filename_skip_self.c
     test_write_open_memory.c
     test_write_read_format_zip.c
     test_xattr_clear.c

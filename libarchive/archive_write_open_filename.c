@@ -45,6 +45,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_platform_stat.h"
 #include "archive_private.h"
 #include "archive_string.h"
 
@@ -136,7 +137,7 @@ file_open(struct archive *a, void *client_data)
 {
 	int flags;
 	struct write_file_data *mine;
-	struct stat st;
+	la_seek_stat_t st;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	wchar_t *fullpath;
 #endif
@@ -189,7 +190,7 @@ file_open(struct archive *a, void *client_data)
 		return (ARCHIVE_FATAL);
 	}
 
-	if (fstat(mine->fd, &st) != 0) {
+	if (la_seek_fstat(mine->fd, &st) != 0) {
 		if (mbs != NULL)
 			archive_set_error(a, errno, "Couldn't stat '%s'", mbs);
 		else
