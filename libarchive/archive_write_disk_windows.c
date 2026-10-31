@@ -628,7 +628,6 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
 #else
 	wchar_t *ttarget, *p;
 	size_t len;
-	DWORD attrs = 0;
 	DWORD flags = 0;
 	DWORD newflags = 0;
 	DWORD lasterr = 0;
@@ -681,17 +680,6 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
 #else
 	newflags = flags | 0x2;
 #endif
-
-	/*
-	 * Windows won't overwrite existing links
-	 */
-	attrs = GetFileAttributesW(linkname);
-	if (attrs != INVALID_FILE_ATTRIBUTES) {
-		if (attrs & FILE_ATTRIBUTE_DIRECTORY)
-			disk_rmdir(linkname);
-		else
-			disk_unlink(linkname);
-	}
 
 	ret = CreateSymbolicLinkW(linkname, ttarget, newflags);
 	/*
@@ -1773,6 +1761,14 @@ create_filesystem_object(struct archive_write_disk *a)
 		 */
 		attrs = GetFileAttributesW(a->name);
 		if (attrs != INVALID_FILE_ATTRIBUTES) {
+			/*
+			 * Let restore_entry() handle the existing object.
+			 * CreateSymbolicLinkW() cannot be relied on to fail
+			 * with ERROR_ALREADY_EXISTS: over a directory it
+			 * fails with ERROR_ACCESS_DENIED instead.
+			 */
+			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) == 0)
+				return (EEXIST);
 			if (attrs & FILE_ATTRIBUTE_DIRECTORY)
 				disk_rmdir(a->name);
 			else
