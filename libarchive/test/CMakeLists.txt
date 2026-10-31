@@ -315,6 +315,7 @@ IF(ENABLE_TEST)
     test_write_disk_secure746.c
     test_write_disk_sparse.c
     test_write_disk_symlink.c
+    test_write_disk_symlink_no_overwrite.c
     test_write_disk_times.c
     test_write_filter_b64encode.c
     test_write_filter_bzip2.c
