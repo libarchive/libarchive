@@ -139,21 +139,21 @@ bitcrc32(uint32_t c, const void *_p, size_t s)
 }
 
 /* Read little-endian integers */
-unsigned short
-i2le(const void* p_)
+uint16_t
+i2le(const void *_p)
 {
-	const unsigned char *p = p_;
+	const uint8_t *p = _p;
 	return (p[0] | (p[1] << 8));
 }
-unsigned int
-i4le(const void* p_)
+uint32_t
+i4le(const void *_p)
 {
-	const char *p = p_;
-	return (i2le(p) | ((unsigned int)i2le(p + 2) << 16));
+	const uint16_t *p = _p;
+	return (i2le(&p[0]) | ((uint32_t)i2le(&p[1]) << 16));
 }
-unsigned long long
-i8le(const void* p_)
+uint64_t
+i8le(const void *_p)
 {
-	const char *p = p_;
-	return (i4le(p) | ((unsigned long long)i4le(p + 4) << 32));
+	const uint32_t *p = _p;
+	return (i4le(&p[0]) | ((uint64_t)i4le(&p[1]) << 32));
 }

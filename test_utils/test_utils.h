@@ -31,11 +31,11 @@
 #include <stdint.h>
 
 /* Fill a buffer with pseudorandom data */
-void fill_with_pseudorandom_data(void*, size_t);
+void fill_with_pseudorandom_data(void *, size_t);
 /* A simplistic CRC-32 function for testing purposes */
 uint32_t bitcrc32(uint32_t, const void *, size_t);
 /* Read little-endian integers */
-unsigned short i2le(const void*);
-unsigned int i4le(const void*);
-unsigned long long i8le(const void*);
+uint16_t i2le(const void *);
+uint32_t i4le(const void *);
+uint64_t i8le(const void *);
 #endif /* !TEST_UTILS_H */
