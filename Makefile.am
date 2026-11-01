@@ -969,6 +969,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed3.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed4.7z.uu \
+	libarchive/test/test_read_format_7zip_malformed_header_size.7z.uu \
+	libarchive/test/test_read_format_7zip_malformed_header_size2.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed_numfiles_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_null_client_next.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
