@@ -2657,6 +2657,7 @@ static int
 read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
     struct _7z_folder *f, size_t numFolders)
 {
+	struct _7zip *zip = a->format->data;
 	const unsigned char *p;
 	int64_t *usizes;
 	size_t numDigests;
@@ -2689,6 +2690,14 @@ read_SubStreamsInfo(struct archive_read *a, struct _7z_substream_info *ss,
 		unpack_streams = numFolders;
 
 	if (unpack_streams > UMAX_ENTRY)
+		return (-1);
+	/*
+	 * Each unpack stream beyond the first one of a folder needs its
+	 * size stored in the remaining header bytes.
+	 */
+	if (unpack_streams > numFolders &&
+	    unpack_streams - numFolders >
+	    (uint64_t)zip->header_bytes_remaining)
 		return (-1);
 
 	if (type != kSize) {
