@@ -169,15 +169,11 @@ DEFINE_TEST(test_read_format_cpio_afio_junk)
 		}
 	}
 	assert(afio != NULL);
-	if (afio == NULL)
-		return;
 	off = afio - archive;
 
 	for (junk = 1; junk <= 12; junk++) {
 		size = sizeof(archive) + junk + 512;
 		assert((p = calloc(1, size)) != NULL);
-		if (p == NULL)
-			return;
 		memcpy(p, archive, off);
 		memset(p + off, 'Z', junk);
 		memcpy(p + off + junk, afio, sizeof(archive) - off);
