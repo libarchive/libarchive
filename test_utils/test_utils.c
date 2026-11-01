@@ -110,8 +110,8 @@ fill_with_pseudorandom_data(void *buffer, size_t size)
 	fill_with_pseudorandom_data_seed(seed, buffer, size);
 }
 
-unsigned long
-bitcrc32(unsigned long c, const void *_p, size_t s)
+uint32_t
+bitcrc32(uint32_t c, const void *_p, size_t s)
 {
 	/* This is a drop-in replacement for crc32() from zlib.
 	 * Libarchive should be able to correctly read archives (including
@@ -121,8 +121,8 @@ bitcrc32(unsigned long c, const void *_p, size_t s)
 	 * works well enough for this particular usage. Libarchive
 	 * internally uses a much more efficient implementation if zlib is
 	 * unavailable. */
-	const unsigned char *p = _p;
-	char bitctr;
+	const uint8_t *p = _p;
+	int bitctr;
 
 	if (p == NULL)
 		return (0);
@@ -131,8 +131,8 @@ bitcrc32(unsigned long c, const void *_p, size_t s)
 		c ^= *p++;
 		for (bitctr = 8; bitctr > 0; --bitctr) {
 			if (c & 1) c = (c >> 1);
-			else	   c = (c >> 1) ^ 0xedb88320;
-			c ^= 0x80000000;
+			else	   c = (c >> 1) ^ 0xedb88320U;
+			c ^= 0x80000000U;
 		}
 	}
 	return (c);

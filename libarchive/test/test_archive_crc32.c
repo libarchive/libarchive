@@ -6,7 +6,7 @@ DEFINE_TEST(test_archive_crc32)
 {
 	unsigned char buf[8192];
 	size_t i;
-	unsigned long crc_lib, crc_ref;
+	uint32_t crc_lib, crc_ref;
 
 	/* Initialize buffer with some data */
 	for (i = 0; i < sizeof(buf); i++)

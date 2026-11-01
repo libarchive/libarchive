@@ -36,7 +36,7 @@ DEFINE_TEST(test_write_format_zip_stream)
 	struct archive *a;
 	struct archive_entry *ae;
 	size_t used, buffsize = 1000000;
-	unsigned long crc;
+	uint32_t crc;
 	unsigned long compressed_size = 0;
 	__LA_MODE_T file_perm = 00644;
 #ifdef HAVE_ZLIB_H
