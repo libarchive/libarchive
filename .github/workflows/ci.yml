@@ -218,7 +218,7 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Install Cygwin
-      uses: cygwin/cygwin-install-action@3f0a3f9f988f7e96b8c18098ae05eaec175f5b52 # v6
+      uses: cygwin/cygwin-install-action@5a1b0cd107181fa6bb6bf3f90d500f4fb3132f18 # v7.0.0
       if:  ${{ matrix.be=='cygwin-gcc' }}
       with:
         install-dir: "D:\\cygwin"
