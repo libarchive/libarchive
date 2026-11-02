@@ -301,6 +301,10 @@ archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 		 * XXX TODO:  More verification; Could check that only hex
 		 * digits appear in appropriate header locations. XXX
 		 */
+	} else if (memcmp(h, "070704", 6) == 0) {
+		/* SVR4 with CRC, 64-bit file size (SWUpdate) */
+		cpio->read_header = header_newc;
+		bid += 48;
 	} else if (archive_be16dec(h) == 070707) {
 		/* big-endian binary cpio archives */
 		cpio->read_header = header_bin_be;
@@ -517,7 +521,7 @@ archive_read_format_cpio_skip(struct archive_read *a)
 
 /*
  * Skip forward to the next cpio newc header by searching for the
- * 07070[12] string.  This should be generalized and merged with
+ * 07070[124] string.  This should be generalized and merged with
  * find_odc_header below.
  */
 static int
@@ -552,7 +556,7 @@ find_newc_header(struct archive_read *a)
 
 		/* Try the typical case first, then go into the slow search.*/
 		if (memcmp("07070", p, 5) == 0
-		    && (p[5] == '1' || p[5] == '2')
+		    && (p[5] == '1' || p[5] == '2' || p[5] == '4')
 		    && is_hex(p, newc_header_size))
 			return (ARCHIVE_OK);
 
@@ -564,6 +568,7 @@ find_newc_header(struct archive_read *a)
 			switch (p[5]) {
 			case '1':
 			case '2':
+			case '4':
 				if (memcmp("07070", p, 5) == 0
 				    && is_hex(p, newc_header_size)) {
 					skip = p - (const char *)h;
@@ -605,6 +610,8 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 {
 	const void *h;
 	const char *header;
+	uint64_t size;
+	int large = 0;
 	int r;
 
 	r = find_newc_header(a);
@@ -625,6 +632,16 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 	} else if (memcmp(header + newc_magic_offset, "070702", 6) == 0) {
 		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
 		a->archive.archive_format_name = "ASCII cpio (SVR4 with CRC)";
+	} else if (memcmp(header + newc_magic_offset, "070704", 6) == 0) {
+		/*
+		 * SVR4 with CRC for files of 4 GiB and more, used by
+		 * SWUpdate: rdevmajor has the upper 32 bits of the file
+		 * size, so the entry has no rdevmajor.
+		 */
+		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC_LARGE;
+		a->archive.archive_format_name =
+		    "ASCII cpio (SVR4 with CRC, 64-bit file size)";
+		large = 1;
 	} else {
 		/* TODO: Abort here? */
 	}
@@ -640,8 +657,9 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_gid(entry, atol16(header + newc_gid_offset, newc_gid_size));
 	archive_entry_set_nlink(entry,
 		(unsigned int)atol16(header + newc_nlink_offset, newc_nlink_size));
-	archive_entry_set_rdevmajor(entry,
-		(dev_t)atol16(header + newc_rdevmajor_offset, newc_rdevmajor_size));
+	if (!large)
+		archive_entry_set_rdevmajor(entry, (dev_t)atol16(
+		    header + newc_rdevmajor_offset, newc_rdevmajor_size));
 	archive_entry_set_rdevminor(entry,
 		(dev_t)atol16(header + newc_rdevminor_offset, newc_rdevminor_size));
 	archive_entry_set_mtime(entry, atol16(header + newc_mtime_offset, newc_mtime_size), 0);
@@ -661,8 +679,18 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 	 * therefore guaranteed to be big enough for a 33-bit file
 	 * size.
 	 */
-	cpio->entry_bytes_remaining =
-	    atol16(header + newc_filesize_offset, newc_filesize_size);
+	size = atol16u(header + newc_filesize_offset, newc_filesize_size);
+	if (large) {
+		size |= atol16u(header + newc_rdevmajor_offset,
+		    newc_rdevmajor_size) << 32;
+		if (size > INT64_MAX) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "cpio archive has invalid file size");
+			return (ARCHIVE_FATAL);
+		}
+	}
+	cpio->entry_bytes_remaining = (int64_t)size;
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	/* Pad file contents to a multiple of 4. */
 	cpio->entry_padding = 3 & -cpio->entry_bytes_remaining;
