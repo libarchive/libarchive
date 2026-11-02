@@ -593,8 +593,10 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 
 			/* MultiByteToWideChar is limited to int. */
 			if (length > (size_t)INT_MAX ||
-				(dest->buffer_length >> 1) > (size_t)INT_MAX)
+				(dest->buffer_length >> 1) > (size_t)INT_MAX) {
+				errno = EINVAL;
 				return (-1);
+			}
 			/* Allocate memory for WCS. */
 			if (NULL == archive_wstring_ensure(dest, buffsize))
 				return (-1);
@@ -608,8 +610,10 @@ archive_wstring_append_from_mbs_in_codepage(struct archive_wstring *dest,
 				buffsize = dest->buffer_length << 1;
 				continue;
 			}
-			if (r == 0 && length != 0)
+			if (r == 0 && length != 0) {
+				errno = EILSEQ;
 				ret = -1;
+			}
 			count = (size_t)r;
 			break;
 		} while (1);
@@ -2027,6 +2031,19 @@ archive_strncpy_l(struct archive_string *as, const void *_p, size_t n,
 	return (archive_strncat_l(as, _p, n, sc));
 }
 
+/*
+ * Every converter registered with a struct archive_string_conv obeys
+ * this contract: it returns nonzero only when the conversion failed and
+ * it then sets errno to ENOMEM if memory could not be allocated, or to
+ * EILSEQ/EINVAL if the string contained bytes it could not convert.
+ * On success converters leave errno unchanged.
+ *
+ * Callers throughout the library (archive_entry.c, archive_acl.c, the
+ * format readers) distinguish a fatal out-of-memory condition from a
+ * recoverable conversion failure by testing errno == ENOMEM after a
+ * failed conversion, so a failure return must never leave errno holding
+ * an unrelated value from an earlier call.
+ */
 int
 archive_strncat_l(struct archive_string *as, const void *_p, size_t n,
     struct archive_string_conv *sc)
@@ -2148,6 +2165,7 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 			 * Conversion did not fail, but it performed
 			 * some non-identical character substitutions.
 			 */
+			errno = EILSEQ;
 			return_value = -1;
 			break;
 		}
@@ -2280,10 +2298,14 @@ invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 	if (codepage != CP_UTF8)
 		mbflag |= MB_PRECOMPOSED;
 
-	if (n > (size_t)INT_MAX)
-		return (-1); /* Invalid */
-	if (MultiByteToWideChar(codepage, mbflag, p, (int)n, NULL, 0) == 0)
-		return (-1); /* Invalid */
+	if (n > (size_t)INT_MAX) {
+		errno = EINVAL; /* Invalid */
+		return (-1);
+	}
+	if (MultiByteToWideChar(codepage, mbflag, p, (int)n, NULL, 0) == 0) {
+		errno = EILSEQ; /* Invalid */
+		return (-1);
+	}
 	return (0); /* Okay */
 }
 
@@ -2314,8 +2336,15 @@ invalid_mbs(const void *_p, size_t n, struct archive_string_conv *sc)
 #else
 		r = mbtowc(&wc, p, n);
 #endif
-		if (r == (size_t)-1 || r == (size_t)-2)
+		if (r == (size_t)-1 || r == (size_t)-2) {
+			/* Set errno so callers can tell this failure
+			 * apart from an out-of-memory condition. */
+			if (r == (size_t)-1)
+				errno = EILSEQ;
+			else
+				errno = EINVAL;
 			return (-1);/* Invalid. */
+		}
 		if (r == 0)
 			break;
 		p += r;
@@ -2371,6 +2400,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 			} else {
 				archive_strappend_char(as, '?');
 			}
+			errno = EILSEQ;
 			return_value = -1;
 		} else {
 			archive_strappend_char(as, *itp);
@@ -2801,6 +2831,7 @@ strncat_from_utf8_to_utf8(struct archive_string *as, const void *_src,
 			/* Not a (valid) surrogate, so use a replacement char */
 			if (n < 0) {
 				ret = -1; /* Return -1 if we used any replacement */
+				errno = EILSEQ;
 				n *= -1;
 			}
 			/* Consume converted code point */
@@ -2874,6 +2905,7 @@ archive_string_append_unicode(struct archive_string *as, const void *_p,
 		if (n < 0) {
 			/* Use a replaced unicode character. */
 			n *= -1;
+			errno = EILSEQ;
 			ret = -1;
 		}
 		s += n;
@@ -3018,6 +3050,7 @@ get_nfc(uint32_t uc, uint32_t uc2)
 		ccx[_i] = cx;			\
 	}					\
 	if (_i >= FDC_MAX) {			\
+		errno = EILSEQ;			\
 		ret = -1;			\
 		ucx_size = FDC_MAX;		\
 	} else					\
@@ -3102,6 +3135,7 @@ archive_string_normalize_C(struct archive_string *as, const void *_p,
 			UNPARSE(p, endp, uc);
 			s += n*-1;
 			len -= n*-1;
+			errno = EILSEQ;
 			ret = -1;
 			continue;
 		} else if (n == spair || always_replace)
@@ -3275,6 +3309,7 @@ archive_string_normalize_C(struct archive_string *as, const void *_p,
 			UNPARSE(p, endp, uc2);
 			s += n2*-1;
 			len -= n2*-1;
+			errno = EILSEQ;
 			ret = -1;
 			continue;
 		} else if (n2 == 0) {
@@ -3418,6 +3453,7 @@ check_first_code:
 			UNPARSE(p, endp, uc);
 			s += n*-1;
 			len -= n*-1;
+			errno = EILSEQ;
 			ret = -1;
 			continue;
 		} else if (n == spair || always_replace)
@@ -3635,6 +3671,7 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 				val = archive_le16dec(u16+b);
 			if (val > 255) {
 				*mbs++ = '?';
+				errno = EILSEQ;
 				ret = -1;
 			} else
 				*mbs++ = (char)(val&0xff);
@@ -3678,8 +3715,10 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 		int r;
 		defchar = 0;
 		/* WideCharToMultiByte is limited to int. */
-		if (bytes > (size_t)INT_MAX || mbs_size > (size_t)INT_MAX)
+		if (bytes > (size_t)INT_MAX || mbs_size > (size_t)INT_MAX) {
+			errno = EINVAL;
 			return (-1);
+		}
 		r = WideCharToMultiByte(sc->to_cp, 0,
 		    (LPCWSTR)u16, (int)bytes>>1, mbs, (int)mbs_size,
 			NULL, &defchar);
@@ -3701,8 +3740,10 @@ win_strncat_from_utf16(struct archive_string *as, const void *_p, size_t bytes,
 	archive_string_free(&tmp);
 	as->length += ll;
 	as->s[as->length] = '\0';
-	if (ll == 0 || defchar)
+	if (ll == 0 || defchar) {
+		errno = EILSEQ;
 		ret = -1;
+	}
 	return (ret);
 }
 
@@ -3759,8 +3800,10 @@ win_strncat_to_utf16(struct archive_string *as16, const void *_p,
 	}
 	do {
 		int r;
-		if (length > (size_t)INT_MAX || (avail >> 1) > (size_t)INT_MAX)
+		if (length > (size_t)INT_MAX || (avail >> 1) > (size_t)INT_MAX) {
+			errno = EINVAL;
 			return (-1);
+		}
 		r = MultiByteToWideChar(sc->from_cp,
 		    MB_PRECOMPOSED, s, (int)length, (LPWSTR)u16, (int)avail>>1);
 		/* Exit loop if we succeeded */
@@ -3782,8 +3825,10 @@ win_strncat_to_utf16(struct archive_string *as16, const void *_p,
 	as16->length += count * 2;
 	as16->s[as16->length] = 0;
 	as16->s[as16->length+1] = 0;
-	if (count == 0)
+	if (count == 0) {
+		errno = EILSEQ;
 		return (-1);
+	}
 
 	if (IS_BIG_ENDIAN) {
 		if (!bigendian) {
@@ -3857,6 +3902,7 @@ best_effort_strncat_from_utf16(struct archive_string *as, const void *_p,
 	while ((n = utf16_to_unicode(&uc, utf16, bytes, be)) != 0) {
 		if (n < 0) {
 			n *= -1;
+			errno = EILSEQ;
 			ret =  -1;
 		}
 		bytes -= n;
@@ -3865,6 +3911,7 @@ best_effort_strncat_from_utf16(struct archive_string *as, const void *_p,
 		if (uc > 127) {
 			/* We cannot handle it. */
 			*mbs++ = '?';
+			errno = EILSEQ;
 			ret =  -1;
 		} else
 			*mbs++ = (char)uc;
@@ -3920,6 +3967,7 @@ best_effort_strncat_to_utf16(struct archive_string *as16, const void *_p,
 		if (c > 127) {
 			/* We cannot handle it. */
 			c = UNICODE_R_CHAR;
+			errno = EILSEQ;
 			ret = -1;
 		}
 		if (bigendian)
