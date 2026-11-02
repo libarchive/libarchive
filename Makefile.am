@@ -1210,6 +1210,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_xar_invalid_seek_offset.xar.uu \
 	libarchive/test/test_read_format_xar_large_mode.xar.uu \
 	libarchive/test/test_read_format_xar_parse_time_overread.xar.uu \
+	libarchive/test/test_read_format_xar_stale_errno.xar.uu \
 	libarchive/test/test_read_format_xar_toc_premature_stream_end.xar.uu \
 	libarchive/test/test_read_format_xar_toc_premature_stream_end_control.xar.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
