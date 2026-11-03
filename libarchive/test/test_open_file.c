@@ -24,6 +24,60 @@
  */
 #include "test.h"
 
+#if defined(__linux__) && defined(__GLIBC__)
+#include <sys/socket.h>
+#endif
+
+#if (defined(HAVE_UNISTD_H) && \
+    (defined(HAVE_PIPE) || defined(HAVE_FCNTL_H)) && \
+    (!defined(_WIN32) || defined(__CYGWIN__))) || defined(__GLIBC__)
+static void
+make_zip(unsigned char *zip, size_t capacity, size_t *used,
+    const void *data, size_t size)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_zip_set_compression_store(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, zip, capacity, used));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "file");
+	archive_entry_set_mode(ae, AE_IFREG | 0644);
+	archive_entry_set_size(ae, size);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, size, archive_write_data(a, data, size));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
+
+static void
+check_zip(struct archive *a, const void *data, size_t size)
+{
+	struct archive_entry *ae;
+	void *result;
+	int r;
+
+	r = archive_read_next_header(a, &ae);
+	assertEqualIntA(a, ARCHIVE_OK, r);
+	if (r != ARCHIVE_OK)
+		return;
+	assertEqualString("file", archive_entry_pathname(ae));
+	result = malloc(size);
+	assert(result != NULL);
+	if (result != NULL) {
+		assertEqualIntA(a, size, archive_read_data(a, result, size));
+		assertEqualMem(data, result, size);
+		free(result);
+	}
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+}
+#endif
+
 DEFINE_TEST(test_open_file)
 {
 	char buff[64];
@@ -77,6 +131,9 @@ DEFINE_TEST(test_open_file)
 	assert(f != NULL);
 	if (f == NULL)
 		return;
+#if defined(__ANDROID__) && !defined(__LP64__) && __ANDROID_API__ < 24
+	assertEqualInt(0, setvbuf(f, NULL, _IONBF, 0));
+#endif
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -103,6 +160,529 @@ DEFINE_TEST(test_open_file)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#if defined(__ANDROID__) && !defined(__LP64__) && __ANDROID_API__ < 24
+	{
+		off64_t physical =
+		    lseek64(fileno(f), 0, SEEK_CUR);
+		long logical = ftell(f);
+
+		assert(physical >= 0);
+		assert(logical >= 0);
+		assertEqualInt(physical, logical);
+		assertEqualInt(0, fseek(f, 0, SEEK_CUR));
+		assertEqualInt(physical,
+		    lseek64(fileno(f), 0, SEEK_CUR));
+	}
+#endif
 
 	fclose(f);
+}
+
+#if defined(HAVE_UNISTD_H) && defined(HAVE_PIPE) && \
+    (!defined(_WIN32) || defined(__CYGWIN__))
+static int unexpected_seek_calls;
+
+static la_int64_t
+unexpected_seek(struct archive *a, void *client_data, la_int64_t offset,
+    int whence)
+{
+
+	(void)a;
+	(void)client_data;
+	(void)offset;
+	(void)whence;
+	unexpected_seek_calls++;
+	return (ARCHIVE_FATAL);
+}
+#endif
+
+DEFINE_TEST(test_open_file_pipe_zip)
+{
+#if defined(HAVE_UNISTD_H) && defined(HAVE_PIPE) && \
+    (!defined(_WIN32) || defined(__CYGWIN__))
+	unsigned char zip[2048];
+	size_t used = 0;
+	struct archive *a;
+	FILE *f;
+	int fd[2];
+	int preset;
+
+	make_zip(zip, sizeof(zip), &used, "data", 4);
+	for (preset = 0; preset <= 1; preset++) {
+		if (!assertEqualInt(0, pipe(fd)))
+			return;
+		assertEqualInt(used, write(fd[1], zip, used));
+		assertEqualInt(0, close(fd[1]));
+		assert((f = fdopen(fd[0], "rb")) != NULL);
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_format_zip(a));
+		if (preset)
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_set_seek_callback(a, unexpected_seek));
+		unexpected_seek_calls = 0;
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_open_FILE(a, f));
+		assertEqualInt(0, unexpected_seek_calls);
+		check_zip(a, "data", 4);
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		assertEqualInt(0, fclose(f));
+	}
+#else
+	skipping("pipe() is unavailable on this platform");
+#endif
+}
+
+DEFINE_TEST(test_open_file_socket_zip)
+{
+#if defined(__linux__) && defined(__GLIBC__)
+	unsigned char zip[2048];
+	size_t used = 0;
+	struct archive *a;
+	FILE *f;
+	int fd[2];
+
+	make_zip(zip, sizeof(zip), &used, "data", 4);
+	if (!assertEqualInt(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fd)))
+		return;
+	assertEqualInt(used, write(fd[1], zip, used));
+	assertEqualInt(0, close(fd[1]));
+	assert((f = fdopen(fd[0], "rb")) != NULL);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_FILE(a, f));
+	check_zip(a, "data", 4);
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(0, fclose(f));
+#else
+	skipping("socket test requires Linux and glibc");
+#endif
+}
+
+DEFINE_TEST(test_open_file_memory_zip)
+{
+#if defined(__GLIBC__)
+	unsigned char zip[2048];
+	size_t used = 0;
+	struct archive *a;
+	FILE *f;
+
+	make_zip(zip, sizeof(zip), &used, "data", 4);
+	assert((f = fmemopen(zip, used, "rb")) != NULL);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_FILE(a, f));
+	check_zip(a, "data", 4);
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(0, fclose(f));
+#else
+	skipping("fmemopen test requires glibc");
+#endif
+}
+
+DEFINE_TEST(test_open_file_large_zip)
+{
+#if defined(__ANDROID__) && !defined(__LP64__) && __ANDROID_API__ < 24
+	skipping("LP32 Android before API 24 lacks 64-bit FILE seeking");
+	return;
+#elif defined(HAVE_UNISTD_H) && defined(HAVE_FCNTL_H) && \
+    (!defined(_WIN32) || defined(__CYGWIN__))
+	const int64_t prefix = ((int64_t)1 << 32) + 256;
+	unsigned char zip[2048];
+	char buffer[4093];
+	size_t used = 0;
+	struct archive *a;
+	FILE *f;
+	int fd;
+
+	if (sizeof(off_t) < 8) {
+		skipping("64-bit file offsets are unavailable");
+		return;
+	}
+	make_zip(zip, sizeof(zip), &used, "data", 4);
+	fd = open("large.zip", O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	if (!assert(fd >= 0))
+		return;
+	if (lseek(fd, (off_t)prefix, SEEK_SET) != prefix) {
+		close(fd);
+		skipping("Filesystem cannot seek beyond 4 GiB");
+		return;
+	}
+	assertEqualInt(used, write(fd, zip, used));
+	assertEqualInt(0, close(fd));
+	assert((f = fopen("large.zip", "rb")) != NULL);
+	assertEqualInt(0, setvbuf(f, buffer, _IOFBF, sizeof(buffer)));
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_FILE(a, f));
+	check_zip(a, "data", 4);
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(0, fclose(f));
+#else
+	skipping("Large-file ZIP test requires POSIX file descriptors");
+#endif
+}
+
+DEFINE_TEST(test_open_file_buffered_tar)
+{
+#if defined(HAVE_UNISTD_H) && defined(HAVE_FCNTL_H) && \
+    (!defined(_WIN32) || defined(__CYGWIN__))
+	const size_t payload_size = 340 * 1024 + 17;
+	const char prefix[] = "Leading padding";
+	char buffer[4093];
+	char prefix_read[sizeof(prefix)];
+	char result[4];
+	char *payload;
+	struct archive_entry *ae;
+	struct archive *a;
+	FILE *f;
+	int64_t offset;
+	int fd;
+	int large;
+
+	payload = malloc(payload_size);
+	if (!assert(payload != NULL))
+		return;
+	memset(payload, 'x', payload_size);
+	for (large = 0; large <= 1; large++) {
+		if (large && sizeof(off_t) < 8)
+			break;
+		offset = large ? ((int64_t)1 << 32) + 256 : 0;
+		fd = open("buffered.tar", O_WRONLY | O_CREAT | O_TRUNC, 0600);
+		if (!assert(fd >= 0))
+			break;
+		if (lseek(fd, (off_t)offset, SEEK_SET) != offset) {
+			close(fd);
+			skipping("Filesystem cannot seek beyond 4 GiB");
+			break;
+		}
+		assertEqualInt(sizeof(prefix), write(fd, prefix, sizeof(prefix)));
+		assert((f = fdopen(fd, "wb")) != NULL);
+		assert((a = archive_write_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_set_format_ustar(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_open_FILE(a, f));
+		assert((ae = archive_entry_new()) != NULL);
+		archive_entry_set_pathname(ae, "first");
+		archive_entry_set_mode(ae, AE_IFREG | 0644);
+		archive_entry_set_size(ae, payload_size);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		assertEqualIntA(a, payload_size,
+		    archive_write_data(a, payload, payload_size));
+		archive_entry_set_pathname(ae, "second");
+		archive_entry_set_size(ae, 4);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		assertEqualIntA(a, 4, archive_write_data(a, "data", 4));
+		archive_entry_free(ae);
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		assertEqualInt(0, fclose(f));
+
+		fd = open("buffered.tar", O_RDONLY);
+		if (!assert(fd >= 0))
+			break;
+		assertEqualInt(offset, lseek(fd, (off_t)offset, SEEK_SET));
+		assert((f = fdopen(fd, "rb")) != NULL);
+		assertEqualInt(0, setvbuf(f, buffer, _IOFBF, sizeof(buffer)));
+		/* Leave stdio read-ahead before opening the archive. */
+		assertEqualInt(sizeof(prefix),
+		    fread(prefix_read, 1, sizeof(prefix_read), f));
+		assertEqualMem(prefix, prefix_read, sizeof(prefix));
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_format_tar(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_open_FILE(a, f));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString("first", archive_entry_pathname(ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString("second", archive_entry_pathname(ae));
+		assertEqualIntA(a, 4, archive_read_data(a, result, sizeof(result)));
+		assertEqualMem("data", result, sizeof(result));
+		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		assertEqualInt(0, fclose(f));
+	}
+	free(payload);
+#else
+	skipping("Buffered TAR test requires POSIX file descriptors");
+#endif
+}
+
+#if defined(__GLIBC__)
+struct file_cookie {
+	const unsigned char *data;
+	size_t size;
+	size_t position;
+	int moved_end;
+	int fail_restore;
+	int rejected_end;
+	int restored;
+};
+
+static ssize_t
+cookie_read(void *opaque, char *buffer, size_t size)
+{
+	struct file_cookie *cookie = opaque;
+	size_t available = cookie->size - cookie->position;
+
+	if (size > available)
+		size = available;
+	memcpy(buffer, cookie->data + cookie->position, size);
+	cookie->position += size;
+	return (size);
+}
+
+static int
+cookie_seek(void *opaque, off64_t *offset, int whence)
+{
+	struct file_cookie *cookie = opaque;
+	off64_t position;
+
+	if (whence == SEEK_END) {
+		cookie->rejected_end++;
+		if (cookie->moved_end)
+			cookie->position = cookie->size;
+		errno = EIO;
+		return (-1);
+	}
+	if (whence == SEEK_SET && cookie->rejected_end) {
+		if (cookie->fail_restore) {
+			errno = EIO;
+			return (-1);
+		}
+		cookie->restored++;
+	}
+	position = *offset;
+	if (whence == SEEK_CUR)
+		position += cookie->position;
+	if (position < 0 || (uint64_t)position > cookie->size) {
+		errno = EINVAL;
+		return (-1);
+	}
+	cookie->position = position;
+	*offset = position;
+	/* A successful position query may change errno. */
+	if (cookie->rejected_end && whence == SEEK_CUR)
+		errno = EOVERFLOW;
+	return (0);
+}
+
+static int
+cookie_close(void *opaque)
+{
+	(void)opaque;
+	return (0);
+}
+#endif
+
+DEFINE_TEST(test_open_file_failed_seek)
+{
+#if defined(__GLIBC__)
+	const size_t payload_size = 160 * 1024;
+	struct file_cookie cookie;
+	cookie_io_functions_t io = { cookie_read, NULL, cookie_seek,
+	    cookie_close };
+	struct archive *a;
+	unsigned char *zip;
+	char *payload;
+	FILE *f;
+	size_t used = 0;
+	int moved;
+	int fail_restore;
+	int buffered;
+	int failure_case;
+	int r;
+
+	zip = malloc(payload_size + 2048);
+	payload = malloc(payload_size);
+	assert(zip != NULL);
+	assert(payload != NULL);
+	if (zip == NULL || payload == NULL) {
+		free(zip);
+		free(payload);
+		return;
+	}
+	memset(payload, 'x', payload_size);
+	make_zip(zip, payload_size + 2048, &used, payload, payload_size);
+	for (buffered = 0; buffered <= 1; buffered++) {
+		for (failure_case = 0; failure_case < 4; failure_case++) {
+			char buffer[4093];
+
+			moved = failure_case / 2;
+			fail_restore = failure_case % 2;
+			memset(&cookie, 0, sizeof(cookie));
+			cookie.data = zip;
+			cookie.size = used;
+			cookie.moved_end = moved;
+			cookie.fail_restore = fail_restore;
+			assert((f = fopencookie(&cookie, "rb", io)) != NULL);
+			assertEqualInt(0, setvbuf(f, buffer,
+			    buffered ? _IOFBF : _IONBF, sizeof(buffer)));
+			assert((a = archive_read_new()) != NULL);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_format_zip(a));
+			r = archive_read_open_FILE(a, f);
+			if (moved && fail_restore) {
+				if (r == ARCHIVE_OK) {
+					struct archive_entry *ae;
+					r = archive_read_next_header(a, &ae);
+				}
+				assertEqualIntA(a, ARCHIVE_FATAL, r);
+			} else {
+				assertEqualIntA(a, ARCHIVE_OK, r);
+				assertEqualInt(EIO, archive_errno(a));
+				assertEqualInt(0, ferror(f));
+				check_zip(a, payload, payload_size);
+			}
+			assert(cookie.rejected_end > 0);
+			if (moved && !fail_restore)
+				assert(cookie.restored > 0);
+			else
+				assertEqualInt(0, cookie.restored);
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+			assertEqualInt(0, fclose(f));
+		}
+	}
+	free(zip);
+	free(payload);
+#else
+	skipping("fopencookie test requires glibc");
+#endif
+}
+
+#if defined(__GLIBC__)
+static ssize_t
+cookie_read_error(void *opaque, char *buffer, size_t size)
+{
+	(void)opaque;
+	(void)buffer;
+	(void)size;
+	errno = EIO;
+	return (-1);
+}
+#endif
+
+DEFINE_TEST(test_open_file_read_error)
+{
+#if defined(__GLIBC__)
+	cookie_io_functions_t io = { cookie_read_error, NULL, NULL,
+	    cookie_close };
+	struct archive *a;
+	FILE *f;
+
+	assert((f = fopencookie(NULL, "rb", io)) != NULL);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_open_FILE(a, f));
+	assertEqualInt(EIO, archive_errno(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(0, fclose(f));
+#else
+	skipping("fopencookie test requires glibc");
+#endif
+}
+
+DEFINE_TEST(test_open_file_reuse)
+{
+#if defined(HAVE_UNISTD_H) && defined(HAVE_FCNTL_H) && \
+	(!defined(_WIN32) || defined(__CYGWIN__))
+	const size_t payload_size = 340 * 1024;
+	char *payload;
+	char result[4];
+	struct archive *a;
+	struct archive_entry *ae;
+	FILE *f;
+	int fd;
+
+	payload = malloc(payload_size);
+	if (!assert(payload != NULL))
+		return;
+
+	memset(payload, 'x', payload_size);
+
+	fd = open("reuse.tar",
+		O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	if (!assert(fd >= 0)) {
+		free(payload);
+		return;
+	}
+	f = fdopen(fd, "wb");
+	if (!assert(f != NULL)) {
+		close(fd);
+		free(payload);
+		return;
+	}
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_FILE(a, f));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "first");
+	archive_entry_set_mode(ae, AE_IFREG | 0644);
+	archive_entry_set_size(ae, payload_size);
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, ae));
+	assertEqualIntA(a, payload_size,
+	    archive_write_data(a, payload, payload_size));
+
+	archive_entry_set_pathname(ae, "second");
+	archive_entry_set_size(ae, sizeof(result));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, ae));
+	assertEqualIntA(a, sizeof(result),
+	    archive_write_data(a, "data", sizeof(result)));
+
+	archive_entry_free(ae);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assertEqualInt(0, fclose(f));
+	free(payload);
+
+	f = fopen("reuse.tar", "rb");
+	if (!assert(f != NULL))
+		return;
+
+	assertEqualInt(0, setvbuf(f, NULL, _IONBF, 0));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_tar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_FILE(a, f));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+
+	assertEqualString("first", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_skip(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assertEqualInt(512 + payload_size, ftell(f));
+	assertEqualInt(0, fseek(f, 0, SEEK_CUR));
+	assertEqualInt(512 + payload_size, ftell(f));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_tar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_FILE(a, f));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+
+	assertEqualString("second", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, sizeof(result),
+	    archive_read_data(a, result, sizeof(result)));
+	assertEqualMem("data", result, sizeof(result));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(0, fclose(f));
+#else
+	skipping("FILE reuse test requires POSIX file descriptors");
+#endif
 }
