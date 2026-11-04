@@ -133,6 +133,27 @@
 #define HUFFMAN_TABLE_SIZE \
   MAINCODE_SIZE + OFFSETCODE_SIZE + LOWOFFSETCODE_SIZE + LENGTHCODE_SIZE
 
+/* RAR 2.0 code table sizes */
+#define MAIN_COUNT	298
+#define OFFSET_COUNT	48
+#define LENGTH_COUNT	28
+#define LEVEL_COUNT	19
+#define TABLE_COUNT	(MAIN_COUNT + OFFSET_COUNT + LENGTH_COUNT)
+
+/*
+ * RAR 2.0 file entries declare UnpVer 20 (some old packers used 26).
+ * Every other value is unpacked with the RAR 3.x decoder.
+ */
+#define RAR_UNP_IS_V2(unp_ver) \
+  ((unp_ver) == 20 || (unp_ver) == 26)
+
+/*
+ * Minimum LZ window for RAR 2.0: the largest reachable match distance is
+ * 0x100000 (1 MiB), see the DDecode/DBits tables in expand20(); the window
+ * must be strictly larger so that distance 0x100000 stays valid.
+ */
+#define RAR2_MIN_DICTIONARY_SIZE 0x200000
+
 #define MAX_SYMBOL_LENGTH 0xF
 #define MAX_SYMBOLS       20
 
@@ -308,6 +329,7 @@ struct rar
   char *filename_save;
   size_t filename_save_size;
   size_t filename_allocated;
+  char unp_ver;
 
   /* File header optional entries */
   char salt[8];
@@ -352,6 +374,16 @@ struct rar
   unsigned int lastlowoffset;
   unsigned int numlowoffsetrepeats;
   char start_new_table;
+
+  /* RAR 2.0 (UnpVer 20) decompression members. */
+  struct huffman_code ld_code;
+  struct huffman_code dd_code;
+  struct huffman_code rd_code;
+  unsigned char oldtable20[TABLE_COUNT];
+  unsigned int olddist[4];
+  unsigned int olddistptr;
+  unsigned int lastlength20;
+  unsigned int lastdist20;
 
   /* Filters */
   struct rar_filters filters;
@@ -431,6 +463,9 @@ static int make_table(struct archive_read *, struct huffman_code *);
 static int make_table_recurse(struct archive_read *, struct huffman_code *, int,
                               struct huffman_table_entry *, int, int);
 static int expand(struct archive_read *, int64_t *);
+static int parse_codes20(struct archive_read *);
+static int read_next_symbol20(struct archive_read *, struct huffman_code *);
+static int expand20(struct archive_read *, int64_t *);
 static int copy_from_lzss_window_to_unp(struct archive_read *, const void **,
                                         int64_t, size_t);
 static const void *rar_read_ahead(struct archive_read *, size_t, ssize_t *);
@@ -1412,6 +1447,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   if (!(rar->file_flags & FHD_SOLID))
   {
     rar->compression_method = 0;
+    rar->unp_ver = 0;
     rar->packed_size = 0;
     rar->unp_size = 0;
     rar->mtime = 0;
@@ -1428,6 +1464,11 @@ read_header(struct archive_read *a, struct archive_entry *entry,
     rar->mnsec = 0;
     rar->arctime = 0;
     rar->arcnsec = 0;
+    rar->olddistptr = 0;
+    rar->lastlength20 = 0;
+    rar->lastdist20 = 0;
+    memset(rar->olddist, 0, sizeof(rar->olddist));
+    memset(rar->oldtable20, 0, sizeof(rar->oldtable20));
   }
   else
   {
@@ -1460,6 +1501,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   p += sizeof(file_header);
 
   rar->compression_method = file_header.method;
+  rar->unp_ver = file_header.unp_ver;
 
   ttime = archive_le32dec(file_header.file_time);
   rar->mtime = get_time(ttime);
@@ -2154,8 +2196,11 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     if (!rar->br.next_in &&
       (ret = rar_br_preparation(a, &(rar->br))) < ARCHIVE_WARN)
       return (ret);
-    if (rar->start_new_table && ((ret = parse_codes(a)) < (ARCHIVE_WARN)))
-      return (ret);
+    if (rar->start_new_table) {
+      ret = RAR_UNP_IS_V2(rar->unp_ver) ? parse_codes20(a) : parse_codes(a);
+      if (ret < ARCHIVE_WARN)
+        return (ret);
+    }
 
     if (rar->is_ppmd_block)
     {
@@ -2237,6 +2282,21 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
            rar->bytes_uncopied++;
         }
       }
+    }
+    else if (RAR_UNP_IS_V2(rar->unp_ver)) {
+      /*
+       * RAR 2.0 (UnpVer 20) data stream: decode exactly unp_size bytes,
+       * there are no VM filters in this format.  The end bound is clamped
+       * to unp_size; expand20() may read a few zero padded bits past the
+       * compressed data while decoding the final symbol.
+       */
+      start = rar->offset;
+      end = rar->unp_size;
+      ret = expand20(a, &end);
+      if (ret != ARCHIVE_OK)
+        return (ret);
+      rar->bytes_uncopied = end - start;
+      rar->filters.lastend = end;
     }
     else
     {
@@ -2598,10 +2658,19 @@ free_codes(struct archive_read *a)
   free(rar->offsetcode.table);
   free(rar->lowoffsetcode.table);
   free(rar->lengthcode.table);
+  free(rar->ld_code.tree);
+  free(rar->dd_code.tree);
+  free(rar->rd_code.tree);
+  free(rar->ld_code.table);
+  free(rar->dd_code.table);
+  free(rar->rd_code.table);
   memset(&rar->maincode, 0, sizeof(rar->maincode));
   memset(&rar->offsetcode, 0, sizeof(rar->offsetcode));
   memset(&rar->lowoffsetcode, 0, sizeof(rar->lowoffsetcode));
   memset(&rar->lengthcode, 0, sizeof(rar->lengthcode));
+  memset(&rar->ld_code, 0, sizeof(rar->ld_code));
+  memset(&rar->dd_code, 0, sizeof(rar->dd_code));
+  memset(&rar->rd_code, 0, sizeof(rar->rd_code));
 }
 
 
@@ -3145,6 +3214,370 @@ bad_data:
   archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
                     "Bad RAR file data");
   return (ARCHIVE_FAILED);
+}
+
+/*
+ * RAR 2.0 (UnpVer 20) decompressor.
+ *
+ * Unlike a RAR 3.x block, a RAR 2.0 stream is decoded until exactly
+ * unp_size bytes have been produced and the reference unpacker always
+ * reads ahead from a zero padded buffer, even past the end of the
+ * compressed data.  The helpers below mirror that behaviour without
+ * reading beyond the compressed bytes: when fewer real bits are left
+ * than requested, the missing bits are zero and only the bits that are
+ * actually available are consumed.
+ */
+static inline unsigned int
+r2_read_bits(struct archive_read *a, struct rar_br *br, int n)
+{
+  if (br->cache_avail < n)
+    (void)rar_br_fillup(a, br);
+  if (br->cache_avail >= n)
+    return rar_br_bits(br, n);
+  return rar_br_bits_forced(br, n);
+}
+
+static inline void
+r2_consume(struct rar_br *br, int n)
+{
+  if (n > br->cache_avail)
+    n = br->cache_avail;
+  rar_br_consume(br, n);
+}
+
+/*
+ * Decode the next Huffman symbol from a RAR 2.0 stream.  The RAR 2.0
+ * tables are canonical prefix codes just like the RAR 3.x ones, so the
+ * same tree/table machinery is reused here; only the bit reader differs
+ * (see r2_read_bits()/r2_consume() above).  Returns the decoded symbol
+ * or -1 if the bitstream contains an invalid prefix code.
+ */
+static int
+read_next_symbol20(struct archive_read *a, struct huffman_code *code)
+{
+  struct rar *rar = a->format->data;
+  struct rar_br *br = &(rar->br);
+  unsigned int bits;
+  int bit, length, node, value;
+
+  if (code->table == NULL) {
+    if (make_table(a, code) != ARCHIVE_OK)
+      return (-1);
+  }
+
+  bits = r2_read_bits(a, br, code->tablesize);
+  length = code->table[bits].length;
+  value = code->table[bits].value;
+
+  if (length < 0) {
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Invalid prefix code in bitstream");
+    return (-1);
+  }
+
+  if (length <= code->tablesize) {
+    r2_consume(br, length);
+    return (value);
+  }
+
+  /*
+   * Codes longer than tablesize bits are resolved by walking the tree,
+   * one bit at a time, until a leaf is reached.
+   */
+  r2_consume(br, code->tablesize);
+  node = value;
+  while (code->tree[node].branches[0] != code->tree[node].branches[1]) {
+    bit = (int)r2_read_bits(a, br, 1);
+    r2_consume(br, 1);
+    if (code->tree[node].branches[bit] < 0) {
+      archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                        "Invalid prefix code in bitstream");
+      return (-1);
+    }
+    node = code->tree[node].branches[bit];
+  }
+
+  return (code->tree[node].branches[0]);
+}
+
+/*
+ * Decode a RAR 2.0 code table block.  The table block begins directly
+ * with a 16 bit bitfield (there is no byte alignment and no PPMd flag);
+ * the fields in the bitfield, the packed code lengths and the Huffman
+ * symbols that reconstruct the per-symbol code lengths are all part of
+ * the RAR 2.0 format.  Returns ARCHIVE_OK or ARCHIVE_FATAL/ARCHIVE_FAILED
+ * on error.
+ */
+static int
+parse_codes20(struct archive_read *a)
+{
+  struct rar *rar = a->format->data;
+  struct rar_br *br = &(rar->br);
+  struct huffman_code bd;
+  unsigned char bitlengths[LEVEL_COUNT];
+  unsigned char table[TABLE_COUNT];
+  unsigned int bitfield, i, n, num, tablesize;
+  int ret;
+
+  free_codes(a);
+
+  bitfield = r2_read_bits(a, br, 16);
+  if (bitfield & 0x8000) {
+    /* Bit 15 marks an audio (savings mode) block. */
+    archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                      "Unsupported RAR 2.0 audio compression");
+    return (ARCHIVE_FAILED);
+  }
+  if ((bitfield & 0x4000) == 0)
+    memset(rar->oldtable20, 0, sizeof(rar->oldtable20));
+  r2_consume(br, 2);
+
+  tablesize = TABLE_COUNT;
+
+  for (i = 0; i < LEVEL_COUNT; i++) {
+    bitlengths[i] = (unsigned char)r2_read_bits(a, br, 4);
+    r2_consume(br, 4);
+  }
+
+  /* Temporary code tree used to unpack the table itself. */
+  memset(&bd, 0, sizeof(bd));
+  ret = create_code(a, &bd, bitlengths, LEVEL_COUNT, MAX_SYMBOL_LENGTH);
+  if (ret != ARCHIVE_OK) {
+    free(bd.tree);
+    free(bd.table);
+    return (ret);
+  }
+
+  i = 0;
+  while (i < tablesize) {
+    num = read_next_symbol20(a, &bd);
+    if (num > 0xFF) {
+      free(bd.tree);
+      free(bd.table);
+      return (ARCHIVE_FAILED);
+    }
+    if (num < 16) {
+      table[i] = (unsigned char)((num + rar->oldtable20[i]) & 0xf);
+      i++;
+    } else if (num == 16) {
+      if (i == 0) {
+        /* Cannot repeat the previous code at the first position. */
+        free(bd.tree);
+        free(bd.table);
+        return (ARCHIVE_FAILED);
+      }
+      n = r2_read_bits(a, br, 2) + 3;
+      r2_consume(br, 2);
+      while (n-- > 0 && i < tablesize) {
+        table[i] = table[i - 1];
+        i++;
+      }
+    } else {
+      if (num == 17) {
+        n = r2_read_bits(a, br, 3) + 3;
+        r2_consume(br, 3);
+      } else {
+        n = r2_read_bits(a, br, 7) + 11;
+        r2_consume(br, 7);
+      }
+      while (n-- > 0 && i < tablesize)
+        table[i++] = 0;
+    }
+  }
+  free(bd.tree);
+  free(bd.table);
+
+  ret = create_code(a, &rar->ld_code, &table[0], MAIN_COUNT,
+      MAX_SYMBOL_LENGTH);
+  if (ret != ARCHIVE_OK)
+    return (ret);
+  ret = create_code(a, &rar->dd_code, &table[MAIN_COUNT],
+      OFFSET_COUNT, MAX_SYMBOL_LENGTH);
+  if (ret != ARCHIVE_OK)
+    return (ret);
+  ret = create_code(a, &rar->rd_code, &table[MAIN_COUNT + OFFSET_COUNT],
+      LENGTH_COUNT, MAX_SYMBOL_LENGTH);
+  if (ret != ARCHIVE_OK)
+    return (ret);
+  memcpy(rar->oldtable20, table, tablesize);
+
+  /*
+   * Make sure the LZ window is large enough for any RAR 2.0 match
+   * distance (up to 0x100000 plus one).
+   */
+  if (rar->lzss.window == NULL ||
+      (unsigned int)(rar->lzss.mask + 1) < RAR2_MIN_DICTIONARY_SIZE) {
+    void *new_window;
+    unsigned int new_size;
+
+    if (rar->unp_size >= DICTIONARY_MAX_SIZE)
+      new_size = DICTIONARY_MAX_SIZE;
+    else
+      new_size = rar_fls((unsigned int)rar->unp_size) << 1;
+    if (new_size < RAR2_MIN_DICTIONARY_SIZE)
+      new_size = RAR2_MIN_DICTIONARY_SIZE;
+    new_window = realloc(rar->lzss.window, new_size);
+    if (new_window == NULL) {
+      archive_set_error(&a->archive, ENOMEM,
+                        "Unable to allocate memory for uncompressed data");
+      return (ARCHIVE_FATAL);
+    }
+    rar->lzss.window = (unsigned char *)new_window;
+    rar->dictionary_size = new_size;
+    memset(rar->lzss.window, 0, rar->dictionary_size);
+    rar->lzss.mask = rar->dictionary_size - 1;
+  }
+
+  rar->start_new_table = 0;
+  return (ARCHIVE_OK);
+}
+
+/* Emit a RAR 2.0 match and bookkeep the recent distances and length. */
+static void
+emit_copy20(struct rar *rar, unsigned int length, unsigned int distance)
+{
+  rar->lastdist20 = distance;
+  rar->olddist[rar->olddistptr++] = distance;
+  rar->olddistptr &= 3;
+  rar->lastlength20 = length;
+  lzss_emit_match(rar, (int)distance, (int)length);
+}
+
+/*
+ * Expand (decompress) a RAR 2.0 data stream into the LZ window until
+ * *end bytes have been produced; *end is clamped to unp_size.
+ */
+static int
+expand20(struct archive_read *a, int64_t *end)
+{
+  static const unsigned char lengthbases[] =
+    {   0,   1,   2,   3,   4,   5,   6,   7,   8,  10,  12,  14,
+       16,  20,  24,  28,  32,  40,  48,  56,  64,  80,  96, 112,
+      128, 160, 192, 224 };
+  static const unsigned char lengthbits[] =
+    { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
+      3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5 };
+  static const unsigned int offsetbases[] =
+    {       0,       1,       2,       3,       4,       6,
+            8,      12,      16,      24,      32,      48,
+           64,      96,     128,     192,     256,     384,
+          512,     768,    1024,    1536,    2048,    3072,
+         4096,    6144,    8192,   12288,   16384,   24576,
+        32768,   49152,   65536,   98304,  131072,  196608,
+       262144,  327680,  393216,  458752,  524288,  589824,
+       655360,  720896,  786432,  851968,  917504,  983040 };
+  static const unsigned char offsetbits[] =
+    {  0,  0,  0,  0,  1,  1,  2,  2,  3,  3,  4,  4,
+       5,  5,  6,  6,  7,  7,  8,  8,  9,  9, 10, 10,
+      11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16,
+      16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16 };
+  static const unsigned char shortbases[] =
+    { 0, 4, 8, 16, 32, 64, 128, 192 };
+  static const unsigned char shortbits[] =
+    { 2, 2, 3, 4, 5, 6, 6, 6 };
+  static const int lengthb_min = minimum(
+    (int)(sizeof(lengthbases)/sizeof(lengthbases[0])),
+    (int)(sizeof(lengthbits)/sizeof(lengthbits[0]))
+  );
+  static const int offsetb_min = minimum(
+    (int)(sizeof(offsetbases)/sizeof(offsetbases[0])),
+    (int)(sizeof(offsetbits)/sizeof(offsetbits[0]))
+  );
+
+  struct rar *rar = a->format->data;
+  struct rar_br *br = &(rar->br);
+  int64_t end20 = *end;
+  unsigned int distance, length;
+  int bits, distnum, lennum, symbol;
+
+  if (end20 > rar->unp_size)
+    end20 = rar->unp_size;
+
+  while (lzss_position(&rar->lzss) < end20) {
+    symbol = read_next_symbol20(a, &rar->ld_code);
+    if (symbol < 0)
+      return (ARCHIVE_FAILED);
+    if (symbol < 256) {
+      lzss_emit_literal(rar, (uint8_t)symbol);
+      continue;
+    }
+    if (symbol > 269) {
+      /* Main match: direct distance (values > 269). */
+      symbol -= 270;
+      if (symbol >= lengthb_min)
+        return (ARCHIVE_FAILED);
+      length = lengthbases[symbol] + 3;
+      bits = lengthbits[symbol];
+      if (bits > 0) {
+        length += r2_read_bits(a, br, bits);
+        r2_consume(br, bits);
+      }
+      distnum = read_next_symbol20(a, &rar->dd_code);
+      if (distnum < 0)
+        return (ARCHIVE_FAILED);
+      if (distnum >= offsetb_min)
+        return (ARCHIVE_FAILED);
+      distance = offsetbases[distnum] + 1;
+      bits = offsetbits[distnum];
+      if (bits > 0) {
+        distance += r2_read_bits(a, br, bits);
+        r2_consume(br, bits);
+      }
+      if (distance >= 0x2000) {
+        length++;
+        if (distance >= 0x40000)
+          length++;
+      }
+      emit_copy20(rar, length, distance);
+      continue;
+    }
+    if (symbol == 269) {
+      /* New code table. */
+      if (parse_codes20(a) != ARCHIVE_OK)
+        return (ARCHIVE_FAILED);
+      continue;
+    }
+    if (symbol == 256) {
+      /* Copy the previous match again. */
+      emit_copy20(rar, rar->lastlength20, rar->lastdist20);
+      continue;
+    }
+    if (symbol < 261) {
+      /* Match with one of the four most recent distances (257..260). */
+      distance = rar->olddist[(rar->olddistptr - (symbol - 256)) & 3];
+      lennum = read_next_symbol20(a, &rar->rd_code);
+      if (lennum < 0)
+        return (ARCHIVE_FAILED);
+      if (lennum >= lengthb_min)
+        return (ARCHIVE_FAILED);
+      length = lengthbases[lennum] + 2;
+      bits = lengthbits[lennum];
+      if (bits > 0) {
+        length += r2_read_bits(a, br, bits);
+        r2_consume(br, bits);
+      }
+      if (distance >= 0x101) {
+        length++;
+        if (distance >= 0x2000) {
+          length++;
+          if (distance >= 0x40000)
+            length++;
+        }
+      }
+      emit_copy20(rar, length, distance);
+      continue;
+    }
+    /* Short distance (symbol 261..268): the length is always 2. */
+    symbol -= 261;
+    distance = shortbases[symbol] + 1;
+    bits = shortbits[symbol];
+    if (bits > 0) {
+      distance += r2_read_bits(a, br, bits);
+      r2_consume(br, bits);
+    }
+    emit_copy20(rar, 2, distance);
+  }
+  return (ARCHIVE_OK);
 }
 
 static int
