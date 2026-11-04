@@ -115,6 +115,7 @@ struct bsdtar {
 #define	OPTFLAG_MAC_METADATA	(0x00400000)	/* --mac-metadata */
 #define	OPTFLAG_NO_READ_SPARSE	(0x00800000)    /* --no-read-sparse */
 #define	OPTFLAG_READ_SPARSE		(0x01000000)    /* --read-sparse */
+#define	OPTFLAG_SKIP_SYMLINKS	(0x02000000)	/* --skip-symlinks */
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
@@ -170,6 +171,7 @@ enum {
 	OPTION_READ_SPARSE,
 	OPTION_SAFE_WRITES,
 	OPTION_SAME_OWNER,
+	OPTION_SKIP_SYMLINKS,
 	OPTION_STRIP_COMPONENTS,
 	OPTION_TOTALS,
 	OPTION_UID,

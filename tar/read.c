@@ -346,6 +346,14 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;
 
+			if ((bsdtar->flags & OPTFLAG_SKIP_SYMLINKS) &&
+			    archive_entry_filetype(entry) == AE_IFLNK) {
+				lafe_warnc(0, "Skipping symlink '%s' -> '%s'",
+				    archive_entry_pathname(entry),
+				    archive_entry_symlink(entry));
+				continue;
+			}
+
 			if (bsdtar->verbose > 1) {
 				/* GNU tar uses -tv format with -xvv */
 				fputs("x ", stderr);
