@@ -1074,6 +1074,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_mtree_nomagic2.mtree.uu \
 	libarchive/test/test_read_format_mtree_nomagic3.mtree.uu \
 	libarchive/test/test_read_format_rar.rar.uu \
+	libarchive/test/test_read_format_rar2_v20.rar.uu \
 	libarchive/test/test_read_format_rar_binary_data.rar.uu \
 	libarchive/test/test_read_format_rar_compress_best.rar.uu \
 	libarchive/test/test_read_format_rar_compress_normal.rar.uu \
