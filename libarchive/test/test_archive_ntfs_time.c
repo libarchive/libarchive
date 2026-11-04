@@ -85,3 +85,25 @@ DEFINE_TEST(test_archive_ntfs_to_unix)
 	assertEqualInt(-2, secs);
 	assertEqualInt(999998500, nsecs);
 }
+
+DEFINE_TEST(test_archive_unix_to_ntfs)
+{
+	/* Exactly the Unix epoch. */
+	assertEqualInt(NTFS_EPOCH_SECS * NTFS_TICKS_PER_SEC,
+	    __archive_unix_to_ntfs(0, 0));
+
+	/* A normal post-1970 date with sub-second precision. */
+	assertEqualInt((NTFS_EPOCH_SECS + 1000000000LL) * NTFS_TICKS_PER_SEC
+	    + 1234567, __archive_unix_to_ntfs(1000000000, 123456789));
+
+	/* Pre-1970 dates are after the FILETIME epoch (1601), so they are
+	 * representable too. */
+	assertEqualInt(NTFS_EPOCH_SECS * NTFS_TICKS_PER_SEC
+	    - 2 * NTFS_TICKS_PER_SEC, __archive_unix_to_ntfs(-2, 0));
+	assertEqualInt(NTFS_EPOCH_SECS * NTFS_TICKS_PER_SEC - 15,
+	    __archive_unix_to_ntfs(-1, 999998500));
+
+	/* The FILETIME epoch itself, and dates before it. */
+	assertEqualInt(0, __archive_unix_to_ntfs(-NTFS_EPOCH_SECS, 0));
+	assertEqualInt(0, __archive_unix_to_ntfs(-NTFS_EPOCH_SECS - 1, 0));
+}
