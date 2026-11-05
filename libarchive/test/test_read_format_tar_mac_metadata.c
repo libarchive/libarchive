@@ -43,10 +43,14 @@ DEFINE_TEST(test_read_format_tar_mac_metadata)
 	 ```
 	*/
 	const char *refname = "test_read_format_tar_mac_metadata_1.tar";
-	char *p;
-	size_t s;
+	const char *badname =
+	    "._101_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+	const char gooddata[] = "content of goodname\n";
+	char *p, data[32];
+	size_t metadata_size, s;
 	struct archive *a;
 	struct archive_entry *ae;
+	const void *metadata;
 
 	/*
 	 * This is not a valid AppleDouble metadata file. It is merely to test that
@@ -66,17 +70,23 @@ DEFINE_TEST(test_read_format_tar_mac_metadata)
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, p, s, 1));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(badname, archive_entry_pathname(ae));
+	metadata = archive_entry_mac_metadata(ae, &metadata_size);
+	assertEqualInt(0, metadata_size);
+	assert(metadata == NULL);
+	assertEqualIntA(a, sizeof(appledouble),
+	    archive_read_data(a, data, sizeof(data)));
+	assertEqualMem(appledouble, data, sizeof(appledouble));
 
-	/* Correct name and metadata bytes */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("goodname", archive_entry_pathname(ae));
+	metadata = archive_entry_mac_metadata(ae, &metadata_size);
+	assertEqualInt(0, metadata_size);
+	assert(metadata == NULL);
+	assertEqualIntA(a, sizeof(gooddata) - 1,
+	    archive_read_data(a, data, sizeof(data)));
+	assertEqualMem(gooddata, data, sizeof(gooddata) - 1);
 
-	const void *metadata = archive_entry_mac_metadata(ae, &s);
-	if (assert(metadata != NULL)) {
-		assertEqualMem(metadata, appledouble,
-			sizeof(appledouble));
-	}
-
-	/* ... and nothing else */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
