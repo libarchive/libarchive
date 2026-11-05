@@ -429,6 +429,7 @@ static void
 free_data(struct gzip *gzip)
 {
 	if (gzip != NULL) {
+		(void)deflateEnd(&(gzip->stream));
 		free(gzip->compressed);
 		free(gzip->original_filename);
 		free(gzip);

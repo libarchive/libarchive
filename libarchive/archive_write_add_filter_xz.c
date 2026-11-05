@@ -539,6 +539,7 @@ static void
 free_data(struct xz *xz)
 {
 	if (xz != NULL) {
+		lzma_end(&(xz->stream));
 		free(xz->compressed);
 		free(xz);
 	}
