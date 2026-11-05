@@ -772,6 +772,7 @@ find_odc_header(struct archive_read *a)
 				p += 2;
 				break;
 			case '0':
+			case '2':
 				p++;
 				break;
 			default:
