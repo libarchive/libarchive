@@ -289,14 +289,22 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 15: Directory substitution with escaped delimiter
 	 */
-	assertMakeDir("test15", 0755);
+	assertMakeDir("test15a", 0755);
+	assertMakeDir("test15b", 0755);
 	systemf("%s -cf test15.tar in/d1/foo", testprog);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	systemf("%s -xf test15.tar -s /d1/d2\\/d3/ -C test15", testprog);
+	systemf("%s -xf test15.tar -s /d1\\/foo/d2\\/d3\\/bar/ -C test15a",
+	    testprog);
+	systemf("%s -xf test15.tar -s ^^[\\^^,]1^^^^ -C test15b",
+	    testprog);
 #else
-	systemf("%s -xf test15.tar -s /d1/d2\\\\/d3/ -C test15", testprog);
+	systemf("%s -xf test15.tar -s /d1\\\\/foo/d2\\\\/d3\\\\/bar/ -C test15a",
+	    testprog);
+	systemf("%s -xf test15.tar -s ^[\\\\^,]1^^ -C test15b",
+	    testprog);
 #endif
-	assertFileContents("foo", 3, "test15/in/d2/d3/foo");
+	assertFileContents("foo", 3, "test15a/in/d2/d3/bar");
+	assertFileContents("foo", 3, "test15b/in/foo");
 
 	/*
 	 * Test 16: Escapes other than the delimiter reach the substitution.
