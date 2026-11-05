@@ -608,6 +608,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_tar_pax_global_header.c \
 	libarchive/test/test_read_format_tar_pax_large_attr.c \
 	libarchive/test/test_read_format_tar_pax_negative_time.c \
+	libarchive/test/test_read_format_tar_pax_rdev.c \
 	libarchive/test/test_read_format_tar_pax_sun_holesdata.c \
 	libarchive/test/test_read_format_tar_pax_timestamps.c \
 	libarchive/test/test_read_format_tar_timestamp_overflow.c \

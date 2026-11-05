@@ -231,6 +231,7 @@ IF(ENABLE_TEST)
     test_read_format_tar_pax_global_header.c
     test_read_format_tar_pax_large_attr.c
     test_read_format_tar_pax_negative_time.c
+    test_read_format_tar_pax_rdev.c
     test_read_format_tar_pax_sun_holesdata.c
     test_read_format_tar_pax_timestamps.c
     test_read_format_tar_timestamp_overflow.c
