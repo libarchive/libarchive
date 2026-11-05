@@ -693,6 +693,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_disk_sparse.c \
 	libarchive/test/test_write_disk_symlink.c \
 	libarchive/test/test_write_disk_times.c \
+	libarchive/test/test_write_fatal_cleanup.c \
 	libarchive/test/test_write_filter_b64encode.c \
 	libarchive/test/test_write_filter_bzip2.c \
 	libarchive/test/test_write_filter_compress.c \
