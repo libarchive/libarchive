@@ -168,9 +168,11 @@ __archive_unix_to_ntfs(int64_t secs, uint32_t nsecs)
 	if (secs < -(int64_t)NTFS_EPOC_TIME)
 		return 0;
 
-	/* (secs + NTFS_EPOC_TIME) * NTFS_TICKS + nsecs / 100 */
-	if (archive_ckd_add_u64(&ntfs, secs, NTFS_EPOC_TIME) ||
-	    archive_ckd_mul_u64(&ntfs, ntfs, NTFS_TICKS) ||
+	/* (secs + NTFS_EPOC_TIME) * NTFS_TICKS + nsecs / 100
+	 * The sum is not negative, and the unsigned addition gives it
+	 * exactly, also for negative secs. */
+	ntfs = (uint64_t)secs + NTFS_EPOC_TIME;
+	if (archive_ckd_mul_u64(&ntfs, ntfs, NTFS_TICKS) ||
 	    archive_ckd_add_u64(&ntfs, ntfs, nsecs / 100))
 		return UINT64_MAX;
 
