@@ -744,3 +744,75 @@ DEFINE_TEST(test_pax_filename_encoding)
 	test_pax_filename_encoding_2();
 	test_pax_filename_encoding_3();
 }
+
+/*
+ * A pathname set only in UTF-8 that the current locale cannot represent
+ * has no form the pax writer can store: the conversion to UTF-8 goes
+ * through the current locale, and so does the binary fallback.  Verify
+ * that the entry is rejected and that the archive stays usable.
+ */
+static void
+test_pax_filename_encoding_fail_UTF8_opt(const char *options)
+{
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	if (options != NULL)
+		assertEqualInt(ARCHIVE_OK,
+		    archive_write_set_options(a, options));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* "\xD0\xBF\xD1\x80\xD0\xB8" is a Cyrillic word in UTF-8. */
+	if (archive_entry_update_pathname_utf8(entry,
+	    "\xD0\xBF\xD1\x80\xD0\xB8.txt")) {
+		skipping("The current locale can represent the pathname");
+		archive_entry_free(entry);
+		archive_write_free(a);
+		return;
+	}
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	failure("options: %s", options != NULL ? options : "(none)");
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, entry));
+	/* The pathname cannot even be represented in the current locale
+	   for inclusion in the error message.  */
+	assertEqualString("Can't translate pathname to current locale",
+	    archive_error_string(a));
+	archive_entry_free(entry);
+
+	/* The next entry is written normally. */
+	entry = archive_entry_new2(a);
+	archive_entry_copy_pathname(entry, "file.txt");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Only that entry is in the archive. */
+	a = archive_read_new();
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_tar(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualString("file.txt", archive_entry_pathname(entry));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &entry));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_pax_filename_encoding_fail_UTF8)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	skipping("On Windows, UTF-8 pathnames are converted through UTF-16");
+#else
+	/* Test the C locale by not calling setlocale.  */
+	test_pax_filename_encoding_fail_UTF8_opt(NULL);
+	test_pax_filename_encoding_fail_UTF8_opt("hdrcharset=BINARY");
+#endif
+}
