@@ -928,6 +928,12 @@ name atomically using
 .Xr rename 2 .
 This guarantees that an application accessing the file, will either see
 the old contents or the new contents at all times.
+.It Fl Fl skip-symlinks
+(x mode only)
+Do not create symbolic links when extracting; print a warning for each
+one skipped instead.
+This is mainly useful on Windows, where creating symlinks may require
+special privileges.
 .It Fl Fl same-owner
 (x mode only)
 Extract owner and group IDs.
