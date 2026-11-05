@@ -260,9 +260,8 @@ client_seek_proxy(struct archive_read_filter *f, int64_t offset, int whence)
 }
 
 static int
-client_close_proxy(struct archive_read_filter *f)
+client_close_all(struct archive_read *a)
 {
-	struct archive_read *a = f->archive;
 	int r = ARCHIVE_OK, r2;
 	unsigned int i;
 
@@ -276,6 +275,12 @@ client_close_proxy(struct archive_read_filter *f)
 			r = r2;
 	}
 	return (r);
+}
+
+static int
+client_close_proxy(struct archive_read_filter *f)
+{
+	return (client_close_all(f->archive));
 }
 
 int
@@ -464,6 +469,9 @@ archive_read_open1(struct archive *_a)
 	if (a->client.reader == NULL) {
 		archive_set_error(&a->archive, EINVAL,
 		    "No reader function provided to archive_read_open");
+		/* No filter will ever exist to run the client closer, so clean up
+		 * the client data here like the allocation-failure path below does. */
+		(void)client_close_all(a);
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
@@ -472,6 +480,10 @@ archive_read_open1(struct archive *_a)
 
 	f = calloc(1, sizeof(*f));
 	if (f == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate memory");
+		/* No filter will ever exist to run the client closer, so clean up
+		 * the client data here like the opener-failure path below does. */
+		(void)client_close_all(a);
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
