@@ -201,6 +201,7 @@ struct xar_file {
 	struct archive_string	 fflags_text;
 	unsigned int		 link;
 	unsigned int		 nlink;
+	int			 link_attr_seen;
 	struct archive_string	 hardlink;
 	struct xattr		*xattr_list;
 };
@@ -2109,12 +2110,12 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 			    attr = attr->next) {
 				if (strcmp(attr->name, "link") != 0)
 					continue;
-				if (xar->file->hdnext != NULL || xar->file->link != 0 ||
-				    xar->file == xar->hdlink_orgs) {
+				if (xar->file->link_attr_seen) {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 					    "File with multiple link attributes");
 					return (ARCHIVE_FATAL);
 				}
+				xar->file->link_attr_seen = 1;
 				if (strcmp(attr->value, "original") == 0) {
 					xar->file->hdnext = xar->hdlink_orgs;
 					xar->hdlink_orgs = xar->file;
