@@ -103,4 +103,29 @@ DEFINE_TEST(test_archive_parse_date)
 	assertEqualInt(archive_parse_date(now, "Jan 1, 10000 UTC"), -1);
 	assertEqualInt(archive_parse_date(now, "Jan 1, 99999 UTC"), -1);
 	assertEqualInt(archive_parse_date(time(NULL), "2147483647-01-01 00:00:00"), -1);
+
+	/* A relative month can land on a day that doesn't exist. */
+	now = 980856000; /* Jan 30, 2001 12:00 UTC */
+	assertEqualInt(archive_parse_date(now, "+1 month"), -1);
+	assertEqualInt(archive_parse_date(now, "-11 months"), -1);
+	assert(archive_parse_date(now, "+2 months") > now);
+	/* Or on a year before 1970. */
+	assertEqualInt(archive_parse_date(now, "100 years ago"), -1);
+	assert(archive_parse_date(now, "1 year ago") < now);
+
+	/*
+	 * localtime() and gmtime() can't represent these on every platform.
+	 * On Windows, they fail before 1970 and after the year 3000.
+	 */
+	if (sizeof(time_t) > 4) {
+		/* This is before the epoch in zones east of UTC. */
+		expected = archive_parse_date(now, "Jan 1, 1970");
+		assert(expected == -1 || expected >= 0);
+		assert(archive_parse_date(now, "Jan 1, 9999") > now);
+		assert(archive_parse_date(now, "+2000 years") > now);
+		assertEqualInt(archive_parse_date(now,
+		    "9999 fortnights ago 1 month"), -1);
+		assert(archive_parse_date(now,
+		    "9999 fortnights ago monday") < 0);
+	}
 }
