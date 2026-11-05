@@ -120,3 +120,36 @@ DEFINE_TEST(test_write_filter_fatal_cleanup)
 		write_until_failure(a, filters[i]);
 	}
 }
+
+DEFINE_TEST(test_write_format_zip_fatal_cleanup)
+{
+	static const char *methods[] = {
+		"deflate", "bzip2", "xz", "lzma", "zstd", NULL
+	};
+	struct archive *a;
+	int i;
+
+	for (i = 0; methods[i] != NULL; i++) {
+		assert((a = archive_write_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
+		if (archive_write_set_format_option(a, "zip", "compression",
+		    methods[i]) != ARCHIVE_OK) {
+			skipping("zip %s compression not supported",
+			    methods[i]);
+			assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+			continue;
+		}
+		/*
+		 * The zstd encoder always runs with worker threads and
+		 * buffers a whole job before emitting output.  At the
+		 * default level a job is larger than the data written
+		 * below, so the write failure would only be hit by
+		 * close.  The lowest level keeps the jobs small.
+		 */
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_option(
+		    a, "zip", "compression-level", "1"));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_set_bytes_per_block(a, 1024));
+		write_until_failure(a, methods[i]);
+	}
+}
