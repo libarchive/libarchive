@@ -2257,6 +2257,15 @@ archive_write_zip_free(struct archive_write *a)
 	}
 	free(zip->buf);
 	archive_entry_free(zip->entry);
+#ifdef HAVE_ZLIB_H
+	/* archive_write_zip_header() initializes a deflate stream per entry and
+	 * archive_write_zip_finish_entry() is the only place that ends it, so an
+	 * archive that went fatal in between still holds one. The zip struct is
+	 * calloc()ed and zlib clears the stream state in deflateEnd(), so this is
+	 * safe whether or not the stream is currently live. */
+	if (zip->entry_compression == COMPRESSION_DEFLATE)
+		deflateEnd(&zip->stream.deflate);
+#endif
 	if (zip->cctx_valid)
 		archive_encrypto_aes_ctr_release(&zip->cctx);
 	if (zip->hctx_valid)
