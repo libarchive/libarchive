@@ -45,7 +45,7 @@ DEFINE_TEST(test_write_format_zip_file_zip64)
 	struct tm tmbuf;
 #endif
 	size_t used, buffsize = 1000000;
-	unsigned long crc;
+	uint32_t crc;
 	__LA_MODE_T file_perm = 00644;
 	int zip_version = 45;
 	int zip_compression = 8;

@@ -73,7 +73,7 @@ static void verify_xz_lzma(const char *buff, size_t used, uint16_t id,
 	struct archive_entry *ae;
 	char filedata[sizeof(file_data1) + sizeof(file_data2)];
 	/* Misc variables */
-	unsigned long crc;
+	uint32_t crc;
 	struct tm *tm;
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm tmbuf;
