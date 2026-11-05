@@ -407,6 +407,39 @@ test_archive_string_dirname(void)
 	archive_string_free(&s);
 }
 
+/*
+ * A converter that fails must set errno itself: an unrelated errno
+ * value left behind by an earlier call must not survive a failed
+ * conversion.  Callers tell a fatal out-of-memory condition apart
+ * from a recoverable conversion failure by testing errno == ENOMEM
+ * after the failure, so a stale ENOMEM here turns a bad character
+ * into a fatal allocation error.  See archive_strncat_l().
+ */
+static void
+test_archive_string_conversion_failure_errno(void)
+{
+	struct archive *a;
+	struct archive_string_conv *sc;
+	struct archive_string s;
+
+	assert(NULL != (a = archive_read_new()));
+	sc = archive_string_conversion_from_charset(a, "UTF-8", 0);
+	if (sc == NULL) {
+		archive_read_free(a);
+		return;
+	}
+
+	archive_string_init(&s);
+	errno = ENOMEM; /* Pretend an earlier call ran out of memory. */
+	/* 0xff never forms a valid UTF-8 sequence, so this must fail. */
+	assert(0 != archive_strcpy_l(&s, "\xff\xfe bad", sc));
+	/* The failure must not be reported as an out-of-memory condition. */
+	assert(errno != ENOMEM);
+
+	archive_string_free(&s);
+	archive_read_free(a);
+}
+
 DEFINE_TEST(test_archive_string)
 {
 	test_archive_string_ensure();
@@ -419,6 +452,7 @@ DEFINE_TEST(test_archive_string)
 	test_archive_string_copy();
 	test_archive_string_sprintf();
 	test_archive_string_dirname();
+	test_archive_string_conversion_failure_errno();
 }
 
 static const char *strings[] =
