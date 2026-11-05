@@ -110,6 +110,30 @@ test_malformed_numfiles_oom(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * The start header claims a 1 TiB header in a tiny file.  The declared
+ * header size must not be trusted as a bound for the counts that the
+ * header contains, or the reader allocates several gigabytes for
+ * folders (header_size.7z) or files (header_size2.7z).
+ */
+static void
+test_malformed_header_size(const char *refname)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualString("Truncated 7-Zip file header",
+	    archive_error_string(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_malformed)
 {
 	test_malformed1();
@@ -117,4 +141,8 @@ DEFINE_TEST(test_read_format_7zip_malformed)
 	test_malformed3();
 	test_malformed4();
 	test_malformed_numfiles_oom();
+	test_malformed_header_size(
+	    "test_read_format_7zip_malformed_header_size.7z");
+	test_malformed_header_size(
+	    "test_read_format_7zip_malformed_header_size2.7z");
 }
