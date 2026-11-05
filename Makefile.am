@@ -620,6 +620,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_warc.c \
 	libarchive/test/test_read_format_xar.c \
 	libarchive/test/test_read_format_xar_doublelink.c \
+	libarchive/test/test_read_format_xar_partial_read.c \
 	libarchive/test/test_read_format_zip.c \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.c \
 	libarchive/test/test_read_format_zip_ambiguous_timestamps.c \
@@ -1206,6 +1207,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_xar_atou64_overread.xar.uu \
 	libarchive/test/test_read_format_xar_base64_oob.xar.uu \
 	libarchive/test/test_read_format_xar_doublelink.xar.uu \
+	libarchive/test/test_read_format_xar_partial_read.xar.uu \
 	libarchive/test/test_read_format_xar_duplicate_filename_node.xar.uu \
 	libarchive/test/test_read_format_xar_empty_xattr.xar.uu \
 	libarchive/test/test_read_format_xar_invalid_seek_offset.xar.uu \
