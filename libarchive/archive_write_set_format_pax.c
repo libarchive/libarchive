@@ -269,13 +269,20 @@ static void
 add_pax_attr_time(struct archive_string *as, const char *key,
     int64_t sec, unsigned long nanos)
 {
-	int digit, i;
+	int digit, i, negative = 0;
 	char *t;
 	/*
 	 * Note that each byte contributes fewer than 3 base-10
 	 * digits, so this will always be big enough.
 	 */
 	char tmp[1 + 3*sizeof(sec) + 1 + 3*sizeof(nanos)];
+
+	/* The value is decimal: -2 seconds plus 0.75 is "-1.25". */
+	if (sec < 0 && nanos > 0) {
+		negative = 1;
+		sec = -(sec + 1);
+		nanos = 1000000000 - nanos;
+	}
 
 	tmp[sizeof(tmp) - 1] = 0;
 	t = tmp + sizeof(tmp) - 1;
@@ -297,6 +304,8 @@ add_pax_attr_time(struct archive_string *as, const char *key,
 		*--t = '.';
 	}
 	t = format_int(t, sec);
+	if (negative)
+		*--t = '-';
 
 	add_pax_attr(as, key, t);
 }
