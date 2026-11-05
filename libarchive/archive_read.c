@@ -260,9 +260,8 @@ client_seek_proxy(struct archive_read_filter *f, int64_t offset, int whence)
 }
 
 static int
-client_close_proxy(struct archive_read_filter *f)
+client_close(struct archive_read *a)
 {
-	struct archive_read *a = f->archive;
 	int r = ARCHIVE_OK, r2;
 	unsigned int i;
 
@@ -276,6 +275,12 @@ client_close_proxy(struct archive_read_filter *f)
 			r = r2;
 	}
 	return (r);
+}
+
+static int
+client_close_proxy(struct archive_read_filter *f)
+{
+	return (client_close(f->archive));
 }
 
 int
@@ -472,6 +477,8 @@ archive_read_open1(struct archive *_a)
 
 	f = calloc(1, sizeof(*f));
 	if (f == NULL) {
+		client_close(a);
+		archive_set_error(&a->archive, ENOMEM, "No memory");
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
