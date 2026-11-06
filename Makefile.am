@@ -183,6 +183,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_open_filename.c \
 	libarchive/archive_read_open_memory.c \
 	libarchive/archive_read_set_format.c \
+	libarchive/archive_read_set_format_from_filename.c \
 	libarchive/archive_read_set_options.c \
 	libarchive/archive_read_support_filter_all.c \
 	libarchive/archive_read_support_filter_by_code.c \
@@ -593,6 +594,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar5_truncated_htime.c \
 	libarchive/test/test_read_format_rar5_varint_near_eof.c \
 	libarchive/test/test_read_format_raw.c \
+	libarchive/test/test_read_format_raw_pathname.c \
 	libarchive/test/test_read_format_tar.c \
 	libarchive/test/test_read_format_tar_acl_oob_read.c \
 	libarchive/test/test_read_format_tar_V_negative_size.c \
@@ -663,6 +665,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_pax_truncated.c \
 	libarchive/test/test_read_position.c \
 	libarchive/test/test_read_set_format.c \
+	libarchive/test/test_read_set_format_from_filename.c \
 	libarchive/test/test_read_too_many_filters.c \
 	libarchive/test/test_read_truncated.c \
 	libarchive/test/test_read_truncated_filter.c \
@@ -1434,6 +1437,8 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_O_upper.c \
 	tar/test/test_option_P_upper.c \
 	tar/test/test_option_T_upper.c \
+	tar/test/test_option_stdin_name.c \
+	tar/test/test_option_trust_extension.c \
 	tar/test/test_option_U_upper.c \
 	tar/test/test_option_X_upper.c \
 	tar/test/test_option_acls.c \
