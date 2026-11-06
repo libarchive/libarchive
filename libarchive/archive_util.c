@@ -35,6 +35,9 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -105,7 +108,9 @@ archive_error_string(struct archive *a)
 int
 archive_file_count(struct archive *a)
 {
-	return (a->file_count);
+	if (a->file_count > INT_MAX)
+		return (INT_MAX);
+	return ((int)a->file_count);
 }
 
 int

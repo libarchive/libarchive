@@ -126,6 +126,8 @@ The count is incremented by calls to
 .Xr archive_write_header 3
 or
 .Xr archive_read_next_header 3 .
+If the count is larger than the largest value of an int, that value is
+returned.
 .It Fn archive_filter_code
 Returns a numeric code identifying the indicated filter.
 See
