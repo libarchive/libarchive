@@ -27,6 +27,13 @@
 #define __LIBARCHIVE_TEST 1
 #include "archive_private.h"
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* The function returns an int, and a count that does not fit is limited. */
+#define EXPECTED(n)	((n) > INT_MAX ? INT_MAX : (n))
+#else
+#define EXPECTED(n)	(n)
+#endif
+
 /* Writes an archive of one file to buff, and returns its size. */
 static size_t
 make_archive(char *buff, size_t size)
@@ -62,9 +69,9 @@ DEFINE_TEST(test_archive_file_count)
 	a->file_count = INT_MAX;
 	assertEqualInt(INT_MAX, archive_file_count(a));
 	a->file_count = (int64_t)INT_MAX + 1;
-	assertEqualInt(INT_MAX, archive_file_count(a));
+	assertEqualInt(EXPECTED((int64_t)INT_MAX + 1), archive_file_count(a));
 	a->file_count = INT64_MAX;
-	assertEqualInt(INT_MAX, archive_file_count(a));
+	assertEqualInt(EXPECTED(INT64_MAX), archive_file_count(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Reading a header after that many does not overflow. */
@@ -75,10 +82,10 @@ DEFINE_TEST(test_archive_file_count)
 	a->file_count = INT_MAX;
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((int64_t)INT_MAX + 1, a->file_count);
-	assertEqualInt(INT_MAX, archive_file_count(a));
+	assertEqualInt(EXPECTED((int64_t)INT_MAX + 1), archive_file_count(a));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt((int64_t)INT_MAX + 1, a->file_count);
-	assertEqualInt(INT_MAX, archive_file_count(a));
+	assertEqualInt(EXPECTED((int64_t)INT_MAX + 1), archive_file_count(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -94,7 +101,7 @@ DEFINE_TEST(test_archive_file_count)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualInt((int64_t)INT_MAX + 1, a->file_count);
-	assertEqualInt(INT_MAX, archive_file_count(a));
+	assertEqualInt(EXPECTED((int64_t)INT_MAX + 1), archive_file_count(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }

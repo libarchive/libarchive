@@ -105,6 +105,7 @@ archive_error_string(struct archive *a)
 		return (NULL);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
 int
 archive_file_count(struct archive *a)
 {
@@ -112,6 +113,13 @@ archive_file_count(struct archive *a)
 		return (INT_MAX);
 	return ((int)a->file_count);
 }
+#else
+la_int64_t
+archive_file_count(struct archive *a)
+{
+	return (a->file_count);
+}
+#endif
 
 int
 archive_format(struct archive *a)
