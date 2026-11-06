@@ -360,7 +360,7 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(11, archive_entry_mtime(ae));
-	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(100, archive_entry_mtime_nsec(ae)); /* 110ns rounds to the nearest 100ns NTFS tick */
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("dir/", archive_entry_pathname(ae));
@@ -459,7 +459,7 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(11, archive_entry_mtime(ae));
-	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(100, archive_entry_mtime_nsec(ae)); /* 110ns rounds to the nearest 100ns NTFS tick */
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("dir_deflate/", archive_entry_pathname(ae));
@@ -557,7 +557,7 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	/* Read the dir entry back. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(11, archive_entry_mtime(ae));
-	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualInt(100, archive_entry_mtime_nsec(ae)); /* 110ns rounds to the nearest 100ns NTFS tick */
 	assertEqualInt(0, archive_entry_atime(ae));
 	assertEqualInt(0, archive_entry_ctime(ae));
 	assertEqualString("dir_stored/", archive_entry_pathname(ae));
