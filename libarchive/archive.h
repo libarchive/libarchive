@@ -1146,7 +1146,11 @@ __LA_DECL void		 archive_set_error(struct archive *, int _err,
 			    const char *fmt, ...) __LA_PRINTF(3, 4);
 __LA_DECL void		 archive_copy_error(struct archive *dest,
 			    struct archive *src);
+#if ARCHIVE_VERSION_NUMBER < 4000000
 __LA_DECL int		 archive_file_count(struct archive *);
+#else
+__LA_DECL la_int64_t	 archive_file_count(struct archive *);
+#endif
 
 /*
  * ARCHIVE_MATCH API
