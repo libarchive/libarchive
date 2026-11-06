@@ -321,6 +321,20 @@ field is set to the sum of all bytes in the file data.
 This sum is computed treating all bytes as unsigned values
 and using unsigned arithmetic.
 Only the least-significant 32 bits of the sum are stored.
+.Ss SWUpdate 64-bit Format
+The update agent SWUpdate uses a variant of the CRC format for files
+of 4 gigabytes and more.
+It is identical to the CRC format except that the magic field is set
+to
+.Dq 070704
+and the
+.Va rdevmajor
+field, which is not used for regular files, holds the most-significant
+32 bits of the file size.
+Only the entries of such files use this format, the other entries of
+the archive use the CRC format.
+Readers that do not know this magic number see the header as damaged
+and skip the entry.
 .Ss HP variants
 The
 .Nm cpio
