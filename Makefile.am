@@ -199,6 +199,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_filter_uu.c \
 	libarchive/archive_read_support_filter_xz.c \
 	libarchive/archive_read_support_filter_zstd.c \
+	libarchive/archive_read_support_format_uc2.c \
 	libarchive/archive_read_support_format_7zip.c \
 	libarchive/archive_read_support_format_all.c \
 	libarchive/archive_read_support_format_ar.c \
@@ -562,6 +563,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_iso_rockridge_sl_leak.c \
 	libarchive/test/test_read_format_iso_rockridge_zf_overflow.c \
 	libarchive/test/test_read_format_iso_zisofs_overflow.c \
+	libarchive/test/test_read_format_uc2.c \
 	libarchive/test/test_read_format_lha.c \
 	libarchive/test/test_read_format_lha_amiga_script.c \
 	libarchive/test/test_read_format_lha_bugfix_0.c \
@@ -1936,3 +1938,8 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/test_u_old.zip.uu \
 	unzip/test/test_I.zip.uu \
 	unzip/test/CMakeLists.txt
+
+EXTRA_DIST += libarchive/test/test_read_format_uc2_4.uc2.uu \
+             libarchive/test/test_read_format_uc2_6.uc2.uu \
+             libarchive/test/test_read_format_uc2_80.uc2.uu \
+             doc/uc2-reader.md

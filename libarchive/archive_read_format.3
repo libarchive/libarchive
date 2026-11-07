@@ -40,6 +40,7 @@
 .Nm archive_read_support_format_rar5 ,
 .Nm archive_read_support_format_raw ,
 .Nm archive_read_support_format_tar ,
+.Nm archive_read_support_format_uc2 ,
 .Nm archive_read_support_format_warc ,
 .Nm archive_read_support_format_xar ,
 .Nm archive_read_support_format_zip
@@ -78,6 +79,8 @@ Streaming Archive Library (libarchive, -larchive)
 .Ft int
 .Fn archive_read_support_format_tar "struct archive *"
 .Ft int
+.Fn archive_read_support_format_uc2 "struct archive *"
+.Ft int
 .Fn archive_read_support_format_warc "struct archive *"
 .Ft int
 .Fn archive_read_support_format_xar "struct archive *"
@@ -98,6 +101,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_read_support_format_rar5 ,
 .Fn archive_read_support_format_raw ,
 .Fn archive_read_support_format_tar ,
+.Fn archive_read_support_format_uc2 ,
 .Fn archive_read_support_format_warc ,
 .Fn archive_read_support_format_xar ,
 .Fn archive_read_support_format_zip
@@ -115,6 +119,12 @@ which can separately be enabled by respectively
 and
 .Fn archive_read_support_format_zip_seekable
 .
+.Pp
+.Fn archive_read_support_format_uc2
+enables historical UltraCompressor II archives when built with the optional
+shared LGPL libuc2read dependency.
+It returns ARCHIVE_WARN when this support was disabled at build time.
+The revival's rANS and shared-chunk extensions are not supported.
 .It Fn archive_read_support_format_all
 Enables support for all available formats except the
 .Dq raw
