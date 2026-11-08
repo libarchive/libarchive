@@ -55,6 +55,9 @@
 #ifdef HAVE_FCNTL_H
 #  include <fcntl.h>
 #endif
+#ifdef HAVE_SIGNAL_H
+#  include <signal.h>
+#endif
 #ifdef HAVE_SPAWN_H
 #  include <spawn.h>
 #endif
@@ -95,7 +98,11 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 #if HAVE_POSIX_SPAWNP
 	posix_spawnattr_t attr;
 	posix_spawn_file_actions_t actions;
+	short spawn_flags = 0;
 	int r;
+#ifdef SIGPIPE
+	sigset_t sigdefault;
+#endif
 #endif
 	struct archive_cmdline *cmdline;
 
@@ -135,10 +142,29 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 		goto attr_inited;
 	}
 #ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
-	r = posix_spawnattr_setflags(&attr, POSIX_SPAWN_CLOEXEC_DEFAULT);
+	spawn_flags |= POSIX_SPAWN_CLOEXEC_DEFAULT;
+#endif
+#ifdef SIGPIPE
+	/*
+	 * Callers (including bsdtar and bsdcpio) commonly ignore SIGPIPE,
+	 * and an ignored signal stays ignored across exec.  Restore the
+	 * default in the child so that if we stop reading its output
+	 * early, it is killed by SIGPIPE (which the program filter
+	 * accepts) rather than failing with EPIPE and a non-zero exit
+	 * status.  See Issue #1118.
+	 */
+	sigemptyset(&sigdefault);
+	sigaddset(&sigdefault, SIGPIPE);
+	r = posix_spawnattr_setsigdefault(&attr, &sigdefault);
 	if (r != 0)
 		goto actions_inited;
+	spawn_flags |= POSIX_SPAWN_SETSIGDEF;
 #endif
+	if (spawn_flags != 0) {
+		r = posix_spawnattr_setflags(&attr, spawn_flags);
+		if (r != 0)
+			goto actions_inited;
+	}
 	r = posix_spawn_file_actions_addclose(&actions, stdin_pipe[1]);
 	if (r != 0)
 		goto actions_inited;
@@ -215,6 +241,10 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 			close(--i);
 #endif
 
+#ifdef SIGPIPE
+		/* See the posix_spawnattr_setsigdefault() comment above. */
+		signal(SIGPIPE, SIG_DFL);
+#endif
 		execvp(cmdline->path, cmdline->argv);
 		_exit(254);
 	}
