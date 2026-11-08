@@ -489,6 +489,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_lzop.c \
 	libarchive/test/test_read_filter_lzop_multiple_parts.c \
 	libarchive/test/test_read_filter_program.c \
+	libarchive/test/test_read_filter_program_early_close.c \
 	libarchive/test/test_read_filter_program_signature.c \
 	libarchive/test/test_read_filter_zstd_raw.c \
 	libarchive/test/test_read_filter_uudecode.c \
