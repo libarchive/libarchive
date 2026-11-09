@@ -58,7 +58,10 @@ struct pax {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
 	struct archive_string	l_url_encoded_name;
+	struct archive_string	gnu_sparse_name;
+	struct archive_string	pax_entry_name;
 	struct archive_string	pax_header;
+	struct archive_string	ustar_entry_name;
 	struct archive_string	sparse_map;
 	size_t			sparse_map_padding;
 	struct sparse_block	*sparse_list;
@@ -100,10 +103,13 @@ static int		 archive_write_pax_options(struct archive_write *,
 			     const char *, const char *);
 static int		 write_pax_padding(struct archive_write *, size_t);
 static char		*base64_encode(const char *src, size_t len);
-static char		*build_gnu_sparse_name(char *dest, const char *src);
-static char		*build_pax_attribute_name(char *dest, const char *src);
-static char		*build_ustar_entry_name(char *dest, const char *src,
-			     size_t src_length, const char *insert);
+static const char	*build_gnu_sparse_name(struct archive_string *dest,
+			     const char *src);
+static const char	*build_pax_attribute_name(struct archive_string *dest,
+			     const char *src);
+static const char	*build_ustar_entry_name(struct archive_string *dest,
+			     const char *src, size_t src_length,
+			     const char *insert);
 static char		*format_int(char *dest, int64_t);
 static int		 has_non_ASCII(const char *);
 static void		 sparse_list_clear(struct pax *);
@@ -700,9 +706,6 @@ archive_write_pax_header(struct archive_write *a,
 
 	char paxbuff[512];
 	char ustarbuff[512];
-	char ustar_entry_name[256];
-	char pax_entry_name[256];
-	char gnu_sparse_name[256];
 	struct archive_string entry_name;
 
 	ret = ARCHIVE_OK;
@@ -1104,7 +1107,7 @@ archive_write_pax_header(struct archive_write *a,
 		/* We have non-ASCII characters. */
 		add_pax_attr(&(pax->pax_header), "path", path);
 		archive_entry_set_pathname(entry_main,
-		    build_ustar_entry_name(ustar_entry_name,
+		    build_ustar_entry_name(&pax->ustar_entry_name,
 			path, path_length, NULL));
 		need_extension = 1;
 	} else {
@@ -1135,7 +1138,8 @@ archive_write_pax_header(struct archive_write *a,
 			{
 				add_pax_attr(&(pax->pax_header), "path", path);
 				archive_entry_set_pathname(entry_main,
-				    build_ustar_entry_name(ustar_entry_name,
+				    build_ustar_entry_name(
+					&pax->ustar_entry_name,
 					path, path_length, NULL));
 				need_extension = 1;
 			}
@@ -1398,7 +1402,7 @@ archive_write_pax_header(struct archive_write *a,
 			 * ustar header to a special name, which GNU
 			 * PAX Format 1.0 requires */
 			archive_entry_set_pathname(entry_main,
-			    build_gnu_sparse_name(gnu_sparse_name,
+			    build_gnu_sparse_name(&pax->gnu_sparse_name,
 			        entry_name.s));
 
 			/*
@@ -1549,7 +1553,7 @@ archive_write_pax_header(struct archive_write *a,
 
 		p = entry_name.s;
 		archive_entry_set_pathname(pax_attr_entry,
-		    build_pax_attribute_name(pax_entry_name, p));
+		    build_pax_attribute_name(&pax->pax_entry_name, p));
 		archive_entry_set_size(pax_attr_entry,
 		    archive_strlen(&(pax->pax_header)) +
 		    pax_header_padding);
@@ -1700,14 +1704,13 @@ archive_write_pax_header(struct archive_write *a,
  * Note: Recall that the ustar format does not store the '/' separating
  * parts 1 & 2, but does store the '/' separating parts 2 & 3.
  */
-static char *
-build_ustar_entry_name(char *dest, const char *src, size_t src_length,
-    const char *insert)
+static const char *
+build_ustar_entry_name(struct archive_string *dest, const char *src,
+    size_t src_length, const char *insert)
 {
 	const char *prefix, *prefix_end;
 	const char *suffix, *suffix_end;
 	const char *filename, *filename_end;
-	char *p;
 	int need_slash = 0; /* Was there a trailing slash? */
 	size_t suffix_length = 98; /* 99 - 1 for trailing slash */
 	size_t insert_length, insert_name_length;
@@ -1724,9 +1727,8 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 
 	/* Step 0: Quick bailout in a common case. */
 	if (src_length < 100 && insert == NULL) {
-		memcpy(dest, src, src_length);
-		dest[src_length] = '\0';
-		return (dest);
+		archive_strncpy(dest, src, src_length);
+		return (dest->s);
 	}
 
 	/* Step 1: Locate filename and enforce the length restriction. */
@@ -1756,14 +1758,11 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	 * one byte out of bounds.  Emit a root-like ustar name instead.
 	 */
 	if (filename_end == src) {
-		p = dest;
-		if (insert != NULL) {
-			strcpy(p, insert);
-			p += strlen(insert);
-		}
-		*p++ = '/';
-		*p = '\0';
-		return (dest);
+		if (insert == NULL)
+			insert = "";
+		archive_strcpy(dest, insert);
+		archive_strappend_char(dest, '/');
+		return (dest->s);
 	}
 
 	if (need_slash)
@@ -1806,28 +1805,21 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 		suffix_end++;
 
 	/* Step 4: Build the new name. */
-	p = dest;
-	if (prefix_end > prefix) {
-		memcpy(p, prefix, (size_t)(prefix_end - prefix));
-		p += prefix_end - prefix;
-	}
-	if (suffix_end > suffix) {
-		memcpy(p, suffix, (size_t)(suffix_end - suffix));
-		p += suffix_end - suffix;
-	}
+	archive_string_empty(dest);
+	if (prefix_end > prefix)
+		archive_strncat(dest, prefix, (size_t)(prefix_end - prefix));
+	if (suffix_end > suffix)
+		archive_strncat(dest, suffix, (size_t)(suffix_end - suffix));
 	if (insert != NULL) {
 		/* Note: assume insert does not have leading or trailing '/' */
-		memcpy(p, insert, insert_name_length);
-		p += insert_name_length;
-		*p++ = '/';
+		archive_strncat(dest, insert, insert_name_length);
+		archive_strappend_char(dest, '/');
 	}
-	memcpy(p, filename, (size_t)(filename_end - filename));
-	p += filename_end - filename;
+	archive_strncat(dest, filename, (size_t)(filename_end - filename));
 	if (need_slash)
-		*p++ = '/';
-	*p = '\0';
+		archive_strappend_char(dest, '/');
 
-	return (dest);
+	return (dest->s);
 }
 
 /*
@@ -1853,17 +1845,15 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
  * so is simpler than you might think.  It just needs to provide the
  * additional path element and handle a few pathological cases).
  */
-static char *
-build_pax_attribute_name(char *dest, const char *src)
+static const char *
+build_pax_attribute_name(struct archive_string *dest, const char *src)
 {
 	char buff[64];
-	const char *p;
+	const char *insert, *p;
 
 	/* Handle the null filename case. */
-	if (src == NULL || *src == '\0') {
-		strcpy(dest, "PaxHeader/blank");
-		return (dest);
-	}
+	if (src == NULL || *src == '\0')
+		return "PaxHeader/blank";
 
 	/* Prune final '/' and other unwanted final elements. */
 	p = src + strlen(src);
@@ -1884,16 +1874,12 @@ build_pax_attribute_name(char *dest, const char *src)
 
 	/* Pathological case: After above, there was nothing left.
 	 * This includes "/." "/./." "/.//./." etc. */
-	if (p == src) {
-		strcpy(dest, "/PaxHeader/rootdir");
-		return (dest);
-	}
+	if (p == src)
+		return "/PaxHeader/rootdir";
 
 	/* Convert unadorned "." into a suitable filename. */
-	if (*src == '.' && p == src + 1) {
-		strcpy(dest, "PaxHeader/currentdir");
-		return (dest);
-	}
+	if (*src == '.' && p == src + 1)
+		return "PaxHeader/currentdir";
 
 	/*
 	 * TODO: Push this string into the 'pax' structure to avoid
@@ -1902,15 +1888,15 @@ build_pax_attribute_name(char *dest, const char *src)
 	 */
 #if HAVE_GETPID && 0  /* Disable this for now; see above comment. */
 	snprintf(buff, sizeof(buff), "PaxHeader.%d", getpid());
+	insert = buff;
 #else
 	/* If the platform can't fetch the pid, don't include it. */
-	strcpy(buff, "PaxHeader");
+	(void)buff;
+	insert = "PaxHeader";
 #endif
 	/* General case: build a ustar-compatible name adding
 	 * "/PaxHeader/". */
-	build_ustar_entry_name(dest, src, p - src, buff);
-
-	return (dest);
+	return build_ustar_entry_name(dest, src, p - src, insert);
 }
 
 /*
@@ -1922,16 +1908,14 @@ build_pax_attribute_name(char *dest, const char *src)
  * This function is used for only Sparse file, a file type of which
  * is regular file.
  */
-static char *
-build_gnu_sparse_name(char *dest, const char *src)
+static const char *
+build_gnu_sparse_name(struct archive_string *dest, const char *src)
 {
 	const char *p;
 
 	/* Handle the null filename case. */
-	if (src == NULL || *src == '\0') {
-		strcpy(dest, "GNUSparseFile/blank");
-		return (dest);
-	}
+	if (src == NULL || *src == '\0')
+		return "GNUSparseFile/blank";
 
 	/* Prune final '/' and other unwanted final elements. */
 	p = src + strlen(src);
@@ -1953,13 +1937,11 @@ build_gnu_sparse_name(char *dest, const char *src)
 	/* General case: build a ustar-compatible name adding
 	 * "/GNUSparseFile.0/". */
 
-	if (p == src) {
-		strcpy(dest, "/GNUSparseFile.0/rootdir");
-		return (dest);
-	}
+	if (p == src)
+		return "/GNUSparseFile.0/rootdir";
 	build_ustar_entry_name(dest, src, p - src, "GNUSparseFile.0");
 
-	return (dest);
+	return (dest->s);
 }
 
 /* Write two null blocks for the end of archive */
@@ -1977,9 +1959,12 @@ archive_write_pax_free(struct archive_write *a)
 	if (pax == NULL)
 		return (ARCHIVE_OK);
 
-	archive_string_free(&pax->pax_header);
-	archive_string_free(&pax->sparse_map);
 	archive_string_free(&pax->l_url_encoded_name);
+	archive_string_free(&pax->gnu_sparse_name);
+	archive_string_free(&pax->pax_entry_name);
+	archive_string_free(&pax->pax_header);
+	archive_string_free(&pax->ustar_entry_name);
+	archive_string_free(&pax->sparse_map);
 	sparse_list_clear(pax);
 	free(pax);
 	a->format_data = NULL;
