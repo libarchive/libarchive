@@ -2774,7 +2774,8 @@ xml_data(void *userData, const char *s, size_t len)
 		if (xar->file->has & HAS_PATHNAME)
 			break;
 
-		if (xar->file->parent != NULL) {
+		if (xar->file->parent != NULL &&
+		    archive_strlen(&(xar->file->parent->pathname)) > 0) {
 			archive_string_concat(&(xar->file->pathname),
 			    &(xar->file->parent->pathname));
 			archive_strappend_char(&(xar->file->pathname), '/');
@@ -2785,6 +2786,32 @@ xml_data(void *userData, const char *s, size_t len)
 			    &(xar->file->pathname), s, len);
 		} else
 			archive_strncat(&(xar->file->pathname), s, len);
+		if (archive_strlen(&(xar->file->pathname)) > 0) {
+			size_t i;
+			for (i = 0; i < xar->file_queue.used; i++) {
+				struct xar_file *f = xar->file_queue.files[i];
+				struct xar_file *p;
+				if (f == xar->file || !(f->has & HAS_PATHNAME))
+					continue;
+				for (p = f->parent; p != NULL; p = p->parent) {
+					if (p == xar->file) {
+						struct archive_string tmp;
+						archive_string_init(&tmp);
+						archive_string_concat(&tmp,
+						    &(xar->file->pathname));
+						archive_strappend_char(&tmp, '/');
+						archive_string_concat(&tmp,
+						    &(f->pathname));
+						archive_string_copy(
+						    &(f->pathname), &tmp);
+						archive_string_free(&tmp);
+						break;
+					}
+					if (archive_strlen(&(p->pathname)) > 0)
+						break;
+				}
+			}
+		}
 		break;
 	case FILE_LINK:
 		xar->file->has |= HAS_SYMLINK;
