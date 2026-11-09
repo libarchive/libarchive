@@ -149,3 +149,46 @@ DEFINE_TEST(test_read_format_cpio_afio_header)
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * An afio large header that starts one byte after a scan position
+ * must not be skipped when searching past junk.
+ */
+DEFINE_TEST(test_read_format_cpio_afio_junk)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	unsigned char *p, *afio;
+	size_t junk, off, size;
+
+	afio = NULL;
+	for (off = 0; off + 6 <= sizeof(archive); off++) {
+		if (memcmp(archive + off, "070727", 6) == 0) {
+			afio = archive + off;
+			break;
+		}
+	}
+	assert(afio != NULL);
+	off = afio - archive;
+
+	for (junk = 1; junk <= 12; junk++) {
+		size = sizeof(archive) + junk + 512;
+		assert((p = calloc(1, size)) != NULL);
+		memcpy(p, archive, off);
+		memset(p + off, 'Z', junk);
+		memcpy(p + off + junk, afio, sizeof(archive) - off);
+
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, p, size));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString("file1", archive_entry_pathname(ae));
+		/* The second entry follows the junk. */
+		assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+		assertEqualString("file2", archive_entry_pathname(ae));
+		assertEqualInt(ARCHIVE_FORMAT_CPIO_AFIO_LARGE, archive_format(a));
+		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		free(p);
+	}
+}
