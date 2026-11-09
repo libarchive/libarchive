@@ -900,6 +900,7 @@ static void reset_file_context(struct rar5 *rar5) {
 	rar5->file.redir_flags = 0;
 
 	free_filters(rar5);
+	clear_data_ready_stack(rar5);
 }
 
 static int read_ahead(struct archive_read* a, size_t how_many,
