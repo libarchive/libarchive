@@ -6739,6 +6739,23 @@ isoent_rr_move_dir(struct archive_write *a, struct isoent **rr_moved,
 	 * The mvent becomes a child of the rr_moved entry.
 	 */
 	if (!isoent_add_child_tail(rrmoved, mvent)) {
+		/* Move the children back to curent. Freeing mvent with
+		 * the subtree just moved into it would leak that
+		 * subtree, because nothing else refers to it anymore. */
+		if (mvent->children.first != NULL) {
+			curent->children.first = mvent->children.first;
+			curent->children.last = mvent->children.last;
+			curent->children.cnt = mvent->children.cnt;
+			for (np = mvent->children.first; np != NULL;
+			    np = np->chnext)
+				np->parent = curent;
+		}
+		if (mvent->subdirs.first != NULL) {
+			curent->subdirs.first = mvent->subdirs.first;
+			curent->subdirs.last = mvent->subdirs.last;
+			curent->subdirs.cnt = mvent->subdirs.cnt;
+		}
+		curent->rr_child = NULL;
 		_isoent_free(mvent);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Unable to insert rr_moved entry");
