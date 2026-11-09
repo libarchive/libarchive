@@ -324,6 +324,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_FILTER_LZ4	13
 #define	ARCHIVE_FILTER_ZSTD	14
 #define	ARCHIVE_FILTER_B64	15
+#define	ARCHIVE_FILTER_PBZX	16
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
@@ -338,6 +339,7 @@ typedef const char *archive_passphrase_callback(struct archive *,
 #define	ARCHIVE_COMPRESSION_LZIP	ARCHIVE_FILTER_LZIP
 #define	ARCHIVE_COMPRESSION_LRZIP	ARCHIVE_FILTER_LRZIP
 #define	ARCHIVE_COMPRESSION_B64		ARCHIVE_FILTER_B64
+#define	ARCHIVE_COMPRESSION_PBZX	ARCHIVE_FILTER_PBZX
 #endif
 
 /*
@@ -477,6 +479,7 @@ __LA_DECL int archive_read_support_filter_lzip(struct archive *);
 __LA_DECL int archive_read_support_filter_lzma(struct archive *);
 __LA_DECL int archive_read_support_filter_lzop(struct archive *);
 __LA_DECL int archive_read_support_filter_none(struct archive *);
+__LA_DECL int archive_read_support_filter_pbzx(struct archive *);
 __LA_DECL int archive_read_support_filter_program(struct archive *,
 		     const char *command);
 __LA_DECL int archive_read_support_filter_program_signature

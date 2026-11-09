@@ -194,6 +194,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_filter_lz4.c \
 	libarchive/archive_read_support_filter_lzop.c \
 	libarchive/archive_read_support_filter_none.c \
+	libarchive/archive_read_support_filter_pbzx.c \
 	libarchive/archive_read_support_filter_program.c \
 	libarchive/archive_read_support_filter_rpm.c \
 	libarchive/archive_read_support_filter_uu.c \
@@ -488,6 +489,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_filter_lz4_raw.c \
 	libarchive/test/test_read_filter_lzop.c \
 	libarchive/test/test_read_filter_lzop_multiple_parts.c \
+	libarchive/test/test_read_filter_pbzx.c \
 	libarchive/test/test_read_filter_program.c \
 	libarchive/test/test_read_filter_program_signature.c \
 	libarchive/test/test_read_filter_zstd_raw.c \
