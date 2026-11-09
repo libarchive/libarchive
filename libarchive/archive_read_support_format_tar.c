@@ -582,7 +582,11 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			}
 		}
 		count = archive_entry_sparse_count(entry);
-		if (count < 0 || (size_t)count != added) {
+		if (count < 0 ||
+		    ((size_t)count != added &&
+		     !(count == 0 && added == 1 &&
+		       tar->sparse_list->offset == 0 &&
+		       tar->sparse_list->remaining == archive_entry_size(entry)))) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Malformed sparse map data");
 			return (ARCHIVE_FATAL);
@@ -708,6 +712,10 @@ tar_reset_header_state(struct tar *tar)
 {
 	tar->pax_hdrcharset_utf8 = 1;
 	tar->sparse_gnu_attributes_seen = 0;
+	tar->sparse_gnu_major = 0;
+	tar->sparse_gnu_minor = 0;
+	tar->size_fields = 0;
+	gnu_clear_sparse_list(tar);
 	archive_string_empty(&(tar->entry_gname));
 	archive_string_empty(&(tar->entry_pathname));
 	archive_string_empty(&(tar->entry_pathname_override));
