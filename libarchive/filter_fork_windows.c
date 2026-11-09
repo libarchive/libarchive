@@ -105,8 +105,7 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 	struct archive_string cmdline;
 	struct archive_string fullpath;
 	struct archive_cmdline *acmd;
-	char *arg0, *ext;
-	int i, l;
+	char *ext;
 	DWORD fl, fl_old;
 	HANDLE child;
 
@@ -142,49 +141,13 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 			goto fail;
 		fl_old = fl;
 		fl = SearchPathA(NULL, acmd->path, ext, fl, fullpath.s,
-			&arg0);
+			NULL);
 	} while (fl != 0 && fl > fl_old);
 	if (fl == 0)
 		goto fail;
 
-	/*
-	 * Make a command line.
-	 */
-	for (l = 0, i = 0;  acmd->argv[i] != NULL; i++) {
-		if (i == 0)
-			continue;
-		l += (int)strlen(acmd->argv[i]) + 1;
-	}
-	if (archive_string_ensure(&cmdline, l + 1) == NULL)
+	if (archive_strcpy(&cmdline, cmd) == NULL)
 		goto fail;
-	for (i = 0;  acmd->argv[i] != NULL; i++) {
-		if (i == 0) {
-			const char *p, *sp;
-
-			if ((p = strchr(acmd->argv[i], '/')) != NULL ||
-			    (p = strchr(acmd->argv[i], '\\')) != NULL)
-				p++;
-			else
-				p = acmd->argv[i];
-			if ((sp = strchr(p, ' ')) != NULL)
-				archive_strappend_char(&cmdline, '"');
-			archive_strcat(&cmdline, p);
-			if (sp != NULL)
-				archive_strappend_char(&cmdline, '"');
-		} else {
-			archive_strappend_char(&cmdline, ' ');
-			archive_strcat(&cmdline, acmd->argv[i]);
-		}
-	}
-	if (i <= 1) {
-		const char *sp;
-
-		if ((sp = strchr(arg0, ' ')) != NULL)
-			archive_strappend_char(&cmdline, '"');
-		archive_strcat(&cmdline, arg0);
-		if (sp != NULL)
-			archive_strappend_char(&cmdline, '"');
-	}
 
 	secAtts.nLength = sizeof(SECURITY_ATTRIBUTES);
 	secAtts.bInheritHandle = TRUE;
@@ -218,7 +181,7 @@ __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 
 	*child_stdout = _open_osfhandle((intptr_t)childStdout[0], _O_RDONLY);
 	*child_stdin = _open_osfhandle((intptr_t)childStdin[1], _O_WRONLY);
-	
+
 	child = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
 		childInfo.dwProcessId);
 	if (child == NULL) // INVALID_HANDLE_VALUE ?
