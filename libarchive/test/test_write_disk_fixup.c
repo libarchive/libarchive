@@ -105,3 +105,52 @@ DEFINE_TEST(test_write_disk_fixup)
 	assertFileMode("file", 0600);
 #endif
 }
+
+/*
+ * Test that a deferred fixup keyed on a "dir/." entry name cannot be
+ * redirected through a symlink to a target outside the created object.
+ */
+DEFINE_TEST(test_write_disk_fixup_symlink_dotdir)
+{
+	struct archive *ad;
+	struct archive_entry *ae;
+	int r;
+
+	if (!canSymlink()) {
+		skipping("Symlinks not supported");
+		return;
+	}
+
+	assertMakeDir("victim", 0755);
+
+	assert((ad = archive_write_disk_new()) != NULL);
+	archive_write_disk_set_options(ad,
+	    ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_PERM);
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "target/.");
+	archive_entry_set_mode(ae, AE_IFDIR | 0000);
+	archive_entry_set_mtime(ae, 1, 0);
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "target");
+	archive_entry_set_mode(ae, AE_IFLNK | 0777);
+	archive_entry_set_size(ae, 0);
+	archive_entry_copy_symlink(ae, "victim");
+	assertEqualIntA(ad, 0, r = archive_write_header(ad, ae));
+	if (r >= ARCHIVE_WARN)
+		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+	archive_entry_free(ae);
+
+	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
+
+	assertIsSymlink("target", "victim", 0);
+	assertFileMtimeRecent("victim");
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	assertFileMode("victim", 0755);
+#endif
+}
