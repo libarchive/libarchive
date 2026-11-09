@@ -712,7 +712,9 @@ copy_seek_stat(la_seek_stat_t *st, struct ustat *us)
 {
 	st->st_mtime = us->st_mtime;
 	st->st_gid = us->st_gid;
-	st->st_ino = getino(us);
+	/* Don't fold the file index: the skip file checks compare it
+	 * with the index that entries read from disk carry. */
+	st->st_ino = us->st_ino;
 	st->st_mode = us->st_mode;
 	st->st_nlink = us->st_nlink;
 	st->st_size = (la_seek_t)us->st_size;
