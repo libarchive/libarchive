@@ -124,6 +124,9 @@ struct archive_write {
 	int	(*format_free)(struct archive_write *);
 
 
+	/* Byte offset in format stream where last-written header started. */
+	int64_t		  header_position;
+
 	/*
 	 * Encryption passphrase.
 	 */
