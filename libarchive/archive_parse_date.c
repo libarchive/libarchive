@@ -728,8 +728,10 @@ Convert(time_t Month, time_t Day, time_t Year,
 #else
 	ltime = localtime(&Julian);
 #endif
+	/* localtime() fails for times it can't represent: on Windows, any
+	 * time before 1970 or after the year 3000.  Assume no DST there. */
 	if (DSTmode == DSTon
-	    || (DSTmode == DSTmaybe && ltime->tm_isdst))
+	    || (DSTmode == DSTmaybe && ltime != NULL && ltime->tm_isdst))
 		Julian -= HOUR;
 	return Julian;
 }
@@ -750,6 +752,8 @@ DSTcorrect(time_t Start, time_t Future)
 #else
 	ltime = localtime(&Start);
 #endif
+	if (ltime == NULL)
+		return Future - Start;
 	StartDay = (ltime->tm_hour + 1) % 24;
 #if defined(HAVE_LOCALTIME_S)
 	ltime = localtime_s(&tmbuf, &Future) ? NULL : &tmbuf;
@@ -758,14 +762,17 @@ DSTcorrect(time_t Start, time_t Future)
 #else
 	ltime = localtime(&Future);
 #endif
+	if (ltime == NULL)
+		return Future - Start;
 	FutureDay = (ltime->tm_hour + 1) % 24;
 	return (Future - Start) + (StartDay - FutureDay) * HOUR;
 }
 
 
-static time_t
+/* Stores the offset from Start.  Returns 0 on success, -1 on failure. */
+static int
 RelativeDate(time_t Start, time_t zone, int dstmode,
-    time_t DayOrdinal, time_t DayNumber)
+    time_t DayOrdinal, time_t DayNumber, time_t *offset)
 {
 	struct tm	*tm;
 	time_t	t, now;
@@ -781,25 +788,29 @@ RelativeDate(time_t Start, time_t zone, int dstmode,
 #else
 	tm = gmtime(&t);
 #endif
+	if (tm == NULL)
+		return -1;
 	now = Start;
 	now += DAY * ((DayNumber - tm->tm_wday + 7) % 7);
 	now += 7 * DAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
-	if (dstmode == DSTmaybe)
-		return DSTcorrect(Start, now);
-	return now - Start;
+	*offset = dstmode == DSTmaybe ? DSTcorrect(Start, now) : now - Start;
+	return 0;
 }
 
 
-static time_t
-RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
+/* Stores the offset from Start.  Returns 0 on success, -1 on failure. */
+static int
+RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth, time_t *offset)
 {
 	struct tm	*tm;
+	time_t	Future;
 	time_t	Month;
 	time_t	Year;
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm	tmbuf;
 #endif
 
+	*offset = 0;
 	if (RelMonth == 0)
 		return 0;
 #if defined(HAVE_LOCALTIME_S)
@@ -809,13 +820,19 @@ RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
 #else
 	tm = localtime(&Start);
 #endif
+	if (tm == NULL)
+		return -1;
 	Month = 12 * (tm->tm_year + 1900) + tm->tm_mon + RelMonth;
 	Year = Month / 12;
 	Month = Month % 12 + 1;
-	return DSTcorrect(Start,
-	    Convert(Month, (time_t)tm->tm_mday, Year,
-		(time_t)tm->tm_hour, (time_t)tm->tm_min, (time_t)tm->tm_sec,
-		Timezone, DSTmaybe));
+	Future = Convert(Month, (time_t)tm->tm_mday, Year,
+	    (time_t)tm->tm_hour, (time_t)tm->tm_min, (time_t)tm->tm_sec,
+	    Timezone, DSTmaybe);
+	/* That month may not have this day, or the year may be before 1970. */
+	if (Future < 0)
+		return -1;
+	*offset = DSTcorrect(Start, Future);
+	return 0;
 }
 
 /*
@@ -1134,13 +1151,16 @@ archive_parse_date(time_t now, const char *p)
 
 	/* Add the relative offset. */
 	Start += gds->RelSeconds;
-	Start += RelativeMonth(Start, gds->Timezone, gds->RelMonth);
+	if (RelativeMonth(Start, gds->Timezone, gds->RelMonth, &tod) != 0)
+		return -1;
+	Start += tod;
 
 	/* Adjust for day-of-week offsets. */
 	if (gds->HaveWeekDay
 	    && !(gds->HaveYear || gds->HaveMonth || gds->HaveDay)) {
-		tod = RelativeDate(Start, gds->Timezone,
-		    gds->DSTmode, gds->DayOrdinal, gds->DayNumber);
+		if (RelativeDate(Start, gds->Timezone, gds->DSTmode,
+		    gds->DayOrdinal, gds->DayNumber, &tod) != 0)
+			return -1;
 		Start += tod;
 	}
 
