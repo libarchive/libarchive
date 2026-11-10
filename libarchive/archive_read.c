@@ -480,10 +480,12 @@ archive_read_open1(struct archive *_a)
 
 	f = calloc(1, sizeof(*f));
 	if (f == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Can't allocate memory");
 		/* No filter will ever exist to run the client closer, so clean up
-		 * the client data here like the opener-failure path below does. */
+		 * the client data here like the opener-failure path below does.
+		 * Set ENOMEM after the closer so a closer error cannot overwrite
+		 * the allocation-failure error. */
 		(void)client_close_all(a);
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate memory");
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
