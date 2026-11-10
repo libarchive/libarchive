@@ -64,13 +64,8 @@ struct xz {
 	int64_t		 member_out;
 };
 
-#if LZMA_VERSION_MAJOR >= 5
-/* Effectively disable the limiter. */
-#define LZMA_MEMLIMIT	UINT64_MAX
-#else
-/* NOTE: This needs to check memory size which running system has. */
+/* Limit decoder memory usage for untrusted dictionary sizes. */
 #define LZMA_MEMLIMIT	(1U << 30)
-#endif
 
 /* Combined lzip/lzma/xz filter */
 static ssize_t	xz_filter_read(struct archive_read_filter *, const void **);
