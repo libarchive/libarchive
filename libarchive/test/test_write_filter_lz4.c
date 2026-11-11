@@ -412,6 +412,101 @@ XXXDEFINE_TEST(test_write_filter_lz4_block_dependence_hc)
 */
 
 /*
+ * Write data with high compression and dependent blocks, so that
+ * the HC stream is set up once and then carries its dictionary
+ * across many blocks.  Returns the compressed size.
+ */
+static size_t
+write_hc_dependent(const char *level, const char *data, size_t datasize,
+    char *buff, size_t buffsize)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char options[96];
+	size_t used;
+
+	snprintf(options, sizeof(options), "lz4:compression-level=%s,"
+	    "lz4:block-dependence,lz4:block-size=4", level);
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lz4(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_options(a, options));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, datasize);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualInt(datasize, archive_write_data(a, data, datasize));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+	return (used);
+}
+
+DEFINE_TEST(test_write_filter_lz4_hc_block_dependence)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char *buff, *data, *rbuff;
+	size_t buffsize, datasize, used3, used9, i;
+	unsigned int seed = 1;
+	int r;
+
+	if (archive_liblz4_version() == NULL) {
+		skipping("liblz4 is not available");
+		return;
+	}
+
+	/* High compression needs lz4hc.h at build time. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_lz4(a));
+	r = archive_write_set_options(a, "lz4:compression-level=9");
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+	if (r != ARCHIVE_OK) {
+		skipping("lz4 high compression is not available");
+		return;
+	}
+
+	/* 1 MiB of compressible, non-repeating data: 16 blocks of 64 KiB. */
+	datasize = 1024 * 1024;
+	buffsize = 2 * datasize;
+	assert(NULL != (data = malloc(datasize)));
+	assert(NULL != (rbuff = malloc(datasize)));
+	assert(NULL != (buff = malloc(buffsize)));
+	for (i = 0; i < datasize; i++) {
+		seed = seed * 1103515245 + 12345;
+		data[i] = "  eeettaoinshrdlu"[(seed >> 16) % 17];
+	}
+
+	/* The requested level must be applied to the HC stream. */
+	used3 = write_hc_dependent("3", data, datasize, buff, buffsize);
+	used9 = write_hc_dependent("9", data, datasize, buff, buffsize);
+	failure("level 9 wrote %d bytes, level 3 wrote %d bytes",
+	    (int)used9, (int)used3);
+	assert(used9 < used3);
+
+	/* Read back the level 9 archive and check its contents. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_lz4(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, used9));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(datasize, archive_entry_size(ae));
+	assertEqualInt(datasize, archive_read_data(a, rbuff, datasize));
+	assertEqualMem(rbuff, data, datasize);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	free(rbuff);
+	free(data);
+	free(buff);
+}
+
+/*
  * An archive with no entries whose format writes nothing at
  * close (mtree, shar) closes the lz4 filter without any data
  * having been written through it.  The close used to compute
