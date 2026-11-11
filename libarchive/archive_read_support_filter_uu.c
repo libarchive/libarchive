@@ -505,7 +505,7 @@ uudecode_filter_read(struct archive_read_filter *f, const void **buff)
 				uu->mode = mode;
 				uu->mode_set = 1;
 				namelen = len - name_offset;
-				if (namelen > 1) {
+				if (namelen > 0) {
 					free(uu->name);
 					uu->name = malloc(namelen + 1);
 					if (uu->name == NULL) {
