@@ -440,9 +440,12 @@ archive_compressor_compress_close(struct archive_write_filter *f)
 	struct compress *compress = f->data;
 	int ret;
 
-	ret = output_code(f, compress->cur_code);
-	if (ret != ARCHIVE_OK)
-		return ret;
+	/* Empty input has no pending code. */
+	if (compress->in_count != 0) {
+		ret = output_code(f, compress->cur_code);
+		if (ret != ARCHIVE_OK)
+			return ret;
+	}
 	ret = output_flush(f);
 	if (ret != ARCHIVE_OK)
 		return ret;
