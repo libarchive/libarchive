@@ -205,6 +205,9 @@ static int	header_ustar(struct archive_read *, struct tar *,
 static int	header_gnutar(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h, int64_t *);
 static int	archive_read_format_tar_bid(struct archive_read *, int);
+static int	archive_read_format_tar_nonempty_bid(struct archive_read *, int);
+static int	archive_read_support_format_tar_common(struct archive *,
+		    int (*)(struct archive_read *, int));
 static int	archive_read_format_tar_options(struct archive_read *,
 		    const char *, const char *);
 static int	archive_read_format_tar_cleanup(struct archive_read *);
@@ -263,14 +266,30 @@ archive_read_support_format_gnutar(struct archive *a)
 
 
 int
-archive_read_support_format_tar(struct archive *_a)
+archive_read_support_format_tar(struct archive *a)
+{
+	archive_check_magic(a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_tar");
+	return (archive_read_support_format_tar_common(a,
+	    archive_read_format_tar_bid));
+}
+
+int
+archive_read_support_format_tar_nonempty(struct archive *a)
+{
+	archive_check_magic(a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_tar_nonempty");
+	return (archive_read_support_format_tar_common(a,
+	    archive_read_format_tar_nonempty_bid));
+}
+
+static int
+archive_read_support_format_tar_common(struct archive *_a,
+    int (*bid)(struct archive_read *, int))
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	struct tar *tar;
 	int r;
-
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_format_tar");
 
 	tar = calloc(1, sizeof(*tar));
 	if (tar == NULL) {
@@ -285,7 +304,7 @@ archive_read_support_format_tar(struct archive *_a)
 	r = __archive_read_register_format(a,
 	    tar,
 	    "tar",
-	    archive_read_format_tar_bid,
+	    bid,
 	    archive_read_format_tar_options,
 	    archive_read_format_tar_read_header,
 	    archive_read_format_tar_read_data,
@@ -368,6 +387,20 @@ validate_number_field(const char* p_field, size_t i_size)
 		}
 		return 1;
 	}
+}
+
+/* Reject a leading end marker without changing tar header validation. */
+static int
+archive_read_format_tar_nonempty_bid(struct archive_read *a, int best_bid)
+{
+	const char *h;
+
+	h = __archive_read_ahead(a, 512, NULL);
+	if (h == NULL)
+		return (-1);
+	if (h[0] == 0 && archive_block_is_null(h))
+		return (0);
+	return (archive_read_format_tar_bid(a, best_bid));
 }
 
 static int
