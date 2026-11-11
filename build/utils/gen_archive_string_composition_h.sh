@@ -25,7 +25,7 @@ append_copyright()
 {
 cat > ${outfile} <<CR_END
 /*-
- * Copyright (c) 2011-2012 libarchive Project
+ * Copyright (c) 2011-2026 libarchive Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,12 +57,12 @@ cat > ${outfile} <<CR_END
  *  See also http://unicode.org/report/tr15/
  */
 
+#ifndef ARCHIVE_STRING_COMPOSITION_H_INCLUDED
+#define ARCHIVE_STRING_COMPOSITION_H_INCLUDED
+
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
-
-#ifndef ARCHIVE_STRING_COMPOSITION_H_INCLUDED
-#define ARCHIVE_STRING_COMPOSITION_H_INCLUDED
 
 struct unicode_composition_table {
 	uint32_t cp1;
@@ -124,7 +124,7 @@ END {
   # Output a canonical combining class value table.
   #
   midcnt = 0
-  printf "/* The table of the value of Canonical Cimbining Class */\\n"
+  printf "/* The table of the value of Canonical Combining Class */\\n"
   print "static const unsigned char ccc_val[][16] = {"
   print " /* idx=0: XXXX0 - XXXXF */"
   print " { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },"
@@ -451,7 +451,7 @@ AWK_END
 append_copyright
 awk -f ${pickout} ${inputfile} >> ${outfile}
 awk -f ${pickout2} ${nfdtmp} >> ${outfile}
-echo "#endif /* ARCHIVE_STRING_COMPOSITION_H_INCLUDED */" >> ${outfile}
+echo "#endif /* !ARCHIVE_STRING_COMPOSITION_H_INCLUDED */" >> ${outfile}
 echo "" >> ${outfile}
 #
 # Remove awk the script.

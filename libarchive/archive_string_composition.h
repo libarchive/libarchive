@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2012 libarchive Project
+ * Copyright (c) 2011-2026 libarchive Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 /*
@@ -2287,3 +2286,4 @@ static const struct unicode_decomposition_table u_decomposition_table[] = {
 };
 
 #endif /* !ARCHIVE_STRING_COMPOSITION_H_INCLUDED */
+
