@@ -45,6 +45,7 @@ DEFINE_TEST(test_read_format_rar_encryption_header)
 	/* Verify regular file but with encrypted headers
 	   as a consequence, all meta information is invalid. */
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED, archive_errno(a));
 	
 	assertEqualInt(0, archive_entry_mode(ae));
 	assertEqualString(NULL, archive_entry_pathname(ae));
