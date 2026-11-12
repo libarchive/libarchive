@@ -40,3 +40,6 @@
 #endif
 
 #include "test_common.h"
+
+/* Whether the configured backends support 7-Zip AES decryption. */
+int can7zipEncryption(void);
