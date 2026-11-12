@@ -527,6 +527,25 @@ __LA_DECL int archive_read_append_filter_program(struct archive *,
 __LA_DECL int archive_read_append_filter_program_signature
     (struct archive *, const char *, const void * /* match */, size_t);
 
+/* Registers the filters and the format reader that the extensions of the
+ * archive's filename call for. Call it once, before opening the archive.
+ *
+ * If filename_length is negative, strlen(filename) is used. Otherwise the
+ * filename needn't be terminated. A NULL or empty filename has no extension.
+ *
+ * Returns the length of the filename preceding the extensions that were
+ * taken into account. E.g.:
+ * - for "report.txt.gz", it takes ".gz" into account and returns 10, the
+ *   length of "report.txt" (the data is read with the "raw" format);
+ * - for "report.tar.gz", it takes ".tar.gz" into account and returns 6, the
+ *   length of "report".
+ *
+ * Returns ARCHIVE_FAILED, and registers nothing, if the filename has no
+ * extension or if its extension is not recognized.
+ */
+__LA_DECL la_ssize_t archive_read_set_format_from_filename(struct archive *,
+    const char * /* filename */, la_ssize_t /* filename_length */);
+
 /* Set various callbacks. */
 __LA_DECL int archive_read_set_open_callback(struct archive *,
     archive_open_callback *);

@@ -230,6 +230,16 @@ Disabled by default.
 The value is used as a character set name that will be
 used when translating file names.
 .El
+.It Format raw
+.Bl -tag -compact -width indent
+.It Cm pathname
+The value is used as the pathname of the entry, instead of
+.Dq data ,
+when the data does not give one.
+A name that a filter stores in the data, such as the original name that gzip
+records, is used in preference.
+An empty value restores the default.
+.El
 .It Format tar
 .Bl -tag -compact -width indent
 .It Cm compat-2x
