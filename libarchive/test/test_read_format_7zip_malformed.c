@@ -110,6 +110,28 @@ test_malformed_numfiles_oom(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * The SubStreamsInfo declares 99,999,999 unpack streams in a header of
+ * a few bytes.  The reader must reject the count before allocating
+ * about 1.3 GB for the stream sizes and digests.
+ */
+static void
+test_malformed_unpack_streams(void)
+{
+	const char *refname = "test_read_format_7zip_malformed_unpack_streams.7z";
+	struct archive *a;
+	struct archive_entry *ae;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_7zip_malformed)
 {
 	test_malformed1();
@@ -117,4 +139,5 @@ DEFINE_TEST(test_read_format_7zip_malformed)
 	test_malformed3();
 	test_malformed4();
 	test_malformed_numfiles_oom();
+	test_malformed_unpack_streams();
 }
