@@ -588,8 +588,14 @@ uudecode_filter_read(struct archive_read_filter *f, const void **buff)
 			}
 			break;
 		case ST_READ_BASE64:
-			if (total + len * 2 > OUT_BUFF_SIZE)
-				goto finish;
+			if (total + len * 2 > OUT_BUFF_SIZE) {
+				if (total != 0)
+					goto finish;
+				archive_set_error(&f->archive->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Base64 line is too long");
+				return (ARCHIVE_FATAL);
+			}
 			l = len;
 			if (l >= 3 && b[0] == '=' && b[1] == '=' &&
 			    b[2] == '=') {

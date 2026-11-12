@@ -144,3 +144,130 @@ DEFINE_TEST(test_read_filter_uudecode_invalid_mode)
 	/* No name. */
 	check_header("begin 644 \n#:&D*\n`\nend\n", NULL, 0);
 }
+
+/*
+ * A short first line lets the raw format recognize the decoded stream before
+ * reaching the long lines.  It decodes to "A\0\n", so probing for another uu
+ * layer stops at the embedded NUL instead of reading into the long line.
+ */
+static void
+check_base64_lines(size_t line_length, size_t lines, const char *newline,
+    size_t read_size, int expect_error)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	const void *block;
+	char *input, *p;
+	size_t i, size, total;
+	int64_t offset;
+	int r;
+
+	/* Allow room for the header, short first line, terminator and CRLFs. */
+	if (!assert((input = malloc(64 + (line_length + 2) * lines)) != NULL))
+		return;
+	p = input + sprintf(input, "begin-base64 644 data%sQQAK%s",
+	    newline, newline);
+	for (i = 0; i < lines; i++) {
+		memset(p, 'A', line_length);
+		p += line_length;
+		memcpy(p, newline, strlen(newline));
+		p += strlen(newline);
+	}
+	p += sprintf(p, "====%s", newline);
+
+	if (!assert((a = archive_read_new()) != NULL)) {
+		free(input);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_uu(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	if (!assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory2(a, input, p - input, read_size)))
+		goto cleanup;
+	if (!assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae)))
+		goto cleanup;
+	assertEqualInt(ARCHIVE_FILTER_UU, archive_filter_code(a, 0));
+	assertEqualString("data", archive_entry_pathname(ae));
+
+	total = 0;
+	while ((r = archive_read_data_block(a, &block, &size, &offset)) ==
+	    ARCHIVE_OK) {
+		assertEqualInt(total, offset);
+		if (total == 0) {
+			if (assert(size >= 3)) {
+				assertEqualMem("A\0\n", block, 3);
+				assertMemoryFilledWith((const char *)block + 3,
+				    size - 3, 0);
+			}
+		} else
+			assertMemoryFilledWith(block, size, 0);
+		total += size;
+	}
+
+	failure("Base64 line length=%d, lines=%d, newline length=%d, "
+	    "read size=%d", (int)line_length, (int)lines,
+	    (int)strlen(newline), (int)read_size);
+	if (expect_error) {
+		/* Issue #3777: an oversized line must not look like EOF. */
+		assertEqualIntA(a, ARCHIVE_FATAL, r);
+		assertEqualInt(3, total);
+#if HAVE_EFTYPE
+		assertEqualInt(EFTYPE, archive_errno(a));
+#elif HAVE_EILSEQ
+		assertEqualInt(EILSEQ, archive_errno(a));
+#else
+		assertEqualInt(EINVAL, archive_errno(a));
+#endif
+		assertEqualString("Base64 line is too long",
+		    archive_error_string(a));
+	} else {
+		assertEqualIntA(a, ARCHIVE_EOF, r);
+		assertEqualInt(3 + line_length / 4 * 3 * lines, total);
+		assertEqualIntA(a, ARCHIVE_EOF,
+		    archive_read_next_header(a, &ae));
+	}
+
+cleanup:
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(input);
+}
+
+DEFINE_TEST(test_read_filter_uudecode_base64_long_line)
+{
+	const char *newlines[] = { "\n", "\r\n" };
+	const size_t read_sizes[] = { 7, 65536 };
+	size_t i, j;
+
+	for (i = 0; i < sizeof(newlines) / sizeof(newlines[0]); i++) {
+		for (j = 0; j < sizeof(read_sizes) / sizeof(read_sizes[0]);
+		    j++) {
+			/* Beyond the limit, and the issue's line size. */
+			check_base64_lines(32772, 1, newlines[i],
+			    read_sizes[j], 1);
+			check_base64_lines(52568, 1, newlines[i],
+			    read_sizes[j], 1);
+		}
+	}
+}
+
+DEFINE_TEST(test_read_filter_uudecode_base64_long_line_boundary)
+{
+	const char *newlines[] = { "\n", "\r\n" };
+	const size_t read_sizes[] = { 7, 65536 };
+	size_t i, j;
+
+	for (i = 0; i < sizeof(newlines) / sizeof(newlines[0]); i++) {
+		for (j = 0; j < sizeof(read_sizes) / sizeof(read_sizes[0]);
+		    j++) {
+			/* A buffer flush must still allow progress. */
+			check_base64_lines(32764, 3, newlines[i],
+			    read_sizes[j], 0);
+			check_base64_lines(32768, 3, newlines[i],
+			    read_sizes[j], 0);
+			/* Wrapped input spanning several output buffers. */
+			check_base64_lines(76, 1500, newlines[i],
+			    read_sizes[j], 0);
+		}
+	}
+}
