@@ -3467,6 +3467,26 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 			}
 		}
 	}
+	/*
+	 * The header size bounds the counts read from the header, so
+	 * make sure that the header actually fits into the file.
+	 */
+	if (a->filter->can_seek) {
+		int64_t cur = a->filter->position, end;
+
+		end = __archive_read_seek(a, 0, SEEK_END);
+		if (end < 0 || __archive_read_seek(a, cur, SEEK_SET) != cur) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC, "Seek error");
+			return (ARCHIVE_FATAL);
+		}
+		if (next_header_size > end - cur) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated 7-Zip file header");
+			return (ARCHIVE_FATAL);
+		}
+	}
 	zip->stream_offset = next_header_offset;
 	zip->header_offset = next_header_offset;
 	zip->header_bytes_remaining = next_header_size;
