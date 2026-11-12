@@ -183,6 +183,14 @@ struct zip {
 	int64_t			entry_compressed_bytes_read;
 	int64_t			entry_uncompressed_bytes_read;
 
+	/* Where the data of the entry starts in the input. */
+	int64_t			entry_data_offset;
+	/* Set when archive_seek_data() has moved to the middle of the
+	 * data of the entry: the CRC32 can no longer be checked. */
+	char			seeked;
+	/* How far archive_seek_data() went after the end of the data. */
+	int64_t			seeked_after_end;
+
 	/* Running CRC32 of the decompressed and decrypted data */
 	unsigned long		computed_crc32;
 	unsigned long		(*crc32func)(unsigned long, const void *,
@@ -1258,6 +1266,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip->entry_uncompressed_bytes_read = 0;
 	zip->entry_compressed_bytes_read = 0;
 	zip->computed_crc32 = zip->crc32func(0, NULL, 0);
+	zip->seeked = 0;
+	zip->seeked_after_end = 0;
 
 	/* Setup default conversion. */
 	if (zip->sconv == NULL && !zip->init_default_conversion) {
@@ -1617,6 +1627,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		archive_entry_set_size(entry, zip_entry->uncompressed_size);
 	}
 	zip->entry_bytes_remaining = zip_entry->compressed_size;
+	zip->entry_data_offset = archive_filter_bytes(&a->archive, 0);
 
 	/* If there's no body, force read_data() to return EOF immediately. */
 	if (0 == (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
@@ -3648,7 +3659,7 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		if ((!zip->hctx_valid ||
 		      zip->entry->aes_extra.vendor != AES_VENDOR_AE_2) &&
 		   zip->entry->crc32 != zip->computed_crc32
-		    && !zip->ignore_crc32) {
+		    && !zip->ignore_crc32 && !zip->seeked) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "ZIP bad CRC: 0x%lx should be 0x%lx",
 			    (unsigned long)zip->computed_crc32,
@@ -4773,6 +4784,94 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
 }
 
 /*
+ * Moves to another position in the data of the current entry. This is only
+ * possible for an entry that is stored, which means neither compressed nor
+ * encrypted, because the data of such an entry is a copy of the file.
+ * Returns the new position, relative to the start of the data.
+ */
+static int64_t
+archive_read_format_zip_seek_data(struct archive_read *a, int64_t offset,
+    int whence)
+{
+	struct zip *zip = a->format->data;
+	int64_t size, current, target, inside, r;
+
+	if (zip->entry == NULL ||
+	    (zip->entry->mode & AE_IFMT) != AE_IFREG ||
+	    zip->entry->compression != 0 ||
+	    (zip->entry->zip_flags & (ZIP_ENCRYPTED | ZIP_STRONG_ENCRYPTED))) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Cannot seek in a ZIP entry that is compressed or "
+		    "encrypted");
+		return (ARCHIVE_FAILED);
+	}
+
+	size = zip->entry->compressed_size;
+	/* The bytes that archive_read_data() has not returned yet are
+	 * behind the current position. */
+	current = zip->entry_uncompressed_bytes_read -
+	    (int64_t)a->archive.read_data_remaining +
+	    zip->seeked_after_end;
+	switch (whence) {
+	case SEEK_SET:
+		target = offset;
+		break;
+	case SEEK_CUR:
+		if ((offset > 0 && current > INT64_MAX - offset) ||
+		    (offset < 0 && current < INT64_MIN - offset))
+			target = -1;
+		else
+			target = current + offset;
+		break;
+	case SEEK_END:
+		if ((offset > 0 && size > INT64_MAX - offset) ||
+		    (offset < 0 && size < INT64_MIN - offset))
+			target = -1;
+		else
+			target = size + offset;
+		break;
+	default:
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+		    "Invalid whence in archive_seek_data()");
+		return (ARCHIVE_FAILED);
+	}
+	if (target < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Cannot seek before the start of the data of a ZIP entry");
+		return (ARCHIVE_FAILED);
+	}
+	/* Already there: this only tells the position, and the checksum
+	 * of the entry can still be verified. */
+	if (target == current)
+		return (target);
+
+	/* After the end of the data, like lseek(), there is nothing to read.
+	 * The input stays at the end of the data. */
+	inside = target < size ? target : size;
+
+	/* Move in the input first, so that a failure changes nothing. */
+	zip->unconsumed = 0;
+	r = __archive_read_seek(a, zip->entry_data_offset + inside, SEEK_SET);
+	if (r < 0)
+		return (r);
+
+	zip->entry_bytes_remaining = size - inside;
+	zip->entry_compressed_bytes_read = inside;
+	zip->entry_uncompressed_bytes_read = inside;
+	zip->seeked_after_end = target - inside;
+	zip->end_of_entry = 0;
+	/* The CRC32 can only be checked if all the data is read. */
+	zip->computed_crc32 = zip->crc32func(0, NULL, 0);
+	zip->seeked = (target != 0);
+
+	/* The next block, and the offset of what the caller has read. */
+	__archive_reset_read_data(&a->archive);
+	a->archive.read_data_offset = inside;
+	a->archive.read_data_output_offset = inside;
+	return (target);
+}
+
+/*
  * We're going to seek for the next header anyway, so we don't
  * need to bother doing anything here.
  */
@@ -4822,7 +4921,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	    archive_read_format_zip_seekable_read_header,
 	    archive_read_format_zip_read_data,
 	    archive_read_format_zip_read_data_skip_seekable,
-	    NULL,
+	    archive_read_format_zip_seek_data,
 	    archive_read_format_zip_cleanup,
 	    archive_read_support_format_zip_capabilities_seekable,
 	    archive_read_format_zip_has_encrypted_entries);
