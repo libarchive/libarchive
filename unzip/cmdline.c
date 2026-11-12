@@ -27,7 +27,7 @@
  * Short options for bsdunzip.  Please keep this sorted.
  */
 static const char *short_options
-	= "aCcd:fI:jLlnO:opP:qtuvx:yZ:";
+	= "aCcd:fI:jLlnO:opP:qtuvx:y";
 
 /*
  * Long options for bsdunzip.  Please keep this list sorted.
