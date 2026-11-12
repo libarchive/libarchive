@@ -1229,3 +1229,63 @@ DEFINE_TEST(test_read_format_xar_invalid_seek_offset)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/* XML character data is not required to arrive in a single callback. */
+DEFINE_TEST(test_read_format_xar_split_text)
+{
+	const char *refname = "test_read_format_xar_split_text.xar";
+	static const struct {
+		const char *name;
+		const char *data;
+		const char *link;
+	} entries[] = {
+		{ "Tom & Jerry.txt", "jerry", NULL },
+		{ "Tom & Mary.txt", "mary", NULL },
+		{ "line1\nline2.txt", "newline", NULL },
+		{ "foobarbaz", "chunks", NULL },
+		{ "first&name", "first", NULL },
+		{ "parent&dir", NULL, NULL },
+		{ "parent&dir/child<file>", "nested", NULL },
+		{ "link", NULL, "a&b<end>" },
+		{ "link-repeated", NULL, "new&target" },
+		{ "decoded&name", "base64", NULL },
+		{ "boundary-name.txt", "boundary", NULL },
+		{ "control.txt", "plain", NULL },
+		{ "empty-last-link", NULL, "keep&target" },
+		{ "after-empty", "empty-name", NULL }
+	};
+	static const size_t blocks[] = { 1, 7, 10240 };
+	struct archive *a;
+	struct archive_entry *ae;
+	char data[32];
+	size_t i, j, len;
+
+	extract_reference_file(refname);
+	for (i = 0; i < sizeof(blocks) / sizeof(blocks[0]); i++) {
+		assert((a = archive_read_new()) != NULL);
+		if (archive_read_support_format_xar(a) == ARCHIVE_WARN) {
+			skipping("xar reading not fully supported on this platform");
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+			return;
+		}
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open_filename(a, refname, blocks[i]));
+		for (j = 0; j < sizeof(entries) / sizeof(entries[0]); j++) {
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_next_header(a, &ae));
+			assertEqualString(entries[j].name,
+			    archive_entry_pathname(ae));
+			assertEqualString(entries[j].link,
+			    archive_entry_symlink(ae));
+			if (entries[j].data != NULL) {
+				len = strlen(entries[j].data);
+				assertEqualInt(len,
+				    archive_read_data(a, data, sizeof(data)));
+				assertEqualMem(entries[j].data, data, len);
+			}
+		}
+		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+}

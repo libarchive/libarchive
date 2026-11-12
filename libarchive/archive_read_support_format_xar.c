@@ -318,6 +318,8 @@ struct xar {
 	enum xmlstatus		 xmlsts_unknown;
 	struct unknown_tag	*unknowntags;
 	int			 base64text;
+	struct archive_string	 name;
+	int			 link_first;
 
 	/*
 	 * TOC
@@ -424,6 +426,8 @@ static void	xml_end(void *, const char *);
 static int	xml_data(void *, const char *, size_t);
 static int	xml_parse_file_flags(struct xar *, const char *);
 static int	xml_parse_file_ext2(struct xar *, const char *);
+static void	strappend_base64(struct xar *, struct archive_string *,
+		    const char *, size_t);
 #if defined(ARCHIVE_XML_READER_XML2)
 static int	xml2_xmlattr_setup(struct archive_read *,
     struct xmlattr_list *, xmlTextReaderPtr);
@@ -980,6 +984,7 @@ xar_cleanup(struct archive_read *a)
 		free(tag);
 	}
 	free(xar->outbuff);
+	archive_string_free(&(xar->name));
 	free(xar);
 	a->format->data = NULL;
 	return (r);
@@ -2101,8 +2106,10 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 			xar->xmlsts = FILE_DEVICENO;
 		else if (strcmp(name, "inode") == 0)
 			xar->xmlsts = FILE_INODE;
-		else if (strcmp(name, "link") == 0)
+		else if (strcmp(name, "link") == 0) {
+			xar->link_first = 1;
 			xar->xmlsts = FILE_LINK;
+		}
 		else if (strcmp(name, "type") == 0) {
 			xar->xmlsts = FILE_TYPE;
 			for (attr = list->first; attr != NULL;
@@ -2139,6 +2146,7 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 		}
 		else if (strcmp(name, "name") == 0) {
 			xar->xmlsts = FILE_NAME;
+			archive_string_empty(&(xar->name));
 			for (attr = list->first; attr != NULL;
 			    attr = attr->next) {
 				if (strcmp(attr->name, "enctype") == 0 &&
@@ -2487,8 +2495,24 @@ xml_end(void *userData, const char *name)
 			xar->xmlsts = TOC_FILE;
 		break;
 	case FILE_NAME:
-		if (strcmp(name, "name") == 0)
+		if (strcmp(name, "name") == 0) {
+			if (!(xar->file->has & HAS_PATHNAME) &&
+			    xar->name.length > 0) {
+				if (xar->file->parent != NULL) {
+					archive_string_concat(&(xar->file->pathname),
+					    &(xar->file->parent->pathname));
+					archive_strappend_char(&(xar->file->pathname), '/');
+				}
+				xar->file->has |= HAS_PATHNAME;
+				if (xar->base64text)
+					strappend_base64(xar, &(xar->file->pathname),
+					    xar->name.s, xar->name.length);
+				else
+					archive_string_concat(&(xar->file->pathname),
+					    &(xar->name));
+			}
 			xar->xmlsts = TOC_FILE;
+		}
 		break;
 	case FILE_ACL:
 		if (strcmp(name, "acl") == 0)
@@ -2773,22 +2797,17 @@ xml_data(void *userData, const char *s, size_t len)
 	case FILE_NAME:
 		if (xar->file->has & HAS_PATHNAME)
 			break;
-
-		if (xar->file->parent != NULL) {
-			archive_string_concat(&(xar->file->pathname),
-			    &(xar->file->parent->pathname));
-			archive_strappend_char(&(xar->file->pathname), '/');
-		}
-		xar->file->has |= HAS_PATHNAME;
-		if (xar->base64text) {
-			strappend_base64(xar,
-			    &(xar->file->pathname), s, len);
-		} else
-			archive_strncat(&(xar->file->pathname), s, len);
+		/* Decode only after collecting all text, including base64 quartets
+		 * split between XML character-data callbacks. */
+		archive_strncat(&(xar->name), s, len);
 		break;
 	case FILE_LINK:
+		if (xar->link_first) {
+			archive_string_empty(&(xar->file->symlink));
+			xar->link_first = 0;
+		}
 		xar->file->has |= HAS_SYMLINK;
-		archive_strncpy(&(xar->file->symlink), s, len);
+		archive_strncat(&(xar->file->symlink), s, len);
 		break;
 	case FILE_TYPE:
 		if (is_string("file", s, len) == 0 ||
