@@ -80,6 +80,9 @@ struct read_file_data {
 	mode_t	 st_mode;  /* Mode bits for opened file. */
 	int64_t	 size;
 	char	 use_lseek;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	char	 windows_errata_distrust_pipe_seek;
+#endif
 	enum fnt_e { FNT_STDIN, FNT_MBS, FNT_WCS } filename_type;
 	union {
 		char	 m[1];/* MBS filename. */
@@ -415,6 +418,22 @@ file_open(struct archive *a, void *client_data)
 		mine->size = st.st_size;
 	}
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (GetFileType((HANDLE)_get_osfhandle(fd)) == FILE_TYPE_PIPE) {
+		/*
+		 * Microsoft documents SetFilePointer (i.e. seek) somewhat ominously:
+		 * | Calling the SetFilePointer function with a handle to a
+		 * | non-seeking device such as a pipe or a communications device
+		 * | is not supported, even though the SetFilePointer function
+		 * | may not return an error.
+		 * It turns out that the CRT does not discriminate pipes versus
+		 * files and block devices in its implementation of lseek, and
+		 * lseek succeeds despite having done nothing.
+		 */
+		mine->windows_errata_distrust_pipe_seek = 1;
+	}
+#endif
+
 	return (ARCHIVE_OK);
 fail:
 	/*
@@ -565,6 +584,11 @@ file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 	la_seek_t seek = (la_seek_t)request;
 	int64_t r;
 	int seek_bits = sizeof(seek) * 8 - 1;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (mine->windows_errata_distrust_pipe_seek)
+		return -1;
+#endif
 
 	/* We use off_t here because lseek() is declared that way. */
 
