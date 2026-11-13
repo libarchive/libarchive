@@ -51,7 +51,7 @@ static void verify_write_zstd(struct archive *a)
 	archive_entry_set_uid(entry, folder_uid);
 	archive_entry_set_gid(entry, folder_gid);
 	archive_entry_set_mtime(entry, now, 0);
-	archive_entry_set_ctime(entry, now + 5, 0);
+	archive_entry_set_birthtime(entry, now + 5, 0);
 	assertEqualIntA(a, 0, archive_write_header(a, entry));
 	archive_entry_free(entry);
 }
@@ -277,7 +277,7 @@ static void verify_zstd_contents(const char *buff, size_t used)
 	assertEqualInt(i2le(q + 2), 9); /* 'UT' size */
 	assertEqualInt(q[4], 5); /* 'UT' flags */
 	assertEqualInt(i4le(q + 5), now); /* 'UT' mtime */
-	assertEqualInt(i4le(q + 9), now + 5); /* 'UT' atime */
+	assertEqualInt(i4le(q + 9), now + 5); /* 'UT' creation time */
 	q = q + 4 + i2le(q + 2);
 
 	assertEqualInt(i2le(q), 0x6c78); /* 'xl' experimental extension header */
