@@ -23,6 +23,8 @@ IF(ENABLE_TAR)
     ../libarchive_fe/lafe_explicit_bzero.c
     ../libarchive_fe/lafe_explicit_bzero.h
     ../libarchive_fe/lafe_platform.h
+    ../libarchive_fe/lafe_safe_fputs.c
+    ../libarchive_fe/lafe_safe_fputs.h
     ../libarchive_fe/lafe_setmode.c
     ../libarchive_fe/lafe_setmode.h
     ../libarchive_fe/line_reader.c

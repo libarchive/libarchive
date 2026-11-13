@@ -1317,6 +1317,7 @@ noinst_HEADERS+= \
 	libarchive_fe/lafe_fnmatch.h \
 	libarchive_fe/lafe_getline.h \
 	libarchive_fe/lafe_platform.h \
+	libarchive_fe/lafe_safe_fputs.h \
 	libarchive_fe/lafe_setmode.h \
 	libarchive_fe/line_reader.h \
 	libarchive_fe/passphrase.h
@@ -1325,6 +1326,7 @@ libarchive_fe_la_SOURCES= \
 	libarchive_fe/lafe_explicit_bzero.c \
 	libarchive_fe/lafe_fnmatch.c \
 	libarchive_fe/lafe_getline.c \
+	libarchive_fe/lafe_safe_fputs.c \
 	libarchive_fe/lafe_setmode.c \
 	libarchive_fe/line_reader.c \
 	libarchive_fe/passphrase.c
