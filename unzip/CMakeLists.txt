@@ -23,6 +23,8 @@ IF(ENABLE_UNZIP)
     ../libarchive_fe/lafe_getline.c
     ../libarchive_fe/lafe_getline.h
     ../libarchive_fe/lafe_platform.h
+    ../libarchive_fe/lafe_safe_fputs.c
+    ../libarchive_fe/lafe_safe_fputs.h
     ../libarchive_fe/passphrase.c
     ../libarchive_fe/passphrase.h
   )

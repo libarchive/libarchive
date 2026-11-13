@@ -53,6 +53,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_option_o_rejected_entry.c
     test_option_passphrase.c
     test_option_t.c
+    test_option_t_nonprintable.c
     test_option_u.c
     test_option_uuencode.c
     test_option_version.c

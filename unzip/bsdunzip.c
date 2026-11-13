@@ -63,6 +63,7 @@
 #include "bsdunzip.h"
 #include "passphrase.h"
 #include "lafe_err.h"
+#include "lafe_safe_fputs.h"
 
 #ifndef O_BINARY
 #define O_BINARY	0
@@ -193,6 +194,22 @@ warningx(const char *fmt, ...)
 	fprintf(stderr, "\n");
 }
 
+/* non-fatal error message about an entry, names come from the archive */
+static void
+warningx_path(const char *msg, const char *path, const char *target)
+{
+	if (noeol)
+		fprintf(stdout, "\n");
+	fflush(stdout);
+	fprintf(stderr, "unzip: %s '", msg);
+	safe_fputs(path, stderr);
+	if (target != NULL) {
+		fprintf(stderr, "' to '");
+		safe_fputs(target, stderr);
+	}
+	fprintf(stderr, "'\n");
+}
+
 /* informational message (if not -q) */
 static void
 info(const char *fmt, ...)
@@ -210,6 +227,23 @@ info(const char *fmt, ...)
 		noeol = 1;
 	else
 		noeol = fmt[strlen(fmt) - 1] != '\n';
+}
+
+/* informational message with a name from the archive (if not -q) */
+static void
+info_path(const char *prefix, const char *path, const char *suffix)
+{
+	if (q_opt && !unzip_debug)
+		return;
+	fputs(prefix, stdout);
+	safe_fputs(path, stdout);
+	fputs(suffix, stdout);
+	fflush(stdout);
+
+	if (*suffix == '\0')
+		noeol = 1;
+	else
+		noeol = suffix[strlen(suffix) - 1] != '\n';
 }
 
 /* debug message (if unzip_debug) */
@@ -466,7 +500,7 @@ extract_dir(struct archive *a, struct archive_entry *e, const char *path)
 	if (mode & 0004)
 		mode |= 0001;
 
-	info("   creating: %s/\n", path);
+	info_path("   creating: ", path, "/\n");
 	make_dir(path, mode);
 	ac(archive_read_data_skip(a));
 }
@@ -483,9 +517,10 @@ handle_existing_file(char **path)
 	int ret;
 
 	for (;;) {
+		fprintf(stderr, "replace ");
+		safe_fputs(*path, stderr);
 		fprintf(stderr,
-		    "replace %s? [y]es, [n]o, [A]ll, [N]one, [r]ename: ",
-		    *path);
+		    "? [y]es, [n]o, [A]ll, [N]one, [r]ename: ");
 		/* Read the whole line, so that an answer such as "yes"
 		 * does not leave characters behind for the next prompt. */
 		if (getline(&answer, &answer_size, stdin) < 1)
@@ -739,7 +774,8 @@ recheck:
 	if (linkname != NULL) {
 		if (symlink(linkname, *path) != 0)
 			error("symlink('%s')", *path);
-		info(" extracting: %s -> %s\n", *path, linkname);
+		info_path(" extracting: ", *path, " -> ");
+		info_path("", linkname, "\n");
 #ifdef HAVE_LCHMOD
 		if (lchmod(*path, (mode_t)mode) != 0)
 			warning("Cannot set mode for '%s'", *path);
@@ -759,7 +795,7 @@ recheck:
 	if ((fd = open(*path, O_RDWR|O_CREAT|O_TRUNC|O_BINARY, mode)) < 0)
 		error("open('%s')", *path);
 
-	info(" extracting: %s", *path);
+	info_path(" extracting: ", *path, "");
 
 	text = extract2fd(a, *path, fd);
 
@@ -845,7 +881,7 @@ extract(struct archive *a, struct archive_entry *e)
 
 	/* sanity checks */
 	if (pathname_is_insecure(pathname)) {
-		warningx("skipping insecure entry '%s'", pathname);
+		warningx_path("skipping insecure entry", pathname, NULL);
 		ac(archive_read_data_skip(a));
 		free(pathname);
 		return;
@@ -854,7 +890,8 @@ extract(struct archive *a, struct archive_entry *e)
 	if (S_ISLNK(filetype) &&
 	    ((linktarget = archive_entry_symlink(e)) != NULL) &&
 	    pathname_is_insecure(linktarget)) {
-		warningx("skipping insecure symlink '%s' to '%s'", pathname, linktarget);
+		warningx_path("skipping insecure symlink", pathname,
+		    linktarget);
 		ac(archive_read_data_skip(a));
 		free(pathname);
 		return;
@@ -862,7 +899,7 @@ extract(struct archive *a, struct archive_entry *e)
 
 	/* I don't think this can happen in a zipfile.. */
 	if (!S_ISDIR(filetype) && !S_ISREG(filetype) && !S_ISLNK(filetype)) {
-		warningx("skipping non-regular entry '%s'", pathname);
+		warningx_path("skipping non-regular entry", pathname, NULL);
 		ac(archive_read_data_skip(a));
 		free(pathname);
 		return;
@@ -919,7 +956,7 @@ extract_stdout(struct archive *a, struct archive_entry *e)
 
 	/* I don't think this can happen in a zipfile.. */
 	if (!S_ISDIR(filetype) && !S_ISREG(filetype) && !S_ISLNK(filetype)) {
-		warningx("skipping non-regular entry '%s'", pathname);
+		warningx_path("skipping non-regular entry", pathname, NULL);
 		ac(archive_read_data_skip(a));
 		free(pathname);
 		return;
@@ -940,7 +977,7 @@ extract_stdout(struct archive *a, struct archive_entry *e)
 	}
 
 	if (c_opt)
-		info("x %s\n", pathname);
+		info_path("x ", pathname, "\n");
 
 	(void)extract2fd(a, pathname, STDOUT_FILENO);
 
@@ -970,20 +1007,24 @@ list(struct archive *a, struct archive_entry *e)
 		pathname = "";
 	if (!zipinfo_mode) {
 		if (v_opt == 1) {
-			printf(" %8ju  %s   %s\n",
-			    (uintmax_t)archive_entry_size(e),
-			    buf, pathname);
+			printf(" %8ju  %s   ",
+			    (uintmax_t)archive_entry_size(e), buf);
+			safe_fputs(pathname, stdout);
+			putchar('\n');
 		} else if (v_opt == 2) {
-			printf("%8ju  Stored  %7ju   0%%  %s  %08x  %s\n",
+			printf("%8ju  Stored  %7ju   0%%  %s  %08x  ",
 			    (uintmax_t)archive_entry_size(e),
 			    (uintmax_t)archive_entry_size(e),
 			    buf,
-			    0U,
-			    pathname);
+			    0U);
+			safe_fputs(pathname, stdout);
+			putchar('\n');
 		}
 	} else {
-		if (Z1_opt)
-			printf("%s\n", pathname);
+		if (Z1_opt) {
+			safe_fputs(pathname, stdout);
+			putchar('\n');
+		}
 	}
 	ac(archive_read_data_skip(a));
 }
@@ -1001,7 +1042,7 @@ test(struct archive *a, struct archive_entry *e)
 	if (S_ISDIR(archive_entry_filetype(e)))
 		return 0;
 
-	info("    testing: %s\t", archive_entry_pathname(e));
+	info_path("    testing: ", archive_entry_pathname(e), "\t");
 	while ((len = archive_read_data(a, buffer, sizeof buffer)) > 0)
 		/* nothing */;
 	if (len < 0) {
