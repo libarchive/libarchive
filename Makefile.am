@@ -529,6 +529,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_cpio_newc_resync.c \
 	libarchive/test/test_read_format_cpio_odc.c \
 	libarchive/test/test_read_format_cpio_svr4_bzip2_rpm.c \
+	libarchive/test/test_read_format_cpio_svr4_crc_large.c \
 	libarchive/test/test_read_format_cpio_svr4_gzip.c \
 	libarchive/test/test_read_format_cpio_svr4_gzip_rpm.c \
 	libarchive/test/test_read_format_cpio_svr4c_Z.c \

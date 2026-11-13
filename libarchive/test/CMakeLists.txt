@@ -152,6 +152,7 @@ IF(ENABLE_TEST)
     test_read_format_cpio_newc_resync.c
     test_read_format_cpio_odc.c
     test_read_format_cpio_svr4_bzip2_rpm.c
+    test_read_format_cpio_svr4_crc_large.c
     test_read_format_cpio_svr4_gzip.c
     test_read_format_cpio_svr4_gzip_rpm.c
     test_read_format_cpio_svr4c_Z.c
