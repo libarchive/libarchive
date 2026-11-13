@@ -140,6 +140,16 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ar_bsd(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
+	/* A 16-byte name needs the extension for GNU ar compatibility. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "abcdefghijklmn.o");
+	archive_entry_set_mtime(ae, 1, 0);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 5);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 5, archive_write_data(a, "12345", 5));
+	archive_entry_free(ae);
+
 	/* write a entry need long name extension */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "ttttyyyyuuuuiiii.o");
@@ -161,11 +171,23 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
+	/* Check the encoding as libarchive also accepts unterminated names. */
+	assertEqualMem(buff + 8, "#1/16           ", 16);
+	assertEqualMem(buff + 56, "21        ", 10);
+	assertEqualMem(buff + 68, "abcdefghijklmn.o12345\n", 22);
+
 	/* Now, Read the data back */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("abcdefghijklmn.o", archive_entry_pathname(ae));
+	assertEqualInt(1, archive_entry_mtime(ae));
+	assertEqualInt(5, archive_entry_size(ae));
+	assertEqualIntA(a, 5, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "12345", 5);
 
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualString("ttttyyyyuuuuiiii.o", archive_entry_pathname(ae));
