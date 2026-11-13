@@ -272,6 +272,11 @@ ENDIF(ENABLE_COVERAGE)
 
 IF(ENABLE_TEST)
 	ENABLE_TESTING()
+  ADD_TEST(NAME cmake_pkgconfig_libdir
+    COMMAND "${CMAKE_COMMAND}"
+      "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+      "-DBINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/pkgconfig-libdir-test"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/test_pkgconfig_libdir.cmake")
 ENDIF(ENABLE_TEST)
 
 IF(WIN32)
