@@ -151,6 +151,9 @@ struct zip {
 	struct archive_entry *entry;
 	uint32_t entry_crc32;
 	enum compression entry_compression;
+	/* Compressor whose state in 'stream' is live, or
+	 * COMPRESSION_UNSPECIFIED if none. */
+	enum compression stream_compression;
 	enum encryption  entry_encryption;
 	int entry_flags;
 	struct trad_enc_ctx tctx;
@@ -237,6 +240,7 @@ static int write_path(struct archive_entry *, struct archive_write *);
 static void copy_path(struct archive_entry *, unsigned char *);
 static struct archive_string_conv *get_sconv(struct archive_write *, struct zip *);
 static int trad_enc_init(struct trad_enc_ctx *, const char *, size_t);
+static void zip_stream_end(struct zip *);
 static unsigned trad_enc_encrypt_update(struct trad_enc_ctx *, const uint8_t *,
     size_t, uint8_t *, size_t);
 static int init_traditional_pkware_encryption(struct archive_write *);
@@ -725,6 +729,7 @@ archive_write_set_format_zip(struct archive *_a)
 
 	/* "Unspecified" lets us choose the appropriate compression. */
 	zip->requested_compression = COMPRESSION_UNSPECIFIED;
+	zip->stream_compression = COMPRESSION_UNSPECIFIED;
 	/* Following the 7-zip write support's lead, setting the default
 	 * compression level explicitly to 6 no matter what. */
 	zip->compression_level = 6;
@@ -1357,6 +1362,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->written_bytes += slink_size;
 	}
 
+	/* A previous entry may not have been finished cleanly. */
+	zip_stream_end(zip);
 	switch (zip->entry_compression) {
 #ifdef HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
@@ -1371,6 +1378,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			    "Can't init deflate compressor");
 			return (ARCHIVE_FATAL);
 		}
+		zip->stream_compression = COMPRESSION_DEFLATE;
 		break;
 #endif
 #ifdef HAVE_BZLIB_H
@@ -1383,6 +1391,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			    "Can't init bzip2 compressor");
 			return (ARCHIVE_FATAL);
 		}
+		zip->stream_compression = COMPRESSION_BZIP2;
 		break;
 #endif
 #if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
@@ -1395,6 +1404,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			? ZSTD_minCLevel() // ZSTD_minCLevel is negative !
 			: (zip->compression_level - 1) * ZSTD_maxCLevel() / 8;
 		zip->stream.zstd.context = ZSTD_createCStream();
+		zip->stream_compression = COMPRESSION_ZSTD;
 		size_t zret = ZSTD_initCStream(zip->stream.zstd.context, zstd_compression_level);
 		if (ZSTD_isError(zret)) {
 			archive_set_error(&a->archive, ENOMEM,
@@ -1436,6 +1446,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			    "Can't init lzma compressor");
 			return (ARCHIVE_FATAL);
 		}
+		zip->stream_compression = COMPRESSION_LZMA;
 		zip->stream.lzma.context.next_out = zip->buf;
 		zip->stream.lzma.context.avail_out = (unsigned int)zip->len_buf;
 		break;}
@@ -1491,6 +1502,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			    "Can't init xz compressor");
 			return (ARCHIVE_FATAL);
 		}
+		zip->stream_compression = COMPRESSION_XZ;
 		zip->stream.lzma.context.next_out = zip->buf;
 		zip->stream.lzma.context.avail_out = (unsigned int)zip->len_buf;
 		break;}
@@ -1886,7 +1898,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
 			{
-				deflateEnd(&zip->stream.deflate);
+				zip_stream_end(zip);
 				return (ret);
 			}
 			zip->entry_compressed_written += remainder;
@@ -1896,7 +1908,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 				break;
 			zip->stream.deflate.avail_out = (uInt)zip->len_buf;
 		}
-		deflateEnd(&zip->stream.deflate);
+		zip_stream_end(zip);
 		break;
 #endif
 #ifdef HAVE_BZLIB_H
@@ -1931,7 +1943,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
 			{
-				BZ2_bzCompressEnd(&zip->stream.bzip2);
+				zip_stream_end(zip);
 				return (ret);
 			}
 			zip->entry_compressed_written += remainder;
@@ -1941,7 +1953,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 				finishing = 0;
 			zip->stream.bzip2.avail_out = (unsigned int)zip->len_buf;
 		} while (finishing);
-		BZ2_bzCompressEnd(&zip->stream.bzip2);
+		zip_stream_end(zip);
 		break;
 #endif
 #if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
@@ -1976,7 +1988,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
 			{
-				ZSTD_freeCStream(zip->stream.zstd.context);
+				zip_stream_end(zip);
 				return (ret);
 			}
 			zip->entry_compressed_written += remainder;
@@ -1987,7 +1999,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			zip->stream.zstd.out.size = zip->len_buf;
 			zip->stream.zstd.out.pos = 0;
 		} while (finishing);
-		ZSTD_freeCStream(zip->stream.zstd.context);
+		zip_stream_end(zip);
 		break;
 #endif
 #ifdef HAVE_LZMA_H
@@ -2024,7 +2036,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
 			{
-				lzma_end(&zip->stream.lzma.context);
+				zip_stream_end(zip);
 				return (ret);
 			}
 			zip->entry_compressed_written += remainder;
@@ -2034,7 +2046,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 				finishing = 0;
 			zip->stream.lzma.context.avail_out = (unsigned int)zip->len_buf;
 		} while (finishing);
-		lzma_end(&zip->stream.lzma.context);
+		zip_stream_end(zip);
 		break;
 #endif
 	default:
@@ -2243,11 +2255,50 @@ archive_write_zip_close(struct archive_write *a)
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Release the compressor state of the current entry, if any.  Called
+ * when an entry is finished, and also from the free handler, because
+ * finish_entry is skipped (or can return early) when writing fails.
+ */
+static void
+zip_stream_end(struct zip *zip)
+{
+	switch (zip->stream_compression) {
+#ifdef HAVE_ZLIB_H
+	case COMPRESSION_DEFLATE:
+		deflateEnd(&zip->stream.deflate);
+		break;
+#endif
+#ifdef HAVE_BZLIB_H
+	case COMPRESSION_BZIP2:
+		BZ2_bzCompressEnd(&zip->stream.bzip2);
+		break;
+#endif
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream
+	case COMPRESSION_ZSTD:
+		ZSTD_freeCStream(zip->stream.zstd.context);
+		zip->stream.zstd.context = NULL;
+		break;
+#endif
+#ifdef HAVE_LZMA_H
+	case COMPRESSION_LZMA:
+	case COMPRESSION_XZ:
+		lzma_end(&zip->stream.lzma.context);
+		break;
+#endif
+	default:
+		break;
+	}
+	zip->stream_compression = COMPRESSION_UNSPECIFIED;
+}
+
 static int
 archive_write_zip_free(struct archive_write *a)
 {
 	struct zip *zip = a->format_data;
 	struct cd_segment *segment;
+
+	zip_stream_end(zip);
 
 	while (zip->central_directory != NULL) {
 		segment = zip->central_directory;
