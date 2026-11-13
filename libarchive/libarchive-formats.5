@@ -368,6 +368,25 @@ to the streaming reader.
 If the program using libarchive has enabled seek support, then
 libarchive will use this to process the central directory first.
 .Pp
+The size of an entry is not always available to the streaming reader
+when its header is read.
+If bit 3 of the general purpose bit flag is set, the ZIP specification
+requires the CRC-32, compressed size, and uncompressed size fields in
+the local file header to be zero.
+The correct values follow the file data in a data descriptor.
+In particular, archives written by libarchive can use this layout even
+when the uncompressed size was supplied to the writer.
+Applications should check whether the entry size is known with
+.Fn archive_entry_size_is_set
+before using
+.Fn archive_entry_size ,
+which returns zero for both an unknown size and an empty file.
+Applications reading a stream must be prepared to read the entry data
+without knowing its size in advance.
+If the input supports seeking, a working seek callback allows the seeking
+reader to obtain the size from the Central Directory before reading the
+entry data.
+.Pp
 In particular, the seeking reader must be used to
 correctly handle self-extracting archives.
 Such archives consist of a program followed by a regular
