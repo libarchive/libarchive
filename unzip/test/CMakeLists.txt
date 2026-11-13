@@ -26,6 +26,7 @@ IF(ENABLE_UNZIP AND ENABLE_TEST)
     test_j.c
     test_L.c
     test_n.c
+    test_nonprintable.c
     test_o.c
     test_q.c
     test_t.c
