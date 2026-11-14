@@ -468,6 +468,21 @@ archive_read_open1(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
+	/*
+	 * Moving between data objects without a switch callback would have
+	 * to reuse the open and close callbacks, but the close callback is
+	 * also the final release, so an object could be closed twice or
+	 * reopened after it was released.
+	 */
+	if (a->client.nodes > 1 && a->client.switcher == NULL &&
+	    (a->client.opener != NULL || a->client.closer != NULL)) {
+		archive_set_error(&a->archive, EINVAL,
+		    "A switch callback is required to read multiple data "
+		    "objects with open or close callbacks");
+		a->archive.state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
+	}
+
 	a->archive.state = ARCHIVE_STATE_OPEN;
 
 	f = calloc(1, sizeof(*f));
