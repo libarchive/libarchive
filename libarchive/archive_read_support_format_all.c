@@ -53,6 +53,7 @@ archive_read_support_format_all(struct archive *a)
 	 * high, we can maybe avoid running any of the more expensive
 	 * bidders below.
 	 */
+	archive_read_support_format_uc2(a);
 	archive_read_support_format_ar(a);
 	archive_read_support_format_cpio(a);
 	archive_read_support_format_empty(a);
