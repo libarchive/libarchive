@@ -752,9 +752,15 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 	} else if (sc != NULL && (sc->flag & SCONV_TO_UTF16)) {
 		uint16_t *u16;
 
-		if (NULL ==
-		    archive_string_ensure(as, as->length + len * 2 + 2))
+		{
+		size_t required;
+		if (archive_ckd_mul_size(&required, len, 2) ||
+		    archive_ckd_add_size(&required, required, as->length) ||
+		    archive_ckd_add_size(&required, required, 2))
 			return (-1);
+		if (NULL == archive_string_ensure(as, required))
+			return (-1);
+	}
 		u16 = (uint16_t *)(as->s + as->length);
 		count = 0;
 		if (sc->flag & SCONV_TO_UTF16BE) {
@@ -773,9 +779,15 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 		count <<= 1; /* to be byte size */
 	} else {
 		/* Make sure the MBS buffer has plenty to set. */
-		if (NULL ==
-		    archive_string_ensure(as, as->length + len * 2 + 1))
+		{
+		size_t required;
+		if (archive_ckd_mul_size(&required, len, 2) ||
+		    archive_ckd_add_size(&required, required, as->length) ||
+		    archive_ckd_add_size(&required, required, 1))
 			return (-1);
+		if (NULL == archive_string_ensure(as, required))
+			return (-1);
+	}
 		do {
 			int r;
 			BOOL defchar_used, *dp;
@@ -2130,8 +2142,15 @@ iconv_strncat_in_locale(struct archive_string *as, const void *_p,
 	else
 		from_size = 1;
 
-	if (archive_string_ensure(as, as->length + length*2+to_size) == NULL)
+	{
+	size_t required;
+	if (archive_ckd_mul_size(&required, length, 2) ||
+	    archive_ckd_add_size(&required, required, as->length) ||
+	    archive_ckd_add_size(&required, required, to_size))
 		return (-1);
+	if (archive_string_ensure(as, required) == NULL)
+		return (-1);
+	}
 
 	cd = sc->cd;
 	itp = (char *)(uintptr_t)_p;
@@ -2864,8 +2883,15 @@ archive_string_append_unicode(struct archive_string *as, const void *_p,
 		tm = ts;
 	}
 
-	if (archive_string_ensure(as, as->length + len * tm + ts) == NULL)
+	{
+	size_t required;
+	if (archive_ckd_mul_size(&required, len, tm) ||
+	    archive_ckd_add_size(&required, required, as->length) ||
+	    archive_ckd_add_size(&required, required, ts))
 		return (-1);
+	if (archive_string_ensure(as, required) == NULL)
+		return (-1);
+	}
 
 	s = (const char *)_p;
 	p = as->s + as->length;
@@ -3089,8 +3115,15 @@ archive_string_normalize_C(struct archive_string *as, const void *_p,
 		spair = 6;/* surrogate pair size in UTF-8. */
 	}
 
-	if (archive_string_ensure(as, as->length + len * tm + ts) == NULL)
+	{
+	size_t required;
+	if (archive_ckd_mul_size(&required, len, tm) ||
+	    archive_ckd_add_size(&required, required, as->length) ||
+	    archive_ckd_add_size(&required, required, ts))
 		return (-1);
+	if (archive_string_ensure(as, required) == NULL)
+		return (-1);
+	}
 
 	p = as->s + as->length;
 	endp = as->s + as->buffer_length - ts;
@@ -3396,8 +3429,15 @@ archive_string_normalize_D(struct archive_string *as, const void *_p,
 		spair = 6;/* surrogate pair size in UTF-8. */
 	}
 
-	if (archive_string_ensure(as, as->length + len * tm + ts) == NULL)
+	{
+	size_t required;
+	if (archive_ckd_mul_size(&required, len, tm) ||
+	    archive_ckd_add_size(&required, required, as->length) ||
+	    archive_ckd_add_size(&required, required, ts))
 		return (-1);
+	if (archive_string_ensure(as, required) == NULL)
+		return (-1);
+	}
 
 	p = as->s + as->length;
 	endp = as->s + as->buffer_length - ts;
@@ -3773,9 +3813,15 @@ win_strncat_to_utf16(struct archive_string *as16, const void *_p,
 		r = MultiByteToWideChar(sc->from_cp,
 		    MB_PRECOMPOSED, s, (int)length, NULL, 0);
 		count = (size_t)r;
-		if (archive_string_ensure(as16, (count +1) * 2)
+		{
+		size_t required;
+		if (archive_ckd_add_size(&required, count, 1) ||
+		    archive_ckd_mul_size(&required, required, 2))
+			return (-1);
+		if (archive_string_ensure(as16, required)
 		    == NULL)
 			return (-1);
+		}
 		u16 = as16->s + as16->length;
 		avail = as16->buffer_length - 2;
 	} while (1);
