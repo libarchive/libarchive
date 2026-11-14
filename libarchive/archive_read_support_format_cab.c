@@ -2212,7 +2212,8 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 	int base_inc[18];
 	struct lzx_dec *ds;
 	uint32_t base;
-	uint16_t slot, w_size, w_slot;
+	uint16_t slot, w_slot;
+	size_t w_size;
 	uint8_t footer;
 
 	if (strm->ds == NULL) {
@@ -2234,7 +2235,7 @@ lzx_decode_init(struct lzx_stream *strm, int w_bits)
 	 */
 	w_size = ds->w_size;
 	w_slot = slots[w_bits - SLOT_BASE];
-	ds->w_size = 1U << w_bits;
+	ds->w_size = (size_t)1 << w_bits;
 	ds->w_mask = ds->w_size - 1;
 	if (ds->w_buff == NULL || w_size != ds->w_size) {
 		free(ds->w_buff);
