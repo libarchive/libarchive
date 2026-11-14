@@ -13,7 +13,8 @@ DEFINE_TEST(test_read_format_uc2)
 	struct archive_entry *e;
 	char data[2000];
 	assertEqualInt(ARCHIVE_OK, result);
-	/* Keep room for explicit raw fallback after registering every format. */
+	/* Keep room for explicit raw fallback after registering every format.
+	 */
 	struct archive *all = archive_read_new();
 	assertEqualInt(ARCHIVE_OK, archive_read_support_format_all(all));
 	assertEqualIntA(all, ARCHIVE_OK, archive_read_support_format_raw(all));
@@ -31,6 +32,54 @@ DEFINE_TEST(test_read_format_uc2)
 		assertEqualMem(data + 20 * i, "UC2 optional reader\n", 20);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &e));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Random-access callbacks must work across arbitrarily short reads. */
+	size_t archive_size;
+	char *archive_data =
+	    slurpfile(&archive_size, "%s", "test_read_format_uc2_4.uc2");
+	assert(archive_data != NULL);
+	if (archive_data != NULL) {
+		const size_t read_sizes[] = {1, 7, 65536};
+		char exact_limit[80];
+		snprintf(exact_limit, sizeof exact_limit, "uc2:input-limit=%ju",
+			 (uintmax_t)archive_size);
+		for (unsigned k = 0; k < sizeof read_sizes / sizeof *read_sizes;
+		     k++) {
+			a = archive_read_new();
+			assertEqualInt(ARCHIVE_OK,
+				       archive_read_support_format_uc2(a));
+			assertEqualIntA(
+			    a, ARCHIVE_OK,
+			    archive_read_set_options(a, exact_limit));
+			assertEqualIntA(a, ARCHIVE_OK,
+					read_open_memory_seek(a, archive_data,
+							      archive_size,
+							      read_sizes[k]));
+			assertEqualIntA(a, ARCHIVE_OK,
+					archive_read_next_header(a, &e));
+			assertEqualIntA(
+			    a, 2000, archive_read_data(a, data, sizeof data));
+			for (int i = 0; i < 100; i++)
+				assertEqualMem(data + 20 * i,
+					       "UC2 optional reader\n", 20);
+			assertEqualIntA(a, ARCHIVE_EOF,
+					archive_read_next_header(a, &e));
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		}
+		/* A pipe must fail before entries are exposed; no implicit
+		 * spooling. */
+		a = archive_read_new();
+		assertEqualInt(ARCHIVE_OK, archive_read_support_format_uc2(a));
+		assertEqualIntA(
+		    a, ARCHIVE_OK,
+		    read_open_memory(a, archive_data, archive_size, 7));
+		assertEqualIntA(a, ARCHIVE_FATAL,
+				archive_read_next_header(a, &e));
+		assert(strstr(archive_error_string(a),
+			      "seekable input required") != NULL);
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		free(archive_data);
+	}
 
 	const char *limits[] = {"uc2:memory-limit=1", "uc2:input-limit=20",
 				"uc2:entry-limit=1999", "uc2:total-limit=1999"};

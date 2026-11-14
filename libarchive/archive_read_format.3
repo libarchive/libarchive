@@ -125,6 +125,8 @@ enables historical UltraCompressor II archives when built with the optional
 shared LGPL libuc2read dependency.
 It returns ARCHIVE_WARN when this support was disabled at build time.
 The revival's rANS and shared-chunk extensions are not supported.
+Input must be seekable; pipes and non-seekable filters are rejected.
+Decoded entries use a temporary file bounded by the configured output limits.
 .It Fn archive_read_support_format_all
 Enables support for all available formats except the
 .Dq raw

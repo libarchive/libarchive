@@ -21,7 +21,7 @@ this public UC2 source commit:
 
 ```sh
 git clone https://github.com/evvaletov/uc2.git uc2-source
-git -C uc2-source checkout --detach 07bb648e348990e60ab1b6be721946a2cfa0c69a
+git -C uc2-source checkout --detach bc6f9042f3275e18d0a1d3051bd70b4480bc7464
 cmake -S uc2-source/contrib/libuc2read -B uc2-reader \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/uc2-prefix"
 cmake --build uc2-reader
@@ -57,10 +57,10 @@ bsdtar --options uc2:memory-limit=134217728,uc2:entry-limit=2147483648 -xf input
 
 The memory budget covers decoder allocations, cached dictionaries and adapter
 metadata/paths. Fixed adapter state (about 65 KiB), stdio and libarchive's own
-allocations are outside it. Input and the current decoded entry use anonymous
-temporary files; disk use can reach the input limit plus one entry limit. The
-entry spool is released between files. Listing and skipping do not decode file
-payloads. Limits fail explicitly, without silently truncating output; the UC2
+allocations are outside it. The current decoded entry uses an anonymous
+temporary file, bounded by the entry and total output limits. It is released
+between files. Seekable input uses libarchive callbacks without an input spool.
+Listing and skipping do not decode file payloads. Limits fail explicitly, without silently truncating output; the UC2
 format's 32-bit input and entry limits still apply.
 
 DOS timestamps have no timezone. This adapter maps them to UTC using Gregorian
@@ -68,9 +68,36 @@ arithmetic without changing process-wide timezone state. Invalid timestamps map
 to zero. The proposed format number is `0x110000`; its allocation and the optional
 LGPL dependency remain subjects for maintainer review.
 
-The reader spools the complete input stream, including trailing bytes; concatenated
-archives are not supported. Limits apply independently: a collection with long
-paths may reach the memory limit before the entry-count ceiling.
+The reader requires seekable input, including when using stdin. A pipe or a
+non-seekable filter fails before returning entries; save its output to a file
+first. The input limit applies to the complete source length, including trailing
+bytes. Concatenated archives are not supported. Limits apply independently: a
+collection with long paths may reach the memory limit before the entry-count ceiling.
 
 Composed paths are limited to 2,047 bytes and 64 directory components. An
 invalid or over-limit hierarchy rejects the archive before exposing entries.
+
+## Format references and scope
+
+UC2 is a DOS-era archive format with a compressed central directory, stored file
+versions and shared compression dictionaries. The directory identifies payloads
+and dictionaries by absolute locations. Reading it and then returning to those
+locations requires random access in this decoder.
+
+The original structures are documented in
+[`SUPERMAN.H`](https://github.com/evvaletov/uc2/blob/main/original/UC2_source/src/SUPERMAN.H)
+and the accompanying implementation, preserved from the original source release.
+The revival's [format guide](https://github.com/evvaletov/uc2/blob/main/docs/format.rst)
+is a partial implementation reference, not a complete independent specification.
+[Bobrowski's unuc2](https://torinak.com/~jb/unuc2/) is the portable reader on which
+this dependency is based. Its 0.8 CLI requires a seekable archive: `-p` selects
+standard output, while `-` is not a standard-input archive operand. Redirecting a
+pipe through `/dev/stdin` fails at `fseek` on Linux. A subprocess producing decoded
+file bytes would still need a separate archive metadata protocol, unlike a gzip
+filter that returns one decompressed byte stream.
+
+Decoded entries still use a temporary file because libuc2 exposes a synchronous
+push decoder and libarchive requests blocks through a pull interface. The adapter
+verifies the complete decoded entry before returning its first block. Removing
+that spool requires a resumable decoder API or another bounded push/pull bridge;
+this change does not claim to provide one.

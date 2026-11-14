@@ -29,9 +29,9 @@
 
 /* UC2 reader through the optional shared libuc2read dependency.
  *
- * Input and decompressed entries are spooled to anonymous temporary
- * files. Decoder allocations, cached masters, metadata and paths share a
- * memory budget. Input, entry count and decoded output have separate limits.
+ * Seekable input uses libarchive's callbacks directly. Decoded entries use
+ * anonymous temporary files. Decoder allocations, cached masters, metadata
+ * and paths share a memory budget. Input, entries and output have limits.
  */
 
 #include "archive_platform.h"
@@ -43,8 +43,8 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -78,7 +78,7 @@ struct uc2_directory {
 };
 
 struct uc2_la_state {
-	FILE *input;
+	struct archive_read *archive;
 	uint64_t len;
 	int prepared;
 	uint64_t memory_used, memory_limit, input_limit, entry_limit,
@@ -145,9 +145,9 @@ spool_file(void)
 	return file;
 }
 
-/* libuc2 requires random access, including on non-seekable input. */
+/* libuc2 reads the central directory before returning to file payloads. */
 static int
-slurp_read(void *ctx, unsigned pos, void *buf, unsigned len)
+input_read(void *ctx, unsigned pos, void *buf, unsigned len)
 {
 	struct uc2_la_state *st = (struct uc2_la_state *)ctx;
 	if ((uint64_t)pos >= st->len)
@@ -157,10 +157,25 @@ slurp_read(void *ctx, unsigned pos, void *buf, unsigned len)
 		len = (unsigned)avail;
 	if (len > INT_MAX)
 		len = INT_MAX;
-	if (seek_file(st->input, pos) != 0)
+	if (__archive_read_seek(st->archive, pos, SEEK_SET) != (int64_t)pos)
 		return -1;
-	size_t n = fread(buf, 1, len, st->input);
-	return ferror(st->input) ? -1 : (int)n;
+	unsigned done = 0;
+	while (done < len) {
+		ssize_t available;
+		const void *p =
+		    __archive_read_ahead(st->archive, 1, &available);
+		if (!p)
+			return available < 0 ? -1 : (int)done;
+		if (available <= 0)
+			return -1;
+		size_t n = (uint64_t)available < len - done ? (size_t)available
+							    : len - done;
+		memcpy((unsigned char *)buf + done, p, n);
+		if (__archive_read_consume(st->archive, n) != (int64_t)n)
+			return -1;
+		done += (unsigned)n;
+	}
+	return (int)done;
 }
 
 static void *
@@ -184,13 +199,13 @@ budget_alloc(struct uc2_la_state *st, size_t size)
 }
 
 static void *
-slurp_alloc(void *ctx, unsigned size)
+decoder_alloc(void *ctx, unsigned size)
 {
 	return budget_alloc(ctx, size);
 }
 
 static void
-slurp_free(void *ctx, void *ptr)
+budget_free(void *ctx, void *ptr)
 {
 	struct uc2_la_state *st = ctx;
 	if (ptr) {
@@ -209,15 +224,15 @@ budget_resize(struct uc2_la_state *st, void *old, size_t size)
 		size_t previous = ((union uc2_allocation *)old - 1)->size -
 				  sizeof(union uc2_allocation);
 		memcpy(next, old, previous < size ? previous : size);
-		slurp_free(st, old);
+		budget_free(st, old);
 	}
 	return next;
 }
 
-static struct uc2_io slurp_io = {
-    .read = slurp_read,
-    .alloc = slurp_alloc,
-    .free = slurp_free,
+static struct uc2_io input_io = {
+    .read = input_read,
+    .alloc = decoder_alloc,
+    .free = budget_free,
     .warn = NULL,
 };
 
@@ -366,53 +381,25 @@ uc2_la_bid(struct archive_read *a, int best_bid)
 	return (0);
 }
 
-/* Spool without holding compressed payloads in RAM. */
 static int
-slurp_archive(struct archive_read *a, struct uc2_la_state *st)
+prepare_input(struct archive_read *a, struct uc2_la_state *st)
 {
-	st->input = spool_file();
-	if (!st->input) {
-		archive_set_error(&a->archive, errno,
-				  "UC2: cannot create input spool");
-		return ARCHIVE_FATAL;
-	}
-	for (;;) {
-		ssize_t avail;
-		const void *p = __archive_read_ahead(a, 1, &avail);
-		if (p == NULL) {
-			if (avail < 0) {
-				archive_set_error(
-				    &a->archive, EIO,
-				    "UC2: read error while slurping archive");
-				return (ARCHIVE_FATAL);
-			}
-			break; /* clean EOF */
-		}
-		if (avail <= 0)
-			break;
-
-		if (avail > 65536)
-			avail = 65536;
-		if ((uint64_t)avail > st->input_limit - st->len) {
+	int64_t size = __archive_read_seek(a, 0, SEEK_END);
+	st->archive = a;
+	if (size >= 0) {
+		if ((uint64_t)size > st->input_limit) {
 			archive_set_error(
 			    &a->archive, EFBIG,
 			    "UC2: input-limit exceeded (at most 4 GiB)");
 			return ARCHIVE_FATAL;
 		}
-		if (fwrite(p, 1, (size_t)avail, st->input) != (size_t)avail ||
-		    __archive_read_consume(a, avail) != avail) {
-			archive_set_error(&a->archive, EIO,
-					  "UC2: input spool write failed");
-			return ARCHIVE_FATAL;
-		}
-		st->len += (uint64_t)avail;
+		st->len = (uint64_t)size;
+		return ARCHIVE_OK;
 	}
-	if (fflush(st->input) != 0) {
-		archive_set_error(&a->archive, EIO,
-				  "UC2: input spool flush failed");
-		return ARCHIVE_FATAL;
-	}
-	return (ARCHIVE_OK);
+	archive_set_error(
+	    &a->archive, EIO,
+	    "UC2: seekable input required; save the archive to a file first");
+	return ARCHIVE_FATAL;
 }
 
 /* Walk uc2_read_cdir and cache all entries.  Tagged entries have
@@ -420,7 +407,7 @@ slurp_archive(struct archive_read *a, struct uc2_la_state *st)
 static int
 collect_entries(struct archive_read *a, struct uc2_la_state *st)
 {
-	st->handle = uc2_open(&slurp_io, st);
+	st->handle = uc2_open(&input_io, st);
 	if (st->handle == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 				  "UC2: uc2_open failed (memory-limit or "
@@ -629,7 +616,7 @@ uc2_la_read_header(struct archive_read *a, struct archive_entry *entry)
 	a->archive.archive_format_name = "UC2";
 
 	if (!st->prepared) {
-		int r = slurp_archive(a, st);
+		int r = prepare_input(a, st);
 		if (r != ARCHIVE_OK)
 			return r;
 		st->prepared = 1;
@@ -773,15 +760,13 @@ uc2_la_cleanup(struct archive_read *a)
 	if (st->paths) {
 		int i;
 		for (i = 0; i < st->n_entries; i++)
-			slurp_free(st, st->paths[i]);
-		slurp_free(st, st->paths);
+			budget_free(st, st->paths[i]);
+		budget_free(st, st->paths);
 	}
-	if (st->input)
-		fclose(st->input);
 	if (st->entry_file)
 		fclose(st->entry_file);
-	slurp_free(st, st->entries);
-	slurp_free(st, st->directories);
+	budget_free(st, st->entries);
+	budget_free(st, st->directories);
 	free(st);
 	a->format->data = NULL;
 	return (ARCHIVE_OK);
