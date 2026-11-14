@@ -255,7 +255,7 @@ archive_write_gnutar_header(struct archive_write *a,
      struct archive_entry *entry)
 {
 	struct gnutar *gnutar = a->format_data;
-	char buff[512];
+	char buff[512], header[512];
 	int r, ret, ret2 = ARCHIVE_OK;
 	char tartype;
 	struct archive_string_conv *sconv;
@@ -470,6 +470,35 @@ archive_write_gnutar_header(struct archive_write *a,
 			ret2 = ARCHIVE_WARN;
 		}
 	}
+
+	if (archive_entry_hardlink_is_set(entry)) {
+		tartype = '1';
+	} else
+		switch (archive_entry_filetype(entry)) {
+		case AE_IFREG: tartype = '0' ; break;
+		case AE_IFLNK: tartype = '2' ; break;
+		case AE_IFCHR: tartype = '3' ; break;
+		case AE_IFBLK: tartype = '4' ; break;
+		case AE_IFDIR: tartype = '5' ; break;
+		case AE_IFIFO: tartype = '6' ; break;
+		default: /* AE_IFSOCK and unknown */
+			__archive_write_entry_filetype_unsupported(
+                            &a->archive, entry, "gnutar");
+			ret = ARCHIVE_FAILED;
+			goto exit_write_header;
+		}
+
+	/*
+	 * Format the main header before writing any 'K' or 'L' header,
+	 * so that a rejected entry does not leave a long name behind for
+	 * the next entry.
+	 */
+	ret = archive_format_gnutar_header(a, header, entry, tartype);
+	if (ret < ARCHIVE_WARN)
+		goto exit_write_header;
+	if (ret < ret2)
+		ret2 = ret;
+
 	if (gnutar->linkname_length > GNUTAR_linkname_size) {
 		size_t length = gnutar->linkname_length + 1;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
@@ -542,33 +571,9 @@ archive_write_gnutar_header(struct archive_write *a,
 			goto exit_write_header;
 	}
 
-	if (archive_entry_hardlink_is_set(entry)) {
-		tartype = '1';
-	} else
-		switch (archive_entry_filetype(entry)) {
-		case AE_IFREG: tartype = '0' ; break;
-		case AE_IFLNK: tartype = '2' ; break;
-		case AE_IFCHR: tartype = '3' ; break;
-		case AE_IFBLK: tartype = '4' ; break;
-		case AE_IFDIR: tartype = '5' ; break;
-		case AE_IFIFO: tartype = '6' ; break;
-		default: /* AE_IFSOCK and unknown */
-			__archive_write_entry_filetype_unsupported(
-                            &a->archive, entry, "gnutar");
-			ret = ARCHIVE_FAILED;
-			goto exit_write_header;
-		}
-
-	ret = archive_format_gnutar_header(a, buff, entry, tartype);
+	ret = __archive_write_output(a, header, 512);
 	if (ret < ARCHIVE_WARN)
 		goto exit_write_header;
-	if (ret2 < ret)
-		ret = ret2;
-	ret2 = __archive_write_output(a, buff, 512);
-	if (ret2 < ARCHIVE_WARN) {
-		ret = ret2;
-		goto exit_write_header;
-	}
 	if (ret2 < ret)
 		ret = ret2;
 
