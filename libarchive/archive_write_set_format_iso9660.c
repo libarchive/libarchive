@@ -1834,13 +1834,16 @@ iso9660_finish_entry(struct archive_write *a)
 		iso9660->bytes_remaining -= s;
 	}
 
-	if (iso9660->zisofs.making && zisofs_finish_entry(a) != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
-
-	/* Write padding. */
-	if (wb_write_padding_to_temp(a, iso9660->cur_file->cur_content->size)
-	    != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
+	if (iso9660->zisofs.making) {
+		/* This also writes the padding. */
+		if (zisofs_finish_entry(a) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+	} else {
+		/* Write padding. */
+		if (wb_write_padding_to_temp(a,
+		    iso9660->cur_file->cur_content->size) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+	}
 
 	/* Compute the logical block number. */
 	iso9660->cur_file->cur_content->blocks = (int)
@@ -7649,7 +7652,7 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 	const unsigned char *b;
 	z_stream *zstrm;
 	size_t avail, csize;
-	int flush, r;
+	int done, flush, r;
 
 	zstrm = &(iso9660->zisofs.stream);
 	zstrm->next_out = wb_buffptr(a);
@@ -7689,6 +7692,7 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 		 * If current data block are all zero, we do not use
 		 * compressed data.
 		 */
+		done = 0;
 		if (flush == Z_FINISH && iso9660->zisofs.allzero &&
 		    avail + zstrm->total_in == ZF_BLOCK_SIZE) {
 			if (iso9660->zisofs.block_offset !=
@@ -7706,12 +7710,18 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 				iso9660->zisofs.total_size -= diff;
 			}
 			zstrm->avail_in = 0;
+			done = 1;
 		}
 
 		/*
-		 * Compress file data.
+		 * Compress file data.  With Z_FINISH, deflate() can consume
+		 * all input before it has produced all output, which happens
+		 * when the data does not compress and the output buffer
+		 * fills up.  Keep calling it until it returns Z_STREAM_END,
+		 * or the rest of the block is lost when the stream is reset.
 		 */
-		while (zstrm->avail_in > 0) {
+		while (!done &&
+		    (zstrm->avail_in > 0 || flush == Z_FINISH)) {
 			csize = zstrm->total_out;
 			r = deflate(zstrm, flush);
 			switch (r) {
@@ -7724,6 +7734,8 @@ zisofs_write_to_temp(struct archive_write *a, const void *buff, size_t s)
 				iso9660->cur_file->cur_content->size += csize;
 				zstrm->next_out = wb_buffptr(a);
 				zstrm->avail_out = (uInt)wb_remaining(a);
+				if (r == Z_STREAM_END)
+					done = 1;
 				break;
 			default:
 				archive_set_error(&a->archive,
@@ -7765,6 +7777,16 @@ zisofs_finish_entry(struct archive_write *a)
 
 	/* Direct temp file stream to zisofs temp file stream. */
 	archive_entry_set_size(file->entry, iso9660->zisofs.total_size);
+
+	/*
+	 * Write the padding before seeking back to write the header.
+	 * Seeking back writes out only whole logical blocks; a partial
+	 * block at the end would stay in the write buffer, where the
+	 * header would overwrite it.
+	 */
+	if (wb_write_padding_to_temp(a, file->cur_content->size)
+	    != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
 
 	/*
 	 * Save a file pointer which points the end of current zisofs data.
