@@ -518,10 +518,9 @@ archive_write_shar_data_uuencode(struct archive_write *a, const void *buff,
 			return (ARCHIVE_FATAL);
 		archive_string_empty(&shar->work);
 	}
-	if (n != 0) {
+	if (n != 0)
 		memcpy(shar->outbuff, src, n);
-		shar->outpos = n;
-	}
+	shar->outpos = n;
 	return (length);
 }
 
