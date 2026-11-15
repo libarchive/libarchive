@@ -279,15 +279,16 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	} else if (a->archive.archive_format == ARCHIVE_FORMAT_AR_BSD) {
 		/*
-		 * BSD variant: for any file name which is more than
+		 * BSD variant: for any file name which is at least
 		 * 16 chars or contains one or more embedded space(s), the
 		 * string "#1/" followed by the ASCII length of the name is
 		 * put into the ar_name field. The file size (stored in the
 		 * ar_size field) is incremented by the length of the name.
 		 * The name is then written immediately following the
 		 * archive header.
+		 * GNU ar truncates names that fill the entire ar_name field.
 		 */
-		if (filename_length <= 16 && strchr(filename, ' ') == NULL) {
+		if (filename_length < 16 && strchr(filename, ' ') == NULL) {
 			memcpy(&buff[AR_name_offset], filename, filename_length);
 			buff[AR_name_offset + filename_length] = ' ';
 		}
