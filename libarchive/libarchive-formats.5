@@ -350,10 +350,27 @@ for OS X, and self-extracting zip archives.
 .Pp
 Libarchive can use either of two different strategies for
 reading Zip archives:
-a streaming strategy which is fast and can handle extremely
-large archives, and a seeking strategy which can correctly
-process self-extracting Zip archives and archives with
-deleted members or other in-place modifications.
+a seeking strategy which can correctly process
+self-extracting Zip archives and archives with
+deleted members or other in-place modifications,
+and a streaming strategy which is fast and can handle
+extremely large archives.
+.Pp
+The seeking reader is the standard approach for reading
+Zip archives.
+If the program using libarchive has enabled seek support,
+libarchive will use this to process the Central Directory first.
+In particular, the seeking reader must be used to
+correctly handle self-extracting archives.
+Such archives consist of a program followed by a regular
+Zip archive.
+The streaming reader cannot parse the initial program
+portion, but the seeking reader starts by reading the
+Central Directory from the end of the archive.
+Similarly, Zip archives that have been modified in-place
+can have deleted entries or other garbage data that
+can only be accurately detected by first reading the
+Central Directory.
 .Pp
 The streaming reader processes Zip archives as they are read.
 It can read archives of arbitrary size from tape or
@@ -366,8 +383,6 @@ Such archives require that the reader first process the
 Central Directory, which is ordinarily located
 at the end of a Zip archive and is thus inaccessible
 to the streaming reader.
-If the program using libarchive has enabled seek support, then
-libarchive will use this to process the central directory first.
 .Pp
 The size of an entry is not always available to the streaming reader
 when its header is read.
@@ -387,18 +402,6 @@ without knowing its size in advance.
 If the input supports seeking, a working seek callback allows the seeking
 reader to obtain the size from the Central Directory before reading the
 entry data.
-.Pp
-In particular, the seeking reader must be used to
-correctly handle self-extracting archives.
-Such archives consist of a program followed by a regular
-Zip archive.
-The streaming reader cannot parse the initial program
-portion, but the seeking reader starts by reading the
-Central Directory from the end of the archive.
-Similarly, Zip archives that have been modified in-place
-can have deleted entries or other garbage data that
-can only be accurately detected by first reading the
-Central Directory.
 .Ss Archive (library) file format
 The Unix archive format (commonly created by the
 .Xr ar 1
