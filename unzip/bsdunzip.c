@@ -1186,8 +1186,9 @@ usage(void)
 {
 
 	fprintf(stderr,
-"Usage: unzip [-aCcfjLlnopqtuvyZ1] [{-O|-I} encoding] [-d dir] [-x pattern] [-P password] zipfile\n"
-"             [member ...]\n");
+"Usage: unzip [-aCcfjLlnopqtuvy] [{-O|-I} encoding] [-d dir] [-x pattern] [-P password] zipfile\n"
+"             [member ...]\n"
+"       unzip -Z [-1] zipfile [member ...]\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -1277,14 +1278,6 @@ getopts(int argc, char *argv[])
 		case 'y':
 			y_str = "  ";
 			break;
-		case 'Z':
-			zipinfo_mode = 1;
-			if (bsdunzip->argument != NULL &&
-			    (strcmp(bsdunzip->argument, "1") == 0 ||
-			    strcmp(bsdunzip->argument, "-1") == 0)) {
-				Z1_opt = 1;
-			}
-			break;
 		case OPTION_VERSION:
 			version_opt = 1;
 			break;
@@ -1297,6 +1290,31 @@ getopts(int argc, char *argv[])
 			break;
 	}
 	return (bsdunzip_optind);
+}
+
+/*
+ * Parse zipinfo-mode options, starting at argv[i].  Only zipinfo
+ * options are accepted here.  Returns the index of the first
+ * non-option argument.
+ */
+static int
+zipinfo_getopts(int argc, char *argv[], int i)
+{
+	const char *p;
+
+	for (; i < argc; ++i) {
+		if (argv[i][0] != '-' || argv[i][1] == '\0')
+			break;
+		if (strcmp(argv[i], "--") == 0)
+			return (i + 1);
+		for (p = argv[i] + 1; *p != '\0'; ++p) {
+			if (*p == '1')
+				Z1_opt = 1;
+			else
+				usage();
+		}
+	}
+	return (i);
 }
 
 int
@@ -1340,7 +1358,20 @@ main(int argc, char *argv[])
 	 * enforce this.  For simplicity, we accept *all* options both
 	 * before and after the zipfile name.
 	 */
-	nopts = getopts(argc, argv);
+	/*
+	 * -Z (zipinfo mode) is only valid as the first option; the
+	 * options that follow it are zipinfo options.
+	 */
+	if (argc > 1 && strncmp(argv[1], "-Z", 2) == 0) {
+		if (strcmp(argv[1], "-Z1") == 0)
+			Z1_opt = 1;
+		else if (strcmp(argv[1], "-Z") != 0)
+			usage();
+		zipinfo_mode = 1;
+		nopts = zipinfo_getopts(argc, argv, 2);
+	} else {
+		nopts = getopts(argc, argv);
+	}
 
 	if (version_opt == 1)
 		version();
@@ -1363,19 +1394,23 @@ main(int argc, char *argv[])
 	while (nopts < argc && *argv[nopts] != '-')
 		add_pattern(&include, argv[nopts++]);
 
-	nopts--; /* fake argv[0] */
-	nopts += getopts(argc - nopts, argv + nopts);
-
-	/*
-	 * For compatibility with Info-ZIP's unzip(1) we need to treat
-	 * non-option arguments following an -x after the zipfile as
-	 * exclude list members.
-	 */
-	if (unzip_exclude_mode) {
-		while (nopts < argc && *argv[nopts] != '-')
-			add_pattern(&exclude, argv[nopts++]);
+	if (zipinfo_mode) {
+		nopts = zipinfo_getopts(argc, argv, nopts);
+	} else {
 		nopts--; /* fake argv[0] */
 		nopts += getopts(argc - nopts, argv + nopts);
+
+		/*
+		 * For compatibility with Info-ZIP's unzip(1) we need to
+		 * treat non-option arguments following an -x after the
+		 * zipfile as exclude list members.
+		 */
+		if (unzip_exclude_mode) {
+			while (nopts < argc && *argv[nopts] != '-')
+				add_pattern(&exclude, argv[nopts++]);
+			nopts--; /* fake argv[0] */
+			nopts += getopts(argc - nopts, argv + nopts);
+		}
 	}
 
 	/* There may be residual arguments if we encountered -- */

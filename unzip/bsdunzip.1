@@ -94,16 +94,19 @@ Exclude files matching the pattern
 .Ar pattern .
 .It Fl y
 Print four digit years in listings instead of two.
-.It Fl Z Ar mode
+.It Fl Z
 Emulate
 .Xr zipinfo 1L
 mode.
-Enabling
+When the first option on the command line is -Z, the remaining options are parsed as
 .Xr zipinfo 1L
-mode changes the way in which additional arguments are parsed.
+options only.
 Currently only
-.Xr zipinfo 1L
-mode 1 is supported, which lists the file names one per line.
+.Fl 1
+is supported, which lists the file names one per line.
+.Fl Z1
+is equivalent to
+.Fl Z Fl 1 .
 .It Ar [member ...]
 Optional list of members to extract from the zipfile.
 Can include patterns, e.g.,
