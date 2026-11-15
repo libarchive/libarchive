@@ -552,6 +552,7 @@ archive_read_open1(struct archive *_a)
 		slot = choose_format(a);
 		if (slot < 0) {
 			close_filters(a);
+			a->format = NULL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
 			return (ARCHIVE_FATAL);
 		}
