@@ -95,6 +95,45 @@ DEFINE_TEST(test_write_filter_compress)
 	free(buff);
 }
 
+DEFINE_TEST(test_write_filter_compress_empty)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char buff[100];
+	size_t used;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_compress(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 0));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "empty");
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Empty input must produce only the compress header, with no codes. */
+	assertEqualInt(3, used);
+	assertEqualMem(buff, "\x1f\x9d\x90", 3);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_compress(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_empty(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_FILTER_COMPRESS, archive_filter_code(a, 0));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 /*
  * A write callback that fails after it has accepted a threshold number
  * of bytes, modelling a full disk or a broken pipe in the middle of the
