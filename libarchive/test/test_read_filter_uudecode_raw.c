@@ -102,6 +102,12 @@ check_header(const char *data, const char *want_name, int want_mode)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_filter_uudecode_short_name)
+{
+	check_header("begin 644 a\n#:&D*\n`\nend\n", "a", 0644);
+	check_header("begin-base64 600 b\naGkK\n====\n", "b", 0600);
+}
+
 /*
  * The mode in the "begin" line is a sequence of octal digits. Encoders
  * don't all write three of them, for example 0644 instead of 644.
