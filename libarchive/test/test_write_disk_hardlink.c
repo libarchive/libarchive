@@ -259,3 +259,123 @@ DEFINE_TEST(test_write_disk_hardlink)
 #endif
 #endif
 }
+
+DEFINE_TEST(test_write_disk_hardlink_skip_file)
+{
+#if defined(__HAIKU__) || (defined(_WIN32) && !defined(__CYGWIN__)) || \
+    (!HAVE_LINK && !HAVE_LINKAT)
+	skipping("Hardlinks are not supported on this platform");
+#else
+	static const char original[] = "BASELINE-ORIGINAL\n";
+	static const char replacement[] = "NEW-DATA";
+	static const int flags[] = {
+		ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_PERM,
+		ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_PERM |
+		    ARCHIVE_EXTRACT_NO_OVERWRITE | ARCHIVE_EXTRACT_SAFE_WRITES
+	};
+	struct archive *ad;
+	struct archive_entry *ae;
+	struct stat before, after;
+	char target[48], alias[48];
+	size_t i;
+	int r;
+
+	assertUmask(022);
+
+	/* Hardlink with data targeting skip_file must fail without truncating it. */
+	for (i = 0; i < sizeof(flags) / sizeof(flags[0]); ++i) {
+		snprintf(target, sizeof(target), "skip_target_%u", (unsigned)i);
+		snprintf(alias, sizeof(alias), "skip_alias_%u", (unsigned)i);
+		assertMakeFile(target, 0600, original);
+		assertEqualInt(0, stat(target, &before));
+
+		assert((ad = archive_write_disk_new()) != NULL);
+		assertEqualIntA(ad, ARCHIVE_OK,
+		    archive_write_disk_set_options(ad, flags[i]));
+		assertEqualIntA(ad, ARCHIVE_OK,
+		    archive_write_disk_set_skip_file(ad,
+		    before.st_dev, before.st_ino));
+
+		assert((ae = archive_entry_new()) != NULL);
+		archive_entry_copy_pathname(ae, alias);
+		archive_entry_copy_hardlink(ae, target);
+		archive_entry_set_mode(ae, AE_IFREG | 0644);
+		archive_entry_set_mtime(ae, before.st_mtime - 3600, 0);
+		archive_entry_set_size(ae, sizeof(replacement) - 1);
+
+		r = archive_write_header(ad, ae);
+		failure("flags=0x%x", flags[i]);
+		assertEqualIntA(ad, ARCHIVE_FAILED, r);
+
+		assertFileSize(target, sizeof(original) - 1);
+		assertTextFileContents(original, target);
+
+		if (r >= ARCHIVE_WARN)
+			(void)archive_write_data(ad, replacement,
+			    sizeof(replacement) - 1);
+		assertEqualIntA(ad, ARCHIVE_OK,
+		    archive_write_finish_entry(ad));
+		assertEqualIntA(ad, ARCHIVE_OK,
+		    archive_write_close(ad));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
+		archive_entry_free(ae);
+
+		assertEqualInt(0, stat(target, &after));
+		assertEqualInt(before.st_dev, after.st_dev);
+		assertEqualInt(before.st_ino, after.st_ino);
+		assertEqualInt(before.st_mtime, after.st_mtime);
+		assertIsReg(target, 0600);
+		assertFileSize(target, sizeof(original) - 1);
+		assertTextFileContents(original, target);
+	}
+
+	/* Hardlink without data (size == 0) to skip_file. */
+	assertMakeFile("zero_target", 0600, original);
+	assertEqualInt(0, stat("zero_target", &before));
+	assert((ad = archive_write_disk_new()) != NULL);
+	assertEqualIntA(ad, ARCHIVE_OK,
+	    archive_write_disk_set_options(ad,
+	    ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_PERM));
+	assertEqualIntA(ad, ARCHIVE_OK,
+	    archive_write_disk_set_skip_file(ad,
+	    before.st_dev, before.st_ino));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "zero_alias");
+	archive_entry_copy_hardlink(ae, "zero_target");
+	archive_entry_set_mode(ae, AE_IFREG | 0644);
+	archive_entry_set_mtime(ae, before.st_mtime - 3600, 0);
+	archive_entry_set_size(ae, 0);
+	assertEqualIntA(ad, ARCHIVE_OK, archive_write_header(ad, ae));
+	assertEqualIntA(ad, ARCHIVE_OK, archive_write_finish_entry(ad));
+	assertEqualIntA(ad, ARCHIVE_OK, archive_write_close(ad));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
+	archive_entry_free(ae);
+	assertIsHardlink("zero_target", "zero_alias");
+	assertEqualInt(0, stat("zero_target", &after));
+	assertEqualInt(before.st_dev, after.st_dev);
+	assertEqualInt(before.st_ino, after.st_ino);
+	assertEqualInt(before.st_mtime, after.st_mtime);
+	assertIsReg("zero_target", 0600);
+	assertFileSize("zero_target", sizeof(original) - 1);
+	assertTextFileContents(original, "zero_target");
+
+	/* Normal hardlink with data (no skip_file set). */
+	assertMakeFile("control_target", 0600, original);
+	assert((ad = archive_write_disk_new()) != NULL);
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "control_alias");
+	archive_entry_copy_hardlink(ae, "control_target");
+	archive_entry_set_mode(ae, AE_IFREG | 0644);
+	archive_entry_set_size(ae, sizeof(replacement) - 1);
+	assertEqualIntA(ad, ARCHIVE_OK, archive_write_header(ad, ae));
+	assertEqualInt(sizeof(replacement) - 1,
+	    archive_write_data(ad, replacement, sizeof(replacement) - 1));
+	assertEqualIntA(ad, ARCHIVE_OK, archive_write_finish_entry(ad));
+	assertEqualIntA(ad, ARCHIVE_OK, archive_write_close(ad));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
+	archive_entry_free(ae);
+	assertIsHardlink("control_target", "control_alias");
+	assertFileSize("control_target", sizeof(replacement) - 1);
+	assertTextFileContents(replacement, "control_target");
+#endif
+}
