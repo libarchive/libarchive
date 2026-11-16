@@ -144,6 +144,7 @@ struct tar {
 	char			 sparse_gnu_attributes_seen;
 	char			 filetype;
 	char			 size_fields; /* Bits defined below */
+	char			 rdev_fields; /* Bits defined below */
 
 	struct archive_string	 localname;
 	struct archive_string_conv *opt_sconv;
@@ -163,6 +164,10 @@ struct tar {
 #define TAR_SIZE_GNU_SPARSE_REALSIZE 2
 #define TAR_SIZE_GNU_SPARSE_SIZE 4
 #define TAR_SIZE_SCHILY_SPARSE_REALSIZE 8
+
+/* Track which device numbers were set by pax attributes */
+#define TAR_RDEV_MAJOR 1
+#define TAR_RDEV_MINOR 2
 
 
 static int	archive_block_is_null(const char *p);
@@ -545,6 +550,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	tar->entry_offset = 0;
 	gnu_clear_sparse_list(tar);
 	tar->size_fields = 0; /* We don't have any size info yet */
+	tar->rdev_fields = 0;
 
 	/* Setup default string conversion. */
 	tar->sconv = tar->opt_sconv;
@@ -1929,12 +1935,13 @@ header_ustar(struct archive_read *a, struct tar *tar,
 
 	/* Parse out device numbers only for char and block specials. */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
-		if (!archive_entry_rdev_is_set(entry)) {
+		/* A pax header may override only one of the numbers. */
+		if ((tar->rdev_fields & TAR_RDEV_MAJOR) == 0)
 			archive_entry_set_rdevmajor(entry, (dev_t)
 			    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)));
+		if ((tar->rdev_fields & TAR_RDEV_MINOR) == 0)
 			archive_entry_set_rdevminor(entry, (dev_t)
 			    tar_atol(header->rdevminor, sizeof(header->rdevminor)));
-		}
 	} else {
 		archive_entry_set_rdev(entry, 0);
 	}
@@ -2752,12 +2759,14 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			else if (key_length == 8 && memcmp(key, "devmajor", 8) == 0) {
 				if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
 					archive_entry_set_rdevmajor(entry, (dev_t)t);
+					tar->rdev_fields |= TAR_RDEV_MAJOR;
 				}
 				return (err);
 			}
 			else if (key_length == 8 && memcmp(key, "devminor", 8) == 0) {
 				if ((err = pax_attribute_read_number(a, value_length, &t)) == ARCHIVE_OK) {
 					archive_entry_set_rdevminor(entry, (dev_t)t);
+					tar->rdev_fields |= TAR_RDEV_MINOR;
 				}
 				return (err);
 			}
@@ -3189,12 +3198,13 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 
 	/* Parse out device numbers only for char and block specials */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
-		if (!archive_entry_rdev_is_set(entry)) {
+		/* A pax header may override only one of the numbers. */
+		if ((tar->rdev_fields & TAR_RDEV_MAJOR) == 0)
 			archive_entry_set_rdevmajor(entry, (dev_t)
 			    tar_atol(header->rdevmajor, sizeof(header->rdevmajor)));
+		if ((tar->rdev_fields & TAR_RDEV_MINOR) == 0)
 			archive_entry_set_rdevminor(entry, (dev_t)
 			    tar_atol(header->rdevminor, sizeof(header->rdevminor)));
-		}
 	} else {
 		archive_entry_set_rdev(entry, 0);
 	}
