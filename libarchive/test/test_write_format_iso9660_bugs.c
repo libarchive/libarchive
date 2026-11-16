@@ -277,6 +277,7 @@ DEFINE_TEST(test_write_format_iso9660_rockridge_deep_relocation)
 	unsigned char *buff;
 	size_t buffsize = 4 * 1024 * 1024;
 	size_t used = 0;
+	int r;
 
 	buff = malloc(buffsize);
 	assert(buff != NULL);
@@ -328,10 +329,18 @@ DEFINE_TEST(test_write_format_iso9660_rockridge_deep_relocation)
 	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 
-	/* Closing writes the "." and ".." records of the relocated
-	 * directories, which share their file with the CL placeholder. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_iso9660(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	while ((r = archive_read_next_header(a, &entry)) == ARCHIVE_OK &&
+	    strcmp(archive_entry_pathname(entry), pathname) != 0)
+		continue;
+	assertEqualIntA(a, ARCHIVE_OK, r);
+	assertEqualInt(AE_IFREG, archive_entry_filetype(entry));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(buff);
 }
 

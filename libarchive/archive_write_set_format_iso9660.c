@@ -4349,15 +4349,6 @@ calculate_directory_descriptors(struct iso9660 *iso9660, struct vdd *vdd,
 	return (block);
 }
 
-static void
-rewind_cur_content(struct isofile *file)
-{
-	if (file->hardlink_target != NULL)
-		file = file->hardlink_target;
-	if (file->cur_content == NULL)
-		file->cur_content = &(file->content);
-}
-
 static int
 _write_directory_descriptors(struct archive_write *a, struct vdd *vdd,
     struct isoent *isoent, int depth)
@@ -4367,18 +4358,6 @@ _write_directory_descriptors(struct archive_write *a, struct vdd *vdd,
 	unsigned char *p, *wb;
 	int i, r;
 	int dr_l;
-
-	/*
-	 * A Rockridge relocated directory shares its file with the "CL"
-	 * placeholder left in its original parent, and listing that
-	 * placeholder there walks the shared cur_content to NULL.
-	 * Rewind the files the "." and ".." records below read from.
-	 */
-	rewind_cur_content(isoent->file);
-	if (isoent->rr_parent != NULL)
-		rewind_cur_content(isoent->rr_parent->file);
-	else
-		rewind_cur_content(isoent->parent->file);
 
 	p = wb = wb_buffptr(a);
 #define WD_REMAINING	(LOGICAL_BLOCK_SIZE - (p - wb))
@@ -7077,9 +7056,10 @@ isoent_make_path_table(struct archive_write *a)
 	if (iso9660->opt.joliet)
 		isoent_collect_dirs(&(iso9660->joliet), NULL, 0);
 	/*
-	 * Rockridge; move deeper depth directories to rr_moved.
+	 * Rockridge; move deeper depth directories to rr_moved,
+	 * unless the depth limit is lifted and they can stay put.
 	 */
-	if (iso9660->opt.rr) {
+	if (iso9660->opt.rr && iso9660->primary.max_depth <= MAX_DEPTH) {
 		r = isoent_rr_move(a);
 		if (r < 0)
 			return (r);
