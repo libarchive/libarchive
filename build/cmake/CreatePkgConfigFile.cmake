@@ -4,7 +4,11 @@
 # Set the required variables (we use the same input file as autotools)
 SET(prefix ${CMAKE_INSTALL_PREFIX})
 SET(exec_prefix \${prefix})
-SET(libdir \${exec_prefix}/lib)
+IF(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+	SET(libdir "${CMAKE_INSTALL_LIBDIR}")
+ELSE()
+	SET(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+ENDIF()
 SET(includedir \${prefix}/include)
 # Now, this is not particularly pretty, nor is it terribly accurate...
 # Loop over all our additional libs
