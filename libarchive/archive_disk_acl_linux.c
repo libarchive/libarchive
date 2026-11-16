@@ -404,12 +404,11 @@ set_richacl(struct archive *a, int fd, const char *name,
 				break;
 			case ARCHIVE_ENTRY_ACL_TYPE_AUDIT:
 			case ARCHIVE_ENTRY_ACL_TYPE_ALARM:
-				break;
-		default:
-			archive_set_error(a, ARCHIVE_ERRNO_MISC,
-			    "Unsupported ACL entry type");
-			ret = ARCHIVE_FAILED;
-			goto exit_free;
+			default:
+				archive_set_error(a, ARCHIVE_ERRNO_MISC,
+				    "Unsupported ACL entry type");
+				ret = ARCHIVE_FAILED;
+				goto exit_free;
 		}
 
 		for (i = 0; i < acl_nfs4_perm_map_size; ++i) {
