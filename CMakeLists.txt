@@ -142,8 +142,9 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$" OR
   IF(CMAKE_SYSTEM_NAME MATCHES "Darwin")
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
     SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
-  ELSEIF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    # SunOS linker doesn't support --gc-sections
+  ELSEIF(CMAKE_SYSTEM_NAME MATCHES "SunOS|AROS")
+    # SunOS linker doesn't support --gc-sections. AROS executables are
+    # relocatable objects without an entry point, which --gc-sections refuses.
   ELSE()
     # Place the functions and data into separate sections, allowing the linker
     # to garbage collect the unused ones.
