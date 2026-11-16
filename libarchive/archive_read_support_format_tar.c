@@ -3040,7 +3040,7 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 	char digit;
 	int64_t	s;
 	unsigned long l;
-	int sign;
+	int sign, trailing = 0;
 
 	if (length <= 0) {
 		*ps = 0;
@@ -3068,23 +3068,11 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 
 	*ps = s * sign;
 
-#if ARCHIVE_VERSION_NUMBER < 4000000
-	/* Libarchive 4.0 will have __LA_TIME_T == int64_t, so
-	   this will be unnecessary. */
-	/* Test whether it overflows __LA_TIME_T */
-	__LA_TIME_T sec = (__LA_TIME_T)*ps;
-	if ((int64_t)sec != *ps) {
-		*ps = INT64_MIN;
-		*pn = 0;
-		return;
-	}
-#endif
-
 	/* Calculate nanoseconds. */
 	*pn = 0;
 
 	if (length <= 0) {
-		return;
+		goto done;
 	}
 
 	/* Skip `.` */
@@ -3099,7 +3087,7 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 	l = 100000000UL;
 	do {
 		if (length <= 0) {
-			return;
+			break;
 		}
 		if (*p >= '0' && *p <= '9') {
 			*pn += (*p - '0') * l;
@@ -3120,9 +3108,31 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 			*pn = 0;
 			return;
 		}
+		if (*p != '0')
+			trailing = 1;
 		++p;
 		--length;
 	}
+
+done:
+	/* The value is decimal: "-1.25" is -2 seconds plus 0.75.
+	   Round toward the past, like the positive case. */
+	if (sign < 0 && *pn + trailing > 0) {
+		*ps -= 1;
+		*pn = 1000000000 - (*pn + trailing);
+	}
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	/* Libarchive 4.0 will have __LA_TIME_T == int64_t, so
+	   this will be unnecessary. */
+	/* Test whether it overflows __LA_TIME_T */
+	__LA_TIME_T sec = (__LA_TIME_T)*ps;
+	if ((int64_t)sec != *ps) {
+		*ps = INT64_MIN;
+		*pn = 0;
+		return;
+	}
+#endif
 }
 
 /*
