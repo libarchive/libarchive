@@ -290,6 +290,12 @@ static int
 zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	size_t *size, int64_t *offset);
 #endif
+/* For zip_read_encrypted_link. */
+static int	zip_read_data_none(struct archive_read *, const void **,
+		    size_t *, int64_t *);
+static int	init_traditional_PKWARE_decryption(struct archive_read *);
+static int	init_WinZip_AES_decryption(struct archive_read *);
+static void	consume_end_of_file_marker(struct archive_read *, struct zip *);
 
 static void
 trad_enc_decrypt_update(struct trad_enc_ctx *, const uint8_t *, size_t,
@@ -1235,6 +1241,91 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 /*
  * Assumes file pointer is at beginning of local file header.
  */
+/*
+ * Read an encrypted symlink's target. 7-Zip and Info-ZIP encrypt a
+ * symlink's target as they do a file's data. Decrypt it as read_data()
+ * decrypts file data, checking the CRC and, for AES, the authentication
+ * code. ARCHIVE_RETRY: no passphrase was given, or none of them is right;
+ * the symlink is then listed with no target, marked encrypted, as an
+ * encrypted file lists without the passphrase.
+ */
+static int
+zip_read_encrypted_link(struct archive_read *a, struct zip *zip,
+    struct archive_string *target)
+{
+	int r, rounds;
+
+	if (zip->entry->zip_flags & ZIP_STRONG_ENCRYPTED) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Unsupported encryption format for a link entry");
+		return (ARCHIVE_FAILED);
+	}
+	zip->entry_bytes_remaining = zip->entry->compressed_size;
+	if (zip->entry->compression == WINZIP_AES_ENCRYPTION)
+		r = init_WinZip_AES_decryption(a);
+	else
+		r = init_traditional_PKWARE_decryption(a);
+	if (r == ARCHIVE_FAILED)
+		return (ARCHIVE_RETRY);
+	if (r != ARCHIVE_OK)
+		return (r);
+	zip->init_decryption = 0;
+
+	for (rounds = 0; !zip->end_of_entry; rounds++) {
+		const void *buff = NULL;
+		size_t size = 0;
+		int64_t offset = 0;
+
+		if (rounds > 1024) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Damaged link entry");
+			return (ARCHIVE_FATAL);
+		}
+		__archive_read_consume(a, zip->unconsumed);
+		zip->unconsumed = 0;
+		switch (zip->entry->compression) {
+		case 0:
+			r = zip_read_data_none(a, &buff, &size, &offset);
+			break;
+#ifdef HAVE_ZLIB_H
+		case 8:
+			r = zip_read_data_deflate(a, &buff, &size, &offset);
+			break;
+#endif
+		default:
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Unsupported ZIP compression method "
+			    "during decompression of link entry (%d: %s)",
+			    zip->entry->compression,
+			    compression_name(zip->entry->compression));
+			return (ARCHIVE_FAILED);
+		}
+		if (r != ARCHIVE_OK)
+			return (r);
+		if (target->length + size > 64 * 1024) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Zip file with oversized link entry");
+			return (ARCHIVE_FATAL);
+		}
+		if (size > 0) {
+			archive_array_append(target, buff, size);
+			zip->computed_crc32 = zip->crc32func(
+			    zip->computed_crc32, buff, (unsigned)size);
+		}
+	}
+	__archive_read_consume(a, zip->unconsumed);
+	zip->unconsumed = 0;
+	consume_end_of_file_marker(a, zip);
+	if ((!zip->hctx_valid ||
+	      zip->entry->aes_extra.vendor != AES_VENDOR_AE_2) &&
+	    zip->entry->crc32 != zip->computed_crc32 && !zip->ignore_crc32) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "ZIP bad CRC in a link entry");
+		return (ARCHIVE_FAILED);
+	}
+	return (ARCHIVE_OK);
+}
+
 static int
 zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
     struct zip *zip)
@@ -1509,6 +1600,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
+		struct archive_string decrypted;
+		int was_decrypted = 0;
 
 		if (zip_entry->compressed_size > 64 * 1024) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1522,7 +1615,23 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 
 		// take into account link compression if any
 		size_t linkname_full_length = linkname_length;
-		if (zip->entry->compression != 0)
+		archive_string_init(&decrypted);
+		if (zip->init_decryption)
+		{
+			int r = zip_read_encrypted_link(a, zip, &decrypted);
+			if (r == ARCHIVE_OK) {
+				was_decrypted = 1;
+				p = decrypted.s != NULL ? decrypted.s : "";
+				linkname_full_length = decrypted.length;
+			} else if (r == ARCHIVE_RETRY) {
+				p = "";
+				linkname_full_length = 0;
+			} else {
+				archive_string_free(&decrypted);
+				return (r);
+			}
+		}
+		else if (zip->entry->compression != 0)
 		{
 			// symlink target string appeared to be compressed
 			int status = ARCHIVE_FATAL;
@@ -1586,6 +1695,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			    archive_entry_copy_symlink_l(entry, p,
 				linkname_full_length, NULL);
 			if (errno == ENOMEM) {
+				archive_string_free(&decrypted);
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for Symlink");
 				return (ARCHIVE_FATAL);
@@ -1606,9 +1716,11 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				ret = ARCHIVE_WARN;
 			}
 		}
+		archive_string_free(&decrypted);
 		zip_entry->uncompressed_size = zip_entry->compressed_size = 0;
 
-		if (__archive_read_consume(a, linkname_length) < 0) {
+		if (!was_decrypted &&
+		    __archive_read_consume(a, linkname_length) < 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Read error skipping symlink target name");
 			return ARCHIVE_FATAL;
