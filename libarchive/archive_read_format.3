@@ -144,7 +144,12 @@ The
 format handler allows libarchive to be used to read arbitrary data.
 It treats any data stream as an archive with a single entry.
 The pathname of this entry is
-.Dq data ;
+.Dq data ,
+unless the data gives one, as gzip does, or the
+.Cm pathname
+option of the format sets another default
+(see
+.Xr archive_read_set_options 3 ) ;
 all other entry fields are unset.
 This is not enabled by
 .Fn archive_read_support_format_all
