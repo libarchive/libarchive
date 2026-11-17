@@ -10,6 +10,7 @@ IF(ENABLE_TEST)
     read_open_memory.c
     test.h
     test_archive_crc32.c
+    test_archive_file_count.c
     test_7zip_filename_encoding.c
     test_acl_from_text_overread.c
     test_acl_nfs4.c

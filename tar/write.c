@@ -1044,8 +1044,8 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
 		fprintf(stderr, "\n");
 	comp = archive_filter_bytes(a, -1);
 	uncomp = archive_filter_bytes(a, 0);
-	fprintf(stderr, "In: %d files, %ju bytes;",
-	    archive_file_count(a), (uintmax_t)uncomp);
+	fprintf(stderr, "In: %jd files, %ju bytes;",
+	    (intmax_t)archive_file_count(a), (uintmax_t)uncomp);
 	if (comp >= uncomp)
 		compression = 0;
 	else

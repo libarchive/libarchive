@@ -124,8 +124,8 @@ progress_func(void *cookie)
 		fprintf(stderr,
 		    "In: %ju bytes, compression %d%%;",
 		    (uintmax_t)comp, compression);
-		fprintf(stderr, "  Out: %d files, %ju bytes\n",
-		    archive_file_count(a), (uintmax_t)uncomp);
+		fprintf(stderr, "  Out: %jd files, %ju bytes\n",
+		    (intmax_t)archive_file_count(a), (uintmax_t)uncomp);
 	}
 	if (entry != NULL) {
 		fputs("Current: ", stderr);
