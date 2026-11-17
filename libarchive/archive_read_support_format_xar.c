@@ -946,7 +946,8 @@ xar_read_data_skip(struct archive_read *a)
 		xar->entry_unconsumed);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
-	xar->offset += bytes_skipped;
+	/* xar_read_data() already counted the unconsumed bytes. */
+	xar->offset += bytes_skipped - xar->entry_unconsumed;
 	xar->entry_unconsumed = 0;
 	return (ARCHIVE_OK);
 }
