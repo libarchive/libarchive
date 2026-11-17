@@ -1360,7 +1360,7 @@ header_common(struct archive_read *a, struct tar *tar,
 	/* Split mode handling: Set filetype always, perm only if not already set */
 	header_mode = (mode_t)tar_atol(header->mode, sizeof(header->mode));
 	archive_entry_set_filetype(entry, header_mode);
-	if (!archive_entry_perm_is_set(entry))
+	if (!archive_entry_perm_is_set(entry) || archive_entry_perm(entry) == 0)
 		archive_entry_set_perm(entry, header_mode);
 
 	/* Set uid, gid, mtime if not already set */
