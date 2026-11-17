@@ -184,9 +184,8 @@ struct zip {
 	int64_t			entry_uncompressed_bytes_read;
 
 	/* Running CRC32 of the decompressed and decrypted data */
-	unsigned long		computed_crc32;
-	unsigned long		(*crc32func)(unsigned long, const void *,
-				    size_t);
+	uint32_t		computed_crc32;
+	uint32_t		(*crc32func)(uint32_t, const void *, size_t);
 	char			ignore_crc32;
 
 	/* Flags to mark progress of decompression. */
@@ -597,15 +596,15 @@ zip_read_decrypt_update(struct zip *zip, ssize_t to_consume, const void *sp)
  * from entry bodies, and common API.
  */
 
-static unsigned long
-real_crc32(unsigned long crc, const void *buff, size_t len)
+static uint32_t
+real_crc32(uint32_t crc, const void *buff, size_t len)
 {
-	return __archive_crc32(crc, buff, (unsigned int)len);
+	return __archive_crc32(crc, buff, len);
 }
 
 /* Used by "ignorecrc32" option to speed up tests. */
-static unsigned long
-fake_crc32(unsigned long crc, const void *buff, size_t len)
+static uint32_t
+fake_crc32(uint32_t crc, const void *buff, size_t len)
 {
 	(void)crc; /* UNUSED */
 	(void)buff; /* UNUSED */
@@ -1128,9 +1127,9 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 			if (!zip->ignore_crc32) {
 				const char *cp = archive_entry_pathname(entry);
 				if (cp) {
-					unsigned long file_crc =
+					uint32_t file_crc =
 					    zip->crc32func(0, cp, strlen(cp));
-					unsigned long utf_crc =
+					uint32_t utf_crc =
 					    archive_le32dec(p + offset - 4);
 					if (file_crc != utf_crc) {
 #ifdef DEBUG
@@ -3650,9 +3649,9 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		   zip->entry->crc32 != zip->computed_crc32
 		    && !zip->ignore_crc32) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "ZIP bad CRC: 0x%lx should be 0x%lx",
-			    (unsigned long)zip->computed_crc32,
-			    (unsigned long)zip->entry->crc32);
+			    "ZIP bad CRC: 0x%x should be 0x%x",
+			    zip->computed_crc32,
+			    zip->entry->crc32);
 			return (ARCHIVE_FAILED);
 		}
 		/* Check file size against header. */

@@ -164,7 +164,7 @@ struct zip {
 
 	unsigned char *file_header;
 	size_t file_header_extra_offset;
-	unsigned long (*crc32func)(unsigned long crc, const void *buff, size_t len);
+	uint32_t (*crc32func)(uint32_t crc, const void *buff, size_t len);
 
 	struct cd_segment *central_directory;
 	struct cd_segment *central_directory_last;
@@ -317,14 +317,14 @@ cd_alloc(struct zip *zip, size_t length)
 	return (p);
 }
 
-static unsigned long
-real_crc32(unsigned long crc, const void *buff, size_t len)
+static uint32_t
+real_crc32(uint32_t crc, const void *buff, size_t len)
 {
-	return __archive_crc32(crc, buff, (unsigned int)len);
+	return __archive_crc32(crc, buff, len);
 }
 
-static unsigned long
-fake_crc32(unsigned long crc, const void *buff, size_t len)
+static uint32_t
+fake_crc32(uint32_t crc, const void *buff, size_t len)
 {
 	(void)crc; /* UNUSED */
 	(void)buff; /* UNUSED */

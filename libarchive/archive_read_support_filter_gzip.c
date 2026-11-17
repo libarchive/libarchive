@@ -56,7 +56,7 @@ struct gzip {
 	char		 in_stream;
 	unsigned char	*out_block;
 	size_t		 out_block_size;
-	unsigned long	 crc;
+	uint32_t	 crc;
 	uint32_t	 mtime;
 	char		*name;
 	char		 eof; /* True = found end of compressed data. */

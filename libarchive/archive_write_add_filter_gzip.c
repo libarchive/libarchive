@@ -65,7 +65,7 @@ struct gzip {
 	uint64_t	 total_in;
 	unsigned char	*compressed;
 	size_t		 compressed_buffer_size;
-	unsigned long	 crc;
+	uint32_t	 crc;
 #else
 	struct archive_write_program_data *pdata;
 #endif
@@ -322,7 +322,7 @@ archive_compressor_gzip_write(struct archive_write_filter *f, const void *buff,
 	int ret;
 
 	/* Update statistics */
-	gzip->crc = __archive_crc32(gzip->crc, (const Bytef *)buff, (uInt)length);
+	gzip->crc = __archive_crc32(gzip->crc, buff, length);
 	gzip->total_in += length;
 
 	/* Compress input data to output buffer */

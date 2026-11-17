@@ -83,7 +83,7 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	const char *buffend;
 
 	/* Misc variables */
-	unsigned long crc;
+	uint32_t crc;
 	struct tm *tm;
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
 	struct tm tmbuf;

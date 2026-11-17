@@ -70,7 +70,7 @@ static void write_archive(struct archive *a)
 
 static void verify_contents(const char *zip_buff, size_t size)
 {
-	unsigned long crc = bitcrc32(0, file_data1, sizeof(file_data1));
+	uint32_t crc = bitcrc32(0, file_data1, sizeof(file_data1));
 	crc = bitcrc32(crc, file_data2, sizeof(file_data2));
 
 	const char *zip_end = zip_buff + size;

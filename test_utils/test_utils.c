@@ -110,8 +110,8 @@ fill_with_pseudorandom_data(void *buffer, size_t size)
 	fill_with_pseudorandom_data_seed(seed, buffer, size);
 }
 
-unsigned long
-bitcrc32(unsigned long c, const void *_p, size_t s)
+uint32_t
+bitcrc32(uint32_t c, const void *_p, size_t s)
 {
 	/* This is a drop-in replacement for crc32() from zlib.
 	 * Libarchive should be able to correctly read archives (including
@@ -121,8 +121,8 @@ bitcrc32(unsigned long c, const void *_p, size_t s)
 	 * works well enough for this particular usage. Libarchive
 	 * internally uses a much more efficient implementation if zlib is
 	 * unavailable. */
-	const unsigned char *p = _p;
-	char bitctr;
+	const uint8_t *p = _p;
+	int bitctr;
 
 	if (p == NULL)
 		return (0);
@@ -131,29 +131,29 @@ bitcrc32(unsigned long c, const void *_p, size_t s)
 		c ^= *p++;
 		for (bitctr = 8; bitctr > 0; --bitctr) {
 			if (c & 1) c = (c >> 1);
-			else	   c = (c >> 1) ^ 0xedb88320;
-			c ^= 0x80000000;
+			else	   c = (c >> 1) ^ 0xedb88320U;
+			c ^= 0x80000000U;
 		}
 	}
 	return (c);
 }
 
 /* Read little-endian integers */
-unsigned short
-i2le(const void* p_)
+uint16_t
+i2le(const void *_p)
 {
-	const unsigned char *p = p_;
+	const uint8_t *p = _p;
 	return (p[0] | (p[1] << 8));
 }
-unsigned int
-i4le(const void* p_)
+uint32_t
+i4le(const void *_p)
 {
-	const char *p = p_;
-	return (i2le(p) | ((unsigned int)i2le(p + 2) << 16));
+	const uint16_t *p = _p;
+	return (i2le(&p[0]) | ((uint32_t)i2le(&p[1]) << 16));
 }
-unsigned long long
-i8le(const void* p_)
+uint64_t
+i8le(const void *_p)
 {
-	const char *p = p_;
-	return (i4le(p) | ((unsigned long long)i4le(p + 4) << 32));
+	const uint32_t *p = _p;
+	return (i4le(&p[0]) | ((uint64_t)i4le(&p[1]) << 32));
 }

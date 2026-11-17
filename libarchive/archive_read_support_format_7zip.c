@@ -263,7 +263,7 @@ struct _7zip {
 	int			 header_is_being_read;
 	int			 header_is_encoded;
 	int64_t			 header_bytes_remaining;
-	unsigned long		 header_crc32;
+	uint32_t		 header_crc32;
 	/* Header offset to check that reading points of the file contents
 	 * will not exceed the header. */
 	int64_t			 header_offset;
@@ -282,7 +282,7 @@ struct _7zip {
 	int64_t			 entry_bytes_remaining;
 
 	/* Running CRC32 of the decompressed data */
-	unsigned long		 entry_crc32;
+	uint32_t		 entry_crc32;
 
 	/* Flags to mark progress of decompression. */
 	char			 end_of_entry;
@@ -1155,7 +1155,7 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	/* Update checksum */
 	if ((zip->entry->flg & CRC32_IS_SET) && bytes)
 		zip->entry_crc32 = __archive_crc32(zip->entry_crc32, *buff,
-		    (unsigned)bytes);
+		    bytes);
 
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
@@ -1164,10 +1164,9 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 			zip->si.ss.digests[zip->entry->ssIndex] !=
 		    zip->entry_crc32) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "7-Zip bad CRC: 0x%lx should be 0x%lx",
+			    "7-Zip bad CRC: 0x%x should be 0x%x",
 			    zip->entry_crc32,
-			    (unsigned long)zip->si.ss.digests[
-			    		zip->entry->ssIndex]);
+			    zip->si.ss.digests[zip->entry->ssIndex]);
 			ret = ARCHIVE_WARN;
 		}
 	}
@@ -3388,7 +3387,7 @@ header_bytes(struct archive_read *a, size_t rbytes)
 	}
 
 	/* Update checksum */
-	zip->header_crc32 = __archive_crc32(zip->header_crc32, p, (unsigned)rbytes);
+	zip->header_crc32 = __archive_crc32(zip->header_crc32, p, rbytes);
 	return (p);
 }
 
@@ -3427,8 +3426,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	}
 
 	/* CRC check. */
-	if (__archive_crc32(0, p + 12, 20)
-	    != archive_le32dec(p + 8)) {
+	if (__archive_crc32(0, p + 12, 20) != archive_le32dec(p + 8)) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, -1, "Header CRC error");
 		return (ARCHIVE_FATAL);
