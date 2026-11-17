@@ -41,9 +41,9 @@ DEFINE_TEST(test_read_filter_gzip_recursive)
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_filename(a, name, 200));
 
-	/* Verify that the filter detection worked. */
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_GZIP);
-	assertEqualString(archive_filter_name(a, 0), "gzip");
+	/* The fuzzed members' trailers don't match their data, so the read
+	 * stops at the first one, before the inner member is bid on. */
+	assertEqualString("Gzip: CRC32 error", archive_error_string(a));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
