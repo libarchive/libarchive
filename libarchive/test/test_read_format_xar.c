@@ -1229,3 +1229,68 @@ DEFINE_TEST(test_read_format_xar_invalid_seek_offset)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * Issue #3804: the string conversion layer owns the errno contract, so
+ * a failed conversion must report its own errno instead of leaving an
+ * unrelated value behind. The second entry has a base64-encoded name
+ * containing an invalid UTF-8 byte (0xff). A stale ENOMEM from before
+ * the call must not turn its conversion error into a fatal allocation
+ * error or prevent reading the following entry.
+ */
+DEFINE_TEST(test_read_format_xar_stale_errno)
+{
+	const char *refname = "test_read_format_xar_stale_errno.xar";
+	const int prior_errno[] = { 0, ENOMEM };
+	struct archive_entry *ae;
+	struct archive *a;
+	size_t i;
+	int r, expected_status = 0, expected_errno = 0;
+
+	if (!setCheckedLocale("en_US.UTF-8", "\xc3\xa4", L'\x00e4') &&
+	    !setCheckedLocale("C.UTF-8", "\xc3\xa4", L'\x00e4')) {
+		skipping("UTF-8 locale not available on this system");
+		return;
+	}
+
+	extract_reference_file(refname);
+	for (i = 0; i < sizeof(prior_errno) / sizeof(prior_errno[0]); ++i) {
+		assert((a = archive_read_new()) != NULL);
+		r = archive_read_support_format_xar(a);
+		if (r == ARCHIVE_WARN) {
+			skipping("XAR reading not fully supported on this platform");
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+			return;
+		}
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open_filename(a, refname, 10240));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+		assertEqualString("before", archive_entry_pathname(ae));
+
+		/* The TOC and conversion object are already initialized. */
+		errno = prior_errno[i];
+		r = archive_read_next_header(a, &ae);
+		failure("Prior errno %d must not make conversion fatal",
+		    prior_errno[i]);
+		assertA(r == ARCHIVE_OK || r == ARCHIVE_WARN);
+		assert(archive_errno(a) != 0);
+		assert(archive_errno(a) != ENOMEM);
+		if (i == 0) {
+			expected_status = r;
+			expected_errno = archive_errno(a);
+		} else {
+			assertEqualInt(expected_status, r);
+			assertEqualInt(expected_errno, archive_errno(a));
+		}
+		if (r == ARCHIVE_OK || r == ARCHIVE_WARN) {
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_next_header(a, &ae));
+			assertEqualString("after", archive_entry_pathname(ae));
+			assertEqualIntA(a, ARCHIVE_EOF,
+			    archive_read_next_header(a, &ae));
+		}
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+}
