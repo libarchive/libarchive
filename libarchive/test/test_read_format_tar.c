@@ -473,3 +473,109 @@ DEFINE_TEST(test_read_format_tar)
 }
 
 
+
+/* An opt-in bidder must not change the existing tar recognition APIs. */
+DEFINE_TEST(test_read_format_tar_nonempty)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	unsigned char data[1536];
+	size_t sizes[] = { 512, 513, 1024, 1536 };
+	size_t i;
+	int mode;
+
+	for (i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
+		memset(data, 0, sizeof(data));
+		/* Also cover nonzero data following a zero end marker. */
+		if (sizes[i] > 512)
+			data[sizes[i] - 1] = 'x';
+		for (mode = 0; mode < 5; mode++) {
+			assert((a = archive_read_new()) != NULL);
+			if (mode == 0)
+				assertEqualIntA(a, ARCHIVE_OK,
+				    archive_read_support_format_tar(a));
+			if (mode == 4)
+				assertEqualIntA(a, ARCHIVE_OK,
+				    archive_read_support_format_all(a));
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_format_tar_nonempty(a));
+			if (mode == 1)
+				assertEqualIntA(a, ARCHIVE_OK,
+				    archive_read_support_format_tar(a));
+			if (mode == 2)
+				assertEqualIntA(a, ARCHIVE_OK,
+				    archive_read_support_format_all(a));
+			if (mode == 3) {
+				assertEqualIntA(a, ARCHIVE_FATAL,
+				    read_open_memory_minimal(a, data, sizes[i], 1));
+			} else {
+				assertEqualIntA(a, ARCHIVE_OK,
+				    read_open_memory_minimal(a, data, sizes[i], 1));
+				assertEqualIntA(a, ARCHIVE_EOF,
+				    archive_read_next_header(a, &ae));
+				assertEqualIntA(a, ARCHIVE_FORMAT_TAR,
+				    archive_format(a));
+			}
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		}
+	}
+
+	/* A short zero prefix is not a tar header either. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_tar_nonempty(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    read_open_memory_minimal(a, data, 511, 1));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* A real header is still handled by the normal tar reader. */
+	memset(data, 0, sizeof(data));
+	memcpy(data, archive1, sizeof(archive1));
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_tar_nonempty(a));
+	assertEqualIntA(a, ARCHIVE_WARN,
+	    archive_read_support_format_tar_nonempty(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, data, sizeof(data)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	verify1(ae);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Without the permissive bidder, zero-prefixed data falls back to raw. */
+	memset(data, 0, sizeof(data));
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_tar_nonempty(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, data, sizeof(data)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_FORMAT_RAW, archive_format(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* Forced tar reading remains permissive regardless of the bidder. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_tar_nonempty(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, data, sizeof(data)));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	/* The additional bidder must fit alongside all formats plus raw. */
+	memcpy(data, archive1, sizeof(archive1));
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_tar_nonempty(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, data, sizeof(data)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	verify1(ae);
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
