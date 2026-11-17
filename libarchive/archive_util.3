@@ -113,6 +113,20 @@ Note that this can not be reliably used to detect whether an
 error has occurred.
 It should be used only after another libarchive function
 has returned an error status.
+When reading fails because of the encryption of the archive, the code is one of
+the following, which are not platform error codes.
+Their values are the same on every platform and will not change.
+.Bl -tag -width indent
+.It Dv ARCHIVE_ERRNO_PASSPHRASE_REQUIRED
+The data is encrypted, and no passphrase is available to decrypt it.
+See
+.Xr archive_read_add_passphrase 3 .
+.It Dv ARCHIVE_ERRNO_PASSPHRASE_INCORRECT
+The data is encrypted, and none of the passphrases available is right.
+.It Dv ARCHIVE_ERRNO_ENCRYPTION_UNSUPPORTED
+The data is encrypted in a way that this version of libarchive, or the way it
+was built, cannot decrypt, whatever the passphrase is.
+.El
 .It Fn archive_error_string
 Returns a textual error message suitable for display.
 The error message here is usually more specific than that
