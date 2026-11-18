@@ -279,7 +279,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			if (archive_entry_size(entry) == 0) {
 				/* More portable than "touch." */
 				archive_string_sprintf(&shar->work,
-				    "test -e \"%s\" || :> \"%s\"\n",
+				    "test -e %s || :> %s\n",
 				    shar->quoted_name.s, shar->quoted_name.s);
 			} else {
 				if (shar->dump) {
@@ -571,7 +571,9 @@ archive_write_shar_finish_entry(struct archive_write *a)
 		}
 
 		if ((p = archive_entry_fflags_text(shar->entry)) != NULL) {
-			archive_string_sprintf(&shar->work, "chflags %s ", p);
+			archive_strcat(&shar->work, "chflags ");
+			shar_quote(&shar->work, p, 1);
+			archive_strcat(&shar->work, " ");
 			shar_quote(&shar->work,
 			    archive_entry_pathname(shar->entry), 1);
 			archive_strcat(&shar->work, "\n");
