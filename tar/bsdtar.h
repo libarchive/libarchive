@@ -11,16 +11,12 @@
 #include "bsdtar_platform.h"
 #include <stdio.h>
 
+#include "lafe_safe_fputs.h"
+
 #define	DEFAULT_BYTES_PER_BLOCK	(20*512)
 #define ENV_READER_OPTIONS	"TAR_READER_OPTIONS"
 #define ENV_WRITER_OPTIONS	"TAR_WRITER_OPTIONS"
 #define IGNORE_WRONG_MODULE_NAME "__ignore_wrong_module_name__,"
-
-#if defined(_MSC_VER ) && (_MSC_VER < 1927 )	/* Check if compiler pre-dated Visual Studio 2019 Release 16.8 */
-#define ARCHIVE_RESTRICT
-#else
-#define ARCHIVE_RESTRICT restrict
-#endif
 
 struct creation_set;
 /*
@@ -190,7 +186,6 @@ int	edit_pathname(struct bsdtar *, struct archive_entry *);
 void	edit_mtime(struct bsdtar *, struct archive_entry *);
 int	need_report(void);
 int	pathcmp(const char *a, const char *b);
-void	safe_fputs(const char * ARCHIVE_RESTRICT s, FILE * ARCHIVE_RESTRICT);
 void	set_chdir(struct bsdtar *, const char *newdir);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);

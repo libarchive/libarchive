@@ -67,6 +67,7 @@
 #include "cpio.h"
 #include "lafe_err.h"
 #include "lafe_explicit_bzero.h"
+#include "lafe_safe_fputs.h"
 #include "line_reader.h"
 #include "passphrase.h"
 
@@ -1032,8 +1033,10 @@ mode_in(struct cpio *cpio)
 		destpath = archive_entry_pathname(entry);
 		if (destpath == NULL)
 			continue;
-		if (cpio->verbose)
-			fprintf(stderr, "%s\n", destpath);
+		if (cpio->verbose) {
+			safe_fputs(destpath, stderr);
+			fputc('\n', stderr);
+		}
 		if (cpio->dot)
 			fprintf(stderr, ".");
 		if (cpio->uid_override >= 0)
@@ -1046,9 +1049,8 @@ mode_in(struct cpio *cpio)
 			archive_entry_set_gname(entry, cpio->gname_override);
 		r = archive_write_header(ext, entry);
 		if (r != ARCHIVE_OK) {
-			fprintf(stderr, "%s: %s\n",
-			    archive_entry_pathname(entry),
-			    archive_error_string(ext));
+			safe_fputs(archive_entry_pathname(entry), stderr);
+			fprintf(stderr, ": %s\n", archive_error_string(ext));
 			cpio->return_value = 1;
 		} else if (!archive_entry_size_is_set(entry)
 		    || archive_entry_size(entry) > 0) {
@@ -1147,8 +1149,10 @@ mode_list(struct cpio *cpio)
 			continue;
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);
-		else
-			fprintf(stdout, "%s\n", archive_entry_pathname(entry));
+		else {
+			safe_fputs(archive_entry_pathname(entry), stdout);
+			fputc('\n', stdout);
+		}
 	}
 	r = archive_read_close(a);
 	if (r != ARCHIVE_OK)
@@ -1248,17 +1252,20 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	else
 		strcpy(date, "invalid mtime");
 
-	fprintf(out, "%s%3u %-8s %-8s %8s %12s %s",
+	fprintf(out, "%s%3u %-8s %-8s %8s %12s ",
 	    archive_entry_strmode(entry),
 	    archive_entry_nlink(entry),
-	    uname, gname, size, date,
-	    archive_entry_pathname(entry));
+	    uname, gname, size, date);
+	safe_fputs(archive_entry_pathname(entry), out);
 
 	/* Extra information for links. */
-	if (archive_entry_hardlink(entry)) /* Hard link */
-		fprintf(out, " link to %s", archive_entry_hardlink(entry));
-	else if (archive_entry_symlink(entry)) /* Symbolic link */
-		fprintf(out, " -> %s", archive_entry_symlink(entry));
+	if (archive_entry_hardlink(entry)) { /* Hard link */
+		fprintf(out, " link to ");
+		safe_fputs(archive_entry_hardlink(entry), out);
+	} else if (archive_entry_symlink(entry)) { /* Symbolic link */
+		fprintf(out, " -> ");
+		safe_fputs(archive_entry_symlink(entry), out);
+	}
 	fprintf(out, "\n");
 }
 
@@ -1344,13 +1351,15 @@ cpio_rename(struct archive_entry *entry)
 		fclose(t);
 		return;
 	}
-	fprintf(to, "%s (Enter/./(new name))? ", archive_entry_pathname(entry));
+	safe_fputs(archive_entry_pathname(entry), to);
+	fprintf(to, " (Enter/./(new name))? ");
 	fclose(to);
 #else
 	t = fopen("/dev/tty", "r+");
 	if (t == NULL)
 		return;
-	fprintf(t, "%s (Enter/./(new name))? ", archive_entry_pathname(entry));
+	safe_fputs(archive_entry_pathname(entry), t);
+	fprintf(t, " (Enter/./(new name))? ");
 	fflush(t);
 #endif
 
