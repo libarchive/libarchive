@@ -25,6 +25,7 @@
 #include "test.h"
 
 #define MAGIC 123456789
+#define OPEN_ERROR_MESSAGE "Synthetic archive open failure"
 struct my_data {
 	int magic;
 	int read_return;
@@ -32,6 +33,7 @@ struct my_data {
 	int write_return;
 	int write_called;
 	int open_return;
+	int set_open_error;
 	int open_called;
 	int close_return;
 	int close_called;
@@ -64,9 +66,10 @@ static int
 my_open(struct archive *a, void *_private)
 {
 	struct my_data *private = (struct my_data *)_private;
-	(void)a; /* UNUSED */
 	assertEqualInt(MAGIC, private->magic);
 	++private->open_called;
+	if (private->set_open_error)
+		archive_set_error(a, EIO, OPEN_ERROR_MESSAGE);
 	return (private->open_return);
 }
 
@@ -89,13 +92,17 @@ DEFINE_TEST(test_open_failure)
 	memset(&private, 0, sizeof(private));
 	private.magic = MAGIC;
 	private.open_return = ARCHIVE_FATAL;
+	private.set_open_error = 1;
+	private.close_return = ARCHIVE_OK;
 	a = archive_read_new();
 	assert(a != NULL);
 	assertEqualInt(ARCHIVE_FATAL,
 	    archive_read_open(a, &private, my_open, my_read, my_close));
+	assertEqualInt(1, private.close_called);
+	assertEqualInt(EIO, archive_errno(a));
+	assertEqualString(OPEN_ERROR_MESSAGE, archive_error_string(a));
 	assertEqualInt(1, private.open_called);
 	assertEqualInt(0, private.read_called);
-	assertEqualInt(1, private.close_called);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	assertEqualInt(1, private.open_called);
 	assertEqualInt(0, private.read_called);
