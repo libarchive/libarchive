@@ -4175,3 +4175,79 @@ DEFINE_TEST(test_read_format_rar2_v20)
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * Regression test for a RAR 2.0 (UnpVer 20) file that is split across
+ * two volumes.
+ *
+ * The compressed member was produced by the reference RAR 2.0 encoder
+ * (unrar-compatible, Apache-2.0 "rars") from a synthetic 4,582,080 byte
+ * payload that is larger than the 4 MiB LZ window of the RAR 2.0
+ * decoder, so the decompression has to span multiple window-sized
+ * chunks.  It is also very match-heavy: it consists of 1110 blocks, each
+ * holding a 4070 byte run of the byte (block * 5) & 0xff followed by 58
+ * bytes of (block * 13 + j * 7) & 0xff, which compresses to a ~32 KiB
+ * member.  The member is split mid-stream between the two volumes, so a
+ * match that depends on the recent-distance / previous-match history or
+ * on the Huffman table state must survive the volume boundary.
+ *
+ * Before the fixes this archive produced garbage on the first volume
+ * (single-shot decode into the LZ window) and, once the split hit a
+ * recent-distance match, failed with "Truncated RAR file data" because
+ * the continuation-header handling cleared the RAR 2.0 decoder state.
+ */
+#define RAR2_MV_BLOCK_SIZE 4128
+#define RAR2_MV_RUN_LENGTH 4070
+
+static unsigned char
+rar2_mv_expected_byte(int64_t pos)
+{
+  int64_t block = pos / RAR2_MV_BLOCK_SIZE;
+  int64_t within = pos % RAR2_MV_BLOCK_SIZE;
+  if (within < RAR2_MV_RUN_LENGTH)
+    return (unsigned char)((block * 5) & 0xff);
+  return (unsigned char)((block * 13 + (within - RAR2_MV_RUN_LENGTH) * 7)
+    & 0xff);
+}
+
+DEFINE_TEST(test_read_format_rar2_v20_multivolume)
+{
+  const char *reffiles[] =
+  {
+    "test_read_format_rar2_v20_multivolume.part1.rar",
+    "test_read_format_rar2_v20_multivolume.part2.rar",
+    NULL
+  };
+  /* 1110 blocks * 4128 bytes. */
+  const int64_t expected_size = 1110 * RAR2_MV_BLOCK_SIZE;
+  unsigned char buff[65536];
+  int64_t off = 0, i;
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_files(reffiles);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_rar(a));
+  assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
+
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("mvt.bin", archive_entry_pathname(ae));
+  assertEqualInt(expected_size, archive_entry_size(ae));
+  assertEqualIntA(a, 0, archive_read_has_encrypted_entries(a));
+
+  while (off < expected_size)
+  {
+    int64_t got = archive_read_data(a, buff, sizeof(buff));
+    assert(got > 0);
+    for (i = 0; i < got; i++)
+      assertEqualInt(rar2_mv_expected_byte(off + i), buff[i]);
+    off += got;
+  }
+  assertEqualInt(0, archive_read_data(a, buff, sizeof(buff)));
+
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(1, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
