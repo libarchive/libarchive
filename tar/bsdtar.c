@@ -1127,7 +1127,7 @@ static const char *long_help_msg =
 	"  --uid #/--uname/--gid #/--gname/--owner/--group/--mode  Override ids\n"
 	"  --numeric-owner  Use numeric owner/group only\n"
 	"  --mtime <date>  Set modification times for added files\n"
-	"  --clamp-mtime  Only set mtimes for files newer than --mtime\n"
+	"  --clamp-mtime   Only set modification times for files newer than --mtime\n"
 	"  --newer/--newer-mtime/--older/--older-mtime <date>  Select by time\n"
 	"  --newer-than/--older-than <file>  Select by time of file\n"
 	"  --exclude-vcs  Exclude common VCS directories/files\n"
