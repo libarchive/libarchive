@@ -20,7 +20,7 @@ typedef int64_t la_seek_t;
 
 struct la_seek_stat {
 	int64_t		st_mtime;
-	ino_t		st_ino;
+	int64_t		st_ino;
 	unsigned short	st_mode;
 	uint32_t	st_nlink;
 	gid_t		st_gid;
