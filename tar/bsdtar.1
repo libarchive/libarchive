@@ -180,7 +180,7 @@ option is preferred.
 Ignored for compatibility with other
 .Xr tar 1
 implementations.
-.It Fl b Ar blocksize , Fl Fl block-size Ar blocksize
+.It Fl b Ar blocksize , Fl Fl block-size Ar blocksize , Fl Fl blocking-factor Ar blocksize
 Specify the block size, in 512-byte records, for tape drive I/O.
 As a rule, this argument is only needed when reading from or writing
 to tape drives, and usually not even then as the default block size of
@@ -315,6 +315,13 @@ target of the link will be archived, not the link itself.
 (c and r modes only)
 Synonym for
 .Fl L .
+If
+.Fl h
+is the only option given,
+.Nm
+shows the same help text as
+.Fl Fl help
+instead.
 .It Fl I
 Synonym for
 .Fl T .
@@ -462,7 +469,7 @@ for more information and examples of both types.
 Set the modification times of added files to the specified date.
 .It Fl n , Fl Fl norecurse , Fl Fl no-recursion
 Do not operate recursively on the content of directories.
-.It Fl Fl newer Ar date
+.It Fl Fl newer Ar date , Fl Fl newer-ctime Ar date
 (c, r, u modes only)
 Only include files and directories newer than the specified date.
 This compares ctime entries.
@@ -471,7 +478,7 @@ This compares ctime entries.
 Like
 .Fl Fl newer ,
 except it compares mtime entries instead of ctime entries.
-.It Fl Fl newer-than Pa file
+.It Fl Fl newer-than Pa file , Fl Fl newer-ctime-than Pa file
 (c, r, u modes only)
 Only include files and directories newer than the specified file.
 This compares ctime entries.
@@ -515,7 +522,7 @@ This is the reverse of
 and the default behavior if
 .Nm
 is run as non-root in x mode.
-.It Fl Fl no-mac-metadata
+.It Fl Fl no-mac-metadata , Fl Fl disable-copyfile
 (c, r, u and x mode only)
 Mac OS X specific.
 Do not archive or extract ACLs and extended file attributes
@@ -556,7 +563,7 @@ This is the reverse of
 and the default behavior if
 .Nm
 is run as non-root.
-.It Fl Fl no-xattrs
+.It Fl Fl no-xattrs , Fl Fl no-xattr
 (c, r, u, x modes only)
 Do not archive or extract extended file attributes.
 This is the reverse of
@@ -594,7 +601,7 @@ the archive will be discarded.
 (c, r, u mode)
 A synonym for
 .Fl Fl format Ar ustar
-.It Fl Fl older Ar date
+.It Fl Fl older Ar date , Fl Fl older-ctime Ar date
 (c, r, u modes only)
 Only include files and directories older than the specified date.
 This compares ctime entries.
@@ -603,7 +610,7 @@ This compares ctime entries.
 Like
 .Fl Fl older ,
 except it compares mtime entries instead of ctime entries.
-.It Fl Fl older-than Pa file
+.It Fl Fl older-than Pa file , Fl Fl older-ctime-than Pa file
 (c, r, u modes only)
 Only include files and directories older than the specified file.
 This compares ctime entries.
@@ -820,7 +827,7 @@ will refuse to extract archive entries whose pathnames contain
 .Pa ..
 or whose target directory would be altered by a symlink.
 This option suppresses these behaviors.
-.It Fl p , Fl Fl insecure , Fl Fl preserve-permissions
+.It Fl p , Fl Fl insecure , Fl Fl preserve-permissions , Fl Fl same-permissions
 (x mode only)
 Preserve file permissions.
 Attempt to restore the full permissions, including file modes, file attributes
