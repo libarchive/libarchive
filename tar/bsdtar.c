@@ -755,6 +755,9 @@ main(int argc, char **argv)
 		case OPTION_SAFE_WRITES:
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_SAFE_WRITES;
 			break;
+		case OPTION_SKIP_SYMLINKS:
+			bsdtar->flags |= OPTFLAG_SKIP_SYMLINKS;
+			break;
 		case OPTION_SAME_OWNER: /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 			break;
