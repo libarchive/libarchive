@@ -356,9 +356,163 @@ test_customized_multiple_data_objects(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+struct callback_source {
+  const unsigned char *data;
+  size_t size;
+  size_t offset;
+};
+
+static unsigned int callback_close_count;
+
+static la_ssize_t
+callback_source_read(struct archive *a, void *data, const void **buffer)
+{
+  struct callback_source *source = (struct callback_source *)data;
+  size_t remaining = source->size - source->offset;
+
+  (void)a;
+  if (remaining == 0) {
+    *buffer = NULL;
+    return (0);
+  }
+  *buffer = source->data + source->offset;
+  source->offset = source->size;
+  return ((la_ssize_t)remaining);
+}
+
+static int
+callback_source_close(struct archive *a, void *data)
+{
+  (void)a;
+  callback_close_count++;
+  free(data);
+  return (ARCHIVE_OK);
+}
+
+static void
+test_callback_data_closed_once(void)
+{
+  static const unsigned char first_data[] = "first";
+  static const unsigned char second_data[] = "second";
+  struct callback_source *first, *second;
+  struct archive_entry *entry;
+  struct archive *a;
+  char buffer[8];
+  int result;
+
+  callback_close_count = 0;
+  assert((a = archive_read_new()) != NULL);
+  assert((first = calloc(1, sizeof(*first))) != NULL);
+  assert((second = calloc(1, sizeof(*second))) != NULL);
+  first->data = first_data;
+  first->size = sizeof(first_data) - 1;
+  second->data = second_data;
+  second->size = sizeof(second_data) - 1;
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_append_callback_data(a, first));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_append_callback_data(a, second));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_read_callback(a, callback_source_read));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_close_callback(a, callback_source_close));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_open1(a));
+
+  while ((result = archive_read_next_header(a, &entry)) == ARCHIVE_OK)
+    while (archive_read_data(a, buffer, sizeof(buffer)) > 0)
+      ;
+  assertEqualIntA(a, ARCHIVE_EOF, result);
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+  assertEqualInt(2, callback_close_count);
+}
+
+
+struct reopen_source {
+  struct mydata source;
+  unsigned int opens;
+  unsigned int closes;
+};
+
+static int
+reopen_source_open(struct archive *a, void *data)
+{
+  struct reopen_source *source = (struct reopen_source *)data;
+  int unopened = source->source.fd < 0;
+  int result = file_open(a, &source->source);
+
+  if (unopened && source->source.fd >= 0)
+    source->opens++;
+  return (result);
+}
+
+static int
+reopen_source_close(struct archive *a, void *data)
+{
+  struct reopen_source *source = (struct reopen_source *)data;
+
+  if (source->source.fd >= 0)
+    source->closes++;
+  return (file_switch(a, &source->source, NULL));
+}
+
+static void
+test_reopened_callback_data_closed(void)
+{
+  static const char *reffiles[] = {
+    "test_rar_multivolume_single_file.part1.rar",
+    "test_rar_multivolume_single_file.part2.rar",
+    "test_rar_multivolume_single_file.part3.rar",
+    NULL
+  };
+  struct reopen_source sources[3];
+  struct archive_entry *entry;
+  struct archive *a;
+  char buffer[1024];
+  int i, result;
+
+  extract_reference_files(reffiles);
+  memset(sources, 0, sizeof(sources));
+  assert((a = archive_read_new()) != NULL);
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+  for (i = 0; i < 3; i++) {
+    sources[i].source.filename = strdup(reffiles[i]);
+    sources[i].source.fd = -1;
+    assertEqualIntA(a, ARCHIVE_OK,
+        archive_read_append_callback_data(a, &sources[i]));
+  }
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_open_callback(a, reopen_source_open));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_read_callback(a, file_read));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_seek_callback(a, file_seek));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_close_callback(a, reopen_source_close));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_open1(a));
+
+  while ((result = archive_read_next_header(a, &entry)) == ARCHIVE_OK)
+    while (archive_read_data(a, buffer, sizeof(buffer)) > 0)
+      ;
+  assertEqualIntA(a, ARCHIVE_EOF, result);
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+  for (i = 0; i < 3; i++) {
+    /* Format bidding seeks backwards and reopens the split sources. */
+    assert(sources[i].opens > 1);
+    assertEqualInt(sources[i].opens, sources[i].closes);
+    assertEqualInt(-1, sources[i].source.fd);
+    file_switch(NULL, &sources[i].source, NULL);
+    free(sources[i].source.filename);
+  }
+}
+
 DEFINE_TEST(test_archive_read_multiple_data_objects)
 {
   test_splitted_file();
   test_large_splitted_file();
   test_customized_multiple_data_objects();
+  test_callback_data_closed_once();
+  test_reopened_callback_data_closed();
 }
