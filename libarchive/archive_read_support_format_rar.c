@@ -3530,6 +3530,13 @@ parse_codes20(struct archive_read *a)
     memset(rar->lzss.window, 0, rar->dictionary_size);
     rar->lzss.mask = rar->dictionary_size - 1;
   }
+  /*
+   * The window may already be large enough, for example for the second
+   * member of an archive.  read_data_compressed() relies on
+   * dictionary_size being nonzero even when no allocation was needed,
+   * so always publish the actual window size here.
+   */
+  rar->dictionary_size = (unsigned int)(rar->lzss.mask + 1);
 
   rar->start_new_table = 0;
   return (ARCHIVE_OK);

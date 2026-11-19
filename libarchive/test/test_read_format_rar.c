@@ -4251,3 +4251,48 @@ DEFINE_TEST(test_read_format_rar2_v20_multivolume)
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * Regression test for an archive with more than one compressed RAR 2.0
+ * (UnpVer 20) member.
+ *
+ * read_header() resets the per-file dictionary size, but parse_codes20()
+ * only used to set it while allocating the LZ window.  For the second
+ * member the window was already large enough, so the size stayed zero
+ * and read_data_compressed() spun forever without ever reaching EOF.
+ * Both members must now decode and the second one must finish.
+ */
+DEFINE_TEST(test_read_format_rar2_v20_multimember)
+{
+  const char reffile[] = "test_read_format_rar2_v20_multimember.rar";
+  const char expected_a[] = "This is a.txt, the first member.\n";
+  const char expected_b[] = "And this is b.txt, the second one.\n";
+  char buff[128];
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_rar(a));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("a.txt", archive_entry_pathname(ae));
+  assertEqualInt(sizeof(expected_a) - 1, archive_entry_size(ae));
+  assertEqualIntA(a, sizeof(expected_a) - 1,
+      archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, expected_a, sizeof(expected_a) - 1);
+
+  assertA(0 == archive_read_next_header(a, &ae));
+  assertEqualString("b.txt", archive_entry_pathname(ae));
+  assertEqualInt(sizeof(expected_b) - 1, archive_entry_size(ae));
+  assertEqualIntA(a, sizeof(expected_b) - 1,
+      archive_read_data(a, buff, sizeof(buff)));
+  assertEqualMem(buff, expected_b, sizeof(expected_b) - 1);
+
+  assertA(1 == archive_read_next_header(a, &ae));
+  assertEqualInt(2, archive_file_count(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
