@@ -207,10 +207,12 @@ archive_read_format_warc_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
 #define HDR_PROBE_LEN		(12U)
+#define HDR_MAX_LEN		(1024 * 1024)
 	struct warc *warc = a->format->data;
 	unsigned int ver;
 	const char *buf;
 	ssize_t nrd;
+	size_t len, scanned;
 	const char *eoh;
 	/* WARC record type */
 	warc_type_t ftyp;
@@ -237,14 +239,21 @@ start_over:
 		 * must be EOF therefore */
 		return (ARCHIVE_EOF);
 	}
-	/* Locate the end of the record header. */
-	eoh = warc_find_eoh(buf, nrd);
-	if (eoh == NULL) {
-		/* The header terminator was not found in the probed data. */
-		archive_set_error(
-			&a->archive, ARCHIVE_ERRNO_MISC,
-			"Bad record header");
-		return (ARCHIVE_FATAL);
+	scanned = 0;
+	for (;;) {
+		len = (size_t)nrd < HDR_MAX_LEN ? (size_t)nrd : HDR_MAX_LEN;
+		eoh = warc_find_eoh(buf + scanned, len - scanned);
+		if (eoh != NULL)
+			break;
+		if (len >= HDR_MAX_LEN ||
+		    (buf = __archive_read_ahead(a, len + 1, &nrd)) == NULL) {
+			/* The header terminator was not found. */
+			archive_set_error(
+				&a->archive, ARCHIVE_ERRNO_MISC,
+				"Bad record header");
+			return (ARCHIVE_FATAL);
+		}
+		scanned = len > 3 ? len - 3 : 0;
 	}
 	ver = warc_read_version(buf, eoh - buf);
 	/* Only WARC 0.12 through WARC 1.0 are supported. */
