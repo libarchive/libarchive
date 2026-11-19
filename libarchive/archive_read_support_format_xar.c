@@ -3227,17 +3227,26 @@ xml2_read_cb(void *context, char *buffer, int len)
 	size_t used = 0;
 	int r;
 
-	if (xar->toc_remaining <= 0)
-		return (0);
-	d = buffer;
-	outbytes = len;
-	r = rd_contents(a, &d, &outbytes, &used, xar->toc_remaining);
-	if (r != ARCHIVE_OK)
-		return (r);
-	__archive_read_consume(a, used);
-	xar->toc_remaining -= used;
-	xar->offset += used;
-	xar->toc_total += outbytes;
+	/*
+	 * libxml2 takes a return value of 0 as the end of the input, so
+	 * keep going until the decompressor produces some output.  It may
+	 * consume input without producing output, e.g. when only part of
+	 * a deflate block header is available.
+	 */
+	do {
+		if (xar->toc_remaining <= 0)
+			return (0);
+		d = buffer;
+		outbytes = len;
+		used = 0;
+		r = rd_contents(a, &d, &outbytes, &used, xar->toc_remaining);
+		if (r != ARCHIVE_OK)
+			return (r);
+		__archive_read_consume(a, used);
+		xar->toc_remaining -= used;
+		xar->offset += used;
+		xar->toc_total += outbytes;
+	} while (outbytes == 0);
 	PRINT_TOC(buffer, len);
 
 	return ((int)outbytes);
