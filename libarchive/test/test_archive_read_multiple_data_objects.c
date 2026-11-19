@@ -356,9 +356,118 @@ test_customized_multiple_data_objects(void)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+struct memory_source {
+  const char *data;
+  size_t size;
+  size_t offset;
+};
+
+static int memory_opens, memory_closes;
+
+static int
+memory_open(struct archive *a, void *data)
+{
+  (void)a;
+  (void)data;
+  memory_opens++;
+  return (ARCHIVE_OK);
+}
+
+static ssize_t
+memory_read(struct archive *a, void *data, const void **buff)
+{
+  struct memory_source *source = (struct memory_source *)data;
+  size_t remaining = source->size - source->offset;
+
+  (void)a;
+  *buff = source->data + source->offset;
+  source->offset = source->size;
+  return ((ssize_t)remaining);
+}
+
+static int
+memory_close(struct archive *a, void *data)
+{
+  (void)a;
+  (void)data;
+  memory_closes++;
+  return (ARCHIVE_OK);
+}
+
+/*
+ * Without a switch callback, several data objects cannot be combined with
+ * open or close callbacks: the close callback would run once at each switch
+ * and again at teardown.  archive_read_open1() rejects that configuration
+ * before invoking any callback.
+ */
+static void
+test_no_switch_callback_rejected(void)
+{
+  struct memory_source sources[2] = {{"first", 5, 0}, {"second", 6, 0}};
+  struct archive *a;
+  int i;
+
+  for (i = 0; i < 3; i++) {
+    memory_opens = memory_closes = 0;
+    assert((a = archive_read_new()) != NULL);
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+    assertEqualIntA(a, ARCHIVE_OK,
+        archive_read_append_callback_data(a, &sources[0]));
+    assertEqualIntA(a, ARCHIVE_OK,
+        archive_read_append_callback_data(a, &sources[1]));
+    assertEqualIntA(a, ARCHIVE_OK,
+        archive_read_set_read_callback(a, memory_read));
+    if (i != 1)
+      assertEqualIntA(a, ARCHIVE_OK,
+          archive_read_set_open_callback(a, memory_open));
+    if (i != 0)
+      assertEqualIntA(a, ARCHIVE_OK,
+          archive_read_set_close_callback(a, memory_close));
+    assertEqualIntA(a, ARCHIVE_FATAL, archive_read_open1(a));
+    assert(archive_error_string(a) != NULL &&
+        strstr(archive_error_string(a), "switch callback") != NULL);
+    assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+    failure("configuration %d", i);
+    assertEqualInt(0, memory_opens);
+    failure("configuration %d", i);
+    assertEqualInt(0, memory_closes);
+  }
+}
+
+/* Several data objects with only a read callback still work. */
+static void
+test_no_switch_callback_read_only(void)
+{
+  struct memory_source sources[2] = {{"first", 5, 0}, {"second", 6, 0}};
+  struct archive_entry *ae;
+  struct archive *a;
+  char buff[16];
+  ssize_t bytes;
+  size_t total = 0;
+
+  assert((a = archive_read_new()) != NULL);
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_append_callback_data(a, &sources[0]));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_append_callback_data(a, &sources[1]));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_set_read_callback(a, memory_read));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_open1(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  while (total < sizeof(buff) &&
+      (bytes = archive_read_data(a, buff + total, sizeof(buff) - total)) > 0)
+    total += (size_t)bytes;
+  assertEqualInt(11, (int)total);
+  assertEqualMem(buff, "firstsecond", 11);
+  assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_archive_read_multiple_data_objects)
 {
   test_splitted_file();
   test_large_splitted_file();
   test_customized_multiple_data_objects();
+  test_no_switch_callback_rejected();
+  test_no_switch_callback_read_only();
 }
