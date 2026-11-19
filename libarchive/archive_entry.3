@@ -124,6 +124,18 @@ using the current locale.
 Similarly, if you store a wide string and then store a
 narrow string for the same data, the previously-set wide string will
 be discarded in favor of the new data.
+.Pp
+Strings returned by the accessor functions are owned by the
+.Tn struct archive_entry
+object.
+They remain valid until the corresponding field is changed,
+until the object is cleared with
+.Fn archive_entry_clear ,
+or until the object is freed with
+.Fn archive_entry_free .
+The caller must not free them.
+An application that needs to keep a string after the entry is modified
+or released must make its own copy.
 .\" .Sh EXAMPLE
 .\" .Sh RETURN VALUES
 .\" .Sh ERRORS
