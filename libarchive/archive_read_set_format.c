@@ -78,6 +78,9 @@ archive_read_set_format(struct archive *_a, int code)
     case ARCHIVE_FORMAT_RAR_V5:
       str = "rar5";
       break;
+    case ARCHIVE_FORMAT_UC2:
+      str = "uc2";
+      break;
     case ARCHIVE_FORMAT_RAW:
       str = "raw";
       break;

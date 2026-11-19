@@ -458,6 +458,14 @@ Currently, libarchive can read RARv3 format archives
 which have been either created uncompressed, or compressed using
 any of the compression methods supported by the RARv3 format.
 Libarchive can also read self-extracting RAR archives.
+.Ss UC2
+Libarchive can read historical UltraCompressor II archives when built with
+the optional shared LGPL libuc2read dependency.
+Huffman, delta and Turbo data and custom dictionaries are supported.
+Encryption, volume reassembly, self-extracting programs, PCP,
+rANS and shared-chunk extensions are not supported.
+The reader spools the complete input stream and each decoded entry to
+bounded temporary files. See doc/uc2-reader.md for build options and limits.
 .Ss Warc
 Libarchive can read and write
 .Dq web archives .

@@ -493,6 +493,25 @@ if test "x$with_iconv" != "xno"; then
   fi
 fi
 
+AC_ARG_WITH([uc2read],
+  AS_HELP_STRING([--with-uc2read], [Enable legacy UC2 via LGPL libuc2read]),
+  [], [with_uc2read=no])
+if test "x$with_uc2read" = "xyes"; then
+  PKG_CHECK_MODULES(UC2READ, [libuc2read >= 3.0.0])
+  dnl The published dependency is shared-only. Refuse explicit static overrides.
+  for uc2read_flag in $UC2READ_LIBS; do
+    AS_CASE([$uc2read_flag], [*.dll.a], [], [*.a|-static|-Wl,-Bstatic],
+      [AC_MSG_ERROR([UC2 requires the shared libuc2read dependency])])
+  done
+  CPPFLAGS="${CPPFLAGS} ${UC2READ_CFLAGS}"
+  LIBS="${LIBS} ${UC2READ_LIBS}"
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <uc2/libuc2.h>]],
+    [[struct uc2_io io = {0}; uc2_handle h = uc2_open(&io, 0); uc2_close(h);]])],
+    [], [AC_MSG_ERROR([libuc2read reader API does not link])])
+  LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libuc2read"
+  AC_DEFINE(HAVE_LIBUC2READ, [1], [Define to 1 for the optional LGPL UC2 reader.])
+fi
+
 AC_ARG_WITH([lz4],
   AS_HELP_STRING([--without-lz4], [Don't build support for lz4 through liblz4]))
 
