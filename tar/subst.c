@@ -65,13 +65,46 @@ is_escaped(const char *start, const char *delim)
 	return (escaped);
 }
 
+static char *
+unescape(const char *start, const char *end, char delim)
+{
+	char *p, *result;
+	const char *q;
+
+	result = malloc(end - start + 1);
+	if (result == NULL)
+		lafe_errc(1, errno, "Out of memory");
+	p = result;
+	q = start;
+	while (q < end) {
+		/*
+		 * Only drop the backslash of an escaped delimiter.
+		 * Any other escape (e.g. \~, \1, \\) is kept intact.
+		 */
+		if (*q == '\\' && delim != '\\') {
+			if (q + 1 == end) {
+				free(result);
+				return NULL;
+			}
+			if (q[1] == delim)
+				q++;
+			else
+				*p++ = *q++;
+		}
+		*p++ = *q++;
+	}
+	*p = '\0';
+
+	return (result);
+}
+
 void
 add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 {
 	struct subst_rule *rule;
 	struct substitution *subst;
-	const char *end_pattern, *q, *start_subst;
-	char *pattern, *p;
+	const char *end_pattern, *start_subst;
+	char *pattern;
 	int r;
 
 	if ((subst = bsdtar->substitution) == NULL) {
@@ -94,17 +127,21 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 	const char delim = *rule_text;
 	if (delim == '\0')
 		lafe_errc(1, 0, "Empty replacement string");
-	end_pattern = strchr(rule_text + 1, delim);
-	if (end_pattern == NULL)
-		lafe_errc(1, 0, "Invalid replacement string \"%s\": "
-		    "missing closing delimiter '%c' after pattern",
-		    rule_text, delim);
+	end_pattern = rule_text;
+	do {
+		end_pattern = strchr(end_pattern + 1, delim);
+		if (end_pattern == NULL)
+			lafe_errc(1, 0, "Invalid replacement string \"%s\": "
+			    "missing closing delimiter '%c' after pattern",
+			    rule_text, delim);
+	} while (is_escaped(rule_text + 1, end_pattern));
 
-	pattern = malloc(end_pattern - rule_text);
-	if (pattern == NULL)
-		lafe_errc(1, errno, "Out of memory");
-	memcpy(pattern, rule_text + 1, end_pattern - rule_text - 1);
-	pattern[end_pattern - rule_text - 1] = '\0';
+	pattern = unescape(rule_text + 1, end_pattern, delim);
+	if (pattern == NULL) {
+		lafe_errc(1, 0, "Invalid replacement string "
+		    "\"%s\": missing closing delimiter '%c' "
+		    "after pattern", rule_text, delim);
+	}
 
 	if ((r = regcomp(&rule->re, pattern, REG_BASIC)) != 0) {
 		char buf[80];
@@ -122,30 +159,12 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 			    rule_text, delim);
 	} while (is_escaped(start_subst, end_pattern));
 
-	rule->result = malloc(end_pattern - start_subst + 1);
-	if (rule->result == NULL)
-		lafe_errc(1, errno, "Out of memory");
-	p = rule->result;
-	q = start_subst;
-	while (q < end_pattern) {
-		/*
-		 * Only drop the backslash of an escaped delimiter.
-		 * Any other escape (\~, \1, \\) is kept intact for
-		 * apply_substitution to interpret.
-		 */
-		if (*q == '\\' && delim != '\\') {
-			if (q + 1 == end_pattern)
-				lafe_errc(1, 0, "Invalid replacement string "
-				    "\"%s\": missing closing delimiter '%c' "
-				    "after replacement", rule_text, delim);
-			if (q[1] == delim)
-				q++;
-			else
-				*p++ = *q++;
-		}
-		*p++ = *q++;
+	rule->result = unescape(start_subst, end_pattern, delim);
+	if (rule->result == NULL) {
+		lafe_errc(1, 0, "Invalid replacement string "
+		    "\"%s\": missing closing delimiter '%c' "
+		    "after replacement", rule_text, delim);
 	}
-	*p = '\0';
 
 	/* Defaults */
 	rule->global = 0; /* Don't do multiple replacements. */
