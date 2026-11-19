@@ -1111,7 +1111,7 @@ mode_list(struct cpio *cpio)
 {
 	struct archive *a;
 	struct archive_entry *entry;
-	int r;
+	int flush_failed, r;
 
 	a = archive_read_new();
 	if (a == NULL)
@@ -1150,6 +1150,12 @@ mode_list(struct cpio *cpio)
 		else
 			fprintf(stdout, "%s\n", archive_entry_pathname(entry));
 	}
+	flush_failed = fflush(stdout) != 0;
+	if (flush_failed || ferror(stdout)) {
+		lafe_warnc(flush_failed && errno != 0 ? errno : EIO,
+		    "Error writing to stdout");
+		cpio->return_value = 1;
+	}
 	r = archive_read_close(a);
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(a));
@@ -1160,7 +1166,7 @@ mode_list(struct cpio *cpio)
 		    blocks == 1 ? "block" : "blocks");
 	}
 	archive_read_free(a);
-	exit(0);
+	exit(cpio->return_value);
 }
 
 /*
