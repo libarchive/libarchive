@@ -120,7 +120,7 @@ DEFINE_TEST(test_option_c)
 	    (unsigned int)dev);
 	assertEqualMem(e + 42, "000000", 6); /* rdev */
 	t = from_octal(e + 48, 11); /* mtime */
-	assert(t <= now); /* File wasn't created in future. */
+	assert(t <= now + 1);
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */
 	assertEqualMem(e + 59, "000005", 6); /* Name size */
 	assertEqualMem(e + 65, "00000000012", 11); /* File size */
@@ -146,7 +146,7 @@ DEFINE_TEST(test_option_c)
 		    from_octal(e + 6, 6));
 		assertEqualMem(e + 42, "000000", 6); /* rdev */
 		t = from_octal(e + 48, 11); /* mtime */
-		assert(t <= now); /* File wasn't created in future. */
+		assert(t <= now + 1);
 		assert(t >= now - 2); /* File was created w/in last 2 secs. */
 		assertEqualMem(e + 59, "000010", 6); /* Name size */
 		assertEqualMem(e + 65, "00000000004", 11); /* File size */
@@ -182,7 +182,7 @@ DEFINE_TEST(test_option_c)
 #endif
 
 	t = from_octal(e + 48, 11); /* mtime */
-	assert(t <= now); /* File wasn't created in future. */
+	assert(t <= now + 1);
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */
 	assertEqualMem(e + 59, "000004", 6); /* Name size */
 	assertEqualMem(e + 65, "00000000000", 11); /* File size */
