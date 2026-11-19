@@ -7065,9 +7065,10 @@ isoent_make_path_table(struct archive_write *a)
 	if (iso9660->opt.joliet)
 		isoent_collect_dirs(&(iso9660->joliet), NULL, 0);
 	/*
-	 * Rockridge; move deeper depth directories to rr_moved.
+	 * Rockridge; move deeper depth directories to rr_moved,
+	 * unless the depth limit is lifted and they can stay put.
 	 */
-	if (iso9660->opt.rr) {
+	if (iso9660->opt.rr && iso9660->primary.max_depth <= MAX_DEPTH) {
 		r = isoent_rr_move(a);
 		if (r < 0)
 			return (r);
