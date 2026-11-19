@@ -392,7 +392,11 @@ file_open(struct archive *a, void *client_data)
 
 	/* Disk-like devices prefer power-of-two block sizes.  */
 	/* Use provided block_size as a guide so users have some control. */
-	if (is_disk_like) {
+	/* Pipes get the same larger buffer: a read() from a pipe returns
+	 * whatever is available, so the buffer size has no effect on the
+	 * data, but the small tar default (10 KiB) costs one read() per
+	 * 10 KiB of input. */
+	if (is_disk_like || S_ISFIFO(st.st_mode)) {
 		size_t new_block_size = 64 * 1024;
 		while (new_block_size < mine->block_size
 		    && new_block_size < 64 * 1024 * 1024)
