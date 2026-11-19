@@ -238,6 +238,8 @@ This limits file size to 4GB, and also limits the mtime and
 other fields to 32 bits.
 The SVR4 format can optionally include a CRC of the file
 contents, although libarchive does not currently verify this CRC.
+The libarchive library can also read the 64-bit variant of the
+CRC format used by SWUpdate for files of 4GB and more.
 .El
 .Pp
 Cpio first appeared in PWB/UNIX 1.0, which was released within
