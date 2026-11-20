@@ -159,7 +159,7 @@ test_cpio_truncated(int (*set_format)(struct archive *), size_t header_size)
 	assertEqualIntA(a, 11, archive_write_data(a, "hello world", 11));
 	archive_entry_clear(ae);
 	archive_entry_copy_pathname(ae, "link1");
-	archive_entry_set_mode(ae, S_IFLNK | 0777);
+	archive_entry_set_mode(ae, AE_IFLNK | 0777);
 	archive_entry_copy_symlink(ae, "file1");
 	archive_entry_set_size(ae, 0);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
