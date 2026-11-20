@@ -946,6 +946,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_archive_properties.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_header.7z.uu \
+	libarchive/test/test_read_format_7zip_encryption_middle.7z.uu \
 	libarchive/test/test_read_format_7zip_encryption_partially.7z.uu \
 	libarchive/test/test_read_format_7zip_entries_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_folders_oom.7z.uu \
@@ -971,6 +972,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_7zip_malformed2.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed3.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed4.7z.uu \
+	libarchive/test/test_read_format_7zip_malformed5.7z.uu \
 	libarchive/test/test_read_format_7zip_malformed_numfiles_oom.7z.uu \
 	libarchive/test/test_read_format_7zip_null_client_next.7z.uu \
 	libarchive/test/test_read_format_7zip_packinfo_digests.7z.uu \
