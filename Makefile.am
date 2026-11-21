@@ -714,6 +714,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_7zip_large.c \
 	libarchive/test/test_write_format_ar.c \
 	libarchive/test/test_write_format_cpio.c \
+	libarchive/test/test_write_format_cpio_bin_uid.c \
 	libarchive/test/test_write_format_cpio_empty.c \
 	libarchive/test/test_write_format_cpio_newc.c \
 	libarchive/test/test_write_format_cpio_odc.c \

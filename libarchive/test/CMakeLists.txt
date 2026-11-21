@@ -337,6 +337,7 @@ IF(ENABLE_TEST)
     test_write_format_7zip_large.c
     test_write_format_ar.c
     test_write_format_cpio.c
+    test_write_format_cpio_bin_uid.c
     test_write_format_cpio_empty.c
     test_write_format_cpio_newc.c
     test_write_format_cpio_odc.c
