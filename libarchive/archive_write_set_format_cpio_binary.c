@@ -445,6 +445,13 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	}
 	h.h_mode = la_swap16(h.h_mode);
 
+	if (archive_entry_uid(entry) < 0 || archive_entry_uid(entry) > 0xffff ||
+	    archive_entry_gid(entry) < 0 || archive_entry_gid(entry) > 0xffff) {
+		archive_set_error(&a->archive, ERANGE,
+		    "Numeric user or group ID out of range for binary cpio format");
+		ret_final = ARCHIVE_FAILED;
+		goto exit_write_header;
+	}
 	h.h_uid = la_swap16((uint16_t)archive_entry_uid(entry));
 	h.h_gid = la_swap16((uint16_t)archive_entry_gid(entry));
 	h.h_nlink = la_swap16((uint16_t)archive_entry_nlink(entry));
