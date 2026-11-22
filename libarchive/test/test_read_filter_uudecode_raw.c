@@ -150,3 +150,54 @@ DEFINE_TEST(test_read_filter_uudecode_invalid_mode)
 	/* No name. */
 	check_header("begin 644 \n#:&D*\n`\nend\n", NULL, 0);
 }
+
+DEFINE_TEST(test_read_filter_uudecode_encoded_name)
+{
+	/* Names with two, one and no base64 padding characters. */
+	check_header("begin-encoded 644 YQ==\n#:&D*\n`\nend\n", "a", 0644);
+	check_header("begin-encoded 640 YWI=\n#:&D*\n`\nend\n", "ab", 0640);
+	check_header("begin-encoded 755 YWJj\n#:&D*\n`\nend\n", "abc", 0755);
+
+	/* The filename always uses base64, independently of the body. */
+	check_header("begin-base64-encoded 600 csOpc3Vtw6kgdGV4dC50eHQ=\n"
+	    "aGkK\n====\n", "r\xc3\xa9sum\xc3\xa9 text.txt", 0600);
+	check_header("begin-encoded-base64 0644 YQ==\naGkK\n====\n", "a", 0644);
+}
+
+DEFINE_TEST(test_read_filter_uudecode_invalid_encoded_name)
+{
+	const char *names[] = {"YQ=", "Y$==", "Y=Q=", "YQ==YQ==", "AA=="};
+	struct archive *a;
+	char data[128];
+	size_t i;
+	int b64;
+
+	/* Reject invalid padding, invalid characters and decoded NUL bytes. */
+	for (b64 = 0; b64 < 2; ++b64) {
+		for (i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+			snprintf(data, sizeof(data), "begin%s-encoded 644 %s\n%s",
+			    b64 ? "-base64" : "", names[i],
+			    b64 ? "aGkK\n====\n" : "#:&D*\n`\nend\n");
+			assert((a = archive_read_new()) != NULL);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_filter_all(a));
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_format_raw(a));
+			assertEqualIntA(a, ARCHIVE_FATAL,
+			    archive_read_open_memory(a, data, strlen(data)));
+			assertEqualString("Invalid base64-encoded filename",
+			    archive_error_string(a));
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		}
+	}
+}
+
+DEFINE_TEST(test_read_filter_uudecode_invalid_suffix)
+{
+	check_header("begin-encoded-encoded 644 YQ==\n#:&D*\n`\nend\n",
+	    NULL, 0);
+	check_header("begin-base64-base64 644 a\naGkK\n====\n", NULL, 0);
+	check_header("begin-unknown 644 a\n#:&D*\n`\nend\n", NULL, 0);
+	check_header("begin-encoded 648 YQ==\n#:&D*\n`\nend\n", NULL, 0);
+	check_header("begin-encoded 644 \n#:&D*\n`\nend\n", NULL, 0);
+}
