@@ -74,7 +74,7 @@ test_format(int (*set_format)(struct archive *))
 	archive_entry_free(ae);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Only the entry that fits was written. */
 	assert((a = archive_read_new()) != NULL);
@@ -86,7 +86,7 @@ test_format(int (*set_format)(struct archive *))
 	assertEqualInt(65535, archive_entry_gid(ae));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_write_format_cpio_bin_uid)
