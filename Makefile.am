@@ -544,6 +544,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_gtar_sparse_length.c \
 	libarchive/test/test_read_format_gtar_sparse_skip_entry.c \
 	libarchive/test/test_read_format_huge_rpm.c \
+	libarchive/test/test_read_format_iso9660_reserved.c \
 	libarchive/test/test_read_format_iso_Z.c \
 	libarchive/test/test_read_format_iso_joliet_utf16be_cycle.c \
 	libarchive/test/test_read_format_iso_joliet_utf16be_overflow.c \
