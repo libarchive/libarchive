@@ -260,28 +260,47 @@ read_line_ahead(struct archive_read_filter *f, ssize_t parsed,
 #define UUDECODE(c) (((c) - 0x20) & 0x3f)
 
 /*
- * Parses the header line of a uuencoded file, "begin <mode> <name>", or of
- * a base64 encoded file, "begin-base64 <mode> <name>". The mode is a
+ * Parses "begin[-base64][-encoded] <mode> <name>". The GNU "-encoded"
+ * extension indicates a base64 encoded filename, regardless of the body
+ * encoding. The two suffixes may occur in either order. The mode is a
  * sequence of at least three octal digits: encoders don't all write the same
  * number of them, for example 644, 0644 or 4755 for the same kind of file.
  *
- * Returns the length of the "begin " or "begin-base64 " prefix, or 0 if the
- * line is not a header. Stores the permission bits of the mode in *mode and
- * the offset of the name in *name_offset, unless they are NULL.
+ * Returns ST_READ_UU or ST_READ_BASE64, or 0 if the line is not a header.
+ * Stores the permission bits in *mode, the offset of the name in
+ * *name_offset and whether the name is encoded in *encoded_name, unless
+ * they are NULL.
  */
-static size_t
+static int
 parse_header(const unsigned char *p, size_t len, mode_t *mode,
-    size_t *name_offset)
+    size_t *name_offset, int *encoded_name)
 {
 	size_t i, l;
 	mode_t m;
+	int state = ST_READ_UU;
+	int encoded = 0;
 
-	if (len >= 6 && memcmp(p, "begin ", 6) == 0)
-		l = 6;
-	else if (len >= 13 && memcmp(p, "begin-base64 ", 13) == 0)
-		l = 13;
-	else
+	if (len < 6 || memcmp(p, "begin", 5) != 0)
 		return (0);
+	l = 5;
+	while (l < len && p[l] == '-') {
+		if (len - l >= 7 && memcmp(p + l, "-base64", 7) == 0) {
+			if (state == ST_READ_BASE64)
+				return (0);
+			state = ST_READ_BASE64;
+			l += 7;
+		} else if (len - l >= 8 &&
+		    memcmp(p + l, "-encoded", 8) == 0) {
+			if (encoded)
+				return (0);
+			encoded = 1;
+			l += 8;
+		} else
+			return (0);
+	}
+	if (l >= len || p[l] != ' ')
+		return (0);
+	++l;
 
 	m = 0;
 	for (i = l; i < len && p[i] >= '0' && p[i] <= '7'; i++)
@@ -298,7 +317,44 @@ parse_header(const unsigned char *p, size_t len, mode_t *mode,
 		*mode = m;
 	if (name_offset != NULL)
 		*name_offset = i + 1;
-	return (l);
+	if (encoded_name != NULL)
+		*encoded_name = encoded;
+	return (state);
+}
+
+/* Decode a GNU encoded filename in place. */
+static int
+decode_name(char *name, size_t len)
+{
+	unsigned char *p = (unsigned char *)name;
+	unsigned char *out = p;
+	unsigned int value = 0;
+	int bits = 0;
+	size_t i;
+
+	if (len == 0 || len % 4 != 0)
+		return (0);
+	if (p[len - 1] == '=') {
+		--len;
+		if (p[len - 1] == '=')
+			--len;
+	}
+	for (i = 0; i < len; ++i) {
+		if (p[i] > 127 || !base64[p[i]] || p[i] == '=')
+			return (0);
+		value = (value << 6) | base64num[p[i]];
+		bits += 6;
+		if (bits >= 8) {
+			bits -= 8;
+			*out = (unsigned char)(value >> bits);
+			value &= (1U << bits) - 1;
+			/* A filename cannot contain a NUL byte. */
+			if (*out++ == '\0')
+				return (0);
+		}
+	}
+	*out = '\0';
+	return (1);
 }
 
 static int
@@ -308,7 +364,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *b,
 	struct uu_bidder *data = b->data;
 	const unsigned char *p;
 	size_t l;
-	int firstline;
+	int firstline, state;
 	size_t len, offset;
 	ssize_t unconsumed;
 
@@ -322,8 +378,8 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *b,
 			return (0); /* No match found. */
 		offset += unconsumed;
 
-		l = parse_header(p, len, NULL, NULL);
-		if (l != 0)
+		state = parse_header(p, len, NULL, NULL, NULL);
+		if (state != 0)
 			break;
 		firstline = 0;
 	}
@@ -331,7 +387,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *b,
 	if (p == NULL)
 		return (0); /* No match found. */
 
-	if (l == 6) {
+	if (state == ST_READ_UU) {
 		/* "begin " */
 		if (!uuchar[*p])
 			return (0);
@@ -364,7 +420,7 @@ uudecode_bidder_bid(struct archive_read_filter_bidder *b,
 			data->name = "uu";
 			return (firstline+30);
 		}
-	} else if (l == 13) {
+	} else if (state == ST_READ_BASE64) {
 		int bid = 0;
 
 		/* "begin-base64 " */
@@ -467,6 +523,7 @@ uudecode_filter_read(struct archive_read_filter *f, const void **buff)
 		ssize_t namelen;
 		size_t len, name_offset;
 		mode_t mode;
+		int state, encoded_name;
 
 		b = read_line_ahead(f->upstream, total, 0,
 		    &len, &unconsumed);
@@ -496,12 +553,10 @@ uudecode_filter_read(struct archive_read_filter *f, const void **buff)
 		default:
 			break;
 		case ST_FIND_HEAD:
-			l = parse_header(b, len, &mode, &name_offset);
-			if (l != 0) {
-				if (l == 6)
-					uu->state = ST_READ_UU;
-				else
-					uu->state = ST_READ_BASE64;
+			state = parse_header(b, len, &mode, &name_offset,
+			    &encoded_name);
+			if (state != 0) {
+				uu->state = state;
 				uu->mode = mode;
 				uu->mode_set = 1;
 				namelen = len - name_offset;
@@ -519,6 +574,14 @@ uudecode_filter_read(struct archive_read_filter *f, const void **buff)
 					    (const char *)(b + name_offset),
 					    namelen);
 					uu->name[namelen] = '\0';
+					if (encoded_name &&
+					    !decode_name(uu->name, namelen)) {
+						archive_set_error(
+						    &f->archive->archive,
+						    ARCHIVE_ERRNO_FILE_FORMAT,
+						    "Invalid base64-encoded filename");
+						return (ARCHIVE_FATAL);
+					}
 				}
 			}
 			break;
