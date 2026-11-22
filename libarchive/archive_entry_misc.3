@@ -26,6 +26,8 @@
 .Dt ARCHIVE_ENTRY_MISC 3
 .Os
 .Sh NAME
+.Nm archive_entry_compression ,
+.Nm archive_entry_set_compression ,
 .Nm archive_entry_symlink_type ,
 .Nm archive_entry_set_symlink_type
 .Nd miscellaneous functions for manipulating properties of archive_entry
@@ -33,6 +35,10 @@
 Streaming Archive Library (libarchive, -larchive)
 .Sh SYNOPSIS
 .In archive_entry.h
+.Ft int
+.Fn archive_entry_compression "struct archive_entry *"
+.Ft int
+.Fn archive_entry_set_compression "struct archive_entry *" "int"
 .Ft int
 .Fn archive_entry_symlink_type "struct archive_entry *a"
 .Ft void
@@ -55,6 +61,43 @@ Symbolic link target type is not defined (default on unix systems)
 Symbolic link points to a file
 .It AE_SYMLINK_TYPE_DIRECTORY
 Symbolic link points to a directory
+.El
+.Pp
+The function
+.Fn archive_entry_compression
+returns and the function
+.Fn archive_entry_set_compression
+sets the compression type recorded in an archive entry,
+i.e. the method used to store the entry in an archive.
+.Fn archive_entry_set_compression
+returns
+.Dv ARCHIVE_OK
+on success, or
+.Dv ARCHIVE_FAILED
+if
+.Fa type
+is not one of the recognized values.
+The recognized compression types are:
+.Bl -tag -width "ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED" -compact
+.It Dv ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED
+The compression type is not specified.
+This is the initial value for a new or cleared object.
+.It Dv ARCHIVE_ENTRY_COMPRESSION_STORE
+Stored without compression.
+.It Dv ARCHIVE_ENTRY_COMPRESSION_DEFLATE
+Compressed using deflate.
+.It Dv ARCHIVE_ENTRY_COMPRESSION_BZIP2
+Compressed using bzip2.
+.It Dv ARCHIVE_ENTRY_COMPRESSION_LZMA
+Compressed using LZMA.
+.It Dv ARCHIVE_ENTRY_COMPRESSION_LZMA2
+Compressed using LZMA2.
+.It Dv ARCHIVE_ENTRY_COMPRESSION_XZ
+Compressed using XZ.
+.It Dv ARCHIVE_ENTRY_COMPRESSION_ZSTD
+Compressed using Zstandard.
+.It Dv ARCHIVE_ENTRY_COMPRESSION_PPMD
+Compressed using PPMd.
 .El
 .Sh SEE ALSO
 .Xr archive_entry 3 ,

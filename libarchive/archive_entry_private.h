@@ -200,6 +200,8 @@ struct archive_entry {
 
 	/* Symlink type support */
 	int ae_symlink_type;
+
+	int ae_compression_type;
 };
 
 #endif /* !ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

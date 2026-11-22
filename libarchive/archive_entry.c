@@ -1631,6 +1631,33 @@ archive_entry_set_digest(struct archive_entry *entry, int type,
 }
 
 /*
+ * Compression type routines.
+ */
+
+int archive_entry_compression(struct archive_entry *entry) {
+	return entry->ae_compression_type;
+}
+
+int archive_entry_set_compression(struct archive_entry *entry, int type) {
+	switch (type) {
+	case ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED:
+	case ARCHIVE_ENTRY_COMPRESSION_STORE:
+	case ARCHIVE_ENTRY_COMPRESSION_DEFLATE:
+	case ARCHIVE_ENTRY_COMPRESSION_BZIP2:
+	case ARCHIVE_ENTRY_COMPRESSION_LZMA:
+	case ARCHIVE_ENTRY_COMPRESSION_LZMA2:
+	case ARCHIVE_ENTRY_COMPRESSION_XZ:
+	case ARCHIVE_ENTRY_COMPRESSION_ZSTD:
+	case ARCHIVE_ENTRY_COMPRESSION_PPMD:
+		entry->ae_compression_type = type;
+		return ARCHIVE_OK;
+	default:
+		entry->ae_compression_type = ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED;
+		return ARCHIVE_FAILED;
+	}
+}
+
+/*
  * ACL management.  The following would, of course, be a lot simpler
  * if: 1) the last draft of POSIX.1e were a really thorough and
  * complete standard that addressed the needs of ACL archiving and 2)
