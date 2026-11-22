@@ -1027,6 +1027,8 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
 	/* Either all 10 bytes had their continuation bit set (a malformed
 	 * varint), or fewer than 10 bytes were available and none of them
 	 * terminated the value (a truncated archive). Both are errors. */
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	    "Truncated or invalid number");
 	return ARCHIVE_FATAL;
 }
 
