@@ -301,8 +301,11 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 			*unconsumed = 0;
 		}
 
-		if ((b = __archive_read_ahead(a, strtab_size, NULL)) == NULL)
+		if ((b = __archive_read_ahead(a, strtab_size, NULL)) == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Truncated input file");
 			return (ARCHIVE_FATAL);
+		}
 		memcpy(st, b, strtab_size);
 
 		/* Skip special file entry. */
