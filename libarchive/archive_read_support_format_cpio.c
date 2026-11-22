@@ -586,7 +586,7 @@ find_newc_header(struct archive_read *a)
 					skipped += skip;
 					if (skipped > 0) {
 						archive_set_error(&a->archive,
-						    0,
+						    ARCHIVE_ERRNO_FILE_FORMAT,
 						    "Skipped %ju bytes before "
 						    "finding valid header",
 						    skipped);
@@ -783,7 +783,7 @@ find_odc_header(struct archive_read *a)
 						    ARCHIVE_FORMAT_CPIO_AFIO_LARGE;
 					if (skipped > 0) {
 						archive_set_error(&a->archive,
-						    0,
+						    ARCHIVE_ERRNO_FILE_FORMAT,
 						    "Skipped %ju bytes before "
 						    "finding valid header",
 						    skipped);
