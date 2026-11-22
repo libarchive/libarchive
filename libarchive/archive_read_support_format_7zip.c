@@ -903,6 +903,26 @@ get_elf_sfx_offset(struct archive_read *a, int64_t *sfx_offset, int compat)
 	return (int)r;
 }
 
+/*
+ * Map a 7-Zip coder ID to an ARCHIVE_ENTRY_COMPRESSION_* value.
+ * Returns ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED for filters (BCJ, Delta,
+ * etc.), encryption and unknown codecs.
+ */
+static int
+entry_compression_type(int64_t codec)
+{
+	switch (codec) {
+	case _7Z_COPY:    return (ARCHIVE_ENTRY_COMPRESSION_STORE);
+	case _7Z_LZMA:    return (ARCHIVE_ENTRY_COMPRESSION_LZMA);
+	case _7Z_LZMA2:   return (ARCHIVE_ENTRY_COMPRESSION_LZMA2);
+	case _7Z_DEFLATE: return (ARCHIVE_ENTRY_COMPRESSION_DEFLATE);
+	case _7Z_BZ2:     return (ARCHIVE_ENTRY_COMPRESSION_BZIP2);
+	case _7Z_PPMD:    return (ARCHIVE_ENTRY_COMPRESSION_PPMD);
+	case _7Z_ZSTD:    return (ARCHIVE_ENTRY_COMPRESSION_ZSTD);
+	default:          return (ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED);
+	}
+}
+
 static int
 archive_read_format_7zip_read_header(struct archive_read *a,
 	struct archive_entry *entry)
@@ -961,11 +981,16 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	   that is associated to the current 7zip entry. If the folder
 	   has a coder with a _7Z_CRYPTO codec then the folder is encrypted.
 	   Hence the entry must also be encrypted. */
+	archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED);
 	if (zip_entry->folderIndex < zip->si.ci.numFolders) {
 		size_t fidx = 0;
 
 		folder = &(zip->si.ci.folders[zip_entry->folderIndex]);
 		for (fidx = 0; fidx < folder->numCoders; fidx++) {
+			int ctype = entry_compression_type(
+			    folder->coders[fidx].codec);
+			if (ctype != ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED)
+				archive_entry_set_compression(entry, ctype);
 			switch(folder->coders[fidx].codec) {
 				case _7Z_CRYPTO_MAIN_ZIP:
 				case _7Z_CRYPTO_RAR_29:
