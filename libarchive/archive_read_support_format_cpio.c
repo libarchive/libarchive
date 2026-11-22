@@ -391,8 +391,11 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 
 	/* Read name from buffer. */
 	h = __archive_read_ahead(a, namelength, NULL);
-	if (h == NULL)
-	    return (ARCHIVE_FATAL);
+	if (h == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated cpio file name");
+		return (ARCHIVE_FATAL);
+	}
 	if (archive_entry_copy_pathname_l(entry,
 	    (const char *)h, namelength, sconv) != 0) {
 		if (errno == ENOMEM) {
@@ -422,8 +425,12 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		}
 		hl = __archive_read_ahead(a,
 			(size_t)cpio->entry_bytes_remaining, NULL);
-		if (hl == NULL)
+		if (hl == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated cpio symlink target");
 			return (ARCHIVE_FATAL);
+		}
 		if (archive_entry_copy_symlink_l(entry, (const char *)hl,
 		    (size_t)cpio->entry_bytes_remaining, sconv) != 0) {
 			if (errno == ENOMEM) {
@@ -476,8 +483,12 @@ archive_read_format_cpio_read_data(struct archive_read *a,
 
 	if (cpio->entry_bytes_remaining > 0) {
 		*buff = __archive_read_ahead(a, 1, &bytes_read);
-		if (bytes_read <= 0)
+		if (bytes_read <= 0) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated cpio file data");
 			return (ARCHIVE_FATAL);
+		}
 		if (bytes_read > cpio->entry_bytes_remaining)
 			bytes_read = (ssize_t)cpio->entry_bytes_remaining;
 		*size = bytes_read;
@@ -545,8 +556,12 @@ find_newc_header(struct archive_read *a)
 
 	for (;;) {
 		h = __archive_read_ahead(a, newc_header_size, &bytes);
-		if (h == NULL)
+		if (h == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "End of file trying to read next cpio header");
 			return (ARCHIVE_FATAL);
+		}
 		p = h;
 		q = p + bytes;
 
@@ -613,8 +628,11 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 
 	/* Read fixed-size portion of header. */
 	h = __archive_read_ahead(a, newc_header_size, NULL);
-	if (h == NULL)
-	    return (ARCHIVE_FATAL);
+	if (h == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "End of file trying to read next cpio header");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Parse out hex fields. */
 	header = (const char *)h;
@@ -728,8 +746,12 @@ find_odc_header(struct archive_read *a)
 				h = __archive_read_ahead(a, odc_header_size,
 				    &bytes);
 			}
-			if (h == NULL)
+			if (h == NULL) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "End of file trying to read next cpio header");
 				return (ARCHIVE_FATAL);
+			}
 		}
 		p = h;
 		q = p + bytes;
@@ -811,8 +833,11 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 
 	/* Read fixed-size portion of header. */
 	h = __archive_read_ahead(a, odc_header_size, NULL);
-	if (h == NULL)
-	    return (ARCHIVE_FATAL);
+	if (h == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "End of file trying to read next cpio header");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Parse out octal fields. */
 	header = (const char *)h;
@@ -866,8 +891,11 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
 
 	/* Read fixed-size portion of header. */
 	h = __archive_read_ahead(a, afiol_header_size, NULL);
-	if (h == NULL)
-	    return (ARCHIVE_FATAL);
+	if (h == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "End of file trying to read next cpio header");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Parse out octal fields. */
 	header = (const char *)h;
