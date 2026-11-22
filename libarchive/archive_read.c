@@ -1826,6 +1826,9 @@ __archive_read_filter_seek(struct archive_read_filter *f, int64_t offset,
 		offset -= client->dataset[cursor].begin_position;
 		if (offset < 0
 		    || offset > client->dataset[cursor].total_size) {
+			archive_set_error(&f->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Seek position is outside the input");
 			r = ARCHIVE_FATAL;
 			goto clear_buffer;
 		}
