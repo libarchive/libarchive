@@ -167,6 +167,7 @@ IF(ENABLE_TEST)
     test_read_format_gtar_sparse_length.c
     test_read_format_gtar_sparse_skip_entry.c
     test_read_format_huge_rpm.c
+    test_read_format_iso9660_reserved.c
     test_read_format_iso_Z.c
     test_read_format_iso_joliet_utf16be_cycle.c
     test_read_format_iso_joliet_utf16be_overflow.c
