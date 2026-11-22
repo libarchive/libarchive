@@ -979,8 +979,11 @@ archive_read_format_rar_read_header(struct archive_read *a,
           "Invalid header size");
         return (ARCHIVE_FATAL);
       }
-      if ((h = __archive_read_ahead(a, skip, NULL)) == NULL)
+      if ((h = __archive_read_ahead(a, skip, NULL)) == NULL) {
+        archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+          "Truncated RAR file header");
         return (ARCHIVE_FATAL);
+      }
       p = h;
       memcpy(rar->reserved1, p + 7, sizeof(rar->reserved1));
       memcpy(rar->reserved2, p + 7 + sizeof(rar->reserved1),
@@ -1042,8 +1045,11 @@ archive_read_format_rar_read_header(struct archive_read *a,
             "Invalid header size too small");
           return (ARCHIVE_FATAL);
         }
-        if ((h = __archive_read_ahead(a, skip, NULL)) == NULL)
+        if ((h = __archive_read_ahead(a, skip, NULL)) == NULL) {
+          archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+            "Truncated RAR file header");
           return (ARCHIVE_FATAL);
+        }
         p = h;
         skip += archive_le32dec(p + 7);
       }
