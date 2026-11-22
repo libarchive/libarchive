@@ -150,8 +150,12 @@ skip_padding(struct archive_read_filter *f)
 
 	do {
 		h = __archive_read_filter_ahead(f->upstream, 1, &avail);
-		if (h == NULL)
+		if (h == NULL) {
+			archive_set_error(&f->archive->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated rpm file");
 			return (ARCHIVE_FATAL);
+		}
 		for (count = 0; count < avail && *h++ == '\0'; count++)
 			;
 		r = __archive_read_filter_consume(f->upstream, count);
@@ -178,8 +182,12 @@ skip_prologue(struct archive_read_filter *f)
 		/* Read header intro. */
 		h = __archive_read_filter_ahead(f->upstream,
 		    RPM_MIN_HEAD_SIZE, NULL);
-		if (h == NULL)
+		if (h == NULL) {
+			archive_set_error(&f->archive->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated rpm file");
 			return (ARCHIVE_FATAL);
+		}
 
 		header = (memcmp(h, "\x8E\xAD\xE8\x01", 4) == 0);
 		if (header) {
