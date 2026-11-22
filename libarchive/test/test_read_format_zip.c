@@ -117,6 +117,7 @@ verify_basic(struct archive *a, int seek_checks)
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_STORE, archive_entry_compression(ae));
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &pv, &s, &o));
 	assertEqualInt((int)s, 0);
@@ -130,6 +131,7 @@ verify_basic(struct archive *a, int seek_checks)
 	assertEqualInt(18, archive_entry_size(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_DEFLATE, archive_entry_compression(ae));
 	failure("archive_read_data() returns number of bytes read");
 	if (archive_zlib_version() != NULL) {
 		assertEqualInt(18, archive_read_data(a, buff, 19));
@@ -152,6 +154,7 @@ verify_basic(struct archive *a, int seek_checks)
 	}
 	assert(archive_entry_size_is_set(ae));
 	assertEqualInt(18, archive_entry_size(ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_DEFLATE, archive_entry_compression(ae));
 	if (archive_zlib_version() != NULL) {
 		failure("file2 has a bad CRC, so read should fail and not change buff");
 		memset(buff, 'a', 19);
@@ -222,6 +225,7 @@ verify_info_zip_ux(struct archive *a, int seek_checks)
 	failure("zip reader should read Info-ZIP New Unix Extra Field");
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(1001, archive_entry_gid(ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_DEFLATE, archive_entry_compression(ae));
 	if (archive_zlib_version() != NULL) {
 		failure("archive_read_data() returns number of bytes read");
 		assertEqualInt(18, archive_read_data(a, buff, 19));
@@ -292,6 +296,7 @@ verify_pkware_unix(struct archive *a, int seek_checks)
 	failure("zip reader should read PKWARE Unix Extra Field");
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(1002, archive_entry_gid(ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_STORE, archive_entry_compression(ae));
 	assertEqualInt(6, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "hello\n", 6);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -357,6 +362,7 @@ verify_extract_length_at_end(struct archive *a, int seek_checks)
 		assertEqualInt(0, archive_entry_size(ae));
 	}
 
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_DEFLATE, archive_entry_compression(ae));
 	if (archive_zlib_version() != NULL) {
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
 		assertFileContents("hello\x0A", 6, "hello.txt");
@@ -420,6 +426,7 @@ test_symlink(void)
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_STORE, archive_entry_compression(ae));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
@@ -428,6 +435,7 @@ test_symlink(void)
 	assertEqualString("file", archive_entry_symlink(ae));
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_STORE, archive_entry_compression(ae));
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
@@ -460,6 +468,7 @@ DEFINE_TEST(test_read_format_zip_ppmd_one_file)
 	assertEqualString("ZIP 6.3 (ppmd-1)", archive_format_name(a));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -479,6 +488,7 @@ DEFINE_TEST(test_read_format_zip_ppmd_one_file_blockread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (ppmd-1)", archive_format_name(a));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
@@ -499,16 +509,19 @@ DEFINE_TEST(test_read_format_zip_ppmd_multi)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (ppmd-1)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 	assertEqualString("smartd.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x8DD7379E));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (ppmd-1)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 	assertEqualString("ts.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x7AE59B31));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (ppmd-1)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
 
@@ -531,16 +544,19 @@ DEFINE_TEST(test_read_format_zip_ppmd_multi_blockread)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (ppmd-1)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 	assertEqualString("smartd.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 12, 0x8DD7379E));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (ppmd-1)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 	assertEqualString("ts.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0x7AE59B31));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (ppmd-1)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 14, 0xBA8E3BAA));
 
@@ -567,6 +583,7 @@ DEFINE_TEST(test_read_format_zip_lzma_one_file)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -592,6 +609,7 @@ DEFINE_TEST(test_read_format_zip_lzma_one_file_blockread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -618,16 +636,19 @@ DEFINE_TEST(test_read_format_zip_lzma_multi)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("smartd.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x8DD7379E));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("ts.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x7AE59B31));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
 
@@ -655,16 +676,19 @@ DEFINE_TEST(test_read_format_zip_lzma_multi_blockread)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("smartd.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 12, 0x8DD7379E));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("ts.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0x7AE59B31));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 14, 0xBA8E3BAA));
 
@@ -692,6 +716,7 @@ DEFINE_TEST(test_read_format_zip_bzip2_one_file)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 4.6 (bzip)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -717,6 +742,7 @@ DEFINE_TEST(test_read_format_zip_bzip2_one_file_blockread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 4.6 (bzip)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -743,16 +769,19 @@ DEFINE_TEST(test_read_format_zip_bzip2_multi)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 4.6 (bzip)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 	assertEqualString("smartd.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x8DD7379E));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 4.6 (bzip)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 	assertEqualString("ts.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x7AE59B31));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 4.6 (bzip)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
 
@@ -780,16 +809,19 @@ DEFINE_TEST(test_read_format_zip_bzip2_multi_blockread)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 4.6 (bzip)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 	assertEqualString("smartd.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 12, 0x8DD7379E));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 4.6 (bzip)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 	assertEqualString("ts.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0x7AE59B31));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 4.6 (bzip)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 14, 0xBA8E3BAA));
 
@@ -817,6 +849,7 @@ DEFINE_TEST(test_read_format_zip_zstd_one_file)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (zstd)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_ZSTD, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -843,6 +876,7 @@ DEFINE_TEST(test_read_format_zip_zstd_one_file_blockread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (zstd)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_ZSTD, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -870,16 +904,19 @@ DEFINE_TEST(test_read_format_zip_zstd_multi)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (zstd)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_ZSTD, archive_entry_compression(ae));
 	assertEqualString("smartd.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x8DD7379E));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (zstd)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_ZSTD, archive_entry_compression(ae));
 	assertEqualString("ts.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x7AE59B31));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (zstd)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_ZSTD, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
 
@@ -908,16 +945,19 @@ DEFINE_TEST(test_read_format_zip_zstd_multi_blockread)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (zstd)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_ZSTD, archive_entry_compression(ae));
 	assertEqualString("smartd.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 12, 0x8DD7379E));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (zstd)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_ZSTD, archive_entry_compression(ae));
 	assertEqualString("ts.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0x7AE59B31));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (zstd)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_ZSTD, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 14, 0xBA8E3BAA));
 
@@ -945,16 +985,19 @@ DEFINE_TEST(test_read_format_zip_xz_multi)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (xz)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_XZ, archive_entry_compression(ae));
 	assertEqualString("bash.bashrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xF751B8C9));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (xz)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_XZ, archive_entry_compression(ae));
 	assertEqualString("pacman.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xB20B7F88));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (xz)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_XZ, archive_entry_compression(ae));
 	assertEqualString("profile", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0x2329F054));
 
@@ -982,16 +1025,19 @@ DEFINE_TEST(test_read_format_zip_xz_multi_blockread)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (xz)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_XZ, archive_entry_compression(ae));
 	assertEqualString("bash.bashrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 12, 0xF751B8C9));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (xz)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_XZ, archive_entry_compression(ae));
 	assertEqualString("pacman.conf", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0xB20B7F88));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 2.0 (xz)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_XZ, archive_entry_compression(ae));
 	assertEqualString("profile", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 14, 0x2329F054));
 
@@ -1013,6 +1059,7 @@ DEFINE_TEST(test_read_format_zip_ppmd8_crash_1)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 100));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 
 	/* This file shouldn't be properly decompressed, because it's invalid.
 	 * However, unpacker should return an error during unpacking. Without the
@@ -1040,6 +1087,7 @@ DEFINE_TEST(test_read_format_zip_bz2_hang_on_invalid)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_BZIP2, archive_entry_compression(ae));
 
 	/* The file `refname` is invalid in this case, so this call should fail.
 	 * But it shouldn't crash. */
@@ -1061,6 +1109,7 @@ DEFINE_TEST(test_read_format_zip_ppmd8_crash_2)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_PPMD, archive_entry_compression(ae));
 
 	/* The file `refname` is invalid in this case, so this call should fail.
 	 * But it shouldn't crash. */
@@ -1090,11 +1139,13 @@ DEFINE_TEST(test_read_format_zip_lzma_alone_leak)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 
 	/* Extraction of this file should fail, because the sample file is invalid.
 	 * But it shouldn't crash. */
 	assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buf, sizeof(buf)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 
 	/* Extraction of this file should fail, because the sample file is invalid.
 	 * But it shouldn't crash. */
@@ -1126,6 +1177,7 @@ DEFINE_TEST(test_read_format_zip_lzma_stream_end)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one(a, ae, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -1151,6 +1203,7 @@ DEFINE_TEST(test_read_format_zip_lzma_stream_end_blockread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 37));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("ZIP 6.3 (lzma)", archive_format_name(a));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualString("vimrc", archive_entry_pathname(ae));
 	assertEqualIntA(a, 0, extract_one_using_blocks(a, 13, 0xBA8E3BAA));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -1177,11 +1230,16 @@ DEFINE_TEST(test_read_format_zip_7z_lzma)
 		archive_read_open_filename(a, refname, 10240));
 	//read directories
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_STORE, archive_entry_compression(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_STORE, archive_entry_compression(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_STORE, archive_entry_compression(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_STORE, archive_entry_compression(ae));
 	//read symlink
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_LZMA, archive_entry_compression(ae));
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	assertEqualString("../samples/abc_measurement_analysis_sample"
 		"/src/abc_measurement_analysis_sample.py",
@@ -1206,6 +1264,7 @@ DEFINE_TEST(test_read_format_zip_7z_deflate)
 		archive_read_open_filename(a, refname, 10240));
 	//read first symlink
 	r = archive_read_next_header(a, &ae);
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_DEFLATE, archive_entry_compression(ae));
 	if (archive_zlib_version() == NULL) {
 		assertEqualInt(ARCHIVE_FAILED, r);
 		assertEqualString(archive_error_string(a),
@@ -1220,6 +1279,7 @@ DEFINE_TEST(test_read_format_zip_7z_deflate)
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	//read second symlink
 	r = archive_read_next_header(a, &ae);
+	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_DEFLATE, archive_entry_compression(ae));
 	if (archive_zlib_version() == NULL) {
 		assertEqualInt(ARCHIVE_FAILED, r);
 		assertEqualString(archive_error_string(a),
