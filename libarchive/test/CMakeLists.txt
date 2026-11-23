@@ -102,6 +102,7 @@ IF(ENABLE_TEST)
     test_read_disk.c
     test_read_disk_directory_traversals.c
     test_read_disk_entry_from_file.c
+    test_read_error_state.c
     test_read_extract.c
     test_read_file_nonexistent.c
     test_read_files_compressed.c

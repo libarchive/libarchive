@@ -1285,6 +1285,9 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			zip_entry->zip_flags & ZIP_ENCRYPTED &&
 			zip_entry->zip_flags & ZIP_STRONG_ENCRYPTED) {
 			archive_entry_set_is_metadata_encrypted(entry, 1);
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Encrypted central directory is unsupported");
 			return ARCHIVE_FATAL;
 		}
 	}
@@ -3905,8 +3908,12 @@ archive_read_format_zip_streamable_read_header(struct archive_read *a,
 		ssize_t bytes;
 
 		p = __archive_read_ahead(a, 4, &bytes);
-		if (p == NULL)
+		if (p == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated ZIP file header");
 			return (ARCHIVE_FATAL);
+		}
 		end = p + bytes;
 
 		while (p + 4 <= end) {
@@ -4319,8 +4326,12 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 
 	found = 0;
 	while (!found) {
-		if ((p = __archive_read_ahead(a, 20, &bytes_avail)) == NULL)
+		if ((p = __archive_read_ahead(a, 20, &bytes_avail)) == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated ZIP central directory");
 			return ARCHIVE_FATAL;
+		}
 		for (found = 0, i = 0; !found && i < bytes_avail - 4;) {
 			switch (p[i + 3]) {
 			case 'P': i += 3; break;

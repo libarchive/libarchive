@@ -1241,13 +1241,14 @@ header_volume(struct archive_read *a, struct tar *tar,
 	const struct archive_entry_header_ustar *header;
 	int64_t size, to_consume;
 
-	(void)a; /* UNUSED */
 	(void)tar; /* UNUSED */
 	(void)entry; /* UNUSED */
 
 	header = (const struct archive_entry_header_ustar *)h;
 	size = tar_atol(header->size, sizeof(header->size));
 	if (size < 0 || size > (int64_t)pathname_limit) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Invalid size in volume header");
 		return (ARCHIVE_FATAL);
 	}
 	to_consume = ((size + 511) & ~511);
@@ -3456,8 +3457,12 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
 	while (bytes_read > 0) {
 		if (*p == '\n')
 			return (l);
-		if (*p < '0' || *p >= '0' + base)
+		if (*p < '0' || *p >= '0' + base) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Invalid number in sparse map");
 			return (ARCHIVE_WARN);
+		}
 		digit = *p - '0';
 		if (archive_ckd_mul_i64(&l, l, base) ||
 		    archive_ckd_add_i64(&l, l, digit)) {
@@ -3466,7 +3471,8 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
 		p++;
 		bytes_read--;
 	}
-	/* TODO: Error message. */
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	    "Missing end of line in sparse map");
 	return (ARCHIVE_WARN);
 }
 
@@ -3724,8 +3730,11 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 	}
 
 	t = __archive_read_ahead(a, 1, &bytes_read);
-	if (bytes_read <= 0 || t == NULL)
+	if (bytes_read <= 0 || t == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated tar archive detected while reading metadata");
 		return (ARCHIVE_FATAL);
+	}
 	s = t;  /* Start of line? */
 	p = memchr(t, '\n', bytes_read);
 	/* If we found '\n' in the read buffer, return pointer to that. */
@@ -3765,8 +3774,13 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 		}
 		/* Read some more. */
 		t = __archive_read_ahead(a, 1, &bytes_read);
-		if (bytes_read <= 0 || t == NULL)
+		if (bytes_read <= 0 || t == NULL) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated tar archive detected while reading "
+			    "metadata");
 			return (ARCHIVE_FATAL);
+		}
 		s = t;  /* Start of line? */
 		p = memchr(t, '\n', bytes_read);
 		/* If we found '\n', trim the read. */
