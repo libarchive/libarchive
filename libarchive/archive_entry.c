@@ -157,7 +157,6 @@ archive_entry_clear(struct archive_entry *entry)
 	archive_entry_xattr_clear(entry);
 	archive_entry_sparse_clear(entry);
 	free(entry->stat);
-	entry->ae_symlink_type = AE_SYMLINK_TYPE_UNDEFINED;
 	memset(entry, 0, sizeof(*entry));
 	return entry;
 }
@@ -258,7 +257,6 @@ archive_entry_new2(struct archive *a)
 	if (entry == NULL)
 		return (NULL);
 	entry->archive = a;
-	entry->ae_symlink_type = AE_SYMLINK_TYPE_UNDEFINED;
 	return (entry);
 }
 
