@@ -1279,6 +1279,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_zip64b.zip.uu \
 	libarchive/test/test_read_format_zip_zipx_lzma_oom.zipx.uu \
 	libarchive/test/test_read_format_zip_zstd.zipx.uu \
+	libarchive/test/test_read_format_zip_zstd_full_buffer.zip.uu \
 	libarchive/test/test_read_format_zip_zstd_multi.zipx.uu \
 	libarchive/test/test_read_large_splitted_rar_aa.uu \
 	libarchive/test/test_read_large_splitted_rar_ab.uu \
