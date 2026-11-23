@@ -363,6 +363,7 @@ struct rar
   char decoder_started;   /* a compressed entry has started */
   char solid_ready;       /* the decoder holds every entry before this one */
   char solid_unreadable;  /* a solid entry whose predecessors were not decoded */
+  char solid_fast_skip;   /* option solid-fast-skip: skip without unpacking */
 
   /* Filters */
   struct rar_filters filters;
@@ -909,6 +910,12 @@ archive_read_format_rar_options(struct archive_read *a,
     }
     return (ret);
   }
+  if (strcmp(key, "solid-fast-skip") == 0) {
+    /* Skipping a solid entry jumps over its data instead of unpacking
+     * it, for listing; solid entries after it cannot be read. */
+    rar->solid_fast_skip = (val != NULL && val[0] != 0);
+    return (ARCHIVE_OK);
+  }
 
   /* Note: The "warn" return is just to inform the options
    * supervisor that we didn't handle it.  It will generate
@@ -1183,7 +1190,7 @@ archive_read_format_rar_read_data_skip(struct archive_read *a)
    * the solid entries after it stay unreadable.
    */
   if ((rar->main_flags & MHD_SOLID) && !rar->solid_unreadable &&
-      !(rar->file_flags & FHD_PASSWORD) &&
+      !rar->solid_fast_skip && !(rar->file_flags & FHD_PASSWORD) &&
       rar->compression_method != COMPRESS_METHOD_STORE &&
       rar->packed_size > 0 && !rar->entry_eof && rar->valid)
   {
