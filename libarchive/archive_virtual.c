@@ -129,7 +129,7 @@ archive_write_data(struct archive *a, const void *buff, size_t s)
 	return ((a->vtable->archive_write_data)(a, buff, s));
 }
 
-la_ssize_t
+int
 archive_write_data_block(struct archive *a, const void *buff, size_t s,
     la_int64_t o)
 {
