@@ -1517,8 +1517,19 @@ get_xfer_size(struct tree *t, int fd, const char *path)
 	/* At least we need an alignment size. */
 	if (t->current_filesystem->xfer_align == -1)
 		return ((errno == EINVAL)?1:-1);
-	else
-		return (0);
+	/* Some filesystems (FUSE file systems, for example) can report
+	 * zero sizes. Treat them as unknown, as the statfs()/statvfs()
+	 * code does; a zero alignment cannot be used at all, so fall
+	 * back to statfs()/statvfs() in that case. */
+	if (t->current_filesystem->xfer_align <= 0)
+		return (1);
+	if (t->current_filesystem->incr_xfer_size <= 0)
+		t->current_filesystem->incr_xfer_size = -1;
+	if (t->current_filesystem->max_xfer_size <= 0)
+		t->current_filesystem->max_xfer_size = -1;
+	if (t->current_filesystem->min_xfer_size <= 0)
+		t->current_filesystem->min_xfer_size = -1;
+	return (0);
 }
 #else
 static int
