@@ -27,8 +27,8 @@
 /*
  * A ZIP entry only has a modification time (in the legacy DOS fields) by
  * default. Its access time, creation time and so on come from optional
- * extra fields. When no extra field supplies atime, or ctime, the reader
- * must leave it unset rather than report it as set to the Unix epoch.
+ * extra fields. When no extra field supplies atime, ctime or birthtime, the
+ * reader must leave it unset rather than report it as set to the Unix epoch.
  *
  * Each test case builds a ZIP file with a single entry and the given extra
  * field data, and checks which timestamps of the entry are set. Every case
@@ -37,7 +37,11 @@
 
 #define MTIME	1700000000LL
 #define ATIME	1700000100LL
-#define CTIME	1700000200LL
+/* The third time of "UT" is the creation time. libarchive used to write the
+ * ctime in its place, so the reader reports it as the ctime as well. */
+#define UT_BTIME	1700000200LL
+/* The third time of "NTFS" is the creation time too. */
+#define NTFS_BTIME	1700000300LL
 
 static void
 put16(unsigned char *p, unsigned v)
@@ -67,7 +71,7 @@ filetime(long long secs, long nsecs)
 	return ((uint64_t)secs + 11644473600ULL) * 10000000ULL + nsecs / 100;
 }
 
-/* 0x5455 "UT": flags tell which of mtime (1), atime (2), ctime (4) follow. */
+/* 0x5455 "UT": flags tell which of mtime (1), atime (2), creation time (4) follow. */
 static size_t
 make_ut(unsigned char *p, int flags)
 {
@@ -84,7 +88,7 @@ make_ut(unsigned char *p, int flags)
 		n += 4;
 	}
 	if (flags & 4) {
-		put32(p + n, CTIME);
+		put32(p + n, UT_BTIME);
 		n += 4;
 	}
 	put16(p + 2, (unsigned)(n - 4));
@@ -126,7 +130,7 @@ make_ntfs(unsigned char *p, int has_mtime, int has_atime, int has_btime)
 	put16(p + 10, 24);
 	put64(p + 12, has_mtime ? filetime(MTIME, 100000000L) : 0);
 	put64(p + 20, has_atime ? filetime(ATIME, 200000000L) : 0);
-	put64(p + 28, has_btime ? filetime(CTIME, 300000000L) : 0);
+	put64(p + 28, has_btime ? filetime(NTFS_BTIME, 300000000L) : 0);
 	return (36);
 }
 
@@ -212,6 +216,8 @@ struct expected {
 	int ctime_set;
 	long long ctime;
 	int btime_set;
+	long long btime;
+	long btime_nsec;
 };
 
 static void
@@ -231,6 +237,10 @@ check_entry(struct archive_entry *ae, const struct expected *e)
 		assertEqualInt(e->ctime, archive_entry_ctime(ae));
 
 	assertEqualInt(e->btime_set, archive_entry_birthtime_is_set(ae) != 0);
+	if (e->btime_set) {
+		assertEqualInt(e->btime, archive_entry_birthtime(ae));
+		assertEqualInt(e->btime_nsec, archive_entry_birthtime_nsec(ae));
+	}
 }
 
 /*
@@ -295,11 +305,14 @@ DEFINE_TEST(test_read_format_zip_unset_times)
 	e.atime = ATIME;
 	check_both_readers(extra, n, extra, n, &e);
 
-	/* "UT" with mtime and ctime, but no atime. */
+	/* "UT" with mtime and creation time, but no atime. The creation time
+	 * is the birthtime, and also the ctime that older libarchive wrote. */
 	n = make_ut(extra, 5);
 	e.atime_set = 0;
 	e.ctime_set = 1;
-	e.ctime = CTIME;
+	e.ctime = UT_BTIME;
+	e.btime_set = 1;
+	e.btime = UT_BTIME;
 	check_both_readers(extra, n, extra, n, &e);
 
 	/* "UT" with all three times. */
@@ -311,6 +324,7 @@ DEFINE_TEST(test_read_format_zip_unset_times)
 	/* "UX" supplies atime, but not ctime. */
 	n = make_ux(extra);
 	e.ctime_set = 0;
+	e.btime_set = 0;
 	check_both_readers(extra, n, extra, n, &e);
 
 	/* "PKWARE Unix" supplies atime, but not ctime. */
@@ -321,6 +335,8 @@ DEFINE_TEST(test_read_format_zip_unset_times)
 	n = make_ntfs(extra, 1, 1, 1);
 	e.atime_nsec = 200000000L;
 	e.btime_set = 1;
+	e.btime = NTFS_BTIME;
+	e.btime_nsec = 300000000L;
 	check_both_readers(extra, n, extra, n, &e);
 
 	/* "NTFS" without atime: that slot is a zero FILETIME. */
@@ -331,6 +347,20 @@ DEFINE_TEST(test_read_format_zip_unset_times)
 	/* "NTFS" with mtime only. */
 	n = make_ntfs(extra, 1, 0, 0);
 	e.btime_set = 0;
+	check_both_readers(extra, n, extra, n, &e);
+
+	/* NTFS creation time takes precedence over UT CrTime in either order. */
+	n = make_ut(extra, 5);
+	n += make_ntfs(extra + n, 0, 0, 1);
+	e.ctime_set = 1;
+	e.ctime = UT_BTIME;
+	e.btime_set = 1;
+	e.btime = NTFS_BTIME;
+	e.btime_nsec = 300000000L;
+	check_both_readers(extra, n, extra, n, &e);
+
+	n = make_ntfs(extra, 0, 0, 1);
+	n += make_ut(extra + n, 5);
 	check_both_readers(extra, n, extra, n, &e);
 }
 
@@ -350,7 +380,9 @@ DEFINE_TEST(test_read_format_zip_unset_times_central_directory_only)
 	e.atime_set = 1;
 	e.atime = ATIME;
 	e.ctime_set = 1;
-	e.ctime = CTIME;
+	e.ctime = UT_BTIME;
+	e.btime_set = 1;
+	e.btime = UT_BTIME;
 
 	n = make_ut(extra, 7);
 	size = build_zip(zip, extra, 0, extra, n);
