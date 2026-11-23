@@ -87,6 +87,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_symlink_dir.c
     test_version.c
     test_windows.c
+    test_windows_unicode_cli.c
   )
 
   #
