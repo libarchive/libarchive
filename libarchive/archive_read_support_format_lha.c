@@ -607,15 +607,15 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	archive_string_init(&conv_buffer.aes_mbs_in_locale);
 	archive_string_init(&conv_buffer.aes_utf8);
 	archive_string_init(&conv_buffer.aes_wcs);
-	if (0 != archive_mstring_copy_mbs_len_l(&conv_buffer, lha->dirname.s, lha->dirname.length, lha->sconv_dir)) {
+	if (0 != archive_mstring_copy_mbs_len_l(&conv_buffer, lha->dirname.s, lha->dirname.length, lha->sconv_dir) ||
+	    0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p)) {
 		archive_set_error(&a->archive,
 			ARCHIVE_ERRNO_FILE_FORMAT,
 			"Pathname cannot be converted "
 			"from %s to Unicode",
 			archive_string_conversion_charset_name(lha->sconv_dir));
 		err = ARCHIVE_FATAL;
-	} else if (0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p))
-		err = ARCHIVE_FATAL;
+	}
 	if (err == ARCHIVE_FATAL) {
 		archive_mstring_clean(&conv_buffer);
 		archive_wstring_free(&pathname);
@@ -628,7 +628,8 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	archive_string_empty(&conv_buffer.aes_mbs_in_locale);
 	archive_string_empty(&conv_buffer.aes_utf8);
 	archive_wstring_empty(&conv_buffer.aes_wcs);
-	if (0 != archive_mstring_copy_mbs_len_l(&conv_buffer, lha->filename.s, lha->filename.length, lha->sconv_fname)) {
+	if (0 != archive_mstring_copy_mbs_len_l(&conv_buffer, lha->filename.s, lha->filename.length, lha->sconv_fname) ||
+	    0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p)) {
 		archive_set_error(&a->archive,
 			ARCHIVE_ERRNO_FILE_FORMAT,
 			"Pathname cannot be converted "
@@ -636,8 +637,6 @@ archive_read_format_lha_read_header(struct archive_read *a,
 			archive_string_conversion_charset_name(lha->sconv_fname));
 		err = ARCHIVE_FATAL;
 	}
-	else if (0 != archive_mstring_get_wcs(&a->archive, &conv_buffer, &conv_buffer_p))
-		err = ARCHIVE_FATAL;
 	if (err == ARCHIVE_FATAL) {
 		archive_mstring_clean(&conv_buffer);
 		archive_wstring_free(&pathname);
