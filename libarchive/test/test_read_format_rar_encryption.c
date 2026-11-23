@@ -142,12 +142,7 @@ DEFINE_TEST(test_read_format_rar4_encrypted_filenames)
 
 DEFINE_TEST(test_read_format_rar4_solid_encrypted)
 {
-	/* TODO: If solid RAR4 support is ever added, the following should pass */
-#if 0
 	test_encrypted_rar_archive("test_read_format_rar4_solid_encrypted.rar", 0, 1);
-#else
-	skipping("RAR4 solid archive support not currently available");
-#endif
 }
 
 DEFINE_TEST(test_read_format_rar4_solid_encrypted_filenames)

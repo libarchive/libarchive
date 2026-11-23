@@ -1109,6 +1109,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_windows.rar.uu \
 	libarchive/test/test_read_format_rar4_encrypted.rar.uu \
 	libarchive/test/test_read_format_rar4_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar4_solid.rar.uu \
 	libarchive/test/test_read_format_rar4_solid_encrypted.rar.uu \
 	libarchive/test/test_read_format_rar4_solid_encrypted_filenames.rar.uu \
 	libarchive/test/test_read_format_rar5_main_block_extra_bytes.rar.uu \
