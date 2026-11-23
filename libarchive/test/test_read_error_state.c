@@ -257,7 +257,13 @@ read_through(const char *buff, size_t size, int streaming, int skip,
 			failed = 1;
 		if (r == ARCHIVE_EOF || r == ARCHIVE_FATAL)
 			break;
-		if (skip) {
+		/* After RETRY there is no body to read or skip. */
+		if (r == ARCHIVE_RETRY) {
+			r = ARCHIVE_OK;
+			continue;
+		}
+		/* After FAILED, reading the body is fatal, only skipping works. */
+		if (skip || r == ARCHIVE_FAILED) {
 			r = archive_read_data_skip(a);
 			if (check_error(a, context, "data_skip", r))
 				failed = 1;
