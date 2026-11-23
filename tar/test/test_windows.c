@@ -300,6 +300,43 @@ DEFINE_TEST(test_windows)
 	assertFileContents(fp2, (int)strlen(fp2), "../list17");
 	free(fp1);
 	free(fp2);
+
+	/* Test3: Archiving a drive root and '.' from a drive root (Issue #3533) */
+	{
+		char cwd[MAX_PATH];
+		char root[4] = "C:\\";
+		char tarpath[MAX_PATH];
+		char *p;
+
+		if (_getcwd(cwd, sizeof(cwd)) != NULL && cwd[1] == ':')
+			root[0] = cwd[0];
+
+		/* Test3a: Archive drive root directly */
+		assertEqualInt(0,
+		    systemf("%s -cf ../archive18.tar --no-recursion %s > ../out18 2> ../err18",
+		        testprog, root));
+		assertEqualInt(0,
+		    systemf("%s -tf ../archive18.tar > ../list18", testprog));
+		assertFileContents("./\r\n", 4, "../list18");
+
+		/* Test3b: Archive '.' with current working directory at drive root */
+		if (_getcwd(cwd, sizeof(cwd)) != NULL) {
+			snprintf(tarpath, sizeof(tarpath), "%s/../archive19.tar", cwd);
+			for (p = tarpath; *p != '\0'; p++) {
+				if (*p == '\\')
+					*p = '/';
+			}
+			if (_chdir(root) == 0) {
+				assertEqualInt(0,
+				    systemf("%s -cf \"%s\" --no-recursion . > NUL 2> NUL",
+				        testprog, tarpath));
+				_chdir(cwd);
+				assertEqualInt(0,
+				    systemf("%s -tf ../archive19.tar > ../list19", testprog));
+				assertFileContents("./\r\n", 4, "../list19");
+			}
+		}
+	}
 #else
 	skipping("Windows specific test");
 #endif /* _WIN32 && !__CYGWIN__ */

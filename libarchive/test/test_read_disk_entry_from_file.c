@@ -72,8 +72,19 @@ DEFINE_TEST(test_read_disk_entry_from_file)
 	assertEqualString(archive_entry_uname(entry), "FOO");
 	assertEqualString(archive_entry_gname(entry), "FOOGROUP");
 	assertEqualInt(archive_entry_size(entry), 4);
+	archive_entry_free(entry);
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Verify that a drive root can be read into an archive entry without error. */
+	entry = archive_entry_new();
+	assert(entry != NULL);
+	archive_entry_copy_pathname(entry, "C:\\");
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_disk_entry_from_file(a, entry, -1, NULL));
+	assertEqualInt(AE_IFDIR, archive_entry_filetype(entry));
+	archive_entry_free(entry);
+#endif
 
 	/* Destroy the archive. */
-	archive_entry_free(entry);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
