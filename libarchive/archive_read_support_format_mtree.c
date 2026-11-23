@@ -1630,6 +1630,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		}
 		if (strcmp(key, "gname") == 0) {
 			*parsed_kws |= MTREE_HAS_GNAME;
+			parse_escapes(val, NULL);
 			archive_entry_copy_gname(entry, val);
 			return (ARCHIVE_OK);
 		}
@@ -1821,6 +1822,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		}
 		if (strcmp(key, "uname") == 0) {
 			*parsed_kws |= MTREE_HAS_UNAME;
+			parse_escapes(val, NULL);
 			archive_entry_copy_uname(entry, val);
 			return (ARCHIVE_OK);
 		}
