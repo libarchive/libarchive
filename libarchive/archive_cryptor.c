@@ -72,6 +72,34 @@ pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
 	return (BCRYPT_SUCCESS(status)) ? 0: -1;
 }
 
+#elif defined(ARCHIVE_CRYPTOR_USE_MBED_PSA)
+
+static int
+pbkdf2_sha1(const char *pw, size_t pw_len, const uint8_t *salt,
+    size_t salt_len, unsigned rounds, uint8_t *derived_key,
+    size_t derived_key_len)
+{
+	psa_key_derivation_operation_t op = PSA_KEY_DERIVATION_OPERATION_INIT;
+	int ret = -1;
+
+	if (psa_crypto_init() != PSA_SUCCESS)
+		return (-1);
+	if (psa_key_derivation_setup(&op,
+	    PSA_ALG_PBKDF2_HMAC(PSA_ALG_SHA_1)) == PSA_SUCCESS &&
+	    psa_key_derivation_input_integer(&op,
+	    PSA_KEY_DERIVATION_INPUT_COST, rounds) == PSA_SUCCESS &&
+	    psa_key_derivation_input_bytes(&op,
+	    PSA_KEY_DERIVATION_INPUT_SALT, salt, salt_len) == PSA_SUCCESS &&
+	    psa_key_derivation_input_bytes(&op,
+	    PSA_KEY_DERIVATION_INPUT_PASSWORD, (const uint8_t *)pw,
+	    pw_len) == PSA_SUCCESS &&
+	    psa_key_derivation_output_bytes(&op, derived_key,
+	    derived_key_len) == PSA_SUCCESS)
+		ret = 0;
+	psa_key_derivation_abort(&op);
+	return (ret);
+}
+
 #elif defined(HAVE_LIBMBEDCRYPTO) && defined(HAVE_MBEDTLS_PKCS5_H)
 
 static int
@@ -281,6 +309,47 @@ aes_ctr_release(archive_crypto_ctx *ctx)
 		HeapFree(GetProcessHeap(), 0, ctx->keyObj);
 		ctx->keyObj = NULL;
 	}
+	memset(ctx, 0, sizeof(*ctx));
+	return 0;
+}
+
+#elif defined(ARCHIVE_CRYPTOR_USE_MBED_PSA)
+
+static int
+aes_ctr_init(archive_crypto_ctx *ctx, const uint8_t *key, size_t key_len)
+{
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+
+	ctx->key = PSA_KEY_ID_NULL;
+	if (psa_crypto_init() != PSA_SUCCESS)
+		return (-1);
+
+	psa_set_key_type(&attr, PSA_KEY_TYPE_AES);
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_ENCRYPT);
+	psa_set_key_algorithm(&attr, PSA_ALG_ECB_NO_PADDING);
+	if (psa_import_key(&attr, key, key_len, &ctx->key) != PSA_SUCCESS)
+		return (-1);
+
+	memset(ctx->nonce, 0, sizeof(ctx->nonce));
+	ctx->encr_pos = AES_BLOCK_SIZE;
+	return 0;
+}
+
+static int
+aes_ctr_encrypt_counter(archive_crypto_ctx *ctx)
+{
+	size_t len;
+
+	if (psa_cipher_encrypt(ctx->key, PSA_ALG_ECB_NO_PADDING, ctx->nonce,
+	    AES_BLOCK_SIZE, ctx->encr_buf, AES_BLOCK_SIZE, &len) != PSA_SUCCESS)
+		return (-1);
+	return 0;
+}
+
+static int
+aes_ctr_release(archive_crypto_ctx *ctx)
+{
+	psa_destroy_key(ctx->key);
 	memset(ctx, 0, sizeof(*ctx));
 	return 0;
 }

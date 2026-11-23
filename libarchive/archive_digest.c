@@ -99,6 +99,46 @@ win_crypto_Final(unsigned char *buf, size_t bufsize, Digest_CTX *ctx)
 
 #endif /* defined(ARCHIVE_CRYPTO_WIN) */
 
+/*
+ * Message digest functions for Mbed TLS 4.x (PSA Crypto API).
+ */
+#if defined(ARCHIVE_CRYPTO_MBED_PSA)
+
+static int
+mbed_psa_init(psa_hash_operation_t *ctx, psa_algorithm_t alg)
+{
+  *ctx = psa_hash_operation_init();
+  if (psa_crypto_init() != PSA_SUCCESS)
+    return (ARCHIVE_FATAL);
+  if (psa_hash_setup(ctx, alg) != PSA_SUCCESS)
+    return (ARCHIVE_FATAL);
+  return (ARCHIVE_OK);
+}
+
+static int
+mbed_psa_update(psa_hash_operation_t *ctx, const void *indata, size_t insize)
+{
+  if (psa_hash_update(ctx, indata, insize) != PSA_SUCCESS) {
+    psa_hash_abort(ctx);
+    return (ARCHIVE_FATAL);
+  }
+  return (ARCHIVE_OK);
+}
+
+static int
+mbed_psa_final(psa_hash_operation_t *ctx, void *md, size_t md_size)
+{
+  size_t len;
+
+  if (psa_hash_finish(ctx, md, md_size, &len) != PSA_SUCCESS) {
+    psa_hash_abort(ctx);
+    return (ARCHIVE_FATAL);
+  }
+  return (ARCHIVE_OK);
+}
+
+#endif /* defined(ARCHIVE_CRYPTO_MBED_PSA) */
+
 
 /* MD5 implementations */
 #if defined(ARCHIVE_CRYPTO_MD5_LIBC)
@@ -203,6 +243,27 @@ static int
 __archive_md5final(archive_md5_ctx *ctx, void *md)
 {
   return (win_crypto_Final(md, 16, ctx));
+}
+
+#elif defined(ARCHIVE_CRYPTO_MD5_MBEDTLS) && defined(ARCHIVE_CRYPTO_MBED_PSA)
+
+static int
+__archive_md5init(archive_md5_ctx *ctx)
+{
+  return (mbed_psa_init(ctx, PSA_ALG_MD5));
+}
+
+static int
+__archive_md5update(archive_md5_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (mbed_psa_update(ctx, indata, insize));
+}
+
+static int
+__archive_md5final(archive_md5_ctx *ctx, void *md)
+{
+  return (mbed_psa_final(ctx, md, PSA_HASH_LENGTH(PSA_ALG_MD5)));
 }
 
 #elif defined(ARCHIVE_CRYPTO_MD5_MBEDTLS)
@@ -390,6 +451,27 @@ __archive_ripemd160final(archive_rmd160_ctx *ctx, void *md)
 {
   RIPEMD160_Final(md, ctx);
   return (ARCHIVE_OK);
+}
+
+#elif defined(ARCHIVE_CRYPTO_RMD160_MBEDTLS) && defined(ARCHIVE_CRYPTO_MBED_PSA)
+
+static int
+__archive_ripemd160init(archive_rmd160_ctx *ctx)
+{
+  return (mbed_psa_init(ctx, PSA_ALG_RIPEMD160));
+}
+
+static int
+__archive_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (mbed_psa_update(ctx, indata, insize));
+}
+
+static int
+__archive_ripemd160final(archive_rmd160_ctx *ctx, void *md)
+{
+  return (mbed_psa_final(ctx, md, PSA_HASH_LENGTH(PSA_ALG_RIPEMD160)));
 }
 
 #elif defined(ARCHIVE_CRYPTO_RMD160_MBEDTLS)
@@ -618,6 +700,27 @@ static int
 __archive_sha1final(archive_sha1_ctx *ctx, void *md)
 {
   return (win_crypto_Final(md, 20, ctx));
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA1_MBEDTLS) && defined(ARCHIVE_CRYPTO_MBED_PSA)
+
+static int
+__archive_sha1init(archive_sha1_ctx *ctx)
+{
+  return (mbed_psa_init(ctx, PSA_ALG_SHA_1));
+}
+
+static int
+__archive_sha1update(archive_sha1_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (mbed_psa_update(ctx, indata, insize));
+}
+
+static int
+__archive_sha1final(archive_sha1_ctx *ctx, void *md)
+{
+  return (mbed_psa_final(ctx, md, PSA_HASH_LENGTH(PSA_ALG_SHA_1)));
 }
 
 #elif defined(ARCHIVE_CRYPTO_SHA1_MBEDTLS)
@@ -900,6 +1003,27 @@ __archive_sha256final(archive_sha256_ctx *ctx, void *md)
   return (win_crypto_Final(md, 32, ctx));
 }
 
+#elif defined(ARCHIVE_CRYPTO_SHA256_MBEDTLS) && defined(ARCHIVE_CRYPTO_MBED_PSA)
+
+static int
+__archive_sha256init(archive_sha256_ctx *ctx)
+{
+  return (mbed_psa_init(ctx, PSA_ALG_SHA_256));
+}
+
+static int
+__archive_sha256update(archive_sha256_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (mbed_psa_update(ctx, indata, insize));
+}
+
+static int
+__archive_sha256final(archive_sha256_ctx *ctx, void *md)
+{
+  return (mbed_psa_final(ctx, md, PSA_HASH_LENGTH(PSA_ALG_SHA_256)));
+}
+
 #elif defined(ARCHIVE_CRYPTO_SHA256_MBEDTLS)
 
 static int
@@ -1150,6 +1274,27 @@ static int
 __archive_sha384final(archive_sha384_ctx *ctx, void *md)
 {
   return (win_crypto_Final(md, 48, ctx));
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA384_MBEDTLS) && defined(ARCHIVE_CRYPTO_MBED_PSA)
+
+static int
+__archive_sha384init(archive_sha384_ctx *ctx)
+{
+  return (mbed_psa_init(ctx, PSA_ALG_SHA_384));
+}
+
+static int
+__archive_sha384update(archive_sha384_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (mbed_psa_update(ctx, indata, insize));
+}
+
+static int
+__archive_sha384final(archive_sha384_ctx *ctx, void *md)
+{
+  return (mbed_psa_final(ctx, md, PSA_HASH_LENGTH(PSA_ALG_SHA_384)));
 }
 
 #elif defined(ARCHIVE_CRYPTO_SHA384_MBEDTLS)
@@ -1426,6 +1571,27 @@ static int
 __archive_sha512final(archive_sha512_ctx *ctx, void *md)
 {
   return (win_crypto_Final(md, 64, ctx));
+}
+
+#elif defined(ARCHIVE_CRYPTO_SHA512_MBEDTLS) && defined(ARCHIVE_CRYPTO_MBED_PSA)
+
+static int
+__archive_sha512init(archive_sha512_ctx *ctx)
+{
+  return (mbed_psa_init(ctx, PSA_ALG_SHA_512));
+}
+
+static int
+__archive_sha512update(archive_sha512_ctx *ctx, const void *indata,
+    size_t insize)
+{
+  return (mbed_psa_update(ctx, indata, insize));
+}
+
+static int
+__archive_sha512final(archive_sha512_ctx *ctx, void *md)
+{
+  return (mbed_psa_final(ctx, md, PSA_HASH_LENGTH(PSA_ALG_SHA_512)));
 }
 
 #elif defined(ARCHIVE_CRYPTO_SHA512_MBEDTLS)
