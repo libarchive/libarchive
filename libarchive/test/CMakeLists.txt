@@ -250,6 +250,7 @@ IF(ENABLE_TEST)
     test_read_format_xar_doublelink.c
     test_read_format_zip.c
     test_read_format_zip_7075_utf8_paths.c
+    test_read_format_zip_7855_short.c
     test_read_format_zip_ambiguous_timestamps.c
     test_read_format_zip_comment_stored.c
     test_read_format_zip_dos_mtime_precedence.c
