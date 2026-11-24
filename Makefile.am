@@ -1264,6 +1264,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_sfx.uu \
 	libarchive/test/test_read_format_zip_size_exceeds_declared_deflate.zip.uu \
 	libarchive/test/test_read_format_zip_size_exceeds_declared_stored.zip.uu \
+	libarchive/test/test_read_format_zip_zero_stored_size.zip.uu \
 	libarchive/test/test_read_format_zip_symlink.zip.uu \
 	libarchive/test/test_read_format_zip_symlink_unsupported_compression.zip.uu \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.zip.uu \

@@ -1623,9 +1623,13 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	}
 	zip->entry_bytes_remaining = zip_entry->compressed_size;
 
-	/* If there's no body, force read_data() to return EOF immediately. */
+	/* A STORED regular file must pass the final size and CRC checks even
+	 * when its compressed size is zero.  Let read_data() reach those
+	 * checks instead of returning EOF immediately. */
 	if (0 == (zip_entry->zip_flags & ZIP_LENGTH_AT_END)
-	    && zip->entry_bytes_remaining < 1)
+	    && zip->entry_bytes_remaining < 1
+	    && !(zip_entry->compression == 0
+	        && (zip_entry->mode & AE_IFMT) == AE_IFREG))
 		zip->end_of_entry = 1;
 
 	/* Set up a more descriptive format name. */
