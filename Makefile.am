@@ -627,6 +627,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_xar_doublelink.c \
 	libarchive/test/test_read_format_zip.c \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.c \
+	libarchive/test/test_read_format_zip_7855_short.c \
 	libarchive/test/test_read_format_zip_ambiguous_timestamps.c \
 	libarchive/test/test_read_format_zip_comment_stored.c \
 	libarchive/test/test_read_format_zip_dos_mtime_precedence.c \
