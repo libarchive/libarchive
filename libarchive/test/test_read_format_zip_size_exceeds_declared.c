@@ -143,3 +143,40 @@ DEFINE_TEST(test_read_format_zip_size_exceeds_declared_deflate)
 {
 	verify("test_read_format_zip_size_exceeds_declared_deflate.zip");
 }
+
+/* A STORED entry with no body must not bypass its declared-size check. */
+DEFINE_TEST(test_read_format_zip_zero_stored_size)
+{
+	const char *refname = "test_read_format_zip_zero_stored_size.zip";
+	struct archive *a;
+	struct archive_entry *ae;
+	char buff[4];
+	char *p;
+	size_t s;
+	int streaming;
+
+	extract_reference_file(refname);
+	for (streaming = 0; streaming < 2; streaming++) {
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_filter_all(a));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_support_format_all(a));
+		if (streaming) {
+			p = slurpfile(&s, "%s", refname);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    read_open_memory(a, p, s, 7));
+		} else {
+			p = NULL;
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_open_filename(a, refname, 10240));
+		}
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString("x.txt", archive_entry_pathname(ae));
+		assertEqualInt(1, archive_entry_size(ae));
+		assertEqualInt(ARCHIVE_FAILED,
+		    archive_read_data(a, buff, sizeof(buff)));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		free(p);
+	}
+}
