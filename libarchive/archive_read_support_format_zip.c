@@ -3008,18 +3008,12 @@ zip_read_data_zipx_zstd(struct archive_read *a, const void **buff,
 			ZSTD_getErrorName(ret));
 		return (ARCHIVE_FATAL);
 	}
-	/* End of stream handling for zips with ZIP_LENGTH_AT_END flag */
-	if (ret == 0 && (zip->entry->zip_flags & ZIP_LENGTH_AT_END)) {
+	/* A complete frame can fill the output buffer exactly. */
+	if (ret == 0 && ((zip->entry->zip_flags & ZIP_LENGTH_AT_END) ||
+	    (int64_t)in.pos == zip->entry_bytes_remaining)) {
 		zip->end_of_entry = 1;
-	}
-
-	/* Check end of the stream. */
-	if (ret == 0) {
-		if ((in.pos == in.size) && (out.pos < out.size)) {
-			zip->end_of_entry = 1;
-			ZSTD_freeDStream(zip->zstdstream);
-			zip->zstdstream_valid = 0;
-		}
+		ZSTD_freeDStream(zip->zstdstream);
+		zip->zstdstream_valid = 0;
 	}
 
 	/* Update the pointers so decompressor can continue decoding. */

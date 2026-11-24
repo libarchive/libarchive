@@ -884,6 +884,36 @@ DEFINE_TEST(test_read_format_zip_zstd_one_file_blockread)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * The fixture contains 128 KiB of 'x', archived with
+ * bsdtar -cf test.zip --format=zip --options zip:compression=zstd payload.bin
+ */
+DEFINE_TEST(test_read_format_zip_zstd_full_buffer)
+{
+	const char *refname = "test_read_format_zip_zstd_full_buffer.zip";
+	struct archive *a;
+	struct archive_entry *ae;
+	char c;
+
+	if (archive_libzstd_version() == NULL) {
+		skipping("Zstandard support is required");
+		return;
+	}
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(131072, archive_entry_size(ae));
+	assertEqualIntA(a, 0, extract_one(a, ae, 0x54230614));
+	/* Reading past the full output buffer must report end of entry. */
+	assertEqualIntA(a, 0, archive_read_data(a, &c, 1));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_zip_zstd_multi)
 {
 	const char *refname = "test_read_format_zip_zstd_multi.zipx";
