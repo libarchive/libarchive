@@ -1063,7 +1063,9 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_iso_zisofs_overflow.iso.uu \
 	libarchive/test/test_read_format_lha_amiga_script.lha.uu \
 	libarchive/test/test_read_format_lha_bugfix_0.lzh.uu \
+	libarchive/test/test_read_format_lha_dirname_invalid.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_cp932.lzh.uu \
+	libarchive/test/test_read_format_lha_filename_invalid.lzh.uu \
 	libarchive/test/test_read_format_lha_filename_utf16.lzh.uu \
 	libarchive/test/test_read_format_lha_header0.lzh.uu \
 	libarchive/test/test_read_format_lha_header1.lzh.uu \
