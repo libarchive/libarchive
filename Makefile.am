@@ -651,6 +651,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_size_exceeds_declared.c \
 	libarchive/test/test_read_format_zip_streamable_skip.c \
+	libarchive/test/test_read_format_zip_streamable_size_mismatch.c \
 	libarchive/test/test_read_format_zip_symlink_unsupported_compression.c \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.c \
 	libarchive/test/test_read_format_zip_uncompressed_size_off_by_4gib.c \
@@ -1265,6 +1266,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_sfx.uu \
 	libarchive/test/test_read_format_zip_size_exceeds_declared_deflate.zip.uu \
 	libarchive/test/test_read_format_zip_size_exceeds_declared_stored.zip.uu \
+	libarchive/test/test_read_format_zip_streamable_size_mismatch.zip.uu \
 	libarchive/test/test_read_format_zip_symlink.zip.uu \
 	libarchive/test/test_read_format_zip_symlink_unsupported_compression.zip.uu \
 	libarchive/test/test_read_format_zip_traditional_encryption_data.zip.uu \

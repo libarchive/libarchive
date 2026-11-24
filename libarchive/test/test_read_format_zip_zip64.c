@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2013 Tim Kientzle
- * Copyright (c) 2026 Sri Vedantam
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -125,38 +124,5 @@ DEFINE_TEST(test_read_format_zip_zip64b)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip_streamable(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory_seek(a, p, s, 1));
 	verify_file0_stream(a, 1);
-	free(p);
-}
-
-
-DEFINE_TEST(test_read_format_zip_zip64b_local_size_mismatch)
-{
-	const char *refname = "test_read_format_zip_zip64b.zip";
-	struct archive_entry *ae;
-	struct archive *a;
-	char *p, data[16];
-	size_t s;
-
-	if (archive_zlib_version() == NULL) {
-		skipping("zlib not available");
-		return;
-	}
-
-	extract_reference_file(refname);
-	p = slurpfile(&s, "%s", refname);
-	assertEqualInt(6, (unsigned char)p[22]);
-	/* Advertise seven bytes locally; the body and descriptor contain six. */
-	p[22] = 7;
-
-	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_format_zip_streamable(a));
-	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 1));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(7, archive_entry_size(ae));
-	assertEqualIntA(a, ARCHIVE_FAILED,
-	    archive_read_data(a, data, sizeof(data)));
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(p);
 }
