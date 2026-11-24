@@ -193,6 +193,9 @@ archive_entry_clone(struct archive_entry *entry)
 	/* Copy symlink type */
 	entry2->ae_symlink_type = entry->ae_symlink_type;
 
+	/* Copy compression type */
+	entry2->ae_compression_type = entry->ae_compression_type;
+
 	/* Copy encryption status */
 	entry2->encryption = entry->encryption;
 
