@@ -1161,9 +1161,10 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 		case 0x7855:
 			/* Info-ZIP Unix Extra Field (type 2) "Ux". */
 #ifdef DEBUG
-			fprintf(stderr, "uid %d gid %d\n",
-			    archive_le16dec(p + offset),
-			    archive_le16dec(p + offset + 2));
+			if (datasize >= 4)
+				fprintf(stderr, "uid %d gid %d\n",
+				    archive_le16dec(p + offset),
+				    archive_le16dec(p + offset + 2));
 #endif
 			if (datasize >= 2)
 				zip_entry->uid = archive_le16dec(p + offset);
