@@ -28,6 +28,10 @@
 .Sh NAME
 .Nm archive_entry_compression ,
 .Nm archive_entry_set_compression ,
+.Nm archive_entry_compressed_size ,
+.Nm archive_entry_compressed_size_is_set ,
+.Nm archive_entry_set_compressed_size ,
+.Nm archive_entry_unset_compressed_size ,
 .Nm archive_entry_symlink_type ,
 .Nm archive_entry_set_symlink_type
 .Nd miscellaneous functions for manipulating properties of archive_entry
@@ -39,6 +43,14 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_entry_compression "struct archive_entry *"
 .Ft int
 .Fn archive_entry_set_compression "struct archive_entry *" "int"
+.Ft la_int64_t
+.Fn archive_entry_compressed_size "struct archive_entry *"
+.Ft int
+.Fn archive_entry_compressed_size_is_set "struct archive_entry *"
+.Ft void
+.Fn archive_entry_set_compressed_size "struct archive_entry *" "la_int64_t"
+.Ft void
+.Fn archive_entry_unset_compressed_size "struct archive_entry *"
 .Ft int
 .Fn archive_entry_symlink_type "struct archive_entry *a"
 .Ft void
@@ -99,6 +111,23 @@ Compressed using Zstandard.
 .It Dv ARCHIVE_ENTRY_COMPRESSION_PPMD
 Compressed using PPMd.
 .El
+.Pp
+The function
+.Fn archive_entry_compressed_size
+returns the compressed size of the entry, i.e. the number of bytes
+its data occupies in the archive, if it has been set, and 0 otherwise.
+.Fn archive_entry_compressed_size_is_set
+can be used to query that status.
+.Fn archive_entry_set_compressed_size
+and
+.Fn archive_entry_unset_compressed_size
+set and unset the compressed size, respectively.
+Negative values passed to
+.Fn archive_entry_set_compressed_size
+are treated as 0.
+The compressed size is not calculated by libarchive; it is recorded
+only as supplied by the caller or a reader, and is independent of
+.Fn archive_entry_size .
 .Sh SEE ALSO
 .Xr archive_entry 3 ,
 .Xr archive_entry_paths 3 ,

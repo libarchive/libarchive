@@ -1511,6 +1511,11 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	if (zip_entry->flags & LA_NTFS_BTIME)
 		archive_entry_set_birthtime(entry, zip_entry->btime,
 		    zip_entry->btime_ns);
+	/* The compressed size is only known once the local header (or,
+	 * when seeking, the central directory) has supplied it. */
+	if ((zip_entry->zip_flags & ZIP_LENGTH_AT_END) == 0)
+		archive_entry_set_compressed_size(entry,
+		    zip_entry->compressed_size);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;
@@ -1611,6 +1616,10 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				ret = ARCHIVE_WARN;
 			}
 		}
+		/* A decoder already consumes the compressed symlink data. */
+		if (zip->entry->compression != 0)
+			linkname_length = zip->entry_bytes_remaining > 0 ?
+			    (size_t)zip->entry_bytes_remaining : 0;
 		zip_entry->uncompressed_size = zip_entry->compressed_size = 0;
 
 		if (__archive_read_consume(a, linkname_length) < 0) {
