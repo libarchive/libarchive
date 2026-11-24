@@ -2272,3 +2272,54 @@ DEFINE_TEST(test_read_format_7zip_chained_lzma2)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * Check that the compression type reported for each regular file entry
+ * matches the coder used to store it in the folder.
+ */
+static void
+test_entry_compression(const char *refname, int expected)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	int regular_files = 0;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	while (archive_read_next_header(a, &ae) == ARCHIVE_OK) {
+		if (archive_entry_filetype(ae) != AE_IFREG ||
+		    archive_entry_size(ae) <= 0)
+			continue;
+		regular_files++;
+		failure("%s: entry %s", refname, archive_entry_pathname(ae));
+		assertEqualInt(expected, archive_entry_compression(ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));
+	}
+	assert(regular_files > 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_entry_compression)
+{
+	test_entry_compression("test_read_format_7zip_copy.7z",
+	    ARCHIVE_ENTRY_COMPRESSION_STORE);
+	test_entry_compression("test_read_format_7zip_deflate.7z",
+	    ARCHIVE_ENTRY_COMPRESSION_DEFLATE);
+	test_entry_compression("test_read_format_7zip_bzip2.7z",
+	    ARCHIVE_ENTRY_COMPRESSION_BZIP2);
+	test_entry_compression("test_read_format_7zip_lzma1.7z",
+	    ARCHIVE_ENTRY_COMPRESSION_LZMA);
+	test_entry_compression("test_read_format_7zip_lzma2.7z",
+	    ARCHIVE_ENTRY_COMPRESSION_LZMA2);
+	test_entry_compression("test_read_format_7zip_ppmd.7z",
+	    ARCHIVE_ENTRY_COMPRESSION_PPMD);
+	test_entry_compression("test_read_format_7zip_zstd.7z",
+	    ARCHIVE_ENTRY_COMPRESSION_ZSTD);
+}

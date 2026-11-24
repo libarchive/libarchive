@@ -1632,6 +1632,34 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	    compression_name(zip->entry->compression));
 	a->archive.archive_format_name = zip->format_name.s;
 
+	switch (zip->entry->compression)
+	{
+	case 0:
+		archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_STORE);
+		break;
+	case 8:
+		archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_DEFLATE);
+		break;
+	case 12:
+		archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_BZIP2);
+		break;
+	case 14:
+		archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_LZMA);
+		break;
+	case 93:
+		archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_ZSTD);
+		break;
+	case 95:
+		archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_XZ);
+		break;
+	case 98:
+		archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_PPMD);
+		break;
+	default:
+		archive_entry_set_compression(entry, ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED);
+		break;
+	}
+
 	return (ret);
 }
 

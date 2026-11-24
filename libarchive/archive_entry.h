@@ -452,6 +452,22 @@ __LA_DECL const unsigned char * archive_entry_digest(struct archive_entry *, int
 __LA_DECL int archive_entry_set_digest(struct archive_entry *, int, const unsigned char *);
 
 /*
+ * Compression type routines.
+ */
+#define ARCHIVE_ENTRY_COMPRESSION_UNSPECIFIED 0x00000000
+#define ARCHIVE_ENTRY_COMPRESSION_STORE       0x00000001 /* Uncompressed */
+#define ARCHIVE_ENTRY_COMPRESSION_DEFLATE     0x00000002
+#define ARCHIVE_ENTRY_COMPRESSION_BZIP2       0x00000003
+#define ARCHIVE_ENTRY_COMPRESSION_LZMA        0x00000004
+#define ARCHIVE_ENTRY_COMPRESSION_LZMA2       0x00000005
+#define ARCHIVE_ENTRY_COMPRESSION_XZ          0x00000006
+#define ARCHIVE_ENTRY_COMPRESSION_ZSTD        0x00000007
+#define ARCHIVE_ENTRY_COMPRESSION_PPMD        0x00000008
+
+__LA_DECL int archive_entry_compression(struct archive_entry *);
+__LA_DECL int archive_entry_set_compression(struct archive_entry *, int);
+
+/*
  * ACL routines.  This used to simply store and return text-format ACL
  * strings, but that proved insufficient for a number of reasons:
  *   = clients need control over uname/uid and gname/gid mappings
