@@ -1611,6 +1611,10 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				ret = ARCHIVE_WARN;
 			}
 		}
+		/* A decoder already consumes the compressed symlink data. */
+		if (zip->entry->compression != 0)
+			linkname_length = zip->entry_bytes_remaining > 0 ?
+			    (size_t)zip->entry_bytes_remaining : 0;
 		zip_entry->uncompressed_size = zip_entry->compressed_size = 0;
 
 		if (__archive_read_consume(a, linkname_length) < 0) {
