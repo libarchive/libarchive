@@ -97,6 +97,13 @@ following values:
 .It Cm ARCHIVE_EXTRACT_ACL
 Attempt to restore Access Control Lists.
 By default, extended ACLs are ignored.
+.It Cm ARCHIVE_EXTRACT_CACHE_UMASK
+Cache the process umask that was read when the
+.Tn struct archive
+object was created, instead of refreshing it before each entry, so
+that changes to the process umask made after that point are ignored.
+This avoids repeated umask queries for applications that keep the
+umask constant during extraction.
 .It Cm ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS
 Before removing a file system object prior to replacing it, clear
 platform-specific file flags which might prevent its removal.

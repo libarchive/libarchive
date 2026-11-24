@@ -749,6 +749,8 @@ __LA_DECL int archive_read_set_passphrase_callback(struct archive *,
 #define	ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS	(0x20000)
 /* Default: Do not extract atomically (using rename) */
 #define	ARCHIVE_EXTRACT_SAFE_WRITES		(0x40000)
+/* Default: Refresh the process umask before each entry */
+#define	ARCHIVE_EXTRACT_CACHE_UMASK		(0x80000)
 
 __LA_DECL int archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);

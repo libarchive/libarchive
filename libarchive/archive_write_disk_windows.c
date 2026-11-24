@@ -860,9 +860,11 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	 * Query the umask so we get predictable mode settings.
 	 * This gets done on every call to _write_header in case the
 	 * user edits their umask during the extraction for some
-	 * reason.
+	 * reason, unless the caller asked us to cache the value
+	 * obtained when the write_disk object was created.
 	 */
-	a->user_umask = __archive_get_umask();
+	if ((a->flags & ARCHIVE_EXTRACT_CACHE_UMASK) == 0)
+		a->user_umask = __archive_get_umask();
 
 	/* Figure out what we need to do for this entry. */
 	a->todo = TODO_MODE_BASE;
