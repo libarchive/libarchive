@@ -262,9 +262,9 @@ read_line_ahead(struct archive_read_filter *f, ssize_t parsed,
 /*
  * Parses "begin[-base64][-encoded] <mode> <name>". The GNU "-encoded"
  * extension indicates a base64 encoded filename, regardless of the body
- * encoding. The two suffixes may occur in either order. The mode is a
- * sequence of at least three octal digits: encoders don't all write the same
- * number of them, for example 644, 0644 or 4755 for the same kind of file.
+ * encoding. The mode is a sequence of at least three octal digits: encoders
+ * don't all write the same number of them, for example 644, 0644 or 4755 for
+ * the same kind of file.
  *
  * Returns ST_READ_UU or ST_READ_BASE64, or 0 if the line is not a header.
  * Stores the permission bits in *mode, the offset of the name in
@@ -283,20 +283,13 @@ parse_header(const unsigned char *p, size_t len, mode_t *mode,
 	if (len < 6 || memcmp(p, "begin", 5) != 0)
 		return (0);
 	l = 5;
-	while (l < len && p[l] == '-') {
-		if (len - l >= 7 && memcmp(p + l, "-base64", 7) == 0) {
-			if (state == ST_READ_BASE64)
-				return (0);
-			state = ST_READ_BASE64;
-			l += 7;
-		} else if (len - l >= 8 &&
-		    memcmp(p + l, "-encoded", 8) == 0) {
-			if (encoded)
-				return (0);
-			encoded = 1;
-			l += 8;
-		} else
-			return (0);
+	if (len - l >= 7 && memcmp(p + l, "-base64", 7) == 0) {
+		state = ST_READ_BASE64;
+		l += 7;
+	}
+	if (len - l >= 8 && memcmp(p + l, "-encoded", 8) == 0) {
+		encoded = 1;
+		l += 8;
 	}
 	if (l >= len || p[l] != ' ')
 		return (0);
@@ -348,7 +341,7 @@ decode_name(char *name, size_t len)
 			bits -= 8;
 			*out = (unsigned char)(value >> bits);
 			value &= (1U << bits) - 1;
-			/* A filename cannot contain a NUL byte. */
+			/* An embedded NUL would truncate the name. */
 			if (*out++ == '\0')
 				return (0);
 		}

@@ -161,7 +161,9 @@ DEFINE_TEST(test_read_filter_uudecode_encoded_name)
 	/* The filename always uses base64, independently of the body. */
 	check_header("begin-base64-encoded 600 csOpc3Vtw6kgdGV4dC50eHQ=\n"
 	    "aGkK\n====\n", "r\xc3\xa9sum\xc3\xa9 text.txt", 0600);
-	check_header("begin-encoded-base64 0644 YQ==\naGkK\n====\n", "a", 0644);
+
+	/* GNU uuencode -e preserves a tab inside the filename. */
+	check_header("begin-encoded 644 YQli\n#:&D*\n`\nend\n", "a\tb", 0644);
 }
 
 DEFINE_TEST(test_read_filter_uudecode_invalid_encoded_name)
@@ -194,6 +196,7 @@ DEFINE_TEST(test_read_filter_uudecode_invalid_encoded_name)
 
 DEFINE_TEST(test_read_filter_uudecode_invalid_suffix)
 {
+	check_header("begin-encoded-base64 0644 YQ==\naGkK\n====\n", NULL, 0);
 	check_header("begin-encoded-encoded 644 YQ==\n#:&D*\n`\nend\n",
 	    NULL, 0);
 	check_header("begin-base64-base64 644 a\naGkK\n====\n", NULL, 0);
