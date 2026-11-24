@@ -193,8 +193,9 @@ archive_entry_clone(struct archive_entry *entry)
 	/* Copy symlink type */
 	entry2->ae_symlink_type = entry->ae_symlink_type;
 
-	/* Copy compression type */
+	/* Copy compression type and compressed size */
 	entry2->ae_compression_type = entry->ae_compression_type;
+	entry2->ae_compressed_size = entry->ae_compressed_size;
 
 	/* Copy encryption status */
 	entry2->encryption = entry->encryption;
@@ -709,6 +710,18 @@ int
 archive_entry_size_is_set(struct archive_entry *entry)
 {
 	return (entry->ae_set & AE_SET_SIZE);
+}
+
+la_int64_t
+archive_entry_compressed_size(struct archive_entry *entry)
+{
+	return (entry->ae_compressed_size);
+}
+
+int
+archive_entry_compressed_size_is_set(struct archive_entry *entry)
+{
+	return (entry->ae_set & AE_SET_COMPRESSED_SIZE);
 }
 
 const char *
@@ -1361,6 +1374,23 @@ archive_entry_unset_size(struct archive_entry *entry)
 {
 	archive_entry_set_size(entry, 0);
 	entry->ae_set &= ~AE_SET_SIZE;
+}
+
+void
+archive_entry_set_compressed_size(struct archive_entry *entry, la_int64_t s)
+{
+	if (s < 0) {
+		s = 0;
+	}
+	entry->ae_compressed_size = s;
+	entry->ae_set |= AE_SET_COMPRESSED_SIZE;
+}
+
+void
+archive_entry_unset_compressed_size(struct archive_entry *entry)
+{
+	archive_entry_set_compressed_size(entry, 0);
+	entry->ae_set &= ~AE_SET_COMPRESSED_SIZE;
 }
 
 void
