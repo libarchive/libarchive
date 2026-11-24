@@ -4,7 +4,7 @@
  */
 
 #include "test.h"
-#ifdef HAVE_ZSTD_H
+#if defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream2
 #include <zstd.h>
 
 /* File data */
@@ -299,12 +299,12 @@ static void verify_zstd_contents(const char *buff, size_t used)
 	archive_read_free(zip_archive);
 }
 
-#endif /* HAVE_ZSTD_H */
+#endif /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream2 */
 DEFINE_TEST(test_write_format_zip_compression_zstd)
 {
-#ifndef HAVE_ZSTD_H
+#if !defined(HAVE_ZSTD_H) || !HAVE_ZSTD_compressStream2
 	skipping("zstd is not fully supported on this platform");
-#else /* HAVE_ZSTD_H */
+#else /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream2 */
 	/* Buffer data */
 	struct archive *a;
 	char buff[100000];
@@ -361,6 +361,6 @@ DEFINE_TEST(test_write_format_zip_compression_zstd)
 	dumpfile("constructed.zip", buff, used);
 
 	verify_zstd_contents(buff, used);
-#endif /* HAVE_ZSTD_H */
+#endif /* HAVE_ZSTD_H && HAVE_ZSTD_compressStream2 */
 }
 
