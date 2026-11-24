@@ -132,6 +132,11 @@ verify_basic(struct archive *a, int seek_checks)
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_DEFLATE, archive_entry_compression(ae));
+
+	/* Known from the local header, so available in both readers. */
+	assert(archive_entry_compressed_size_is_set(ae));
+	assertEqualInt(10, archive_entry_compressed_size(ae));
+
 	failure("archive_read_data() returns number of bytes read");
 	if (archive_zlib_version() != NULL) {
 		assertEqualInt(18, archive_read_data(a, buff, 19));
@@ -155,6 +160,15 @@ verify_basic(struct archive *a, int seek_checks)
 	assert(archive_entry_size_is_set(ae));
 	assertEqualInt(18, archive_entry_size(ae));
 	assertEqualInt(ARCHIVE_ENTRY_COMPRESSION_DEFLATE, archive_entry_compression(ae));
+
+	/* Length-at-end: the compressed size is only known when seeking. */
+	if (seek_checks) {
+		assert(archive_entry_compressed_size_is_set(ae));
+		assertEqualInt(10, archive_entry_compressed_size(ae));
+	} else {
+		assert(!archive_entry_compressed_size_is_set(ae));
+	}
+
 	if (archive_zlib_version() != NULL) {
 		failure("file2 has a bad CRC, so read should fail and not change buff");
 		memset(buff, 'a', 19);

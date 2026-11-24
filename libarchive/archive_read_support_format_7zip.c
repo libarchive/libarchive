@@ -1048,6 +1048,35 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 		archive_entry_set_size(entry, 0);
 	}
 
+	/*
+	 * 7zip stores packed sizes per folder, not per file. A folder holding
+	 * several entries (solid) has no per-entry packed size, so leave it
+	 * unset in that case.
+	 */
+	if (zip_entry->ssIndex == (size_t)-1) {
+		// No entry in the substream list, eg a directory or an empty file.
+		archive_entry_set_compressed_size(entry, 0);
+	} else if (zip_entry->folderIndex < zip->si.ci.numFolders) {
+		const struct _7z_folder *f = &zip->si.ci.folders[zip_entry->folderIndex];
+		int64_t packed = 0;
+		size_t k;
+
+		int ok = f->numPackedStreams > 0 && f->numUnpackStreams == 1;
+		if (ok) {
+			for (k = 0; k < f->numPackedStreams; k++) {
+				int64_t s = zip->si.pi.sizes[f->packIndex + k];
+				if (s < 0 || packed > INT64_MAX - s) {
+					ok = 0;
+					break;
+				}
+				packed += s;
+			}
+		}
+
+		if (ok)
+			archive_entry_set_compressed_size(entry, packed);
+	}
+
 	// These attributes are supported by the windows implementation of archive_write_disk.
 	const int supported_attrs = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM;
 

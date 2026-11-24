@@ -150,6 +150,7 @@ struct archive_entry {
 #define	AE_SET_UID	2048
 #define	AE_SET_GID	4096
 #define	AE_SET_RDEV	8192
+#define	AE_SET_COMPRESSED_SIZE	16384
 
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
@@ -202,6 +203,8 @@ struct archive_entry {
 	int ae_symlink_type;
 
 	int ae_compression_type;
+
+	uint64_t ae_compressed_size;
 };
 
 #endif /* !ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

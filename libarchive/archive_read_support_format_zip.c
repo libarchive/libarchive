@@ -1511,6 +1511,11 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 	if (zip_entry->flags & LA_NTFS_BTIME)
 		archive_entry_set_birthtime(entry, zip_entry->btime,
 		    zip_entry->btime_ns);
+	/* The compressed size is only known once the local header (or,
+	 * when seeking, the central directory) has supplied it. */
+	if ((zip_entry->zip_flags & ZIP_LENGTH_AT_END) == 0)
+		archive_entry_set_compressed_size(entry,
+		    zip_entry->compressed_size);
 
 	if ((zip->entry->mode & AE_IFMT) == AE_IFLNK) {
 		size_t linkname_length;

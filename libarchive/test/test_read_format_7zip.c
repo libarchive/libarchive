@@ -2306,6 +2306,60 @@ test_entry_compression(const char *refname, int expected)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * Check the compressed size recorded for one named entry.  expected < 0
+ * means the size must be unset, as it is for files in a solid folder.
+ */
+static void
+test_compressed_size(const char *refname, const char *pathname,
+    int64_t expected)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	int found = 0;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	while (archive_read_next_header(a, &ae) == ARCHIVE_OK) {
+		if (strcmp(archive_entry_pathname(ae), pathname) != 0) {
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_data_skip(a));
+			continue;
+		}
+		found = 1;
+		failure("%s: entry %s", refname, pathname);
+		if (expected < 0) {
+			assert(!archive_entry_compressed_size_is_set(ae));
+		} else {
+			assert(archive_entry_compressed_size_is_set(ae));
+			assertEqualInt(expected,
+			    archive_entry_compressed_size(ae));
+		}
+		break;
+	}
+	assert(found);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_compressed_size)
+{
+	/* Single-file folders: the packed size is the entry's own. */
+	test_compressed_size("test_read_format_7zip_copy.7z", "file1", 60);
+	test_compressed_size("test_read_format_7zip_bzip2.7z", "file1", 1416);
+	/* BCJ2 has several packed streams; their sizes are summed. */
+	test_compressed_size("test_read_format_7zip_bcj2_copy_1.7z", "x86exe",
+	    27367);
+	/* Solid folder shared by several files: no per-entry size. */
+	test_compressed_size("test_read_format_7zip_solid_zstd.7z", "file2", -1);
+}
+
 DEFINE_TEST(test_read_format_7zip_entry_compression)
 {
 	test_entry_compression("test_read_format_7zip_copy.7z",
