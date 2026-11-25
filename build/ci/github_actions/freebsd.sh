@@ -20,7 +20,7 @@ then
 	tunefs -N enable /dev/$MD
 	mount /dev/$MD /tmp_acl_nfsv4
 	chmod 1777 /tmp_acl_nfsv4
-	pkg install -y autoconf automake cmake gmake libiconv libtool pkgconf expat libxml2 liblz4 zstd
+	pkg install -y autoconf automake cmake-core gmake libiconv libtool pkgconf expat libxml2 liblz4 zstd
 elif [ "$1" = "test" ]
 then
 	set -e
