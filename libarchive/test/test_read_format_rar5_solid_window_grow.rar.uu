@@ -1,0 +1,16 @@
+A 94-byte crafted solid RAR5 archive with two entries:
+
+  seed.bin: 128 KiB dictionary; decompresses to the single byte 0x41.
+  leak.bin: 256 KiB dictionary; one match of length 4 at distance
+            131073, which reads from the part of the window that was
+            added when the dictionary grew from 128 KiB to 256 KiB.
+
+The grown part of the window has never been written, so leak.bin
+must decompress to four zero bytes and never to stale heap contents.
+
+begin 644 test_read_format_rar5_solid_window_grow.rar
+M4F%R(1H'`0#<WEXU`P$`!%RH6IT2`@(4``$`@`0!"'-E960N8FENQ(\1`0``
+M`````````;9_U["22P#+R4QG$@("!0`$`,`,`0AL96%K+F)I;D8>`H``.?FR
+$@0(%````
+`
+end

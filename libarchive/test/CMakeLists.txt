@@ -218,6 +218,7 @@ IF(ENABLE_TEST)
     test_read_format_rar5_header_size_wraparound.c
     test_read_format_rar5_loop_bug.c
     test_read_format_rar5_redir_overflow.c
+    test_read_format_rar5_solid_window_grow.c
     test_read_format_rar5_truncated_htime.c
     test_read_format_rar5_varint_near_eof.c
     test_read_format_raw.c

@@ -239,6 +239,8 @@ struct comp_state {
 	ssize_t window_size;         /* Size of window_buf. */
 	uint8_t* window_buf;         /* Circular buffer used during
 	                                decompression. */
+	size_t window_buf_size;      /* Allocated size of window_buf; can
+	                                exceed window_size. */
 	uint8_t* filtered_buf;       /* Buffer used when applying filters. */
 	const uint8_t* block_buf;    /* Buffer used when merging blocks. */
 	ssize_t window_mask;         /* Convenience field; window_size - 1. */
@@ -1999,7 +2001,7 @@ static int process_head_file(struct archive_read* a, struct rar5 *rar5,
 	else
 		rar5->cstate.data_encrypted = 0; /* Reset for new buffer */
 
-	if(rar5->cstate.window_size < (ssize_t) window_size &&
+	if(rar5->cstate.window_buf_size < (size_t) window_size &&
 	    rar5->cstate.window_buf)
 	{
 		/* The `data_ready` stack contains pointers to the `window_buf` or
@@ -2022,7 +2024,15 @@ static int process_head_file(struct archive_read* a, struct rar5 *rar5,
 			return ARCHIVE_FATAL;
 		}
 
+		/* realloc() leaves the added space uninitialized.  In a
+		 * solid stream, the window is not reinitialized for the
+		 * next entry, so a crafted back-reference could copy
+		 * stale heap contents into the output.  Zero it. */
+		memset(new_window_buf + rar5->cstate.window_buf_size, 0,
+		    (size_t) window_size - rar5->cstate.window_buf_size);
+
 		rar5->cstate.window_buf = new_window_buf;
+		rar5->cstate.window_buf_size = (size_t) window_size;
 	}
 
 	/* Values up to 64M should fit into ssize_t on every
@@ -2732,12 +2742,15 @@ static int init_unpack(struct rar5 *rar5) {
 	free(rar5->cstate.filtered_buf);
 
 	rar5->cstate.window_buf = NULL;
+	rar5->cstate.window_buf_size = 0;
 	rar5->cstate.filtered_buf = NULL;
 
 	if(rar5->cstate.window_size > 0) {
 		rar5->cstate.window_buf = calloc(1, rar5->cstate.window_size);
 		if(rar5->cstate.window_buf == NULL)
 			return ARCHIVE_FATAL;
+		rar5->cstate.window_buf_size =
+		    (size_t) rar5->cstate.window_size;
 		rar5->cstate.filtered_buf = calloc(1,
 		    rar5->cstate.window_size);
 		if(rar5->cstate.filtered_buf == NULL)
