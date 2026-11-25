@@ -1291,7 +1291,7 @@ static int process_main_locator_extra_block(struct archive_read* a,
 }
 
 static int parse_file_extra_hash(struct archive_read* a, struct rar5 *rar5,
-    int64_t* extra_data_size)
+    int64_t* extra_data_size, int64_t extra_field_size)
 {
 	size_t hash_type = 0;
 	size_t value_len;
@@ -1315,6 +1315,19 @@ static int parse_file_extra_hash(struct archive_read* a, struct rar5 *rar5,
 	if(hash_type == BLAKE2sp) {
 		const uint8_t* p;
 		const int hash_size = sizeof(rar5->file.blake2sp);
+
+		/* The digest has to fit into this record; do not read it
+		 * from the bytes of the records that follow. A negative
+		 * extra_field_size means the declared record size was
+		 * smaller than the record type field itself; leave such
+		 * a record to the stream and accounting checks. */
+		if(extra_field_size >= 0 &&
+		    (int64_t)(value_len + hash_size) > extra_field_size) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Extra data size is too small for file hash");
+			return ARCHIVE_FATAL;
+		}
 
 		if(!read_ahead(a, hash_size, &p))
 			return ARCHIVE_EOF;
@@ -1416,11 +1429,13 @@ static int parse_file_extra_version(struct archive_read* a,
 }
 
 static int parse_file_extra_htime(struct archive_read* a,
-    struct archive_entry* e, struct rar5 *rar5, int64_t* extra_data_size)
+    struct archive_entry* e, struct rar5 *rar5, int64_t* extra_data_size,
+    int64_t extra_field_size)
 {
 	char unix_time, has_unix_ns, has_mtime, has_ctime, has_atime;
 	size_t flags = 0;
 	size_t value_len;
+	int64_t needed;
 	int ret;
 
 	enum HTIME_FLAGS {
@@ -1446,6 +1461,34 @@ static int parse_file_extra_htime(struct archive_read* a,
 	has_atime = flags & HAS_ATIME;
 	has_ctime = flags & HAS_CTIME;
 	rar5->file.e_atime_ns = rar5->file.e_ctime_ns = rar5->file.e_mtime_ns = 0;
+
+	/* All the time items below have a size that is known upfront;
+	 * make sure they fit into this record before reading any of
+	 * them, so they are not read from the records that follow.
+	 * (Skipped when extra_field_size is negative, i.e. the declared
+	 * record size was smaller than the record type field itself;
+	 * such a record is left to the stream and accounting checks.) */
+	needed = (int64_t) value_len;
+	if(has_mtime)
+		needed += unix_time ? 4 : 8;
+	if(has_ctime)
+		needed += unix_time ? 4 : 8;
+	if(has_atime)
+		needed += unix_time ? 4 : 8;
+	if(has_unix_ns) {
+		if(has_mtime)
+			needed += 4;
+		if(has_ctime)
+			needed += 4;
+		if(has_atime)
+			needed += 4;
+	}
+
+	if(extra_field_size >= 0 && needed > extra_field_size) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Extra data size is too small for file times");
+		return ARCHIVE_FATAL;
+	}
 
 	if(has_mtime) {
 		ret = parse_htime_item(a, unix_time, &rar5->file.e_mtime,
@@ -1735,11 +1778,13 @@ static int process_head_file_extra(struct archive_read* a,
 		switch(extra_field_id) {
 			case EX_HASH:
 				ret = parse_file_extra_hash(a, rar5,
-				    &extra_data_size);
+				    &extra_data_size,
+				    (int64_t)extra_field_size);
 				break;
 			case EX_HTIME:
 				ret = parse_file_extra_htime(a, e, rar5,
-				    &extra_data_size);
+				    &extra_data_size,
+				    (int64_t)extra_field_size);
 				break;
 			case EX_REDIR:
 				ret = parse_file_extra_redir(a, e, rar5,
