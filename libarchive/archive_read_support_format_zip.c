@@ -1707,7 +1707,7 @@ check_authentication_code(struct archive_read *a, const void *_p)
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "ZIP bad Authentication code");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 	}
 	return (ARCHIVE_OK);
