@@ -77,10 +77,12 @@ jobs:
       with:
         run-in-vm: |
           # Verify the base archive before replacing files in the VM.
+          base_archive_url=https://download.freebsd.org/releases/amd64/15.1-RELEASE/base.txz
+          base_archive_sha256=3768988b151c20f965679062b065c63a977d6bbb9f47fd83695ec2c40790c18f
           base_archive=$(mktemp /tmp/libarchive-freebsd-base.XXXXXX) && \
           trap 'rm -f "$base_archive"' EXIT && \
-          fetch -o "$base_archive" https://download.freebsd.org/releases/amd64/15.1-RELEASE/base.txz && \
-          sha256 -c 3768988b151c20f965679062b065c63a977d6bbb9f47fd83695ec2c40790c18f "$base_archive" && \
+          fetch -o "$base_archive" "$base_archive_url" && \
+          sha256 -c "$base_archive_sha256" "$base_archive" && \
           chflags -R noschg / && \
           bsdtar -x -C / -f "$base_archive" && \
           rm -f "$base_archive" && \
