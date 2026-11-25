@@ -11,7 +11,7 @@ if [ "$1" = "prepare" ]
 then
 	set -x -e
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -f
-	sed -i.bak -e 's,pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly,pkg+http://pkg.FreeBSD.org/\${ABI}/latest,' /etc/pkg/FreeBSD.conf
+	sed -i.bak -e 's,/\${ABI}/quarterly",/\${ABI}/latest",' /etc/pkg/FreeBSD.conf
 	pkg update
 	mount -u -o acls /
 	mkdir /tmp_acl_nfsv4
