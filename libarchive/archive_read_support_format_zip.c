@@ -3680,7 +3680,23 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	/* If we hit the end, swallow any end-of-data marker and
 	 * verify the final check values. */
 	if (zip->end_of_entry) {
+		int64_t local_uncompressed_size = -1;
+
+		/* The descriptor may replace a size already exposed to callers. */
+		if ((zip->entry->zip_flags & ZIP_LENGTH_AT_END) &&
+		    zip_entry_size_is_set(zip->entry))
+			local_uncompressed_size = zip->entry->uncompressed_size;
 		consume_end_of_file_marker(a, zip);
+
+		if (local_uncompressed_size >= 0 &&
+		    local_uncompressed_size != zip->entry_uncompressed_bytes_read) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "ZIP uncompressed data is wrong size "
+			    "(read %jd, expected %jd from local header)",
+			    (intmax_t)zip->entry_uncompressed_bytes_read,
+			    (intmax_t)local_uncompressed_size);
+			return (ARCHIVE_FAILED);
+		}
 
 		/* Check computed CRC against header */
 		if ((!zip->hctx_valid ||

@@ -126,4 +126,3 @@ DEFINE_TEST(test_read_format_zip_zip64b)
 	verify_file0_stream(a, 1);
 	free(p);
 }
-

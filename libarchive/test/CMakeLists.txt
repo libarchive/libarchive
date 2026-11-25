@@ -275,6 +275,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_sfx.c
     test_read_format_zip_size_exceeds_declared.c
     test_read_format_zip_streamable_skip.c
+    test_read_format_zip_streamable_size_mismatch.c
     test_read_format_zip_streamable_symlink.c
     test_read_format_zip_symlink_unsupported_compression.c
     test_read_format_zip_traditional_encryption_data.c
