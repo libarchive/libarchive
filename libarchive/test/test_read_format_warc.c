@@ -260,3 +260,156 @@ DEFINE_TEST(test_read_format_warc_future_date)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_warc_header_across_blocks)
+{
+	static const char hdr_fmt[] =
+	    "WARC/1.0\r\nWARC-Type: resource\r\n"
+	    "WARC-Target-URI: file://%s\r\n"
+	    "WARC-Date: 2020-01-01T00:00:00Z\r\n"
+	    "Content-Length: %d\r\n\r\n";
+	const size_t hdr2_offset = 20 * 10240 - 50;
+	struct archive_entry *ae;
+	struct archive *a;
+	char hdr[256];
+	char *buff;
+	size_t used;
+	int body1, n;
+
+	/* Choose the first body size so that the second header lands
+	 * where we want it. */
+	body1 = (int)hdr2_offset;
+	do {
+		body1--;
+		n = snprintf(hdr, sizeof(hdr), hdr_fmt, "a.txt", body1);
+	} while ((size_t)n + body1 + 4 > hdr2_offset);
+	assertEqualInt(hdr2_offset, n + body1 + 4);
+
+	assert((buff = malloc(hdr2_offset + 512)) != NULL);
+	memcpy(buff, hdr, n);
+	memset(buff + n, 'a', body1);
+	memcpy(buff + n + body1, "\r\n\r\n", 4);
+	used = hdr2_offset;
+	n = snprintf(hdr, sizeof(hdr), hdr_fmt, "b.txt", 3);
+	memcpy(buff + used, hdr, n);
+	used += n;
+	memcpy(buff + used, "bbb\r\n\r\n", 7);
+	used += 7;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    read_open_memory_minimal(a, buff, used, 10240));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("a.txt", archive_entry_pathname(ae));
+	assertEqualInt(body1, archive_entry_size(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("b.txt", archive_entry_pathname(ae));
+	assertEqualInt(3, archive_entry_size(ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(buff);
+}
+
+static char *
+make_long_header_record(size_t hdr_len, int terminate, size_t *used)
+{
+	static const char start[] =
+	    "WARC/1.0\r\nWARC-Type: resource\r\n"
+	    "WARC-Target-URI: file://long.txt\r\n"
+	    "WARC-Date: 2020-01-01T00:00:00Z\r\n"
+	    "Content-Length: 3\r\n"
+	    "X-Pad: ";
+	char *buff;
+	size_t pad;
+
+	/* The fixed part and a 4-byte terminator must fit in hdr_len. */
+	if (!assert(hdr_len >= sizeof(start) - 1 + 4))
+		return (NULL);
+	pad = hdr_len - (sizeof(start) - 1) - 4;
+	buff = malloc(hdr_len + 16);
+	if (buff == NULL)
+		return (NULL);
+	memcpy(buff, start, sizeof(start) - 1);
+	memset(buff + sizeof(start) - 1, 'p', pad);
+	*used = sizeof(start) - 1 + pad;
+	if (terminate) {
+		memcpy(buff + *used, "\r\n\r\nhi\n\r\n\r\n", 11);
+		*used += 11;
+	} else {
+		memset(buff + *used, 'p', 4);
+		*used += 4;
+	}
+	return (buff);
+}
+
+static void
+read_long_header(const char *buff, size_t used, int minimal,
+    int expect_ok, const char *desc)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_warc(a));
+	/* failure() only labels the next assertion. */
+	failure("%s", desc);
+	if (minimal)
+		assertEqualIntA(a, ARCHIVE_OK,
+		    read_open_memory_minimal(a, buff, used, 10240));
+	else
+		assertEqualIntA(a, ARCHIVE_OK,
+		    read_open_memory(a, buff, used, used));
+	if (expect_ok) {
+		failure("%s", desc);
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_next_header(a, &ae));
+		failure("%s", desc);
+		assertEqualString("long.txt", archive_entry_pathname(ae));
+		failure("%s", desc);
+		assertEqualInt(3, archive_entry_size(ae));
+		failure("%s", desc);
+		assertEqualIntA(a, ARCHIVE_EOF,
+		    archive_read_next_header(a, &ae));
+	} else {
+		failure("%s", desc);
+		assertEqualIntA(a, ARCHIVE_FATAL,
+		    archive_read_next_header(a, &ae));
+	}
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_warc_header_max_len)
+{
+	static const struct {
+		size_t len;
+		int terminate, ok;
+	} cases[] = {
+		{ 1024 * 1024, 1, 1 },
+		{ 1024 * 1024 + 1, 1, 0 },
+		{ 200, 0, 0 },
+	};
+	char desc[128];
+	char *buff;
+	size_t i, used;
+	int minimal;
+
+	for (i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		buff = make_long_header_record(cases[i].len,
+		    cases[i].terminate, &used);
+		if (!assert(buff != NULL))
+			continue;
+		for (minimal = 0; minimal <= 1; minimal++) {
+			snprintf(desc, sizeof(desc),
+			    "case %d: header length %d, %s, %s read",
+			    (int)i, (int)cases[i].len,
+			    cases[i].terminate ? "terminated" : "truncated",
+			    minimal ? "10240-byte" : "whole-buffer");
+			read_long_header(buff, used, minimal, cases[i].ok,
+			    desc);
+		}
+		free(buff);
+	}
+}
