@@ -362,3 +362,90 @@ DEFINE_TEST(test_write_format_iso9660_symlink)
 	}
 	free(buff);
 }
+
+/*
+ * A long symlink target is split across several Rock Ridge "SL"
+ * entries.  The writer used to require only 11 free bytes before
+ * starting a continuation "SL" but 12 bytes to emit a component, so
+ * when exactly 11 bytes remained it dereferenced a NULL component
+ * pointer.  Getting exactly 11 bytes requires a preceding entry to
+ * use part of the shared continuation area, so sweep the length of
+ * the first symlink target.
+ */
+static void
+add_long_symlink(struct archive *a, const char *name, char *target,
+    size_t len, char c)
+{
+	struct archive_entry *ae;
+
+	memset(target, c, len);
+	target[len] = '\0';
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, name);
+	archive_entry_set_filetype(ae, AE_IFLNK);
+	archive_entry_set_perm(ae, 0755);
+	archive_entry_copy_symlink(ae, target);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+}
+
+DEFINE_TEST(test_write_format_iso9660_symlink_continue)
+{
+	const size_t buffsize = 512 * 1024;
+	const size_t len2 = 2000;
+	unsigned char *buff;
+	char *target1, *target2;
+	size_t len1, used = 0;
+	struct archive *a;
+	struct archive_entry *ae;
+	int i;
+
+	assert((buff = malloc(buffsize)) != NULL);
+	assert((target1 = malloc(1001)) != NULL);
+	assert((target2 = malloc(len2 + 1)) != NULL);
+	for (len1 = 1; len1 <= 1000; len1++) {
+		/* Write the archive */
+		assert((a = archive_write_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_iso9660(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+		/* Disable Joliet (NULL value) so the layout matches the sweep. */
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_set_option(a, "iso9660", "joliet", NULL));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_write_open_memory(a, buff, buffsize, &used));
+		add_long_symlink(a, "a", target1, len1, 'x');
+		add_long_symlink(a, "b", target2, len2, 'y');
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+		/* Read the archive back */
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_iso9660(a));
+		assertEqualIntA(a, ARCHIVE_OK,
+		    archive_read_open_memory(a, buff, used));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+		assertEqualString(".", archive_entry_pathname(ae));
+		/* The reader returns the symlinks in on-disk order. */
+		for (i = 0; i < 2; i++) {
+			const char *pathname;
+
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_next_header(a, &ae));
+			assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+			pathname = archive_entry_pathname(ae);
+			if (strcmp(pathname, "a") == 0)
+				assertEqualString(target1,
+				    archive_entry_symlink(ae));
+			else {
+				assertEqualString("b", pathname);
+				assertEqualString(target2,
+				    archive_entry_symlink(ae));
+			}
+		}
+		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+	free(target2);
+	free(target1);
+	free(buff);
+}
