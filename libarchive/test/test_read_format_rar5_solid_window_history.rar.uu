@@ -1,0 +1,46 @@
+A hand-built solid RAR5 archive whose dictionary size changes between
+entries.  Each entry is one compressed block that uses fixed Huffman
+tables (9-bit literal/length codes, 6-bit distance slots).
+
+  first.bin:  128 KiB dictionary, not solid.  The 17 literals
+              "ABCDEFGHIJKLMNOPQ" followed by matches at distance 17,
+              for a total of 200000 bytes of that repeating pattern.
+  grow.bin:   256 KiB dictionary, solid.  One match of length 17 at
+              distance 10: "CDEFGHIJKLCDEFGHI".
+  shrink.bin: 128 KiB dictionary, solid.  One match of length 17 at
+              distance 31, reaching back into first.bin and through
+              grow.bin: "PQABCDEFGHIJKLCDE".
+
+All entries carry CRC32s.  Both matches read history that was written
+more than 128 KiB into the stream, which is stored at a different
+window position after the dictionary size changes.
+
+begin 644 test_read_format_rar5_solid_window_history.rar
+M4F%R(1H'`0#<WEXU`P$`!/W@^^<<`@+7`P3`F@RD@P)'SS7L@`,!"69I<G-T
+M+F)I;LQ$TP%55555555555552E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2
+ME*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2
+ME*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2
+ME*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2
+ME*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I,8QC&,8QC&,8QC&,8QC&,
+M8QC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QB$(0A"$(0A"$(0QC&,8QC&,8QC&,
+M8QC&,8QC&,8QC&,8QC&,8QB"0B&1"*1B.2"22B63":3B>4"C,<\0)CGB!,<\
+M0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!
+M,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)C
+MGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CGB!,<\
+M0)CGB!,<\0)CGB!,<\0)CGB!,<\0)CC2`*W#P&L9`@*=`@01I(,"O?"Q`,`+
+M`0AG<F]W+F)I;L^-&0%55555555555552E*4I2E*4I2E*4I2E*4I2E*4I2E*
+M4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*
+M4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*
+M4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*
+M4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I,8QC&,8QC&,8Q
+MC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QB$(0A"$(0A"$(0QC&,8Q
+MC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QHC&8'K/$D;`@*>`@01I(,"Q%C"$,`#
+M`0IS:')I;FLN8FENR(D:`55555555555555*4I2E*4I2E*4I2E*4I2E*4I2E
+M*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E
+M*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E
+M*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E
+M*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2E*4I2DQC&,8QC&,8
+MQC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QC&(0A"$(0A"$(0A#&,8
+DQC&,8QC&,8QC&,8QC&,8QC&,8QC&,8QC&B,G`!FR.C4#!0``
+`
+end

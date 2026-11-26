@@ -1,0 +1,46 @@
+A solid RAR5 archive made with RAR 7.30 whose dictionary size shrinks
+between entries:
+
+  rar a -s -md4m -m5 -qo- test_read_format_rar5_solid_window_shrink.rar a.txt
+  rar a -s -md128k -m5 -qo- test_read_format_rar5_solid_window_shrink.rar b.txt
+
+RAR reduced the first dictionary to 1 MiB to fit a.txt, so a.txt is
+stored with a 1 MiB dictionary and b.txt with 128 KiB, in one solid
+stream.
+
+  a.txt: 200000 bytes, a 997-byte block of pseudo-random printable
+         ASCII repeated.
+  b.txt: 797 bytes: bytes 500..996 of that block followed by bytes
+         0..299.
+
+b.txt is compressed as back-references into a.txt at positions beyond
+128 KiB, so decoding it requires the window to keep its 1 MiB layout.
+
+begin 644 test_read_format_rar5_solid_window_shrink.rar
+M4F%R(1H'`0#8&S)1`P$$!&W]KVPE`@,+PX<`!,":#*2#`AH1[2>`'0$%82YT
+M>'0*`Q-ZY`5KRZV$)<XHOP-&5D,B1F\U!5Z5$<40,$%%Q0=@0=P5Q0^%P5$!
+M'!W1V<!VN]XU7Y_T\RJE5.#V[FO>#744D\NZJ2ZNYKIW5>5RTN,,7+\V](C$
+MSX'OJ1)X[=X3.3-<<TB:-*4.;"S1J:D?])T5<SLHC3HWR_OY;[1,XFXU=W+>
+MK8=."W4.E=#AM%1I='PK2V"DLJ242\:D+F+FT5D7K.M=^1$'0Q=.<03QTJ\-
+M#K\GM=YV0\-J3MBKB3*17DY))<:2JFW1C7W^]5+3MR<6-]%SN4Z!CU2CZ04=
+M3+][<]8IYG=Q_O,/`[F?S::1"V],27$-_)$5'7#("SE__3^V"*;MN%[Z%G9;
+MQ$Q<>%9:J-'(1\GK/2,@9K5N.]^P6JG`?H?DMR;4W+^L6-\W;+GI^9QF1>UX
+M@P:.(^6]LLJ][-L::1.Q&(FK;MH2W&SP&Y$W>QBWU?WV!^Z6%,;O(DE02]6'
+MC'VZ\7*R6VV4'`[\2&GZ5+F0:$RFQ/U5S_U0H3S:P<M.11@K*6TR'^2M@1?U
+M'Q;NY.82N[D:S+$/^#I=&%\L*YH,3\K[6-C)CU%5G*LP=TR'YC%8RA*7Y6%Y
+MS[PLSG4)+[<.3],H1L,WY2QR.<V1UOLIHJ&6JSXU;#1;P?G4.[8R;J;,2+.(
+M&/0A2D"KW\>F7E9T+]*X]$1Z4_KR`>\<\;9-B'DX(#^0HAN*A-=9\60?#E&5
+M7*K1M-5C^^D+(=#X@!^&&Y;.(Y4CEQO\E_U)BJ],G(F=?&^,G9AE0!7/-"_(
+M$&YW&.=+6<]3A8)4A!4(^W8;KG?%69:E!6+@V*BQQ,.8"?_Z/'3U0D@ZE1R<
+M-I:+Y=M=VOW7+I=]W"/"[,N7O'1B,TQG#=T]G7N#\084;?;(N*YH;@;F5T[&
+M>%@B,91^343SBH"GS_!L[SQP+W!5G:4+:YP,%UQ[%#B]4W9XT!83&A_?+Y\_
+ML=/KDI87^$MOV/A@=/`*PJA=--%TOCII\K*V.,T8O6W.7QI09`6-U5.IXCJ6
+M;E8FP%712),[0/-.A]Q$KNH6W>HPZ)$/E2WEG(7V:TO[O07$VVS>XT/Q_E=L
+M;A2QPVRI.)1&E4H>7QL]/C/J+9N;^ID\)`IK"[<U6PK>C-RSA_I',/6G_9^<
+MP/_7?\T;<01$7HZ/^G6&G)@Z!UU/@K?JAE?%[KBU8PA4FL*IQ$TLO(Z1WZ<,
+M`S<((J=G^/?]>``#UCGW_7@``]`][_KP``>@>]_UX``/0/>_Z\``'H'O?]>`
+M`#T#WO^O``!Z![W_7@``]`][_KP``>@>]_UX``/0/%*"B@XC`@,+D0`$G0:D
+M@P)L[0F*P`4!!6(N='AT"@,3>N0%:W_SAB7$D`X"_B&?W\(O01$%R*)J2!UW
+&5E$#!00`
+`
+end
