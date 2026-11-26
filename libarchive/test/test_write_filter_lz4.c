@@ -449,7 +449,7 @@ DEFINE_TEST(test_write_filter_lz4_hc_block_dependence)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	char *buff, *data, *rbuff;
+	char *buff3, *buff9, *data, *rbuff;
 	size_t buffsize, datasize, used3, used9, i;
 	unsigned int seed = 1;
 	int r;
@@ -474,25 +474,30 @@ DEFINE_TEST(test_write_filter_lz4_hc_block_dependence)
 	buffsize = 2 * datasize;
 	assert(NULL != (data = malloc(datasize)));
 	assert(NULL != (rbuff = malloc(datasize)));
-	assert(NULL != (buff = malloc(buffsize)));
+	assert(NULL != (buff3 = malloc(buffsize)));
+	assert(NULL != (buff9 = malloc(buffsize)));
 	for (i = 0; i < datasize; i++) {
 		seed = seed * 1103515245 + 12345;
 		data[i] = "  eeettaoinshrdlu"[(seed >> 16) % 17];
 	}
 
-	/* The requested level must be applied to the HC stream. */
-	used3 = write_hc_dependent("3", data, datasize, buff, buffsize);
-	used9 = write_hc_dependent("9", data, datasize, buff, buffsize);
-	failure("level 9 wrote %d bytes, level 3 wrote %d bytes",
-	    (int)used9, (int)used3);
-	assert(used9 < used3);
+	/*
+	 * A new HC stream starts at lz4's default level, 9.  If the
+	 * requested level were not applied, level 3 would write the
+	 * same bytes as level 9.  Check only that the outputs differ,
+	 * not which one is smaller.
+	 */
+	used3 = write_hc_dependent("3", data, datasize, buff3, buffsize);
+	used9 = write_hc_dependent("9", data, datasize, buff9, buffsize);
+	failure("level 3 and level 9 wrote identical output");
+	assert(used3 != used9 || memcmp(buff3, buff9, used3) != 0);
 
-	/* Read back the level 9 archive and check its contents. */
+	/* Read back the level 3 archive and check its contents. */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_lz4(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, buff, used9));
+	    archive_read_open_memory(a, buff3, used3));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(datasize, archive_entry_size(ae));
 	assertEqualInt(datasize, archive_read_data(a, rbuff, datasize));
@@ -503,7 +508,8 @@ DEFINE_TEST(test_write_filter_lz4_hc_block_dependence)
 
 	free(rbuff);
 	free(data);
-	free(buff);
+	free(buff9);
+	free(buff3);
 }
 
 /*
