@@ -666,6 +666,18 @@ isVDSetTerminator(const unsigned char *h)
 	return (1);
 }
 
+/*
+ * ECMA-119 6.1.2: The logical block size is 2^(n+9) and must not exceed
+ * the 2048-byte logical sector size.  So only 512, 1024, and 2048 are
+ * legal.  Code below assumes the logical block size is a power of two.
+ */
+static int
+isValidLogicalBlockSize(ssize_t logical_block_size)
+{
+	return (logical_block_size == 512 || logical_block_size == 1024
+	    || logical_block_size == 2048);
+}
+
 static int
 isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 {
@@ -742,7 +754,7 @@ isSVD(const unsigned char *h)
 
 	logical_block_size =
 	    archive_le16dec(h + SVD_logical_block_size_offset);
-	if (logical_block_size <= 0)
+	if (!isValidLogicalBlockSize(logical_block_size))
 		return (0);
 
 	volume_block = archive_le32dec(h + SVD_volume_space_size_offset);
@@ -803,12 +815,9 @@ isEVD(const unsigned char *h)
 	if (!isNull(h, PVD_reserved3_offset, PVD_reserved3_size))
 		return (0);
 
-	/* Logical block size must be > 0. */
-	/* I've looked at Ecma 119 and can't find any stronger
-	 * restriction on this field. */
 	logical_block_size =
 	    archive_le16dec(h + PVD_logical_block_size_offset);
-	if (logical_block_size <= 0)
+	if (!isValidLogicalBlockSize(logical_block_size))
 		return (0);
 
 	volume_block =
@@ -899,15 +908,13 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 	}
 
-	/* Logical block size must be > 0. */
-	/* I've looked at Ecma 119 and can't find any stronger
-	 * restriction on this field. */
+	/* Logical block size must be encoded according to 7.2.3 */
 	if (!isValid723Integer(h + PVD_logical_block_size_offset)) {
 		return (0);
 	}
 	logical_block_size =
 	    archive_le16dec(h + PVD_logical_block_size_offset);
-	if (logical_block_size <= 0)
+	if (!isValidLogicalBlockSize(logical_block_size))
 		return (0);
 
 	/* Path Table size must be encoded according to 7.3.3 */
@@ -1020,6 +1027,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 	struct iso9660 *iso9660 = a->format->data;
 	const unsigned char *b, *p;
 	struct file_info *multi;
+	uint64_t step64;
 	size_t step, skip_size;
 
 	/* flush any remaining bytes from the last round to ensure
@@ -1052,8 +1060,14 @@ read_children(struct archive_read *a, struct file_info *parent)
 		iso9660->current_position = parent->offset;
 	}
 
-	step = (size_t)(((parent->size + iso9660->logical_block_size -1) /
-	    iso9660->logical_block_size) * iso9660->logical_block_size);
+	step64 = ((parent->size + iso9660->logical_block_size - 1) /
+	    iso9660->logical_block_size) * iso9660->logical_block_size;
+	if (step64 > SIZE_MAX) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Directory is too large: %s", parent->name.s);
+		return (ARCHIVE_FATAL);
+	}
+	step = (size_t)step64;
 	b = __archive_read_ahead(a, step, NULL);
 	if (b == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1154,7 +1168,7 @@ choose_volume(struct archive_read *a, struct iso9660 *iso9660)
 		/* This condition is unlikely; by way of caution. */
 		vd = &(iso9660->joliet);
 
-	skipsize = LOGICAL_BLOCK_SIZE * (int64_t)vd->location;
+	skipsize = iso9660->logical_block_size * (int64_t)vd->location;
 	skipsize = __archive_read_consume(a, skipsize);
 	if (skipsize < 0)
 		return ((int)skipsize);
@@ -1192,7 +1206,7 @@ choose_volume(struct archive_read *a, struct iso9660 *iso9660)
 	    && iso9660->seenJoliet) {
 		/* Switch reading data from primary to joliet. */
 		vd = &(iso9660->joliet);
-		skipsize = LOGICAL_BLOCK_SIZE * (int64_t)vd->location;
+		skipsize = iso9660->logical_block_size * (int64_t)vd->location;
 		skipsize -= iso9660->current_position;
 		skipsize = __archive_read_consume(a, skipsize);
 		if (skipsize < 0)
