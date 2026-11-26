@@ -350,6 +350,11 @@ archive_compressor_xz_open(struct archive_write_filter *f)
 	if (ret == LZMA_OK) {
 		return (ARCHIVE_OK);
 	}
+	/* The encoder was not initialized, so release the buffer: a non-NULL
+	 * buffer is what tells archive_compressor_xz_free() that there is an
+	 * lzma stream still to end. */
+	free(xz->compressed);
+	xz->compressed = NULL;
 	return (ARCHIVE_FATAL);
 }
 
@@ -463,6 +468,15 @@ archive_compressor_xz_close(struct archive_write_filter *f)
 static int
 archive_compressor_xz_free(struct archive_write_filter *f)
 {
+	struct xz *xz = f->data;
+
+	/* A filter left in the FATAL state is skipped by
+	 * __archive_write_filters_close(), so archive_compressor_xz_close() -
+	 * the only caller of lzma_end() - never ran. The compression buffer is
+	 * allocated before the stream is initialized and released again if that
+	 * initialization fails, so a non-NULL buffer means the stream is live. */
+	if (xz != NULL && xz->compressed != NULL)
+		lzma_end(&(xz->stream));
 	free_data(f->data);
 	f->data = NULL;
 	return (ARCHIVE_OK);
