@@ -2799,6 +2799,13 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 #define RR_USE_PL	0x20
 #define RR_USE_RE	0x40
 #define RR_USE_TF	0x80
+	/*
+	 * Minimum space for an "SL" System Use Entry: the 5-byte header
+	 * plus room for at least one component.  The component loop below
+	 * makes no progress with less, so the same minimum must be used
+	 * before the first "SL" and before each continuation "SL".
+	 */
+#define SL_MIN_SPACE	12
 	int length;
 	struct ctl_extr_rec ctl;
 	struct isoent *rr_parent, *pxent;
@@ -3021,8 +3028,8 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		const char *sl;
 		char sl_last;
 
-		if (extra_space(&ctl) < 12)
-			bp = extra_next_record(&ctl, 12);
+		if (extra_space(&ctl) < SL_MIN_SPACE)
+			bp = extra_next_record(&ctl, SL_MIN_SPACE);
 		sl = file->symlink.s;
 		sl_last = '\0';
 		if (bp != NULL) {
@@ -3043,7 +3050,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 				nc = NULL;
 			cf = cl = NULL;
 			sllen = 0;
-			while (*sl && sllen + 11 < slmax) {
+			while (*sl && sllen + SL_MIN_SPACE <= slmax) {
 				if (sl_last == '\0' && sl[0] == '/') {
 					/*
 					 *     flg  len
@@ -3143,7 +3150,8 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 					/*
 					 * Mark flg as CONTINUE component.
 					 */
-					*cf |= 0x01;
+					if (cf != NULL)
+						*cf |= 0x01;
 					/*
 					 *               len  ver  flg
 					 *    +----+----+----+----+----+-
@@ -3159,8 +3167,9 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 					bp += length;
 				}
 				extra_tell_used_size(&ctl, length);
-				if (extra_space(&ctl) < 11)
-					bp = extra_next_record(&ctl, 11);
+				if (extra_space(&ctl) < SL_MIN_SPACE)
+					bp = extra_next_record(&ctl,
+					    SL_MIN_SPACE);
 				if (bp != NULL) {
 					/* Next 'SL' */
 					bp[1] = 'S';
