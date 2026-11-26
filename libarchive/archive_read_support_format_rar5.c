@@ -132,8 +132,6 @@ struct file_header {
 	/* Optional redir fields */
 	uint64_t redir_type;
 	uint64_t redir_flags;
-
-	ssize_t solid_window_size; /* Used in file format check. */
 };
 
 enum EXTRA {
@@ -1986,51 +1984,58 @@ static int process_head_file(struct archive_read* a, struct rar5 *rar5,
 		return ARCHIVE_FATAL;
 	}
 
-	if(rar5->file.solid > 0) {
-		/* Re-check if current window size is the same as previous
-		 * window size (for solid files only). */
-		if(rar5->file.solid_window_size > 0 &&
-		    rar5->file.solid_window_size != (ssize_t) window_size)
-		{
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Window size for this solid file doesn't match "
-			    "the window size used in previous solid file");
-			return ARCHIVE_FATAL;
-		}
-	}
-	else
+	if(rar5->file.solid == 0)
 		rar5->cstate.data_encrypted = 0; /* Reset for new buffer */
+
+	/* In a solid archive, the window carries history from earlier
+	 * entries, and positions in it are computed with the window mask.
+	 * Never shrink the window: a smaller mask would look up that
+	 * history at the wrong positions. */
+	if(rar5->main.solid && rar5->cstate.window_buf &&
+	    window_size < rar5->cstate.window_buf_size)
+		window_size = rar5->cstate.window_buf_size;
 
 	if(rar5->cstate.window_buf_size < (size_t) window_size &&
 	    rar5->cstate.window_buf)
 	{
+		uint8_t* new_window_buf;
+
 		/* The `data_ready` stack contains pointers to the `window_buf` or
-		 * `filtered_buf` buffers.  Since we're about to reallocate the first
+		 * `filtered_buf` buffers.  Since we're about to replace the first
 		 * buffer, some of those pointers could become invalid. Therefore, we
-		 * need to dispose of all entries from the stack before attempting the
-		 * realloc. */
+		 * need to dispose of all entries from the stack before replacing
+		 * it. */
 		clear_data_ready_stack(rar5);
 
-		/* If window_buf has been allocated before, reallocate it, so
-		 * that its size will match new window_size. */
-
-		uint8_t* new_window_buf =
-			realloc(rar5->cstate.window_buf, (size_t) window_size);
-
+		/* Allocate a zeroed buffer: in a solid stream, the window
+		 * is not reinitialized for the next entry, so uninitialized
+		 * bytes would be reachable through back-references. */
+		new_window_buf = calloc(1, (size_t) window_size);
 		if(!new_window_buf) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-				"Not enough memory when trying to realloc the window "
+			archive_set_error(&a->archive, ENOMEM,
+				"Not enough memory when trying to grow the window "
 				"buffer");
 			return ARCHIVE_FATAL;
 		}
 
-		/* realloc() leaves the added space uninitialized.  In a
-		 * solid stream, the window is not reinitialized for the
-		 * next entry, so a crafted back-reference could copy
-		 * stale heap contents into the output.  Zero it. */
-		memset(new_window_buf + rar5->cstate.window_buf_size, 0,
-		    (size_t) window_size - rar5->cstate.window_buf_size);
+		if(rar5->main.solid) {
+			/* Byte at absolute position p is stored at
+			 * p & mask.  Move the history to where the new,
+			 * larger mask expects it. */
+			const uint64_t pos = (uint64_t) rar5->cstate.solid_offset
+			    + (uint64_t) rar5->cstate.write_ptr;
+			const uint64_t old_mask =
+			    rar5->cstate.window_buf_size - 1;
+			const uint64_t new_mask = window_size - 1;
+			uint64_t i;
 
+			for(i = 1; i <= rar5->cstate.window_buf_size; i++) {
+				new_window_buf[(pos - i) & new_mask] =
+				    rar5->cstate.window_buf[(pos - i) & old_mask];
+			}
+		}
+
+		free(rar5->cstate.window_buf);
 		rar5->cstate.window_buf = new_window_buf;
 		rar5->cstate.window_buf_size = (size_t) window_size;
 	}
@@ -2038,13 +2043,6 @@ static int process_head_file(struct archive_read* a, struct rar5 *rar5,
 	/* Values up to 64M should fit into ssize_t on every
 	 * architecture. */
 	rar5->cstate.window_size = (ssize_t) window_size;
-
-	if(rar5->file.solid > 0 && rar5->file.solid_window_size == 0) {
-		/* Solid files have to have the same window_size across
-		   whole archive. Remember the window_size parameter
-		   for first solid file found. */
-		rar5->file.solid_window_size = rar5->cstate.window_size;
-	}
 
 	init_window_mask(rar5);
 
