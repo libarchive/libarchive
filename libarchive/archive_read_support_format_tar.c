@@ -1605,6 +1605,18 @@ header_common(struct archive_read *a, struct tar *tar,
 		archive_entry_set_filetype(entry, AE_IFREG);
 		break;
 	}
+
+	/*
+	 * Only hardlink and symlink entries have a link target.
+	 * A pax `linkpath` or GNU longlink extension that precedes
+	 * any other kind of entry has already set a link target on
+	 * the entry, which would turn it into a link. Per POSIX, the
+	 * typeflag determines the kind, so discard that target.
+	 */
+	if (tar->filetype != '1' && tar->filetype != '2') {
+		archive_entry_set_hardlink(entry, NULL);
+		archive_entry_set_symlink(entry, NULL);
+	}
 	return (err);
 }
 
