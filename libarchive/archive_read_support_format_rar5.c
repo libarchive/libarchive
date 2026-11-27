@@ -113,6 +113,7 @@ struct file_header {
 	uint8_t service : 1;         /* Is this file a service data? */
 	uint8_t eof : 1;             /* Did we finish unpacking the file? */
 	uint8_t dir : 1;             /* Is this file entry a directory? */
+	uint8_t failed : 1;          /* Did decompression of this entry fail? */
 
 	/* Optional time fields. */
 	int64_t e_mtime;
@@ -2808,15 +2809,28 @@ static int create_decode_tables(uint8_t* bit_length,
 	ssize_t cur_len, quick_data_size;
 
 	memset(&lc, 0, sizeof(lc));
-	memset(table->decode_num, 0, sizeof(table->decode_num));
-	table->size = size;
-	table->quick_bits = size == HUFF_NC ? 10 : 7;
 
 	for(i = 0; i < size; i++) {
 		lc[bit_length[i] & 15]++;
 	}
 
 	lc[0] = 0;
+
+	/* Verify the code-length distribution is not over-subscribed
+	 * before modifying the table, so a rejected table never leaves
+	 * a partly-built table behind.  For a valid prefix-free code,
+	 * sum(lc[i] * 2^(16-i)) must be <= 2^16. */
+	for(i = 1; i < 16; i++) {
+		upper_limit = (upper_limit + lc[i]) << 1;
+	}
+	if(upper_limit > 65536) {
+		return ARCHIVE_FAILED;
+	}
+	upper_limit = 0;
+
+	memset(table->decode_num, 0, sizeof(table->decode_num));
+	table->size = size;
+	table->quick_bits = size == HUFF_NC ? 10 : 7;
 	table->decode_pos[0] = 0;
 	table->decode_len[0] = 0;
 
@@ -2827,15 +2841,6 @@ static int create_decode_tables(uint8_t* bit_length,
 		table->decode_pos[i] = table->decode_pos[i - 1] + lc[i - 1];
 
 		upper_limit <<= 1;
-	}
-
-	/* Verify the code-length distribution is not over-subscribed.
-	 * After the loop above, upper_limit == sum(lc[i] * 2^(16-i)).
-	 * For a valid prefix-free code this must be <= 2^16 = 65536.
-	 * An over-subscribed table (> 65536) cannot produce a valid
-	 * decode table and must be rejected. */
-	if(upper_limit > 65536) {
-		return ARCHIVE_FAILED;
 	}
 
 	memcpy(decode_pos_clone, table->decode_pos, sizeof(decode_pos_clone));
@@ -3310,7 +3315,7 @@ static int copy_string(struct archive_read* a, int len, int dist) {
 	    len > rar5->file.unpacked_size - rar5->cstate.write_ptr) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Uncompressed data exceeds declared size");
-		return rar5->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+		return ARCHIVE_FAILED;
 	}
 
 	/* The unpacker spends most of the time in this function. It would be
@@ -3388,7 +3393,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Uncompressed data exceeds declared size");
-				return rar5->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+				return ARCHIVE_FAILED;
 			}
 
 			write_idx = rar5->cstate.solid_offset +
@@ -3408,7 +3413,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 				    ARCHIVE_ERRNO_PROGRAMMER,
 				    "Failed to decode the code length");
 
-				return rar5->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+				return ARCHIVE_FAILED;
 			}
 
 			if(ARCHIVE_OK != decode_number(a, &rar5->cstate.dd, p,
@@ -3418,7 +3423,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 				    ARCHIVE_ERRNO_PROGRAMMER,
 				    "Failed to decode the distance slot");
 
-				return rar5->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+				return ARCHIVE_FAILED;
 			}
 
 			if(dist_slot < 4) {
@@ -3463,7 +3468,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 						    "Failed to decode the "
 						    "distance slot");
 
-						return rar5->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+						return ARCHIVE_FAILED;
 					}
 
 					if(dist >= INT_MAX - low_dist - 1) {
@@ -3473,7 +3478,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 						    ARCHIVE_ERRNO_FILE_FORMAT,
 						    "Distance pointer "
 						    "overflow");
-						return rar5->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+						return ARCHIVE_FAILED;
 					}
 
 					dist += low_dist;
@@ -3539,12 +3544,12 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 
 			if(ARCHIVE_OK != decode_number(a, &rar5->cstate.rd, p,
 			    &len_slot)) {
-				return rar5->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+				return ARCHIVE_FAILED;
 			}
 
 			len = decode_code_length(a, rar5, p, len_slot);
 			if (len == -1) {
-				return rar5->main.solid ? ARCHIVE_FATAL : ARCHIVE_FAILED;
+				return ARCHIVE_FAILED;
 			}
 
 			rar5->cstate.last_len = len;
@@ -4499,6 +4504,15 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 		return ARCHIVE_FATAL;
 	}
 
+	if(rar5->file.failed) {
+		/* The decoder stopped partway through this entry, so its
+		 * state cannot be trusted; never resume it. */
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't continue reading an entry after a "
+		    "decompression error");
+		return ARCHIVE_FAILED;
+	}
+
 	ret = use_data(rar5, buff, size, offset);
 	if(ret == ARCHIVE_OK) {
 		return ret;
@@ -4514,6 +4528,25 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	}
 
 	ret = do_unpack(a, rar5, buff, size, offset);
+	if(ret == ARCHIVE_FAILED) {
+		/* A failure leaves the decoder partway through a block,
+		 * with tables, filters and window in an unknown state.
+		 *
+		 * In a solid archive, every later entry continues this
+		 * stream (and skipping an entry means decoding it), so
+		 * nothing after this point can be read: the failure is
+		 * fatal.
+		 *
+		 * Otherwise, only this entry is lost: the next header
+		 * starts a fresh decoder, and skipping just consumes the
+		 * remaining packed data.  Make the failure sticky so that
+		 * a caller retrying archive_read_data() can't resume the
+		 * broken decoder. */
+		if(rar5->main.solid)
+			return ARCHIVE_FATAL;
+		rar5->file.failed = 1;
+		return ret;
+	}
 	if(ret != ARCHIVE_OK) {
 		return ret;
 	}
