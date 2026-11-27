@@ -1090,6 +1090,18 @@ archive_write_pax_header(struct archive_write *a,
 		}
 	}
 
+	/*
+	 * A pathname set only by WCS or UTF-8 may have no MBS form in
+	 * the current locale, which binary mode needs.  Fail.
+	 */
+	if (path == NULL) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate pathname to %s",
+		    archive_string_conversion_charset_name(sconv));
+		archive_entry_free(entry_main);
+		return (ARCHIVE_FAILED);
+	}
+
 	/* Store the header encoding first, to be nice to readers. */
 	if (sconv == NULL)
 		add_pax_attr(&(pax->pax_header), "hdrcharset", "BINARY");
