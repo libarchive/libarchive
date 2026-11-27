@@ -12,6 +12,7 @@
 
 DEFINE_TEST(test_option_t)
 {
+	FILE *full;
 	char *p;
 	int r;
 	time_t mtime;
@@ -94,4 +95,21 @@ DEFINE_TEST(test_option_t)
 	assert(0 != systemf("%s -in < test_option_t.cpio >in.out 2>in.err",
 			    testprog));
 	assertEmptyFile("in.out");
+
+	/* Listing must fail if stdout cannot be written. */
+	full = fopen("/dev/full", "r+");
+	if (full == NULL) {
+		skipping("This platform does not have /dev/full");
+		return;
+	}
+	fclose(full);
+	r = systemf("%s -itF test_option_t.cpio > /dev/full 2>full.err",
+	    testprog);
+	assert(r != 0);
+	p = slurpfile(NULL, "full.err");
+	assert(strstr(p, "Error writing to stdout") != NULL);
+	free(p);
+	r = systemf("%s -itvF test_option_t.cpio > /dev/full 2>full-v.err",
+	    testprog);
+	assert(r != 0);
 }
