@@ -229,6 +229,13 @@ Disabled by default.
 .It Cm hdrcharset
 The value is used as a character set name that will be
 used when translating file names.
+.It Cm solid-fast-skip
+Skip an entry of a solid RAR 3 or RAR 4 archive without
+decompressing it, for example to list the archive.
+The data of the solid entries after a skipped entry can then
+no longer be read.
+By default, skipping such an entry decompresses its data,
+because the entries after it depend on it.
 .El
 .It Format tar
 .Bl -tag -compact -width indent

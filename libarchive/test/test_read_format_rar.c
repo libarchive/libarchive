@@ -4088,3 +4088,58 @@ DEFINE_TEST(test_read_format_rar_unbound_staticdata)
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * testfile.rar3.solid.cbr from https://github.com/ssokolow/rar-test-files
+ * (CC0 1.0): a PNG, then a JPEG that continues its decoder state.
+ */
+DEFINE_TEST(test_read_format_rar4_solid)
+{
+  const char *reffile = "test_read_format_rar4_solid.rar";
+  static const unsigned char jpg_head[] = { 0xff, 0xd8, 0xff };
+  struct archive_entry *ae;
+  struct archive *a;
+  char buff[512];
+  int read_first;
+
+  extract_reference_file(reffile);
+
+  /* The second entry reads whether the first one is read or skipped:
+   * skipping it unpacks it. */
+  for (read_first = 0; read_first < 2; read_first++) {
+    assert((a = archive_read_new()) != NULL);
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+    assertEqualIntA(a, ARCHIVE_OK,
+        archive_read_open_filename(a, reffile, 10240));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+    assertEqualString("testfile.png", archive_entry_pathname(ae));
+    if (read_first) {
+      /* The CRC is checked at the entry's end. */
+      assertEqualIntA(a, 87,archive_read_data(a, buff, sizeof(buff)));
+      assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+    }
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+    assertEqualString("testfile.jpg", archive_entry_pathname(ae));
+    assertEqualIntA(a, 220, archive_read_data(a, buff, sizeof(buff)));
+    assertEqualMem(buff, jpg_head, sizeof(jpg_head));
+    assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+    assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+    assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+  }
+
+  /* With solid-fast-skip the first entry is not unpacked, so the archive
+   * lists but the second entry fails. */
+  assert((a = archive_read_new()) != NULL);
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+  assertEqualIntA(a, ARCHIVE_OK,
+      archive_read_set_options(a, "rar:solid-fast-skip"));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, reffile, 10240));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualString("testfile.jpg", archive_entry_pathname(ae));
+  assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
+  assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
