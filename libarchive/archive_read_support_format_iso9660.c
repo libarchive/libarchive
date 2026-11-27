@@ -1027,7 +1027,6 @@ read_children(struct archive_read *a, struct file_info *parent)
 	struct iso9660 *iso9660 = a->format->data;
 	const unsigned char *b, *p;
 	struct file_info *multi;
-	uint64_t step64;
 	size_t step, skip_size;
 
 	/* flush any remaining bytes from the last round to ensure
@@ -1060,14 +1059,15 @@ read_children(struct archive_read *a, struct file_info *parent)
 		iso9660->current_position = parent->offset;
 	}
 
-	step64 = ((parent->size + iso9660->logical_block_size - 1) /
-	    iso9660->logical_block_size) * iso9660->logical_block_size;
-	if (step64 > SIZE_MAX) {
+	/* Round directory size up to a whole number of blocks */
+	if (parent->size > SIZE_MAX
+	    || archive_ckd_add_size(&step, (size_t)parent->size,
+		iso9660->logical_block_size - 1)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Directory is too large: %s", parent->name.s);
 		return (ARCHIVE_FATAL);
 	}
-	step = (size_t)step64;
+	step &= ~((size_t)iso9660->logical_block_size - 1);
 	b = __archive_read_ahead(a, step, NULL);
 	if (b == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
