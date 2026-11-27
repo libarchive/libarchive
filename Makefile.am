@@ -593,6 +593,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar5_bad_tables.c \
 	libarchive/test/test_read_format_rar5_block_hdr_fail_loop.c \
 	libarchive/test/test_read_format_rar5_extra_field_underflow.c \
+	libarchive/test/test_read_format_rar5_extra_record_toosmall.c \
 	libarchive/test/test_read_format_rar5_header_size_wraparound.c \
 	libarchive/test/test_read_format_rar5_loop_bug.c \
 	libarchive/test/test_read_format_rar5_redir_overflow.c \
@@ -1143,6 +1144,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar5_extra_data_size_toolong.rar.Z.uu \
 	libarchive/test/test_read_format_rar5_extra_field_underflow.rar.uu \
 	libarchive/test/test_read_format_rar5_extra_field_version.rar.uu \
+	libarchive/test/test_read_format_rar5_extra_record_toosmall.rar.uu \
+	libarchive/test/test_read_format_rar5_extra_record_toosmall_htime.rar.uu \
 	libarchive/test/test_read_format_rar5_fileattr.rar.uu \
 	libarchive/test/test_read_format_rar5_group_name_toolong.rar.uu \
 	libarchive/test/test_read_format_rar5_hardlink.rar.uu \
