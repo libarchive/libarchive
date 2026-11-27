@@ -1338,6 +1338,7 @@ noinst_HEADERS+= \
 	libarchive_fe/lafe_fnmatch.h \
 	libarchive_fe/lafe_getline.h \
 	libarchive_fe/lafe_platform.h \
+	libarchive_fe/lafe_safe_fputs.h \
 	libarchive_fe/lafe_setmode.h \
 	libarchive_fe/line_reader.h \
 	libarchive_fe/passphrase.h
@@ -1346,6 +1347,7 @@ libarchive_fe_la_SOURCES= \
 	libarchive_fe/lafe_explicit_bzero.c \
 	libarchive_fe/lafe_fnmatch.c \
 	libarchive_fe/lafe_getline.c \
+	libarchive_fe/lafe_safe_fputs.c \
 	libarchive_fe/lafe_setmode.c \
 	libarchive_fe/line_reader.c \
 	libarchive_fe/passphrase.c
@@ -1652,6 +1654,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_option_o_rejected_entry.c \
 	cpio/test/test_option_passphrase.c \
 	cpio/test/test_option_t.c \
+	cpio/test/test_option_t_nonprintable.c \
 	cpio/test/test_option_u.c \
 	cpio/test/test_option_uuencode.c \
 	cpio/test/test_option_version.c \
@@ -1708,6 +1711,7 @@ bsdcpio_test_EXTRA_DIST= \
 	cpio/test/test_option_m.cpio.uu \
 	cpio/test/test_option_passphrase.zip.uu \
 	cpio/test/test_option_t.cpio.uu \
+	cpio/test/test_option_t_nonprintable.cpio.uu \
 	cpio/test/test_option_t.stdout.uu \
 	cpio/test/test_option_tv.stdout.uu \
 	cpio/test/CMakeLists.txt
@@ -1907,6 +1911,7 @@ bsdunzip_test_SOURCES= \
 	unzip/test/test_j.c \
 	unzip/test/test_L.c \
 	unzip/test/test_n.c \
+	unzip/test/test_nonprintable.c \
 	unzip/test/test_o.c \
 	unzip/test/test_q.c \
 	unzip/test/test_symlink.c \
@@ -1947,6 +1952,7 @@ bsdunzip_test_EXTRA_DIST= \
 	unzip/test/test_encrypted.zip.uu \
 	unzip/test/test_f_new.zip.uu \
 	unzip/test/test_f_old.zip.uu \
+	unzip/test/test_nonprintable.zip.uu \
 	unzip/test/test_prompt.zip.uu \
 	unzip/test/test_singlefile.zip.uu \
 	unzip/test/test_symlink_1.zip.uu \
