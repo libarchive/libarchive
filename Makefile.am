@@ -805,10 +805,12 @@ libarchive_test_LDADD= $(LTLIBICONV)
 
 # The "list.h" file just lists all of the tests defined in all of the sources.
 # Building it automatically provides a sanity-check on libarchive_test_SOURCES
-# above.
-libarchive/test/list.h: $(libarchive_test_SOURCES)
+# above.  Also rebuild it if Makefile might have added/removed a test source.
+libarchive/test/list.h: $(libarchive_test_SOURCES) Makefile
 	@$(MKDIR_P) libarchive/test
 	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+# `list.h` is required for test_main.c, even on the first build
+test_utils/libarchive_test-test_main.$(OBJEXT): libarchive/test/list.h
 
 libarchive_TESTS_ENVIRONMENT= LIBARCHIVE_TEST_FILES=`cd $(top_srcdir);/bin/pwd`/libarchive/test LRZIP=NOCONFIG
 
@@ -1511,9 +1513,12 @@ bsdtar_test_CPPFLAGS=\
 	-I$(top_builddir)/tar/test \
 	$(PLATFORMCPPFLAGS)
 
-tar/test/list.h: $(bsdtar_test_SOURCES)
+# Depend on Makefile so we rebuild list.h if a test source is added/removed.
+tar/test/list.h: $(bsdtar_test_SOURCES) Makefile
 	@$(MKDIR_P) tar/test
 	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+# `list.h` is required for test_main.c, even on the first build
+test_utils/bsdtar_test-test_main.$(OBJEXT): tar/test/list.h
 
 if BUILD_BSDTAR
 bsdtar_test_programs= bsdtar_test
@@ -1673,9 +1678,12 @@ bsdcpio_test_CPPFLAGS= \
 	$(PLATFORMCPPFLAGS)
 bsdcpio_test_LDADD=libarchive_fe.la
 
-cpio/test/list.h: $(bsdcpio_test_SOURCES)
+# Depend on Makefile so we rebuild list.h if a test source is added/removed.
+cpio/test/list.h: $(bsdcpio_test_SOURCES) Makefile
 	@$(MKDIR_P) cpio/test
 	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+# `list.h` is required for test_main.c, even on the first build
+test_utils/bsdcpio_test-test_main.$(OBJEXT): cpio/test/list.h
 
 if BUILD_BSDCPIO
 bsdcpio_test_programs= bsdcpio_test
@@ -1796,9 +1804,12 @@ bsdcat_test_CPPFLAGS= \
 	$(PLATFORMCPPFLAGS)
 bsdcat_test_LDADD=libarchive_fe.la
 
-cat/test/list.h: $(bsdcat_test_SOURCES)
+# Depend on Makefile so we rebuild list.h if a test source is added/removed.
+cat/test/list.h: $(bsdcat_test_SOURCES) Makefile
 	@$(MKDIR_P) cat/test
 	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+# `list.h` is required for test_main.c, even on the first build
+test_utils/bsdcat_test-test_main.$(OBJEXT): cat/test/list.h
 
 if BUILD_BSDCAT
 bsdcat_test_programs= bsdcat_test
@@ -1931,9 +1942,12 @@ bsdunzip_test_CPPFLAGS= \
 	$(PLATFORMCPPFLAGS)
 bsdunzip_test_LDADD=libarchive_fe.la
 
-unzip/test/list.h: $(bsdunzip_test_SOURCES)
+# Depend on Makefile so we rebuild list.h if a test source is added/removed.
+unzip/test/list.h: $(bsdunzip_test_SOURCES) Makefile
 	@$(MKDIR_P) unzip/test
 	$(AM_V_GEN)grep -h '^DEFINE_TEST(' $^ | LC_COLLATE=C sort > $@
+# `list.h` is required for test_main.c, even on the first build
+test_utils/bsdunzip_test-test_main.$(OBJEXT): unzip/test/list.h
 
 if BUILD_BSDUNZIP
 bsdunzip_test_programs= bsdunzip_test

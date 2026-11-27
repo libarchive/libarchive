@@ -362,15 +362,27 @@ MACRO (GENERATE_LIST_H _listfile _cmlist _target __list_sources)
     @ONLY)
   UNSET(SOURCES)
   UNSET(OUTPUT)
-  # list.h is regenerated at build time whenever any test .c file changes.
+  # list.h is regenerated at build time whenever:
+  #  * any test source changes (a test may have been added or removed),
+  #  * the CMakeLists.txt listing the sources changes (a source file may
+  #    have been added or removed; mtimes of the remaining sources alone
+  #    won't catch a removal or the addition of an older file), or
+  #  * the generated discover_tests.cmake script changes (CONFIGURE_FILE
+  #    only rewrites it when the source list actually differs).
   ADD_CUSTOM_COMMAND(
     OUTPUT "${_listfile}"
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/discover_tests.cmake
     DEPENDS ${_gl_abs_sources}
+            "${_cmlist}"
+            "${CMAKE_CURRENT_BINARY_DIR}/discover_tests.cmake"
     COMMENT "Generating ${_listfile}"
     VERBATIM)
   # Attaching list.h to the target tells CMake to build it before compiling.
   TARGET_SOURCES(${_target} PRIVATE "${_listfile}")
+  # test_main.c is the only file that includes list.h.
+  SET_SOURCE_FILES_PROPERTIES(
+    "${CMAKE_SOURCE_DIR}/test_utils/test_main.c"
+    PROPERTIES OBJECT_DEPENDS "${_listfile}")
 ENDMACRO (GENERATE_LIST_H)
 
 #
@@ -381,7 +393,9 @@ MACRO (DISCOVER_TESTS _component __list_sources)
     SET(_sources ${ARGV})
     LIST(REMOVE_AT _sources 0)
     FOREACH (_src ${_sources})
-      IF (_src MATCHES "test_[^/]+\\.c$")
+      IF (_src MATCHES "^test_[^/]+\\.c$")
+        # Re-run CMake whenever a test source file changes
+        SET_PROPERTY(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_src})
         FILE(STRINGS "${_src}" _lines REGEX "^DEFINE_TEST\(.*\)")
         FOREACH (_line ${_lines})
           STRING(REGEX MATCH "DEFINE_TEST\((.*)\)" _full_match ${_line})
@@ -397,7 +411,7 @@ MACRO (DISCOVER_TESTS _component __list_sources)
                                    ${_test_name})
           SET_TESTS_PROPERTIES(${_full_test_name} PROPERTIES SKIP_RETURN_CODE 2)
         ENDFOREACH (_line)
-      ENDIF (_src MATCHES "test_[^/]+\\.c$")
+      ENDIF (_src MATCHES "^test_[^/]+\\.c$")
     ENDFOREACH (_src)
   ENDIF(ENABLE_TEST)
 ENDMACRO (DISCOVER_TESTS __list_sources)
