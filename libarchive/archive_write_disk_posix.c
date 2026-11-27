@@ -2347,6 +2347,22 @@ create_filesystem_object(struct archive_write_disk *a)
 		}
 		free(linkname_copy);
 		archive_string_free(&error_string);
+		if (a->skip_file_set && a->filesize > 0) {
+#ifdef HAVE_LSTAT
+			r = lstat(linkname, &st);
+#else
+			r = la_stat(linkname, &st);
+#endif
+			if (r == 0 && S_ISREG(st.st_mode) &&
+			    st.st_dev == (dev_t)a->skip_file_dev &&
+			    st.st_ino == (ino_t)a->skip_file_ino) {
+				a->todo = 0;
+				a->deferred = 0;
+				archive_set_error(&a->archive, 0,
+				    "Refusing to overwrite archive");
+				return (EIO);
+			}
+		}
 		/*
 		 * Unlinking and linking here is really not atomic,
 		 * but doing it right, would require us to construct
@@ -2384,11 +2400,43 @@ create_filesystem_object(struct archive_write_disk *a)
 			if (r != 0)
 				r = errno;
 			else if (S_ISREG(st.st_mode)) {
-				a->fd = open(a->name, O_WRONLY | O_TRUNC |
-				    O_BINARY | O_CLOEXEC | O_NOFOLLOW);
+				int open_flags = O_WRONLY | O_BINARY |
+				    O_CLOEXEC | O_NOFOLLOW;
+				/*
+				 * Defer O_TRUNC until fstat() confirms we did
+				 * not hardlink to the skipped archive file.
+				 */
+				if (!a->skip_file_set)
+					open_flags |= O_TRUNC;
+
+				a->fd = open(a->name, open_flags);
 				__archive_ensure_cloexec_flag(a->fd);
-				if (a->fd < 0)
+				if (a->fd < 0) {
 					r = errno;
+				} else if (a->skip_file_set) {
+#if defined(HAVE_FSTAT) && defined(HAVE_FTRUNCATE)
+					if (fstat(a->fd, &st) != 0) {
+						r = errno;
+					} else if (
+					    st.st_dev == (dev_t)a->skip_file_dev &&
+					    st.st_ino == (ino_t)a->skip_file_ino) {
+						archive_set_error(&a->archive, 0,
+						    "Refusing to overwrite archive");
+						r = EIO;
+					} else if (ftruncate(a->fd, 0) != 0) {
+						r = errno;
+					}
+#else
+					r = ENOTSUP;
+#endif
+				}
+				if (r != 0 && a->skip_file_set) {
+					if (a->fd >= 0)
+						close_file_descriptor(a);
+					(void)unlink(a->name);
+					a->todo = 0;
+					a->deferred = 0;
+				}
 			}
 		}
 		return (r);
