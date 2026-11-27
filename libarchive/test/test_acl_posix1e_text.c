@@ -526,5 +526,23 @@ DEFINE_TEST(test_acl_posix1e_text_invalid)
 	assertEqualInt(0,
 	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 
+	/*
+	 * A malformed Solaris-style permission must not keep the valid prefix
+	 * parsed before the invalid character.
+	 */
+	archive_entry_set_mode(ae, AE_IFREG | 0644);
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_acl_from_text(ae, "other:rwz",
+	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
+	assertEqualInt(0644, archive_entry_mode(ae) & 07777);
+	archive_entry_acl_clear(ae);
+
+	/* The wide-character parser must reject the same malformed entry. */
+	archive_entry_set_mode(ae, AE_IFREG | 0644);
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_acl_from_text_w(ae, L"other:rwz",
+	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
+	assertEqualInt(0644, archive_entry_mode(ae) & 07777);
+
 	archive_entry_free(ae);
 }
