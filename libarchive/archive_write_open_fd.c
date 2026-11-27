@@ -48,6 +48,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_platform_stat.h"
 #include "archive_private.h"
 
 struct write_fd_data {
@@ -83,11 +84,11 @@ static int
 file_open(struct archive *a, void *client_data)
 {
 	struct write_fd_data *mine;
-	struct stat st;
+	la_seek_stat_t st;
 
 	mine = (struct write_fd_data *)client_data;
 
-	if (fstat(mine->fd, &st) != 0) {
+	if (la_seek_fstat(mine->fd, &st) != 0) {
 		archive_set_error(a, errno, "Couldn't stat fd %d", mine->fd);
 		return (ARCHIVE_FATAL);
 	}
