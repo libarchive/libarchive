@@ -740,13 +740,8 @@ isSVD(const unsigned char *h)
 	if (h[SVD_type_offset] != 2)
 		return (0);
 
-	/* Reserved field must be 0. */
-	if (!isNull(h, SVD_reserved1_offset, SVD_reserved1_size))
-		return (0);
-	if (!isNull(h, SVD_reserved2_offset, SVD_reserved2_size))
-		return (0);
-	if (!isNull(h, SVD_reserved3_offset, SVD_reserved3_size))
-		return (0);
+	/* Ignore reserved fields: some programs use them for proprietary
+	 * extensions. */
 
 	/* File structure version must be 1 for ISO9660/ECMA119. */
 	if (h[SVD_file_structure_version_offset] != 1)
@@ -807,13 +802,8 @@ isEVD(const unsigned char *h)
 	if (h[PVD_reserved1_offset] != 0)
 		return (0);
 
-	/* Reserved field must be 0. */
-	if (!isNull(h, PVD_reserved2_offset, PVD_reserved2_size))
-		return (0);
-
-	/* Reserved field must be 0. */
-	if (!isNull(h, PVD_reserved3_offset, PVD_reserved3_size))
-		return (0);
+	/* Ignore reserved fields 2 through 5, which some programs use for
+	 * proprietary extensions. */
 
 	logical_block_size =
 	    archive_le16dec(h + PVD_logical_block_size_offset);
@@ -842,14 +832,6 @@ isEVD(const unsigned char *h)
 	location = archive_be32dec(h+PVD_type_m_path_table_offset);
 	if ((location > 0 && location < SYSTEM_AREA_BLOCK+2)
 	    || location >= volume_block)
-		return (0);
-
-	/* Reserved field must be 0. */
-	if (!isNull(h, PVD_reserved4_offset, PVD_reserved4_size))
-		return (0);
-
-	/* Reserved field must be 0. */
-	if (!isNull(h, PVD_reserved5_offset, PVD_reserved5_size))
 		return (0);
 
 	/* Read Root Directory Record in Volume Descriptor. */
@@ -882,9 +864,8 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (h[PVD_reserved1_offset] != 0)
 		return (0);
 
-	/* Reserved field must be 0. */
-	if (!isNull(h, PVD_reserved2_offset, PVD_reserved2_size))
-		return (0);
+	/* Ignore reserved fields 2, 3 and 5, which some programs use for
+	 * proprietary extensions. */
 
 	/* Volume space size must be encoded according to 7.3.3 */
 	if (!isValid733Integer(h + PVD_volume_space_size_offset)) {
@@ -892,10 +873,6 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	}
 	volume_block = archive_le32dec(h + PVD_volume_space_size_offset);
 	if (volume_block <= SYSTEM_AREA_BLOCK+4)
-		return (0);
-
-	/* Reserved field must be 0. */
-	if (!isNull(h, PVD_reserved3_offset, PVD_reserved3_size))
 		return (0);
 
 	/* Volume set size must be encoded according to 7.2.3 */
@@ -949,10 +926,6 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 		if (h[PVD_reserved4_offset + i] != 0
 		    && h[PVD_reserved4_offset + i] != 0x20)
 			return (0);
-
-	/* Reserved field must be 0. */
-	if (!isNull(h, PVD_reserved5_offset, PVD_reserved5_size))
-		return (0);
 
 	/* XXX TODO: Check other values for sanity; reject more
 	 * malformed PVDs. XXX */
