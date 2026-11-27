@@ -234,6 +234,7 @@ IF(ENABLE_TEST)
     test_read_format_tar_filename.c
     test_read_format_tar_gnu_sparse_map.c
     test_read_format_tar_invalid_pax_size.c
+    test_read_format_tar_linkname_on_file.c
     test_read_format_tar_mac_metadata.c
     test_read_format_tar_pax_g_large.c
     test_read_format_tar_pax_global_header.c
