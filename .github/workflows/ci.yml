@@ -76,8 +76,16 @@ jobs:
       uses: acj/freebsd-firecracker-action@ee77f05b7e0e9618b4c8134aa74b2c6d56779563 # v0.13.0
       with:
         run-in-vm: |
+          # Verify the base archive before replacing files in the VM.
+          base_archive_url=https://download.freebsd.org/releases/amd64/15.1-RELEASE/base.txz
+          base_archive_sha256=3768988b151c20f965679062b065c63a977d6bbb9f47fd83695ec2c40790c18f
+          base_archive=$(mktemp /tmp/libarchive-freebsd-base.XXXXXX) && \
+          trap 'rm -f "$base_archive"' EXIT && \
+          fetch -o "$base_archive" "$base_archive_url" && \
+          sha256 -c "$base_archive_sha256" "$base_archive" && \
           chflags -R noschg / && \
-          fetch -o - https://download.freebsd.org/releases/amd64/15.1-RELEASE/base.txz | bsdtar -x -C / -f - && \
+          bsdtar -x -C / -f "$base_archive" && \
+          rm -f "$base_archive" && \
           pkg bootstrap -y && \
           cd firecracker-freebsd && \
           env BS=${{ matrix.bs }} ./build/ci/github_actions/freebsd.sh prepare && \
