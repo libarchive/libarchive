@@ -12,6 +12,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     ../../test_utils/test_main.c
     test.h
     test_0.c
+    test_bad_header_checksum.c
     test_basic.c
     test_copy.c
     test_copy_data_warning.c
