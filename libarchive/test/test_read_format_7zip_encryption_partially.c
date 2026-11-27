@@ -64,12 +64,58 @@ DEFINE_TEST(test_read_format_7zip_encryption_partially)
 		assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 		assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
 		assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));
 
 		assertEqualInt(2, archive_file_count(a));
 
 		/* End of archive. */
 		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	}
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
+	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
+
+	/* Close the archive. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_7zip_encryption_middle)
+{
+	/* This file is password protected (encrypted) with AES-256. The headers
+	   are NOT encrypted. Password is "12345678". It is in the order
+	   [unencrypted, encrypted, unencrypted]. */
+	const char *refname = "test_read_format_7zip_encryption_middle.7z";
+	struct archive_entry *ae;
+	struct archive *a;
+	char buff[128];
+
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+
+	/* Verify regular unencrypted file1. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("a.txt", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_is_data_encrypted(ae));
+	assertEqualInt(8, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(buff, "plain a\n", 8);
+
+	/* Skip regular encrytped file2. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("b.txt", archive_entry_pathname(ae));
+	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_data_skip(a));
+
+	/* Verify regular unencrypted file3. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("c.txt", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_is_data_encrypted(ae));
+	assertEqualInt(8, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualMem(buff, "plain c\n", 8);
 
 	/* Verify archive format. */
 	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));

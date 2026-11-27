@@ -568,7 +568,7 @@ get_data_offset(struct archive_read *a, int64_t *data_offset, int compat)
 	 * "\x7F\x45LF" (ELF, Posix-like systems), seek the 7-Zip
 	 * signature. While get_pe_sfx_offset can be performed without
 	 * performing a seek, get_elf_sfx_offset requires one,
-	 * thus a performance difference between the two is expected. 
+	 * thus a performance difference between the two is expected.
 	 */
 	if ((h[0] == 'M' && h[1] == 'Z'))
 		r = get_pe_sfx_offset(a, &sfx_offset);
@@ -3938,7 +3938,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 		 * All current folder's pack streams have been
 		 * consumed. Switch to next folder.
 		 */
-		if (zip->folder_index == 0 &&
+		if (zip->folder_index <= zip->entry->folderIndex &&
 		    (zip->si.ci.folders[zip->entry->folderIndex].skipped_bytes
 		     || zip->folder_index != zip->entry->folderIndex)) {
 			zip->folder_index = zip->entry->folderIndex;
@@ -4009,6 +4009,12 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 		skipped = get_uncompressed_data(a, buff, request, 0);
 		if (skipped < 0)
 			return (skipped);
+		if (skipped == 0) {
+			archive_set_error(&a->archive,
+				ARCHIVE_ERRNO_FILE_FORMAT,
+				"Truncated 7-Zip file body");
+			return (ARCHIVE_FATAL);
+		}
 		skip_bytes -= skipped;
 		if (zip->pack_stream_bytes_unconsumed)
 			read_consume(a);
@@ -4328,7 +4334,12 @@ skip_stream(struct archive_read *a, int64_t skip_bytes)
 	int64_t skipped_bytes;
 	int64_t bytes = skip_bytes;
 
-	if (zip->folder_index == 0) {
+	if (zip->folder_index == 0 ||
+	    (zip->folder_index <= zip->entry->folderIndex &&
+	     zip->pack_stream_remaining == 0 &&
+	     zip->uncompressed_buffer_bytes_remaining == 0 &&
+	     zip->pack_stream_inbytes_remaining == 0 &&
+	     zip->folder_outbytes_remaining == 0)) {
 		int64_t *v;
 
 		/*
