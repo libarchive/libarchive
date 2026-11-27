@@ -526,7 +526,6 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 		if (lz4->lz4_stream == NULL) {
 #if LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 7
 			lz4->lz4_stream = LZ4_createStreamHC();
-			LZ4_resetStreamHC(lz4->lz4_stream, lz4->compression_level);
 #else
 			lz4->lz4_stream =
 			    LZ4_createHC(lz4->in_buffer_allocated);
@@ -537,6 +536,13 @@ drive_compressor_dependence(struct archive_write_filter *f, const char *p,
 				    " buffer");
 				return (ARCHIVE_FATAL);
 			}
+#if LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 9
+			LZ4_resetStreamHC_fast(lz4->lz4_stream,
+			    lz4->compression_level);
+#elif LZ4_VERSION_MAJOR >= 1 && LZ4_VERSION_MINOR >= 7
+			LZ4_resetStreamHC(lz4->lz4_stream,
+			    lz4->compression_level);
+#endif
 		}
 		else
 			LZ4_loadDictHC(lz4->lz4_stream, lz4->in_buffer_allocated, DICT_SIZE);
