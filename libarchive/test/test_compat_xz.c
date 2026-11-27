@@ -81,3 +81,28 @@ DEFINE_TEST(test_compat_xz)
 {
 	compat_xz("test_compat_xz_1.txz");
 }
+
+
+DEFINE_TEST(test_read_filter_xz_memory_limit)
+{
+	static const unsigned char data[] = {
+		0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00, 0x00, 0x00,
+		0xff, 0x12, 0xd9, 0x41, 0x02, 0x00, 0x21, 0x01,
+		0x28, 0x00, 0x00, 0x00, 0xe6, 0xa0, 0x11, 0xb3
+	};
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	if (archive_read_support_filter_xz(a) != ARCHIVE_OK) {
+		skipping("xz reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_memory(a, data, sizeof(data)));
+	assertEqualInt(ENOMEM, archive_errno(a));
+	assertEqualString("Lzma library error: Out of memory",
+	    archive_error_string(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
