@@ -59,6 +59,8 @@ archive_read_support_format_by_code(struct archive *a, int format_code)
 		return archive_read_support_format_rar(a);
 	case ARCHIVE_FORMAT_RAR_V5:
 		return archive_read_support_format_rar5(a);
+	case ARCHIVE_FORMAT_UC2:
+		return archive_read_support_format_uc2(a);
 	case ARCHIVE_FORMAT_RAW:
 		return archive_read_support_format_raw(a);
 	case ARCHIVE_FORMAT_TAR:
