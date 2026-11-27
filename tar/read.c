@@ -250,7 +250,7 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 			break;
 		if (r < ARCHIVE_OK)
 			lafe_warnc(0, "%s", archive_error_string(a));
-		if (r <= ARCHIVE_WARN)
+		if (r <= ARCHIVE_RETRY)
 			bsdtar->return_value = 1;
 		if (r == ARCHIVE_RETRY) {
 			/* Retryable error: try again */

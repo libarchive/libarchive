@@ -1427,6 +1427,7 @@ noinst_HEADERS+= \
 bsdtar_test_SOURCES= \
 	$(test_utils_SOURCES) \
 	tar/test/test_0.c \
+	tar/test/test_bad_header_checksum.c \
 	tar/test/test_basic.c \
 	tar/test/test_copy.c \
 	tar/test/test_copy_data_warning.c \
@@ -1524,6 +1525,7 @@ endif
 
 bsdtar_test_EXTRA_DIST= \
 	tar/test/list.h \
+	tar/test/test_bad_header_checksum.tar.uu \
 	tar/test/test_copy_data_warning.lzh.uu \
 	tar/test/test_extract.tar.Z.uu \
 	tar/test/test_extract.tar.bz2.uu \
