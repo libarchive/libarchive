@@ -126,6 +126,14 @@ The count is incremented by calls to
 .Xr archive_write_header 3
 or
 .Xr archive_read_next_header 3 .
+Before libarchive 4.0 the return type is
+.Vt int ;
+if an archive contains more than
+.Dv INT_MAX
+entries, the count is saturated at
+.Dv INT_MAX
+rather than wrapping around.
+As of libarchive 4.0 the return type is a 64-bit integer.
 .It Fn archive_filter_code
 Returns a numeric code identifying the indicated filter.
 See
