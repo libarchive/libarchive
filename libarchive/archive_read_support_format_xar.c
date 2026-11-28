@@ -318,6 +318,8 @@ struct xar {
 	enum xmlstatus		 xmlsts_unknown;
 	struct unknown_tag	*unknowntags;
 	int			 base64text;
+	/* Accumulates TOC text that may arrive in multiple XML chunks. */
+	struct archive_string	 xml_text;
 
 	/*
 	 * TOC
@@ -979,6 +981,7 @@ xar_cleanup(struct archive_read *a)
 		archive_string_free(&(tag->name));
 		free(tag);
 	}
+	archive_string_free(&(xar->xml_text));
 	free(xar->outbuff);
 	free(xar);
 	a->format->data = NULL;
@@ -2170,10 +2173,12 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "archived-checksum") == 0) {
 			xar->xmlsts = FILE_DATA_A_CHECKSUM;
 			xar->file->a_sum.alg = getsumalgorithm(list);
+			archive_string_empty(&(xar->xml_text));
 		}
 		else if (strcmp(name, "extracted-checksum") == 0) {
 			xar->xmlsts = FILE_DATA_E_CHECKSUM;
 			xar->file->e_sum.alg = getsumalgorithm(list);
+			archive_string_empty(&(xar->xml_text));
 		}
 		else if (strcmp(name, "content") == 0)
 			xar->xmlsts = FILE_DATA_CONTENT;
@@ -2204,10 +2209,13 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 		else if (strcmp(name, "encoding") == 0) {
 			xar->xmlsts = FILE_EA_ENCODING;
 			xar->xattr->encoding = getencoding(list);
-		} else if (strcmp(name, "archived-checksum") == 0)
+		} else if (strcmp(name, "archived-checksum") == 0) {
 			xar->xmlsts = FILE_EA_A_CHECKSUM;
-		else if (strcmp(name, "extracted-checksum") == 0)
+			archive_string_empty(&(xar->xml_text));
+		} else if (strcmp(name, "extracted-checksum") == 0) {
 			xar->xmlsts = FILE_EA_E_CHECKSUM;
+			archive_string_empty(&(xar->xml_text));
+		}
 		else if (strcmp(name, "name") == 0)
 			xar->xmlsts = FILE_EA_NAME;
 		else if (strcmp(name, "fstype") == 0)
@@ -2377,12 +2385,22 @@ xml_end(void *userData, const char *name)
 			xar->xmlsts = FILE_DATA;
 		break;
 	case FILE_DATA_A_CHECKSUM:
-		if (strcmp(name, "archived-checksum") == 0)
+		if (strcmp(name, "archived-checksum") == 0) {
+			xar->file->a_sum.len = atohex(xar->file->a_sum.val,
+			    sizeof(xar->file->a_sum.val),
+			    xar->xml_text.s, archive_strlen(&(xar->xml_text)));
+			archive_string_empty(&(xar->xml_text));
 			xar->xmlsts = FILE_DATA;
+		}
 		break;
 	case FILE_DATA_E_CHECKSUM:
-		if (strcmp(name, "extracted-checksum") == 0)
+		if (strcmp(name, "extracted-checksum") == 0) {
+			xar->file->e_sum.len = atohex(xar->file->e_sum.val,
+			    sizeof(xar->file->e_sum.val),
+			    xar->xml_text.s, archive_strlen(&(xar->xml_text)));
+			archive_string_empty(&(xar->xml_text));
 			xar->xmlsts = FILE_DATA;
+		}
 		break;
 	case FILE_DATA_CONTENT:
 		if (strcmp(name, "content") == 0)
@@ -2411,12 +2429,22 @@ xml_end(void *userData, const char *name)
 			xar->xmlsts = FILE_EA;
 		break;
 	case FILE_EA_A_CHECKSUM:
-		if (strcmp(name, "archived-checksum") == 0)
+		if (strcmp(name, "archived-checksum") == 0) {
+			xar->xattr->a_sum.len = atohex(xar->xattr->a_sum.val,
+			    sizeof(xar->xattr->a_sum.val),
+			    xar->xml_text.s, archive_strlen(&(xar->xml_text)));
+			archive_string_empty(&(xar->xml_text));
 			xar->xmlsts = FILE_EA;
+		}
 		break;
 	case FILE_EA_E_CHECKSUM:
-		if (strcmp(name, "extracted-checksum") == 0)
+		if (strcmp(name, "extracted-checksum") == 0) {
+			xar->xattr->e_sum.len = atohex(xar->xattr->e_sum.val,
+			    sizeof(xar->xattr->e_sum.val),
+			    xar->xml_text.s, archive_strlen(&(xar->xml_text)));
+			archive_string_empty(&(xar->xml_text));
 			xar->xmlsts = FILE_EA;
+		}
 		break;
 	case FILE_EA_NAME:
 		if (strcmp(name, "name") == 0)
@@ -2918,12 +2946,8 @@ xml_data(void *userData, const char *s, size_t len)
 		xar->file->has |= HAS_DATA;
 		break;
 	case FILE_DATA_A_CHECKSUM:
-		xar->file->a_sum.len = atohex(xar->file->a_sum.val,
-		    sizeof(xar->file->a_sum.val), s, len);
-		break;
 	case FILE_DATA_E_CHECKSUM:
-		xar->file->e_sum.len = atohex(xar->file->e_sum.val,
-		    sizeof(xar->file->e_sum.val), s, len);
+		archive_strncat(&(xar->xml_text), s, len);
 		break;
 	case FILE_EA_LENGTH:
 		r = atou64(s, len, 10, &xar->xattr->length);
@@ -2944,14 +2968,9 @@ xml_data(void *userData, const char *s, size_t len)
 		xar->file->has |= HAS_XATTR;
 		break;
 	case FILE_EA_A_CHECKSUM:
-		xar->file->has |= HAS_XATTR;
-		xar->xattr->a_sum.len = atohex(xar->xattr->a_sum.val,
-		    sizeof(xar->xattr->a_sum.val), s, len);
-		break;
 	case FILE_EA_E_CHECKSUM:
 		xar->file->has |= HAS_XATTR;
-		xar->xattr->e_sum.len = atohex(xar->xattr->e_sum.val,
-		    sizeof(xar->xattr->e_sum.val), s, len);
+		archive_strncat(&(xar->xml_text), s, len);
 		break;
 	case FILE_EA_NAME:
 		xar->file->has |= HAS_XATTR;

@@ -816,7 +816,7 @@ static void verify(unsigned char *d, size_t s,
 	free(buff);
 }
 
-static void verifyB(unsigned char *d, size_t s) {
+static void verifyB(unsigned char *d, size_t s, size_t read_size) {
 	struct archive* a;
 	struct archive_entry *entry = NULL;
 	size_t buf_size;
@@ -842,7 +842,13 @@ static void verifyB(unsigned char *d, size_t s) {
 		return;
 	}
 
-	assertA(0 == archive_read_open_memory(a, d, s));
+	/* Small read_size feeds the TOC to the XML parser in pieces.
+	 * Use the seekable helper so this test stays about checksums,
+	 * not the separate xar_read_data_skip seek bug. */
+	if (read_size == 0)
+		assertA(0 == archive_read_open_memory(a, d, s));
+	else
+		assertA(0 == read_open_memory_seek(a, d, s, read_size));
 
 	// f1, content "onetwothree\n", size 12 bytes
 	assertA(0 == archive_read_next_header(a, &entry));
@@ -903,7 +909,11 @@ DEFINE_TEST(test_read_format_xar)
 	verify(archive10, sizeof(archive10), verify0, NULL, GZIP);
 	verify(archive11, sizeof(archive11), verify0, NULL, GZIP);
         verify(archive12, sizeof(archive12), verify12, NULL, GZIP);
-	verifyB(archive13, sizeof(archive13));
+	verifyB(archive13, sizeof(archive13), 0);
+	/* 100-byte and 7-byte reads split checksum hex across XML chunks. */
+	verifyB(archive13, sizeof(archive13), 100);
+	verifyB(archive13, sizeof(archive13), 7);
+
 }
 
 DEFINE_TEST(test_read_format_xar_xattr_fstype_cleanup)
