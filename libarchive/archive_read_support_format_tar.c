@@ -644,6 +644,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 
 			if (__archive_read_consume(a, request) != request)
 				return (ARCHIVE_FATAL);
+			tar->entry_bytes_remaining = 0;
 			tar->entry_padding = 0;
 			*buff = NULL;
 			*size = 0;
