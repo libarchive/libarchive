@@ -110,10 +110,53 @@ static int setup_xattrs(struct archive_read_disk *,
     struct archive_entry *, int *fd);
 static int setup_sparse(struct archive_read_disk *,
     struct archive_entry *, int *fd);
+static int open_verified(struct archive_read_disk *, const char *, int,
+    int64_t, int64_t);
 #if defined(HAVE_LINUX_FIEMAP_H)
 static int setup_sparse_fiemap(struct archive_read_disk *,
     struct archive_entry *, int *fd);
 #endif
+
+static int
+open_verified(struct archive_read_disk *a, const char *path, int flags,
+    int64_t dev, int64_t ino)
+{
+	int fd;
+
+#if defined(O_NOFOLLOW)
+	if (!a->follow_symlinks)
+		flags |= O_NOFOLLOW;
+#endif
+	if (a->tree != NULL)
+		fd = a->open_on_current_dir(a->tree, path, flags);
+	else
+		fd = open(path, flags);
+	if (fd < 0)
+		return (-1);
+	__archive_ensure_cloexec_flag(fd);
+#if HAVE_FSTAT
+	{
+		struct stat st;
+		int error;
+
+		if (fstat(fd, &st) != 0) {
+			error = errno;
+			close(fd);
+			errno = error;
+			return (-1);
+		}
+		if ((int64_t)st.st_dev != dev || (int64_t)st.st_ino != ino) {
+			close(fd);
+			errno = EIO;
+			return (-1);
+		}
+	}
+#else
+	(void)dev;
+	(void)ino;
+#endif
+	return (fd);
+}
 
 #if !ARCHIVE_ACL_SUPPORT
 int
@@ -148,8 +191,9 @@ archive_read_disk_entry_setup_path(struct archive_read_disk *a,
 		   "Couldn't determine path");
 	} else if (fd != NULL && *fd < 0 && a->tree != NULL &&
 	    (a->follow_symlinks || archive_entry_filetype(entry) != AE_IFLNK)) {
-		*fd = a->open_on_current_dir(a->tree, path,
-		    O_RDONLY | O_NONBLOCK);
+		*fd = open_verified(a, path, O_RDONLY | O_NONBLOCK | O_CLOEXEC,
+		    (int64_t)archive_entry_dev(entry),
+		    (int64_t)archive_entry_ino(entry));
 	}
 	return (path);
 }
@@ -227,13 +271,9 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0 &&
 	    (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
 		if (fd < 0) {
-			if (a->tree != NULL)
-				fd = a->open_on_current_dir(a->tree, path,
-					O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-			else
-				fd = open(path, O_RDONLY | O_NONBLOCK |
-						O_CLOEXEC);
-			__archive_ensure_cloexec_flag(fd);
+			fd = open_verified(a, path,
+			    O_RDONLY | O_NONBLOCK | O_CLOEXEC,
+			    (int64_t)st->st_dev, (int64_t)st->st_ino);
 		}
 		if (fd >= 0) {
 			int stflags;
@@ -891,17 +931,15 @@ setup_sparse_fiemap(struct archive_read_disk *a,
 		if (path == NULL)
 			return (ARCHIVE_FAILED);
 
-		if (a->tree != NULL)
-			*fd = a->open_on_current_dir(a->tree, path,
-				O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-		else
-			*fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+		*fd = open_verified(a, path,
+		    O_RDONLY | O_NONBLOCK | O_CLOEXEC,
+		    (int64_t)archive_entry_dev(entry),
+		    (int64_t)archive_entry_ino(entry));
 		if (*fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't open `%s'", path);
 			return (ARCHIVE_FAILED);
 		}
-		__archive_ensure_cloexec_flag(*fd);
 	}
 
 	/* Initialize buffer to avoid the error valgrind complains about. */
@@ -999,30 +1037,26 @@ setup_sparse(struct archive_read_disk *a,
 	else
 		path = NULL;
 
-	if (*fd >= 0) {
-#ifdef _PC_MIN_HOLE_SIZE
-		if (fpathconf(*fd, _PC_MIN_HOLE_SIZE) <= 0)
-			return (ARCHIVE_OK);
-#endif
-		initial_off = lseek(*fd, 0, SEEK_CUR);
-		if (initial_off != 0)
-			lseek(*fd, 0, SEEK_SET);
-	} else {
+	if (*fd < 0) {
 		if (path == NULL)
 			return (ARCHIVE_FAILED);
-#ifdef _PC_MIN_HOLE_SIZE
-		if (pathconf(path, _PC_MIN_HOLE_SIZE) <= 0)
-			return (ARCHIVE_OK);
-#endif
-		*fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+		*fd = open_verified(a, path,
+		    O_RDONLY | O_NONBLOCK | O_CLOEXEC,
+		    (int64_t)archive_entry_dev(entry),
+		    (int64_t)archive_entry_ino(entry));
 		if (*fd < 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't open `%s'", path);
 			return (ARCHIVE_FAILED);
 		}
-		__archive_ensure_cloexec_flag(*fd);
-		initial_off = 0;
 	}
+#ifdef _PC_MIN_HOLE_SIZE
+	if (fpathconf(*fd, _PC_MIN_HOLE_SIZE) <= 0)
+		return (ARCHIVE_OK);
+#endif
+	initial_off = lseek(*fd, 0, SEEK_CUR);
+	if (initial_off != 0)
+		lseek(*fd, 0, SEEK_SET);
 
 #ifndef _PC_MIN_HOLE_SIZE
 	/* Check if the underlying filesystem supports seek hole */
