@@ -1438,6 +1438,7 @@ _checksum_final(struct chksumwork *sumwrk, const void *val, size_t len)
 	default:
 		r = ARCHIVE_FAILED;
 	}
+	sumwrk->alg = CKSUM_NONE;
 	return (r);
 }
 
@@ -1446,6 +1447,7 @@ checksum_init(struct archive_read *a, int a_sum_alg, int e_sum_alg)
 {
 	struct xar *xar = a->format->data;
 
+	checksum_cleanup(a);
 	if (_checksum_init(&(xar->a_sumwrk), a_sum_alg) != ARCHIVE_OK ||
 	    _checksum_init(&(xar->e_sumwrk), e_sum_alg) != ARCHIVE_OK) {
 		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
@@ -1470,9 +1472,11 @@ checksum_final(struct archive_read *a, const void *a_sum_val,
     size_t a_sum_len, const void *e_sum_val, size_t e_sum_len)
 {
 	struct xar *xar = a->format->data;
+	int r1, r2;
 
-	if (_checksum_final(&(xar->a_sumwrk), a_sum_val, a_sum_len) != ARCHIVE_OK ||
-	    _checksum_final(&(xar->e_sumwrk), e_sum_val, e_sum_len) != ARCHIVE_OK) {
+	r1 = _checksum_final(&(xar->a_sumwrk), a_sum_val, a_sum_len);
+	r2 = _checksum_final(&(xar->e_sumwrk), e_sum_val, e_sum_len);
+	if (r1 != ARCHIVE_OK || r2 != ARCHIVE_OK) {
 		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
 		    "Checksum error");
 		return (ARCHIVE_FATAL);
