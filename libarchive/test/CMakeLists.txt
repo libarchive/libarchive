@@ -232,6 +232,7 @@ IF(ENABLE_TEST)
     test_read_format_tar_empty_filename.c
     test_read_format_tar_empty_with_gnulabel.c
     test_read_format_tar_empty_pax.c
+    test_read_format_tar_nodata_size.c
     test_read_format_tar_filename.c
     test_read_format_tar_gnu_sparse_map.c
     test_read_format_tar_invalid_pax_size.c
