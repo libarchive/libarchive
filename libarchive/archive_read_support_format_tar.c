@@ -600,6 +600,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			if (l > 0 && p[l - 1] == '/') {
 				archive_entry_set_filetype(entry, AE_IFDIR);
 				tar->entry_bytes_remaining = 0;
+				tar->disk_size = 0;
 				tar->entry_padding = 0;
 			}
 		} else if ((wp = archive_entry_pathname_w(entry)) != NULL) {
@@ -607,10 +608,19 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			if (l > 0 && wp[l - 1] == L'/') {
 				archive_entry_set_filetype(entry, AE_IFDIR);
 				tar->entry_bytes_remaining = 0;
+				tar->disk_size = 0;
 				tar->entry_padding = 0;
 			}
 		}
 	}
+	/*
+	 * Entries whose body is ignored (devices, FIFOs, directories,
+	 * symlinks, old-style hard links) have their size reset to zero.
+	 * Don't report the header's size at EOF for them either, or
+	 * archive_read_data() pads zeros up to it.
+	 */
+	if (archive_entry_size(entry) == 0)
+		tar->disk_size = 0;
 	return (r);
 }
 
@@ -3212,14 +3222,16 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 			archive_entry_set_ctime(entry, t, 0);
 	}
 
-	if (header->realsize[0] != 0) {
-		/* Treat as a synonym for the pax GNU.sparse.realsize attr */
+	if (header->typeflag[0] == 'S' && header->realsize[0] != 0) {
+		/* Treat as a synonym for the pax GNU.sparse.realsize attr;
+		 * the field only has a meaning in old GNU sparse entries */
 		tar->GNU_sparse_realsize
 		    = tar_atol(header->realsize, sizeof(header->realsize));
 		tar->size_fields |= TAR_SIZE_GNU_SPARSE_REALSIZE;
 	}
 
-	if (header->sparse[0].offset[0] != 0) {
+	/* Likewise the old GNU sparse map: GNU tar writes it only for 'S'. */
+	if (header->typeflag[0] == 'S' && header->sparse[0].offset[0] != 0) {
 		if (gnu_sparse_old_read(a, tar, header, unconsumed)
 		    != ARCHIVE_OK)
 			return (ARCHIVE_FATAL);

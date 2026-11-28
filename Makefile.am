@@ -609,6 +609,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_tar_empty_pax.c \
 	libarchive/test/test_read_format_tar_empty_filename.c \
 	libarchive/test/test_read_format_tar_empty_with_gnulabel.c \
+	libarchive/test/test_read_format_tar_nodata_size.c \
 	libarchive/test/test_read_format_tar_filename.c \
 	libarchive/test/test_read_format_tar_gnu_sparse_map.c \
 	libarchive/test/test_read_format_tar_invalid_pax_size.c \
