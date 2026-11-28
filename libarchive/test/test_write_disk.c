@@ -375,3 +375,46 @@ DEFINE_TEST(test_write_disk)
 	archive_entry_free(ae);
 #endif /* _WIN32 && !__CYGWIN__ */
 }
+
+DEFINE_TEST(test_write_disk_cache_umask)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	skipping("archive_write_disk interface");
+#else
+	struct archive *a;
+	struct archive_entry *ae;
+	struct stat st;
+
+	assertUmask(077);
+	assert((a = archive_write_disk_new()) != NULL);
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_CACHE_UMASK);
+	assertUmask(0);
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "cache_umask");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+	archive_entry_free(ae);
+	assertEqualInt(0, archive_write_free(a));
+
+	assert(0 == stat("cache_umask", &st));
+	assertEqualInt(0700, st.st_mode & 0777);
+
+	assertUmask(077);
+	assert((a = archive_write_disk_new()) != NULL);
+	assertUmask(0);
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "refresh_umask");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+	archive_entry_free(ae);
+	assertEqualInt(0, archive_write_free(a));
+
+	assert(0 == stat("refresh_umask", &st));
+	assertEqualInt(0777, st.st_mode & 0777);
+	assertUmask(022);
+#endif
+}
