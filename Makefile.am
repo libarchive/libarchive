@@ -657,6 +657,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_padded.c \
 	libarchive/test/test_read_format_zip_sfx.c \
 	libarchive/test/test_read_format_zip_size_exceeds_declared.c \
+	libarchive/test/test_read_format_zip_streamable_length_at_end.c \
 	libarchive/test/test_read_format_zip_streamable_skip.c \
 	libarchive/test/test_read_format_zip_streamable_size_mismatch.c \
 	libarchive/test/test_read_format_zip_streamable_symlink.c \
@@ -1261,6 +1262,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_filename_utf8_ru2.zip.uu \
 	libarchive/test/test_read_format_zip_high_compression.zip.uu \
 	libarchive/test/test_read_format_zip_length_at_end.zip.uu \
+	libarchive/test/test_read_format_zip_streamable_length_at_end.zip.uu \
 	libarchive/test/test_read_format_zip_lzma.zipx.uu \
 	libarchive/test/test_read_format_zip_lzma_alone_large_size.zip.uu \
 	libarchive/test/test_read_format_zip_lzma_alone_leak.zipx.uu \
