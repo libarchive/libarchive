@@ -78,6 +78,20 @@ struct gnu_sparse {
 	char	numbytes[12];
 };
 
+/* star overlays part of the ustar prefix with sparse file metadata. */
+struct star_sparse_header {
+	char	unused[345];
+	char	prefix[10];
+	char	isextended;
+	struct gnu_sparse sparse[4];
+	char	realsize[12];
+	char	offset[12];
+	char	atime[12];
+	char	ctime[12];
+	char	padding[8];
+	char	magic[4];
+};
+
 struct archive_entry_header_gnutar {
 	char	name[100];
 	char	mode[8];
@@ -173,6 +187,8 @@ static int	gnu_add_sparse_entry(struct archive_read *, struct tar *,
 static void	gnu_clear_sparse_list(struct tar *);
 static int	gnu_sparse_old_read(struct archive_read *, struct tar *,
 		    const struct archive_entry_header_gnutar *header, int64_t *);
+static int	sparse_read_extensions(struct archive_read *, struct tar *,
+		    int64_t *, int64_t *);
 static int	gnu_sparse_old_parse(struct archive_read *, struct tar *,
 		    const struct gnu_sparse *sparse, int length);
 static int	gnu_sparse_01_parse(struct archive_read *, struct tar *,
@@ -201,7 +217,7 @@ static int	read_mac_metadata_blob(struct archive_read *,
 static int	header_volume(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h, int64_t *);
 static int	header_ustar(struct archive_read *, struct tar *,
-		    struct archive_entry *, const void *h);
+		    struct archive_entry *, const void *h, int64_t *);
 static int	header_gnutar(struct archive_read *, struct tar *,
 		    struct archive_entry *, const void *h, int64_t *);
 static int	archive_read_format_tar_bid(struct archive_read *, int);
@@ -915,7 +931,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 					a->archive.archive_format = ARCHIVE_FORMAT_TAR_USTAR;
 					a->archive.archive_format_name = "POSIX ustar format";
 				}
-				err2 = header_ustar(a, tar, entry, h);
+				err2 = header_ustar(a, tar, entry, h, unconsumed);
 			} else {
 				a->archive.archive_format = ARCHIVE_FORMAT_TAR;
 				a->archive.archive_format_name = "tar (non-POSIX)";
@@ -1849,6 +1865,22 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 	return (header_pax_records(a, tar, entry, h, unconsumed, 0));
 }
 
+/* xustar omits the xstar magic. Its two timestamps occupy the end
+ * of the POSIX prefix and are either eleven octal digits or base-256. */
+static int
+star_timestamp(const char *p)
+{
+	int i;
+
+	if ((unsigned char)p[0] & 0x80)
+		return (1);
+	for (i = 0; i < 11; ++i) {
+		if (p[i] < '0' || p[i] > '7')
+			return (0);
+	}
+	return (p[11] == ' ' || p[11] == '\0');
+}
+
 /*
  * Parse a file header for a Posix "ustar" archive entry.  This also
  * handles "pax" or "extended ustar" entries.
@@ -1859,12 +1891,24 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
  */
 static int
 header_ustar(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, const void *h)
+    struct archive_entry *entry, const void *h, int64_t *unconsumed)
 {
 	const struct archive_entry_header_ustar	*header;
+	const struct star_sparse_header *star = h;
+	int is_star_sparse;
 	int err = ARCHIVE_OK, r;
 
 	header = (const struct archive_entry_header_ustar *)h;
+	is_star_sparse = header->typeflag[0] == 'S' &&
+	    (memcmp(star->magic, "tar", 4) == 0 ||
+	     (star->offset[11] == '\0' && star_timestamp(star->atime) &&
+	      star_timestamp(star->ctime)));
+	if (is_star_sparse &&
+	    (tar->size_fields & TAR_SIZE_SCHILY_SPARSE_REALSIZE) == 0) {
+		tar->SCHILY_sparse_realsize =
+		    tar_atol(star->realsize, sizeof(star->realsize));
+		tar->size_fields |= TAR_SIZE_SCHILY_SPARSE_REALSIZE;
+	}
 
 	/*
 	 * The name field is fixed-width and may not be NUL-terminated.
@@ -1940,6 +1984,20 @@ header_ustar(struct archive_read *a, struct tar *tar,
 		archive_entry_set_rdev(entry, 0);
 	}
 
+	if (is_star_sparse) {
+		/* Earlier star writers placed four map entries in the header.
+		 * Later writers always start the map in an extension block. */
+		int old = star->prefix[0] == '\0' &&
+		    star->sparse[0].offset[10] != '\0';
+
+		if (old && gnu_sparse_old_parse(a, tar, star->sparse, 4)
+		    != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+		if ((!old || star->isextended) &&
+		    sparse_read_extensions(a, tar, unconsumed,
+		        &tar->entry_bytes_remaining) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+	}
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 
 	return (err);
@@ -3295,6 +3353,20 @@ static int
 gnu_sparse_old_read(struct archive_read *a, struct tar *tar,
     const struct archive_entry_header_gnutar *header, int64_t *unconsumed)
 {
+	if (gnu_sparse_old_parse(a, tar, header->sparse, 4) != ARCHIVE_OK)
+		return (ARCHIVE_FATAL);
+	if (header->isextended[0] == 0)
+		return (ARCHIVE_OK);
+
+	return (sparse_read_extensions(a, tar, unconsumed, NULL));
+}
+
+/* Both layouts use 21 pairs per extension. Only star includes the
+ * extension blocks in the member's stored size. */
+static int
+sparse_read_extensions(struct archive_read *a, struct tar *tar,
+    int64_t *unconsumed, int64_t *stored_size)
+{
 	const void *data;
 	struct extended {
 		struct gnu_sparse sparse[21];
@@ -3303,12 +3375,15 @@ gnu_sparse_old_read(struct archive_read *a, struct tar *tar,
 	};
 	const struct extended *ext;
 
-	if (gnu_sparse_old_parse(a, tar, header->sparse, 4) != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
-	if (header->isextended[0] == 0)
-		return (ARCHIVE_OK);
-
 	do {
+		if (stored_size != NULL) {
+			if (*stored_size < 512) {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Sparse map exceeds tar entry size");
+				return (ARCHIVE_FATAL);
+			}
+			*stored_size -= 512;
+		}
 		if (tar_flush_unconsumed(a, unconsumed) != ARCHIVE_OK) {
 			return (ARCHIVE_FATAL);
 		}
