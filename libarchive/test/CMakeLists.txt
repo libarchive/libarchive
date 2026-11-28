@@ -376,6 +376,7 @@ IF(ENABLE_TEST)
     test_write_format_mtree_dotdot.c
     test_write_format_mtree_fflags.c
     test_write_format_mtree_no_separator.c
+    test_write_format_mtree_duplicate_type.c
     test_write_format_mtree_preset_digests.c
     test_write_format_mtree_quoted_filename.c
     test_write_format_mtree_null_deref.c
