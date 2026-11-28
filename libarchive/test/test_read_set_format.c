@@ -161,6 +161,51 @@ DEFINE_TEST(test_read_append_wrong_filter)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+/*
+ * A filter that is appended explicitly must not take data that it can't
+ * decode for an empty stream: that would read as an empty archive, with no
+ * error, if the format accepts empty streams.
+ */
+DEFINE_TEST(test_read_append_filter_mismatch)
+{
+  static const char text[] =
+      "This is plain text, not compressed data, but long enough to look like"
+      " the start of a stream.\n";
+  static const struct { const char *name; int code; } filters[] = {
+    {"gzip", ARCHIVE_FILTER_GZIP},
+    {"bzip2", ARCHIVE_FILTER_BZIP2},
+    {"xz", ARCHIVE_FILTER_XZ},
+    {"lzma", ARCHIVE_FILTER_LZMA},
+    {"lzip", ARCHIVE_FILTER_LZIP},
+    {"zstd", ARCHIVE_FILTER_ZSTD},
+    {"lz4", ARCHIVE_FILTER_LZ4},
+    {"compress", ARCHIVE_FILTER_COMPRESS},
+    {"uu", ARCHIVE_FILTER_UU},
+  };
+  struct archive *a;
+  size_t i;
+  int r;
+
+  for (i = 0; i < sizeof(filters) / sizeof(filters[0]); i++) {
+    assert((a = archive_read_new()) != NULL);
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_empty(a));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+    r = archive_read_append_filter(a, filters[i].code);
+    if (r < ARCHIVE_WARN) {
+      /* The filter isn't available in this build. */
+      assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+      continue;
+    }
+    failure("%s", filters[i].name);
+    assertEqualIntA(a, ARCHIVE_FATAL,
+        archive_read_open_memory(a, text, sizeof(text) - 1));
+    failure("%s", filters[i].name);
+    assertEqualString("Registered filter does not match",
+        archive_error_string(a));
+    assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+  }
+}
+
 DEFINE_TEST(test_read_append_lzop_filter)
 {
   struct archive *a;
