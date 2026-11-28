@@ -2539,7 +2539,12 @@ get_tmfromtime(struct tm *tm, time_t *t)
 #endif
 }
 
-static void set_date_time_null(unsigned char *);
+static void
+set_date_time_null(unsigned char *p)
+{
+	memset(p, (int)'0', 16);
+	p[16] = 0;
+}
 
 /*
  * Date and Time Format.
@@ -2562,13 +2567,6 @@ set_date_time(unsigned char *p, time_t t)
 	set_digit(p+12, 2, tm.tm_sec);
 	set_digit(p+14, 2, 0);
 	set_num_712(p+16, (char)(get_gmoffset(&tm)/(60*15)));
-}
-
-static void
-set_date_time_null(unsigned char *p)
-{
-	memset(p, (int)'0', 16);
-	p[16] = 0;
 }
 
 static void
