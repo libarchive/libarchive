@@ -142,8 +142,9 @@ struct archive {
 	int		  archive_format;
 	const char	 *archive_format_name;
 
-	/* Number of file entries processed. */
-	int		  file_count;
+	/* Number of file entries processed.  Use a 64-bit counter so that
+	 * incrementing it more than INT_MAX times cannot overflow. */
+	la_int64_t	  file_count;
 
 	int		  archive_error_number;
 	const char	 *error;
