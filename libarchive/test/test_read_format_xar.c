@@ -816,7 +816,7 @@ static void verify(unsigned char *d, size_t s,
 	free(buff);
 }
 
-static void verifyB(unsigned char *d, size_t s) {
+static void verifyB(unsigned char *d, size_t s, int seekable) {
 	struct archive* a;
 	struct archive_entry *entry = NULL;
 	size_t buf_size;
@@ -842,7 +842,10 @@ static void verifyB(unsigned char *d, size_t s) {
 		return;
 	}
 
-	assertA(0 == archive_read_open_memory(a, d, s));
+	if (seekable)
+		assertA(0 == archive_read_open_memory(a, d, s));
+	else
+		assertA(0 == read_open_memory_minimal(a, d, s, s));
 
 	// f1, content "onetwothree\n", size 12 bytes
 	assertA(0 == archive_read_next_header(a, &entry));
@@ -903,7 +906,9 @@ DEFINE_TEST(test_read_format_xar)
 	verify(archive10, sizeof(archive10), verify0, NULL, GZIP);
 	verify(archive11, sizeof(archive11), verify0, NULL, GZIP);
         verify(archive12, sizeof(archive12), verify12, NULL, GZIP);
-	verifyB(archive13, sizeof(archive13));
+	verifyB(archive13, sizeof(archive13), 1);
+	/* Reading only an entry's size must not lose the next header on a stream. */
+	verifyB(archive13, sizeof(archive13), 0);
 }
 
 DEFINE_TEST(test_read_format_xar_xattr_fstype_cleanup)
