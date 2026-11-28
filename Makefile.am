@@ -741,6 +741,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_iso9660_empty.c \
 	libarchive/test/test_write_format_iso9660_filename.c \
 	libarchive/test/test_write_format_iso9660_joliet_id.c \
+	libarchive/test/test_write_format_iso9660_out_of_range_time.c \
 	libarchive/test/test_write_format_iso9660_rockridge.c \
 	libarchive/test/test_write_format_iso9660_rockridge_overflow.c \
 	libarchive/test/test_write_format_iso9660_rr_moved_notdir.c \
