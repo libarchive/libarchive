@@ -29,7 +29,8 @@
 .Nm archive_read_data ,
 .Nm archive_read_data_block ,
 .Nm archive_read_data_skip ,
-.Nm archive_read_data_into_fd
+.Nm archive_read_data_into_fd ,
+.Nm archive_seek_data
 .Nd functions for reading streaming archives
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -48,6 +49,8 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_read_data_skip "struct archive *"
 .Ft int
 .Fn archive_read_data_into_fd "struct archive *" "int fd"
+.Ft la_int64_t
+.Fn archive_seek_data "struct archive *" "la_int64_t offset" "int whence"
 .\"
 .Sh DESCRIPTION
 .Bl -tag -compact -width indent
@@ -96,6 +99,52 @@ if the previous entry was not completely consumed.
 A convenience function that repeatedly calls
 .Fn archive_read_data_block
 to copy the entire entry to the provided file descriptor.
+.It Fn archive_seek_data
+Move to another position in the data of the entry just read, as
+.Xr lseek 2
+does.
+The
+.Fa offset
+is relative to the start of the data of the entry, to the current position,
+or to the end of the data, depending on
+.Fa whence ,
+which is
+.Dv SEEK_SET ,
+.Dv SEEK_CUR
+or
+.Dv SEEK_END .
+The next call to
+.Fn archive_read_data
+or
+.Fn archive_read_data_block
+continues from there.
+The function returns the new position, relative to the start of the data.
+The new position cannot be before the start of the data.
+As with
+.Xr lseek 2 ,
+it can be after the end of the data, where there is nothing to read: the
+next calls to
+.Fn archive_read_data
+and
+.Fn archive_read_data_block
+report the end of the entry.
+.Pp
+Only some entries can be seeked.
+The input must be seekable, and the format must support it.
+At this time, only the entries of a ZIP archive that are stored, which means
+neither compressed nor encrypted, can be seeked, and only if the archive is
+read with
+.Fn archive_read_support_format_zip_seekable
+or
+.Fn archive_read_support_format_zip .
+The RAR reader also supports it, for the stored entries of RAR 4 archives.
+For any other entry the function fails with
+.Cm ARCHIVE_FAILED
+and leaves the position unchanged.
+.Pp
+After seeking in the middle of an entry, the checksum of the entry is not
+verified.
+Seeking back to the start of the entry and reading it all verifies it again.
 .El
 .\"
 .Sh RETURN VALUES
@@ -112,6 +161,14 @@ The possible return codes include:
 and
 .Cm ARCHIVE_FATAL
 (there was a fatal error; the archive should be closed immediately).
+.Pp
+.Fn archive_seek_data
+returns the new position, or
+.Cm ARCHIVE_FAILED
+if the entry cannot be seeked or the new position would be before the start
+of the data, or
+.Cm ARCHIVE_FATAL
+if seeking in the input failed.
 .Pp
 .Fn archive_read_data
 returns a count of bytes actually read or zero at the end of the entry.
