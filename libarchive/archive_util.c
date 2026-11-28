@@ -35,6 +35,9 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -102,11 +105,21 @@ archive_error_string(struct archive *a)
 		return (NULL);
 }
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
 int
+archive_file_count(struct archive *a)
+{
+	if (a->file_count > INT_MAX)
+		return (INT_MAX);
+	return ((int)a->file_count);
+}
+#else
+la_int64_t
 archive_file_count(struct archive *a)
 {
 	return (a->file_count);
 }
+#endif
 
 int
 archive_format(struct archive *a)
