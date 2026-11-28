@@ -2267,7 +2267,7 @@ mtree_entry_exchange_same_entry(struct archive_write *a, struct mtree_entry *np,
     struct mtree_entry *file)
 {
 
-	if ((np->mode & AE_IFMT) != (file->mode & AE_IFMT)) {
+	if (np->filetype != file->filetype) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Found duplicate entries for `%s' with "
 		    "differing file types",
