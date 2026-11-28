@@ -613,6 +613,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_tar_filename.c \
 	libarchive/test/test_read_format_tar_gnu_sparse_map.c \
 	libarchive/test/test_read_format_tar_invalid_pax_size.c \
+	libarchive/test/test_read_format_tar_linkname_on_file.c \
 	libarchive/test/test_read_format_tar_mac_metadata.c \
 	libarchive/test/test_read_format_tar_pax_g_large.c \
 	libarchive/test/test_read_format_tar_pax_global_header.c \
