@@ -4353,6 +4353,47 @@ expose_parent_dirs(struct zip *zip, const char *name, size_t name_length)
 }
 
 static int
+zip_tree_insert(struct archive_read *a, struct zip *zip,
+    struct zip_entry *zip_entry)
+{
+	if (!__archive_rb_tree_insert_node(&zip->tree, &zip_entry->node)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Overlapping ZIP entries");
+		return ARCHIVE_FATAL;
+	}
+	return ARCHIVE_OK;
+}
+
+static int
+zip_check_overlapping_entries(struct archive_read *a, struct zip *zip)
+{
+	struct archive_rb_node *n;
+	const struct zip_entry *prev = NULL;
+
+	ARCHIVE_RB_TREE_FOREACH(n, &zip->tree) {
+		const struct zip_entry *cur = (const struct zip_entry *)n;
+		if (prev != NULL) {
+			if (prev->local_header_offset < 0 ||
+			    prev->compressed_size < 0 ||
+			    prev->local_header_offset >
+			    INT64_MAX - ZIP_LOCHDR_LEN ||
+			    prev->compressed_size >
+			    INT64_MAX - prev->local_header_offset -
+			    ZIP_LOCHDR_LEN ||
+			    prev->local_header_offset + ZIP_LOCHDR_LEN +
+			    prev->compressed_size > cur->local_header_offset) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Overlapping ZIP entries");
+				return ARCHIVE_FATAL;
+			}
+		}
+		prev = cur;
+	}
+	return ARCHIVE_OK;
+}
+
+static int
 slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
     struct zip *zip)
 {
@@ -4518,8 +4559,8 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 		 */
 		if (!zip->process_mac_extensions) {
 			/* Treat every entry as a regular entry. */
-			__archive_rb_tree_insert_node(&zip->tree,
-			    &zip_entry->node);
+			if (zip_tree_insert(a, zip, zip_entry) != ARCHIVE_OK)
+				return ARCHIVE_FATAL;
 		} else {
 			name = p;
 			r = rsrc_basename(name, filename_length);
@@ -4533,8 +4574,9 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 				 * resource fork file to expose it. */
 				if (name[filename_length-1] != '/' &&
 				    (name_end - r < 2 || r[0] != '.' || r[1] != '_')) {
-					__archive_rb_tree_insert_node(
-					    &zip->tree, &zip_entry->node);
+					if (zip_tree_insert(a, zip,
+					    zip_entry) != ARCHIVE_OK)
+						return ARCHIVE_FATAL;
 					/* Expose its parent directories. */
 					expose_parent_dirs(zip, name,
 					    filename_length);
@@ -4570,8 +4612,9 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 				    tmp_length - (r - name));
 				/* Register an entry to RB tree to sort it by
 				 * file offset. */
-				__archive_rb_tree_insert_node(&zip->tree,
-				    &zip_entry->node);
+				if (zip_tree_insert(a, zip,
+				    zip_entry) != ARCHIVE_OK)
+					return ARCHIVE_FATAL;
 			}
 		}
 
@@ -4580,7 +4623,7 @@ slurp_central_directory(struct archive_read *a, struct archive_entry* entry,
 		    filename_length + extra_length + comment_length);
 	}
 
-	return ARCHIVE_OK;
+	return zip_check_overlapping_entries(a, zip);
 }
 
 static ssize_t
