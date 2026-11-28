@@ -140,6 +140,8 @@ archive_acl_clear(struct archive_acl *acl)
 	free(acl->acl_text);
 	acl->acl_text = NULL;
 	acl->acl_p = NULL;
+	acl->acl_tail = NULL;
+	acl->acl_entry_count = 0;
 	acl->acl_types = 0;
 	acl->acl_state = 0; /* Not counting. */
 }
@@ -266,7 +268,7 @@ static struct archive_acl_entry *
 acl_new_entry(struct archive_acl *acl,
     int type, int permset, int tag, int id)
 {
-	struct archive_acl_entry *ap, *aq;
+	struct archive_acl_entry *ap;
 
 	/* Reject an invalid type */
 	switch (type) {
@@ -341,29 +343,31 @@ acl_new_entry(struct archive_acl *acl,
 	 *
 	 * TODO: compare names of no id is provided (needs more rework)
 	 */
-	ap = acl->acl_head;
-	aq = NULL;
-	while (ap != NULL) {
-		if (((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) == 0) &&
-		    ap->type == type && ap->tag == tag && ap->id == id) {
-			if (id != -1 || (tag != ARCHIVE_ENTRY_ACL_USER &&
-			    tag != ARCHIVE_ENTRY_ACL_GROUP)) {
+	if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) == 0 &&
+	    (id != -1 || (tag != ARCHIVE_ENTRY_ACL_USER &&
+	    tag != ARCHIVE_ENTRY_ACL_GROUP))) {
+		ap = acl->acl_head;
+		while (ap != NULL) {
+			if (ap->type == type && ap->tag == tag && ap->id == id) {
 				ap->permset = permset;
 				return (ap);
 			}
+			ap = ap->next;
 		}
-		aq = ap;
-		ap = ap->next;
 	}
 
 	/* Add a new entry to the end of the list. */
+	if (acl->acl_entry_count >= ARCHIVE_ACL_MAX_ENTRIES)
+		return (NULL);
 	ap = calloc(1, sizeof(*ap));
 	if (ap == NULL)
 		return (NULL);
-	if (aq == NULL)
+	if (acl->acl_tail == NULL)
 		acl->acl_head = ap;
 	else
-		aq->next = ap;
+		acl->acl_tail->next = ap;
+	acl->acl_tail = ap;
+	acl->acl_entry_count++;
 	ap->type = type;
 	ap->tag = tag;
 	ap->id = id;
@@ -1257,6 +1261,11 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 			}
 		}
 
+		if (acl->acl_entry_count >= ARCHIVE_ACL_MAX_ENTRIES) {
+			ret = ARCHIVE_WARN;
+			break;
+		}
+
 		/* Add entry to the internal list. */
 		r = archive_acl_add_entry_w_len(acl, type, permset,
 		    tag, id, name.start, name.end - name.start);
@@ -1784,6 +1793,11 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 				ret = ARCHIVE_WARN;
 				continue;
 			}
+		}
+
+		if (acl->acl_entry_count >= ARCHIVE_ACL_MAX_ENTRIES) {
+			ret = ARCHIVE_WARN;
+			break;
 		}
 
 		/* Add entry to the internal list. */

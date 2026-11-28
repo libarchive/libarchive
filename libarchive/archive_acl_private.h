@@ -34,6 +34,8 @@
 
 #include "archive_string.h"
 
+#define	ARCHIVE_ACL_MAX_ENTRIES	16384
+
 struct archive_acl_entry {
 	struct archive_acl_entry *next;
 	int	type;			/* E.g., access or default */
@@ -46,7 +48,9 @@ struct archive_acl_entry {
 struct archive_acl {
 	mode_t		mode;
 	struct archive_acl_entry	*acl_head;
+	struct archive_acl_entry	*acl_tail;
 	struct archive_acl_entry	*acl_p;
+	size_t		 acl_entry_count;
 	int		 acl_state;	/* See acl_next for details. */
 	wchar_t		*acl_text_w;
 	char		*acl_text;
