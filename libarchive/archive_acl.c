@@ -42,7 +42,6 @@
 
 #undef max
 #define	max(a, b)	((a)>(b)?(a):(b))
-#define	ARCHIVE_ACL_MAX_ENTRIES	16384
 
 #ifndef HAVE_WMEMCMP
 /* Good enough for simple equality testing, but not for sorting. */
@@ -1262,6 +1261,11 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 			}
 		}
 
+		if (acl->acl_entry_count >= ARCHIVE_ACL_MAX_ENTRIES) {
+			ret = ARCHIVE_WARN;
+			break;
+		}
+
 		/* Add entry to the internal list. */
 		r = archive_acl_add_entry_w_len(acl, type, permset,
 		    tag, id, name.start, name.end - name.start);
@@ -1789,6 +1793,11 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 				ret = ARCHIVE_WARN;
 				continue;
 			}
+		}
+
+		if (acl->acl_entry_count >= ARCHIVE_ACL_MAX_ENTRIES) {
+			ret = ARCHIVE_WARN;
+			break;
 		}
 
 		/* Add entry to the internal list. */

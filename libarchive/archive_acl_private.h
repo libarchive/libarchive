@@ -34,6 +34,8 @@
 
 #include "archive_string.h"
 
+#define	ARCHIVE_ACL_MAX_ENTRIES	16384
+
 struct archive_acl_entry {
 	struct archive_acl_entry *next;
 	int	type;			/* E.g., access or default */

@@ -1168,7 +1168,12 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for ACL");
-		} else
+		} else if (archive_entry_acl(entry)->acl_entry_count >=
+		    ARCHIVE_ACL_MAX_ENTRIES)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Solaris ACL attribute has more than %d entries; "
+			    "extra entries ignored", ARCHIVE_ACL_MAX_ENTRIES);
+		else
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Malformed Solaris ACL attribute (unparsable)");
 	}
@@ -2383,8 +2388,14 @@ pax_attribute_SCHILY_acl(struct archive_read *a, struct tar *tar,
 			    errstr);
 			return (r);
 		}
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_MISC, "%s %s", "Parse error:", errstr);
+		if (archive_entry_acl(entry)->acl_entry_count >=
+		    ARCHIVE_ACL_MAX_ENTRIES)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "%s has more than %d entries; extra entries ignored",
+			    errstr, ARCHIVE_ACL_MAX_ENTRIES);
+		else
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_MISC, "%s %s", "Parse error:", errstr);
 	}
 	return (r);
 }
