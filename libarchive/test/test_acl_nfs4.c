@@ -212,3 +212,22 @@ DEFINE_TEST(test_acl_nfs4)
 	}
 	archive_entry_free(ae);
 }
+
+DEFINE_TEST(test_acl_nfs4_entry_limit)
+{
+	struct archive_entry *ae;
+	int i, r;
+
+	assert((ae = archive_entry_new()) != NULL);
+	r = ARCHIVE_OK;
+	for (i = 0; i < 100000 && r == ARCHIVE_OK; i++)
+		r = archive_entry_acl_add_entry(ae,
+		    ARCHIVE_ENTRY_ACL_TYPE_ALLOW,
+		    ARCHIVE_ENTRY_ACL_READ_DATA,
+		    ARCHIVE_ENTRY_ACL_USER, i, "user");
+	assertEqualInt(ARCHIVE_FAILED, r);
+	assertEqualInt(16385, i);
+	assertEqualInt(16384, archive_entry_acl_reset(ae,
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
+	archive_entry_free(ae);
+}
