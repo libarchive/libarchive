@@ -34,6 +34,7 @@ struct creation_set;
 struct bsdtar {
 	/* Options */
 	const char	 *filename; /* -f filename */
+	const char	 *stdin_name; /* --stdin-name */
 	char		 *pending_chdir; /* -C dir */
 	const char	 *names_from_file; /* -T file */
 	int		  bytes_per_block; /* -b block_size */
@@ -115,6 +116,7 @@ struct bsdtar {
 #define	OPTFLAG_MAC_METADATA	(0x00400000)	/* --mac-metadata */
 #define	OPTFLAG_NO_READ_SPARSE	(0x00800000)    /* --no-read-sparse */
 #define	OPTFLAG_READ_SPARSE		(0x01000000)    /* --read-sparse */
+#define	OPTFLAG_TRUST_EXTENSION (0x02000000)	/* --trust-extension */
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
@@ -170,8 +172,10 @@ enum {
 	OPTION_READ_SPARSE,
 	OPTION_SAFE_WRITES,
 	OPTION_SAME_OWNER,
+	OPTION_STDIN_NAME,
 	OPTION_STRIP_COMPONENTS,
 	OPTION_TOTALS,
+	OPTION_TRUST_EXTENSION,
 	OPTION_UID,
 	OPTION_UNAME,
 	OPTION_USE_COMPRESS_PROGRAM,
