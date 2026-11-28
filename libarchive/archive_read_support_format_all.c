@@ -58,6 +58,7 @@ archive_read_support_format_all(struct archive *a)
 	archive_read_support_format_empty(a);
 	archive_read_support_format_lha(a);
 	archive_read_support_format_mtree(a);
+	archive_read_support_format_rpm(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_xar(a);
 	archive_read_support_format_warc(a);
