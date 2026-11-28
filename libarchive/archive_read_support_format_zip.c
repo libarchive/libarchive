@@ -4023,8 +4023,7 @@ archive_read_format_zip_read_data_skip_streamable(struct archive_read *a)
 		return (ARCHIVE_OK);
 
 	/* So we know we're streaming... */
-	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)
-	    || zip->entry->compressed_size > 0) {
+	if (0 == (zip->entry->zip_flags & ZIP_LENGTH_AT_END)) {
 		/* We know the compressed length, so we can just skip. */
 		bytes_skipped = __archive_read_consume(a,
 					zip->entry_bytes_remaining);
