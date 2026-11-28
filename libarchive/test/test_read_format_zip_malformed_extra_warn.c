@@ -1,0 +1,497 @@
+/*-
+ * Copyright (c) 2026 François Degros
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+#include "test.h"
+
+/*
+ * Regression tests for https://github.com/libarchive/libarchive/issues/1162:
+ * a malformed ZIP extra field must surface as ARCHIVE_WARN (or, at worst,
+ * be silently skipped), never escalate to ARCHIVE_FATAL. Before this fix,
+ * process_extra() returning anything but ARCHIVE_OK made both of its
+ * callers return ARCHIVE_FATAL, which kills the entire archive_read
+ * object - not just the one malformed entry. That's a real liability for
+ * any tool (a malware/content scanner, for instance) that depends on
+ * libarchive being able to open and enumerate an archive's entries: a
+ * single self-contradictory extra field anywhere in the file could be
+ * used to make the whole archive unreadable.
+ *
+ * Both archives below carry one entry ("test.txt") with an extra field
+ * that claims 200 bytes of data while only 4 are actually present - the
+ * same "Extra data overflow" shape reported in issue #1162 - but placed
+ * in a different header to exercise each of process_extra()'s two call
+ * sites:
+ *   - malformed_local:   only the Local Header carries it, so it's
+ *     re-parsed by zip_read_local_file_header() while returning this
+ *     specific entry: archive_read_next_header() must return
+ *     ARCHIVE_WARN (not ARCHIVE_FATAL), and the entry must still be
+ *     fully readable.
+ *   - malformed_central: only the Central Directory carries it, so it's
+ *     hit during slurp_central_directory()'s upfront prescan of every
+ *     entry, before any single entry has been returned to the caller:
+ *     the prescan must not abort the whole archive just because one
+ *     entry's Central Directory extra field is malformed.
+ *
+ * A third archive (malformed_extra_then_valid, below) checks a related
+ * but distinct guarantee: a malformed field must not prevent the extra
+ * fields that come *after* it in the same entry from being parsed either.
+ */
+
+/* Malformed only in the Local Header. */
+static const unsigned char archive_malformed_extra_local[] = {
+/* --- local file header --- */
+	0x50, 0x4b, 0x03, 0x04, /* local file header signature */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x08, 0x00,             /* extra field length = 8 (malformed - see below) */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x99, 0x99,             /* extra field ID = 0x9999 (arbitrary/unrecognized) */
+	0xc8, 0x00,             /* extra field size = 200 (claimed - see below) */
+	0xaa, 0xaa, 0xaa, 0xaa, /* only 4 bytes actually present: malformed */
+/* --- file data --- */
+	0x68, 0x69, 0x0a,       /* "hi\n" */
+/* --- central directory header --- */
+	0x50, 0x4b, 0x01, 0x02, /* central directory header signature */
+	0x14, 0x00,             /* version made by: 2.0, MS-DOS */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x00, 0x00,             /* extra field length = 0 (no extra field here) */
+	0x00, 0x00,             /* file comment length */
+	0x00, 0x00,             /* disk number start */
+	0x00, 0x00,             /* internal file attributes */
+	0x00, 0x00, 0xa4, 0x81, /* external file attributes: -rw-r--r-- */
+	0x00, 0x00, 0x00, 0x00, /* relative offset of local header = 0 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+/* --- end of central directory record --- */
+	0x50, 0x4b, 0x05, 0x06, /* end of central directory signature */
+	0x00, 0x00,             /* number of this disk */
+	0x00, 0x00,             /* disk with start of central directory */
+	0x01, 0x00,             /* central directory entries on this disk */
+	0x01, 0x00,             /* total central directory entries */
+	0x36, 0x00, 0x00, 0x00, /* size of central directory = 54 */
+	0x31, 0x00, 0x00, 0x00, /* offset of central directory = 49 */
+	0x00, 0x00,             /* .ZIP file comment length */
+};
+
+DEFINE_TEST(test_read_format_zip_malformed_extra_warn_local)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	const void *buff;
+	size_t size;
+	int64_t offset;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive_malformed_extra_local,
+		sizeof(archive_malformed_extra_local)));
+
+	/* A malformed extra field is a warning, not a fatal error: the
+	 * entry is still returned, with everything the Local Header could
+	 * establish outside of that one field. */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString("test.txt", archive_entry_pathname(ae));
+	assertEqualInt(3, archive_entry_size(ae));
+
+	/* The archive_read object must still be usable: entry data can
+	 * still be extracted, and the object can still be closed cleanly -
+	 * neither would be true if this had escalated to ARCHIVE_FATAL. */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &buff, &size, &offset));
+	assertEqualInt(3, (int)size);
+	assertEqualMem(buff, "hi\n", 3);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/* Malformed only in the Central Directory. */
+static const unsigned char archive_malformed_extra_central[] = {
+/* --- local file header --- */
+	0x50, 0x4b, 0x03, 0x04, /* local file header signature */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x00, 0x00,             /* extra field length = 0 (no extra field here) */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+/* --- file data --- */
+	0x68, 0x69, 0x0a,       /* "hi\n" */
+/* --- central directory header --- */
+	0x50, 0x4b, 0x01, 0x02, /* central directory header signature */
+	0x14, 0x00,             /* version made by: 2.0, MS-DOS */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x08, 0x00,             /* extra field length = 8 (malformed - see below) */
+	0x00, 0x00,             /* file comment length */
+	0x00, 0x00,             /* disk number start */
+	0x00, 0x00,             /* internal file attributes */
+	0x00, 0x00, 0xa4, 0x81, /* external file attributes: -rw-r--r-- */
+	0x00, 0x00, 0x00, 0x00, /* relative offset of local header = 0 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x99, 0x99,             /* extra field ID = 0x9999 (arbitrary/unrecognized) */
+	0xc8, 0x00,             /* extra field size = 200 (claimed - see below) */
+	0xaa, 0xaa, 0xaa, 0xaa, /* only 4 bytes actually present: malformed */
+/* --- end of central directory record --- */
+	0x50, 0x4b, 0x05, 0x06, /* end of central directory signature */
+	0x00, 0x00,             /* number of this disk */
+	0x00, 0x00,             /* disk with start of central directory */
+	0x01, 0x00,             /* central directory entries on this disk */
+	0x01, 0x00,             /* total central directory entries */
+	0x3e, 0x00, 0x00, 0x00, /* size of central directory = 62 */
+	0x29, 0x00, 0x00, 0x00, /* offset of central directory = 41 */
+	0x00, 0x00,             /* .ZIP file comment length */
+};
+
+DEFINE_TEST(test_read_format_zip_malformed_extra_warn_central)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	const void *buff;
+	size_t size;
+	int64_t offset;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive_malformed_extra_central,
+		sizeof(archive_malformed_extra_central)));
+
+	/* Before the fix, this malformed field was hit during the
+	 * up-front Central Directory prescan, before any entry had been
+	 * returned at all: archive_read_next_header() for the very FIRST
+	 * entry would return ARCHIVE_FATAL here, with no way to recover.
+	 * It must now open the entry normally. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("test.txt", archive_entry_pathname(ae));
+	assertEqualInt(3, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_data_block(a, &buff, &size, &offset));
+	assertEqualInt(3, (int)size);
+	assertEqualMem(buff, "hi\n", 3);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * A malformed extra field must not prevent the fields that come after it
+ * (in the same entry's extra data) from being parsed. Here the Local
+ * Header's extra data has a malformed 0x5455 "UT" field (claims to be an
+ * extended-time field but has zero bytes of data, so there's no flags
+ * byte to even say which timestamps it carries) immediately followed by
+ * a well-formed 0x000A "NTFS" field. Before this fix, hitting the
+ * malformed UT field made process_extra() return immediately, so the
+ * NTFS field right after it was never even looked at.
+ */
+static const unsigned char archive_malformed_extra_then_valid[] = {
+/* --- local file header --- */
+	0x50, 0x4b, 0x03, 0x04, /* local file header signature */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x28, 0x00,             /* extra field length = 40 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+/* extra field 0x5455 "UT": malformed (zero bytes of data) */
+	0x55, 0x54,             /* extra field ID = 0x5455 */
+	0x00, 0x00,             /* extra field size = 0: malformed */
+/* extra field 0x000a "NTFS": well-formed, must still be parsed */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x20, 0x00,             /* extra field size = 32 */
+	0x00, 0x00, 0x00, 0x00, /* reserved */
+	0x01, 0x00,             /* NTFS attribute tag 1 */
+	0x18, 0x00,             /* NTFS attribute 1 size */
+	0x40, 0x42, 0x7c, 0xc6, 0x47, 0x17, 0xda, 0x01, /* Mtime -> 1700000000.100000000 */
+	0x80, 0x4e, 0x26, 0x02, 0x48, 0x17, 0xda, 0x01, /* Atime -> 1700000100.200000000 */
+	0xc0, 0x5a, 0xd0, 0x3d, 0x48, 0x17, 0xda, 0x01, /* Ctime -> 1700000200.300000000 (-> birthtime) */
+/* --- file data --- */
+	0x68, 0x69, 0x0a,       /* "hi\n" */
+/* --- central directory header --- */
+	0x50, 0x4b, 0x01, 0x02, /* central directory header signature */
+	0x14, 0x00,             /* version made by: 2.0, MS-DOS */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x28, 0x00,             /* extra field length = 40 */
+	0x00, 0x00,             /* file comment length */
+	0x00, 0x00,             /* disk number start */
+	0x00, 0x00,             /* internal file attributes */
+	0x00, 0x00, 0xa4, 0x81, /* external file attributes: -rw-r--r-- */
+	0x00, 0x00, 0x00, 0x00, /* relative offset of local header = 0 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+/* extra field 0x5455 "UT": malformed (zero bytes of data) */
+	0x55, 0x54,             /* extra field ID = 0x5455 */
+	0x00, 0x00,             /* extra field size = 0: malformed */
+/* extra field 0x000a "NTFS": well-formed, must still be parsed */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x20, 0x00,             /* extra field size = 32 */
+	0x00, 0x00, 0x00, 0x00, /* reserved */
+	0x01, 0x00,             /* NTFS attribute tag 1 */
+	0x18, 0x00,             /* NTFS attribute 1 size */
+	0x40, 0x42, 0x7c, 0xc6, 0x47, 0x17, 0xda, 0x01, /* Mtime -> 1700000000.100000000 */
+	0x80, 0x4e, 0x26, 0x02, 0x48, 0x17, 0xda, 0x01, /* Atime -> 1700000100.200000000 */
+	0xc0, 0x5a, 0xd0, 0x3d, 0x48, 0x17, 0xda, 0x01, /* Ctime -> 1700000200.300000000 (-> birthtime) */
+/* --- end of central directory record --- */
+	0x50, 0x4b, 0x05, 0x06, /* end of central directory signature */
+	0x00, 0x00,             /* number of this disk */
+	0x00, 0x00,             /* disk with start of central directory */
+	0x01, 0x00,             /* central directory entries on this disk */
+	0x01, 0x00,             /* total central directory entries */
+	0x5e, 0x00, 0x00, 0x00, /* size of central directory = 94 */
+	0x51, 0x00, 0x00, 0x00, /* offset of central directory = 81 */
+	0x00, 0x00,             /* .ZIP file comment length */
+};
+
+DEFINE_TEST(test_read_format_zip_malformed_extra_warn_then_valid)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive_malformed_extra_then_valid,
+		sizeof(archive_malformed_extra_then_valid)));
+
+	/* The malformed UT field still produces a warning ... */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString("test.txt", archive_entry_pathname(ae));
+
+	/* ... but the well-formed NTFS field right after it was still
+	 * parsed: its precise timestamps made it through. */
+	assertEqualInt(1700000000LL, archive_entry_mtime(ae));
+	assertEqualInt(100000000L, archive_entry_mtime_nsec(ae));
+	assertEqualInt(1700000100LL, archive_entry_atime(ae));
+	assertEqualInt(200000000L, archive_entry_atime_nsec(ae));
+	assert(archive_entry_birthtime_is_set(ae));
+	assertEqualInt(1700000200LL, archive_entry_birthtime(ae));
+	assertEqualInt(300000000L, archive_entry_birthtime_nsec(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * The NTFS (0x000A) extra field parses its own Tag/Size/Data attribute
+ * blocks in an inner loop that, unlike every other extra field type
+ * above, used to stay completely silent when that inner data was
+ * malformed: it would just stop looking at further attributes without
+ * ever recording a warning. These two archives cover its two silent
+ * malformation paths: too few bytes for even the mandatory 4-byte
+ * reserved header, and a tag/size pair whose declared size overflows
+ * what's actually left in the field.
+ */
+
+/* NTFS field with datasize=0: too short for the 4-byte reserved header. */
+static const unsigned char archive_ntfs_too_short[] = {
+/* --- local file header --- */
+	0x50, 0x4b, 0x03, 0x04, /* local file header signature */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x04, 0x00,             /* extra field length = 4 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x00, 0x00,             /* extra field size = 0: too short */
+/* --- file data --- */
+	0x68, 0x69, 0x0a,       /* "hi\n" */
+/* --- central directory header --- */
+	0x50, 0x4b, 0x01, 0x02, /* central directory header signature */
+	0x14, 0x00,             /* version made by: 2.0, MS-DOS */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x04, 0x00,             /* extra field length = 4 */
+	0x00, 0x00,             /* file comment length */
+	0x00, 0x00,             /* disk number start */
+	0x00, 0x00,             /* internal file attributes */
+	0x00, 0x00, 0xa4, 0x81, /* external file attributes: -rw-r--r-- */
+	0x00, 0x00, 0x00, 0x00, /* relative offset of local header = 0 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x00, 0x00,             /* extra field size = 0: too short */
+/* --- end of central directory record --- */
+	0x50, 0x4b, 0x05, 0x06, /* end of central directory signature */
+	0x00, 0x00,             /* number of this disk */
+	0x00, 0x00,             /* disk with start of central directory */
+	0x01, 0x00,             /* central directory entries on this disk */
+	0x01, 0x00,             /* total central directory entries */
+	0x3a, 0x00, 0x00, 0x00, /* size of central directory = 58 */
+	0x2d, 0x00, 0x00, 0x00, /* offset of central directory = 45 */
+	0x00, 0x00,             /* .ZIP file comment length */
+};
+
+DEFINE_TEST(test_read_format_zip_malformed_ntfs_too_short)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive_ntfs_too_short,
+		sizeof(archive_ntfs_too_short)));
+
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString("test.txt", archive_entry_pathname(ae));
+	assertEqualInt(3, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/* NTFS field with a Tag/Size pair whose declared size (100) overflows
+ * the 0 bytes actually left after the 4-byte reserved header. */
+static const unsigned char archive_ntfs_attr_overflow[] = {
+/* --- local file header --- */
+	0x50, 0x4b, 0x03, 0x04, /* local file header signature */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x0c, 0x00,             /* extra field length = 12 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x08, 0x00,             /* extra field size = 8 */
+	0x00, 0x00, 0x00, 0x00, /* reserved */
+	0x01, 0x00,             /* attribute tag = 1 */
+	0x64, 0x00,             /* attribute size = 100: overflow */
+/* --- file data --- */
+	0x68, 0x69, 0x0a,       /* "hi\n" */
+/* --- central directory header --- */
+	0x50, 0x4b, 0x01, 0x02, /* central directory header signature */
+	0x14, 0x00,             /* version made by: 2.0, MS-DOS */
+	0x14, 0x00,             /* version needed to extract: 2.0 */
+	0x00, 0x00,             /* general purpose bit flag */
+	0x00, 0x00,             /* compression method: stored */
+	0x00, 0x00,             /* last mod file time */
+	0x21, 0x00,             /* last mod file date */
+	0x7a, 0x7a, 0x6f, 0xed, /* CRC-32 = 0xed6f7a7a */
+	0x03, 0x00, 0x00, 0x00, /* compressed size = 3 */
+	0x03, 0x00, 0x00, 0x00, /* uncompressed size = 3 */
+	0x08, 0x00,             /* file name length = 8 */
+	0x0c, 0x00,             /* extra field length = 12 */
+	0x00, 0x00,             /* file comment length */
+	0x00, 0x00,             /* disk number start */
+	0x00, 0x00,             /* internal file attributes */
+	0x00, 0x00, 0xa4, 0x81, /* external file attributes: -rw-r--r-- */
+	0x00, 0x00, 0x00, 0x00, /* relative offset of local header = 0 */
+	0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78, 0x74, /* "test.txt" */
+	0x0a, 0x00,             /* extra field ID = 0x000a */
+	0x08, 0x00,             /* extra field size = 8 */
+	0x00, 0x00, 0x00, 0x00, /* reserved */
+	0x01, 0x00,             /* attribute tag = 1 */
+	0x64, 0x00,             /* attribute size = 100: overflow */
+/* --- end of central directory record --- */
+	0x50, 0x4b, 0x05, 0x06, /* end of central directory signature */
+	0x00, 0x00,             /* number of this disk */
+	0x00, 0x00,             /* disk with start of central directory */
+	0x01, 0x00,             /* central directory entries on this disk */
+	0x01, 0x00,             /* total central directory entries */
+	0x42, 0x00, 0x00, 0x00, /* size of central directory = 66 */
+	0x35, 0x00, 0x00, 0x00, /* offset of central directory = 53 */
+	0x00, 0x00,             /* .ZIP file comment length */
+};
+
+DEFINE_TEST(test_read_format_zip_malformed_ntfs_attr_overflow)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_zip_seekable(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive_ntfs_attr_overflow,
+		sizeof(archive_ntfs_attr_overflow)));
+
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString("test.txt", archive_entry_pathname(ae));
+	assertEqualInt(3, archive_entry_size(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
