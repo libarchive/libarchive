@@ -97,6 +97,9 @@ again:
 		/* Doesn't start with '-', so no more options. */
 		if (bsdunzip->argv[0][0] != '-')
 			return (-1);
+		/* A lone "-" is the archive name (stdin), not an option. */
+		if (bsdunzip->argv[0][1] == '\0')
+			return (-1);
 		/* "--" marks end of options; consume it and return. */
 		if (strcmp(bsdunzip->argv[0], "--") == 0) {
 			++bsdunzip->argv;
