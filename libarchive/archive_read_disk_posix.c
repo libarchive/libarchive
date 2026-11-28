@@ -201,6 +201,7 @@ struct filesystem {
 #define	needsDescent	8  /* This entry needs to be previsited. */
 #define	needsOpen	16 /* This is a directory that needs to be opened. */
 #define	needsAscent	32 /* This entry needs to be postvisited. */
+#define	isFollowedLink	64
 
 /*
  * Local data for this package.
@@ -373,6 +374,8 @@ static int	setup_sparse(struct archive_read_disk *, struct archive_entry *);
 static int	close_and_restore_time(int fd, struct tree *,
 		    struct restore_time *);
 static int	open_on_current_dir(struct tree *, const char *, int);
+static int	open_on_current_dir_verified(struct tree *, const char *, int,
+    int64_t, int64_t);
 static int	tree_dup(int);
 
 
@@ -714,6 +717,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	 */
 	if (t->entry_fd < 0) {
 		int flags = O_RDONLY | O_BINARY | O_CLOEXEC;
+		const struct stat *st;
 
 		/*
 		 * Eliminate or reduce cache effects if we can.
@@ -733,8 +737,14 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		    t->restore_time.noatime == 0)
 			flags |= O_NOATIME;
 #endif
-		t->entry_fd = open_on_current_dir(t,
-		    tree_current_access_path(t), flags);
+		st = a->follow_symlinks ? &t->st : &t->lst;
+#if defined(O_NOFOLLOW)
+		if (!a->follow_symlinks)
+			flags |= O_NOFOLLOW;
+#endif
+		t->entry_fd = open_on_current_dir_verified(t,
+		    tree_current_access_path(t), flags,
+		    (int64_t)st->st_dev, (int64_t)st->st_ino);
 		__archive_ensure_cloexec_flag(t->entry_fd);
 #if defined(O_NOATIME)
 		/*
@@ -1005,10 +1015,16 @@ next_entry(struct archive_read_disk *a, struct tree *t,
        defined(HAVE_WORKING_EXT2_IOC_GETFLAGS))
 		if (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) {
 			int stflags;
+			int open_flags;
 
-			t->entry_fd = open_on_current_dir(t,
-			    tree_current_access_path(t),
-			    O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+			open_flags = O_RDONLY | O_NONBLOCK | O_CLOEXEC;
+#if defined(O_NOFOLLOW)
+			if (!a->follow_symlinks)
+				open_flags |= O_NOFOLLOW;
+#endif
+			t->entry_fd = open_on_current_dir_verified(t,
+			    tree_current_access_path(t), open_flags,
+			    (int64_t)st->st_dev, (int64_t)st->st_ino);
 			__archive_ensure_cloexec_flag(t->entry_fd);
 			if (t->entry_fd >= 0) {
 				r = ioctl(t->entry_fd,
@@ -1317,7 +1333,7 @@ archive_read_disk_descend(struct archive *_a)
 	} else if (tree_current_is_dir(t)) {
 		tree_push(t, t->basename, t->current_filesystem_id,
 		    t->st.st_dev, t->st.st_ino, &t->restore_time);
-		t->stack->flags |= isDirLink;
+		t->stack->flags |= isDirLink | isFollowedLink;
 	}
 	t->descend = 0;
 	return (ARCHIVE_OK);
@@ -2015,6 +2031,39 @@ open_on_current_dir(struct tree *t, const char *path, int flags)
 }
 
 static int
+open_on_current_dir_verified(struct tree *t, const char *path, int flags,
+    int64_t dev, int64_t ino)
+{
+	int fd;
+
+	fd = open_on_current_dir(t, path, flags);
+	if (fd < 0)
+		return (-1);
+#if HAVE_FSTAT
+	{
+		struct stat st;
+		int error;
+
+		if (fstat(fd, &st) != 0) {
+			error = errno;
+			close(fd);
+			errno = error;
+			return (-1);
+		}
+		if ((int64_t)st.st_dev != dev || (int64_t)st.st_ino != ino) {
+			close(fd);
+			errno = EIO;
+			return (-1);
+		}
+	}
+#else
+	(void)dev;
+	(void)ino;
+#endif
+	return (fd);
+}
+
+static int
 tree_dup(int fd)
 {
 	int new_fd;
@@ -2173,7 +2222,12 @@ tree_descent(struct tree *t)
 #if defined(O_DIRECTORY)
 	flag |= O_DIRECTORY;
 #endif
-	new_fd = open_on_current_dir(t, t->stack->name.s, flag);
+#if defined(O_NOFOLLOW)
+	if ((t->stack->flags & isFollowedLink) == 0)
+		flag |= O_NOFOLLOW;
+#endif
+	new_fd = open_on_current_dir_verified(t, t->stack->name.s, flag,
+	    t->stack->dev, t->stack->ino);
 	__archive_ensure_cloexec_flag(new_fd);
 	if (new_fd < 0) {
 		t->tree_errno = errno;
